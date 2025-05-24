@@ -55,11 +55,11 @@ public struct PrettyPrinter {
         case .identifier(let name):
             return name
 
-        case .binary(let op, let left, let right):
-            return printBinaryExpression(op, left, right)
+        case .binary(let binaryOp, let left, let right):
+            return printBinaryExpression(binaryOp, left, right)
 
-        case .unary(let op, let expr):
-            return printUnaryExpression(op, expr)
+        case .unary(let unaryOp, let expr):
+            return printUnaryExpression(unaryOp, expr)
 
         case .arrayAccess(let array, let index):
             return "\(printExpression(array))[\(printExpression(index))]"
@@ -115,30 +115,30 @@ public struct PrettyPrinter {
         }
     }
 
-    private func printBinaryExpression(_ op: BinaryOperator, _ left: Expression, _ right: Expression) -> String {
-        let leftStr = printExpressionWithParentheses(left, parentPrecedence: op.precedence, isLeft: true)
-        let rightStr = printExpressionWithParentheses(right, parentPrecedence: op.precedence, isLeft: false)
-        return "\(leftStr) \(op.rawValue) \(rightStr)"
+    private func printBinaryExpression(_ binaryOp: BinaryOperator, _ left: Expression, _ right: Expression) -> String {
+        let leftStr = printExpressionWithParentheses(left, parentPrecedence: binaryOp.precedence, isLeft: true)
+        let rightStr = printExpressionWithParentheses(right, parentPrecedence: binaryOp.precedence, isLeft: false)
+        return "\(leftStr) \(binaryOp.rawValue) \(rightStr)"
     }
 
-    private func printUnaryExpression(_ op: UnaryOperator, _ expr: Expression) -> String {
-        let exprStr = printExpressionWithParentheses(expr, parentPrecedence: op.precedence, isLeft: false)
-        return "\(op.rawValue)\(exprStr)"
+    private func printUnaryExpression(_ unaryOp: UnaryOperator, _ expr: Expression) -> String {
+        let exprStr = printExpressionWithParentheses(expr, parentPrecedence: unaryOp.precedence, isLeft: false)
+        return "\(unaryOp.rawValue)\(exprStr)"
     }
 
     private func printExpressionWithParentheses(_ expr: Expression, parentPrecedence: Int, isLeft: Bool) -> String {
         let needsParentheses: Bool
 
         switch expr {
-        case .binary(let op, _, _):
+        case .binary(let binaryOp, _, _):
             // Add parentheses if this operator has lower precedence than parent
             // or if it has equal precedence and is right-associative on the right side
-            needsParentheses = op.precedence < parentPrecedence ||
-                              (op.precedence == parentPrecedence && !isLeft && !op.isLeftAssociative)
+            needsParentheses = binaryOp.precedence < parentPrecedence ||
+                              (binaryOp.precedence == parentPrecedence && !isLeft && !binaryOp.isLeftAssociative)
 
-        case .unary(let op, _):
+        case .unary(let unaryOp, _):
             // Unary operators have high precedence, rarely need parentheses
-            needsParentheses = op.precedence < parentPrecedence
+            needsParentheses = unaryOp.precedence < parentPrecedence
 
         default:
             needsParentheses = false
@@ -301,14 +301,11 @@ public struct PrettyPrinter {
                 hasContent = true
             }
             result += bodyStr + "\n"
-        } else if hasContent {
-            // Remove trailing newline if we have local vars but no body
-            // (the local vars already added their newlines)
-        } else {
-            // No content at all, don't add any newlines
         }
 
-        result += "\(hasContent ? "" : "\n")\(indentStr)endfunction"
+        // Add a newline before 'endfunction' if there is no content in the function body.
+        let newlineBeforeEnd = hasContent ? "" : "\n"
+        result += "\(newlineBeforeEnd)\(indentStr)endfunction"
         return result
     }
 
@@ -337,14 +334,11 @@ public struct PrettyPrinter {
                 hasContent = true
             }
             result += bodyStr + "\n"
-        } else if hasContent {
-            // Remove trailing newline if we have local vars but no body
-            // (the local vars already added their newlines)
-        } else {
-            // No content at all, don't add any newlines
         }
 
-        result += "\(hasContent ? "" : "\n")\(indentStr)endprocedure"
+        // Add a newline before 'endprocedure' if there is no content in the procedure body.
+        let newlineBeforeEnd = hasContent ? "" : "\n"
+        result += "\(newlineBeforeEnd)\(indentStr)endprocedure"
         return result
     }
 
