@@ -1,3 +1,5 @@
+import Foundation
+
 /// Represents an expression in FE pseudo-language.
 public indirect enum Expression: Equatable, Codable, Sendable {
     // Primary expressions
@@ -49,13 +51,11 @@ extension Literal: Codable {
         if let value = dict["integer"]?.value as? Int {
             self = .integer(value)
         } else if let realValue = dict["real"]?.value {
-            // Extract real value once to avoid redundant lookups
-            if let value = realValue as? Double {
-                self = .real(value)
-            } else if let intValue = realValue as? Int {
-                // Handle case where JSON encodes 0.0 as 0 (Int instead of Double)
-                self = .real(Double(intValue))
+            if let num = realValue as? NSNumber {
+                // Use NSNumber to handle both Double and Int cases
+                self = .real(num.doubleValue)
             } else {
+                // Handle case where real value exists but is not a valid number
                 let actualType = type(of: realValue)
                 throw DecodingError.dataCorrupted(.init(
                     codingPath: decoder.codingPath,
