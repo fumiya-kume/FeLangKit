@@ -67,7 +67,6 @@ jobs:
   test:
     name: Unit Tests
     runs-on: macos-15
-    needs: build
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -82,12 +81,6 @@ jobs:
           restore-keys: |
             swiftpm-debug-${{ runner.os }}-
             swiftpm-${{ runner.os }}-
-
-      - name: Download debug build
-        uses: actions/download-artifact@v4
-        with:
-          name: debug-build
-          path: .build/debug/
 
       - name: Resolve dependencies
         run: swift package resolve
