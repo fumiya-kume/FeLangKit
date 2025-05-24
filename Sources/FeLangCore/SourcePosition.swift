@@ -6,14 +6,14 @@ public struct SourcePosition: Equatable, Codable, Sendable {
     /// The column number (1-indexed)
     public let column: Int
 
-    /// The byte offset from the start of the source (0-indexed)
+    /// The scalar offset (count of Unicode scalars) from the start of the source (0-indexed)
     public let offset: Int
 
     /// Creates a new source position.
     /// - Parameters:
     ///   - line: The line number (1-indexed)
     ///   - column: The column number (1-indexed)
-    ///   - offset: The byte offset from the start (0-indexed)
+    ///   - offset: The scalar offset (count of Unicode scalars) from the start (0-indexed)
     public init(line: Int, column: Int, offset: Int) {
         self.line = line
         self.column = column
