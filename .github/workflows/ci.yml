@@ -9,75 +9,95 @@ on:
 jobs:
   lint:
     name: SwiftLint
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Install SwiftLint
-        run: brew install swiftlint
+      - name: Cache SwiftLint
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/swiftlint
+          key: swiftlint-${{ runner.os }}
 
-      - name: SwiftLint Auto Fix
-        run: swiftlint autocorrect
+      - name: Install SwiftLint
+        run: |
+          if ! command -v swiftlint &> /dev/null; then
+            brew install swiftlint
+          fi
 
       - name: Run SwiftLint
         run: swiftlint lint --strict --quiet --reporter github-actions-logging
 
   build:
-    name: Build
-    runs-on: macos-latest
+    name: Build (${{ matrix.configuration }})
+    runs-on: macos-15
+    strategy:
+      matrix:
+        configuration: [debug, release]
+      fail-fast: false  # Don't cancel other builds if one fails
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up cache
+      - name: Cache dependencies
         uses: actions/cache@v4
         with:
           path: |
             .build
             .swiftpm
-          key: swiftpm-build-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          key: swiftpm-${{ matrix.configuration }}-${{ runner.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
           restore-keys: |
-            swiftpm-build-${{ runner.os }}-
-
-      - name: Setup Swift 6.0
-        uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: "6.0"
+            swiftpm-${{ matrix.configuration }}-${{ runner.os }}-
+            swiftpm-${{ runner.os }}-
 
       - name: Resolve dependencies
         run: swift package resolve
 
-      - name: Build Debug
-        run: swift build --configuration debug
+      - name: Build ${{ matrix.configuration }}
+        run: swift build --configuration ${{ matrix.configuration }}
 
-      - name: Build Release
-        run: swift build --configuration release
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.configuration }}-build
+          path: .build/${{ matrix.configuration }}/
+          retention-days: ${{ matrix.configuration == 'release' && 7 || 1 }}
 
   test:
     name: Unit Tests
-    runs-on: macos-latest
+    runs-on: macos-15
+    needs: build
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up cache
+      - name: Cache dependencies
         uses: actions/cache@v4
         with:
           path: |
             .build
             .swiftpm
-          key: swiftpm-test-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          key: swiftpm-debug-${{ runner.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
           restore-keys: |
-            swiftpm-test-${{ runner.os }}-
+            swiftpm-debug-${{ runner.os }}-
+            swiftpm-${{ runner.os }}-
 
-      - name: Setup Swift 6.0
-        uses: swift-actions/setup-swift@v2
+      - name: Download debug build
+        uses: actions/download-artifact@v4
         with:
-          swift-version: "6.0"
+          name: debug-build
+          path: .build/debug/
 
       - name: Resolve dependencies
         run: swift package resolve
 
       - name: Run tests
         run: swift test --enable-code-coverage
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: .build/debug/codecov/
+          retention-days: 7
