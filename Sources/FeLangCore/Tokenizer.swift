@@ -1,3 +1,4 @@
+// swiftlint:disable cyclomatic_complexity
 import Foundation
 
 /// A tokenizer for FE pseudo-language that converts source code into tokens.
