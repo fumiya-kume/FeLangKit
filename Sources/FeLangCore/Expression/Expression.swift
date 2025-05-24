@@ -51,8 +51,12 @@ extension Literal: Codable {
         if let value = dict["integer"]?.value as? Int {
             self = .integer(value)
         } else if let realValue = dict["real"]?.value {
-            if let num = realValue as? NSNumber {
-                // Use NSNumber to handle both Double and Int cases
+            if let doubleValue = realValue as? Double {
+                self = .real(doubleValue)
+            } else if let intValue = realValue as? Int {
+                self = .real(Double(intValue))
+            } else if let num = realValue as? NSNumber {
+                // Use NSNumber to handle other numeric cases
                 self = .real(num.doubleValue)
             } else {
                 // Handle case where real value exists but is not a valid number
