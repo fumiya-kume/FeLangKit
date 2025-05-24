@@ -149,15 +149,26 @@ public struct ParsingTokenizer {
     }
 
     private func parseKeyword(from input: String, at index: inout String.Index) -> TokenData? {
-        for (keyword, tokenType) in TokenizerUtilities.keywords where TokenizerUtilities.matchString(keyword, in: input, at: index) {
-            // Check if it's a complete word (not part of identifier)
-            let endIndex = input.index(index, offsetBy: keyword.count)
-            if TokenizerUtilities.isValidKeywordBoundary(in: input, at: endIndex) {
-                index = endIndex
-                return TokenData(type: tokenType, lexeme: keyword)
-            }
+        // First, extract the potential identifier/keyword
+        guard index < input.endIndex && TokenizerUtilities.isIdentifierStart(input[index]) else { return nil }
+
+        let start = index
+        index = input.index(after: index)
+
+        // Read remaining identifier characters
+        while index < input.endIndex && TokenizerUtilities.isIdentifierContinue(input[index]) {
+            index = input.index(after: index)
         }
 
+        let lexeme = String(input[start..<index])
+
+        // Use O(1) lookup to check if it's a keyword
+        if let tokenType = TokenizerUtilities.keywordMap[lexeme] {
+            return TokenData(type: tokenType, lexeme: lexeme)
+        }
+
+        // Not a keyword, reset index and return nil so parseIdentifier can handle it
+        index = start
         return nil
     }
 
