@@ -40,10 +40,10 @@ jobs:
           restore-keys: |
             swiftpm-build-${{ runner.os }}-
 
-      - name: Setup Swift 5.9
+      - name: Setup Swift 6.0
         uses: swift-actions/setup-swift@v1
         with:
-          swift-version: 5.9
+          swift-version: 6.0
 
       - name: Resolve dependencies
         run: swift package resolve
@@ -71,10 +71,10 @@ jobs:
           restore-keys: |
             swiftpm-test-${{ runner.os }}-
 
-      - name: Setup Swift 
+      - name: Setup Swift 6.0
         uses: swift-actions/setup-swift@v1
         with:
-          swift-version: 5.9
+          swift-version: 6.0
 
       - name: Resolve dependencies
         run: swift package resolve

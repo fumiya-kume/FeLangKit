@@ -1,4 +1,5 @@
 {
+  "originHash" : "4feb797443b8c722cade3823c01cac132ba41044089670bed26d634b6b38c305",
   "pins" : [
     {
       "identity" : "swift-case-paths",
@@ -46,5 +47,5 @@
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }
