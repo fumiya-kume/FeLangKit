@@ -59,6 +59,9 @@ public enum ThreadSafetyValidators {
     
     /// Minimum duration threshold for considering an operation as potentially conflicted
     private static let minimumConflictDuration: TimeInterval = 0.001
+    
+    /// Multiplier for timing variance detection (100x difference indicates potential issues)
+    private static let timingVarianceMultiplier: Double = 100.0
 
     /// Validates Sendable conformance for AST types
     /// - Parameter type: The type to validate
@@ -163,7 +166,7 @@ public enum ThreadSafetyValidators {
         if let maxTiming = timings.max(), let minTiming = timings.min() {
             let variance = maxTiming - minTiming
             // Only consider variance suspicious if it's very large (>10ms) and represents significant variation
-            if variance > contentionThreshold && maxTiming > minTiming * 100 { // 100x difference indicates potential issues
+            if variance > contentionThreshold && maxTiming > minTiming * timingVarianceMultiplier {
                 suspiciousTimings.append(variance)
             }
         }
@@ -227,7 +230,7 @@ public enum ThreadSafetyValidators {
             isValid: issues.isEmpty,
             issues: issues,
             recommendations: recommendations,
-            component: "Expression"
+            component: String(describing: type(of: expression))
         )
     }
 

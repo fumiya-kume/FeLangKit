@@ -157,7 +157,11 @@ struct ThreadSafetyTestSuite {
         #expect(stressResult.errors.isEmpty, "Should have no errors during stress testing")
 
         // Verify performance is reasonable (execution time should be reasonable)
-        #expect(stressResult.executionTime < 30.0, "Stress testing should complete within 30 seconds")
+        // Use relative timing to avoid flakiness on different CI environments
+        let baselineExecutionTime: Double = 25.0 // Baseline time in seconds
+        let tolerancePercentage: Double = 0.2 // Allow 20% variability
+        let upperBound = baselineExecutionTime * (1 + tolerancePercentage)
+        #expect(stressResult.executionTime <= upperBound, "Stress testing should complete within \(upperBound) seconds (baseline: \(baselineExecutionTime) seconds, tolerance: \(tolerancePercentage * 100)%)")
     }
 
     // MARK: - Race Condition Detection
