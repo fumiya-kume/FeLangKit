@@ -205,6 +205,202 @@ public enum TokenizerUtilities {
     public static func isValidKeywordBoundary(in source: String.UnicodeScalarView, at endIndex: String.UnicodeScalarView.Index) -> Bool {
         return endIndex == source.endIndex || !isIdentifierContinue(source[endIndex])
     }
+
+    // MARK: - Advanced Number Parsing Utilities
+
+    /// Determines if a character is a valid hex digit
+    public static func isHexDigit(_ char: UnicodeScalar) -> Bool {
+        return char.isNumber || 
+               (char.value >= 0x41 && char.value <= 0x46) || // A-F
+               (char.value >= 0x61 && char.value <= 0x66)    // a-f
+    }
+
+    /// Determines if a character is a valid binary digit
+    public static func isBinaryDigit(_ char: UnicodeScalar) -> Bool {
+        return char == "0" || char == "1"
+    }
+
+    /// Determines if a character is a valid octal digit
+    public static func isOctalDigit(_ char: UnicodeScalar) -> Bool {
+        return char.value >= 0x30 && char.value <= 0x37 // 0-7
+    }
+
+    /// Validates underscore placement in numbers (not at start, end, or consecutive)
+    public static func isValidUnderscorePlacement(
+        at position: Int,
+        in numberString: String,
+        previousChar: UnicodeScalar?,
+        nextChar: UnicodeScalar?
+    ) -> Bool {
+        // Cannot be at start or end
+        if position == 0 || position == numberString.count - 1 {
+            return false
+        }
+        
+        // Cannot be consecutive underscores
+        if previousChar == "_" || nextChar == "_" {
+            return false
+        }
+        
+        // Cannot be adjacent to decimal point
+        if previousChar == "." || nextChar == "." {
+            return false
+        }
+        
+        // Cannot be adjacent to exponent indicator
+        if previousChar == "e" || previousChar == "E" || 
+           nextChar == "e" || nextChar == "E" {
+            return false
+        }
+        
+        // Cannot be adjacent to sign in exponent
+        if previousChar == "+" || previousChar == "-" || 
+           nextChar == "+" || nextChar == "-" {
+            return false
+        }
+        
+        return true
+    }
+
+    /// Validates and cleans a number string by removing valid underscores
+    public static func validateAndCleanNumber(_ input: String) throws -> String {
+        guard !input.isEmpty else { 
+            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 1, offset: 0))
+        }
+        
+        var cleaned = ""
+        let scalars = Array(input.unicodeScalars)
+        
+        for (index, scalar) in scalars.enumerated() {
+            if scalar == "_" {
+                let prevChar = index > 0 ? scalars[index - 1] : nil
+                let nextChar = index < scalars.count - 1 ? scalars[index + 1] : nil
+                
+                guard isValidUnderscorePlacement(at: index, in: input, 
+                                               previousChar: prevChar, 
+                                               nextChar: nextChar) else {
+                    throw TokenizerError.invalidUnderscorePlacement(SourcePosition(line: 1, column: index + 1, offset: index))
+                }
+                // Skip underscores in cleaned string
+            } else {
+                cleaned.append(Character(scalar))
+            }
+        }
+        
+        return cleaned
+    }
+
+    /// Validates a scientific notation number format
+    public static func validateScientificNotation(_ input: String) throws {
+        let parts = input.lowercased().components(separatedBy: "e")
+        
+        guard parts.count == 2 else {
+            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 1, offset: 0))
+        }
+        
+        let mantissa = parts[0]
+        let exponent = parts[1]
+        
+        // Validate mantissa (can be integer or decimal)
+        guard !mantissa.isEmpty && 
+              (mantissa.allSatisfy { $0.isNumber || $0 == "." || $0 == "_" }) else {
+            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 1, offset: 0))
+        }
+        
+        // Validate exponent (can start with + or - followed by digits)
+        var expIndex = 0
+        var expScalars = Array(exponent.unicodeScalars)
+        
+        if !expScalars.isEmpty && (expScalars[0] == "+" || expScalars[0] == "-") {
+            expIndex = 1
+        }
+        
+        guard expIndex < expScalars.count else {
+            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: mantissa.count + 2, offset: mantissa.count + 1))
+        }
+        
+        for i in expIndex..<expScalars.count {
+            guard expScalars[i].isNumber || expScalars[i] == "_" else {
+                throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: mantissa.count + 2 + i, offset: mantissa.count + 1 + i))
+            }
+        }
+    }
+
+    /// Validates a hexadecimal number format
+    public static func validateHexadecimalNumber(_ input: String) throws {
+        guard input.hasPrefix("0x") || input.hasPrefix("0X") else {
+            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 1, offset: 0))
+        }
+        
+        let digits = String(input.dropFirst(2))
+        guard !digits.isEmpty else {
+            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 3, offset: 2))
+        }
+        
+        for (index, char) in digits.unicodeScalars.enumerated() {
+            if char != "_" && !isHexDigit(char) {
+                throw TokenizerError.invalidDigitForBase(String(char), "hexadecimal", SourcePosition(line: 1, column: 3 + index, offset: 2 + index))
+            }
+        }
+    }
+
+    /// Validates a binary number format
+    public static func validateBinaryNumber(_ input: String) throws {
+        guard input.hasPrefix("0b") || input.hasPrefix("0B") else {
+            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 1, offset: 0))
+        }
+        
+        let digits = String(input.dropFirst(2))
+        guard !digits.isEmpty else {
+            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 3, offset: 2))
+        }
+        
+        for (index, char) in digits.unicodeScalars.enumerated() {
+            if char != "_" && !isBinaryDigit(char) {
+                throw TokenizerError.invalidDigitForBase(String(char), "binary", SourcePosition(line: 1, column: 3 + index, offset: 2 + index))
+            }
+        }
+    }
+
+    /// Validates an octal number format
+    public static func validateOctalNumber(_ input: String) throws {
+        guard input.hasPrefix("0o") || input.hasPrefix("0O") else {
+            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 1, offset: 0))
+        }
+        
+        let digits = String(input.dropFirst(2))
+        guard !digits.isEmpty else {
+            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 3, offset: 2))
+        }
+        
+        for (index, char) in digits.unicodeScalars.enumerated() {
+            if char != "_" && !isOctalDigit(char) {
+                throw TokenizerError.invalidDigitForBase(String(char), "octal", SourcePosition(line: 1, column: 3 + index, offset: 2 + index))
+            }
+        }
+    }
+
+    /// Determines the appropriate token type for enhanced numbers
+    public static func enhancedNumberTokenType(lexeme: String) -> TokenType {
+        let lowercased = lexeme.lowercased()
+        
+        // Scientific notation is always real
+        if lowercased.contains("e") {
+            return .realLiteral
+        }
+        
+        // Alternative bases are always integers
+        if lowercased.hasPrefix("0x") || lowercased.hasPrefix("0b") || lowercased.hasPrefix("0o") {
+            return .integerLiteral
+        }
+        
+        // Check for decimal point
+        if lexeme.contains(".") {
+            return .realLiteral
+        }
+        
+        return .integerLiteral
+    }
 }
 
 // MARK: - Extensions for UnicodeScalar
