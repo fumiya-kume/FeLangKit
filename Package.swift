@@ -13,7 +13,6 @@ let package = Package(
         .library(name: "FeLangServer", targets: ["FeLangServer"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-testing.git", from: "0.1.0"),
         .package(url: "https://github.com/pointfreeco/swift-parsing.git", from: "0.5.0")
     ],
     targets: [
@@ -46,29 +45,25 @@ let package = Package(
         .testTarget(
             name: "FeLangCoreTests",
             dependencies: [
-                "FeLangCore",
-                .product(name: "Testing", package: "swift-testing")
+                "FeLangCore"
             ]
         ),
         .testTarget(
             name: "FeLangKitTests",
             dependencies: [
-                "FeLangKit",
-                .product(name: "Testing", package: "swift-testing")
+                "FeLangKit"
             ]
         ),
         .testTarget(
             name: "FeLangRuntimeTests",
             dependencies: [
-                "FeLangRuntime",
-                .product(name: "Testing", package: "swift-testing")
+                "FeLangRuntime"
             ]
         ),
         .testTarget(
             name: "FeLangServerTests",
             dependencies: [
-                "FeLangServer",
-                .product(name: "Testing", package: "swift-testing")
+                "FeLangServer"
             ]
         )
     ]

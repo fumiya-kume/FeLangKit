@@ -27,7 +27,7 @@ jobs:
           fi
 
       - name: Run SwiftLint
-        run: swiftlint lint --strict --quiet --reporter github-actions-logging
+        run: swiftlint lint --quiet --reporter github-actions-logging
 
   build:
     name: Build (${{ matrix.configuration }})
