@@ -207,6 +207,332 @@ struct StatementParserTests {
         #expect(returnStmt.expression == nil)
     }
 
+    // MARK: - Declaration Statement Tests
+
+    @Test("Basic Variable Declaration")
+    func testBasicVariableDeclaration() throws {
+        let statements = try parseStatements("変数 x: 整数型 ← 42")
+
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+
+        #expect(varDecl.name == "x")
+        #expect(varDecl.type == .integer)
+        #expect(varDecl.initialValue == .literal(.integer(42)))
+    }
+
+    @Test("Variable Declaration Without Initial Value")
+    func testVariableDeclarationWithoutInitialValue() throws {
+        let statements = try parseStatements("変数 name: 文字列型")
+
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+
+        #expect(varDecl.name == "name")
+        #expect(varDecl.type == .string)
+        #expect(varDecl.initialValue == nil)
+    }
+
+    @Test("Variable Declaration with Real Type")
+    func testVariableDeclarationWithRealType() throws {
+        let statements = try parseStatements("変数 pi: 実数型 ← 3.14159")
+
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+
+        #expect(varDecl.name == "pi")
+        #expect(varDecl.type == .real)
+        #expect(varDecl.initialValue == .literal(.real(3.14159)))
+    }
+
+    @Test("Variable Declaration with Boolean Type")
+    func testVariableDeclarationWithBooleanType() throws {
+        let statements = try parseStatements("変数 flag: 論理型 ← true")
+
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+
+        #expect(varDecl.name == "flag")
+        #expect(varDecl.type == .boolean)
+        #expect(varDecl.initialValue == .literal(.boolean(true)))
+    }
+
+    @Test("Variable Declaration with Array Type")
+    func testVariableDeclarationWithArrayType() throws {
+        let statements = try parseStatements("変数 numbers: 配列")
+
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+
+        #expect(varDecl.name == "numbers")
+        #expect(varDecl.type == .array(.integer)) // Default to integer array
+        #expect(varDecl.initialValue == nil)
+    }
+
+    @Test("Basic Constant Declaration")
+    func testBasicConstantDeclaration() throws {
+        let statements = try parseStatements("定数 PI: 実数型 ← 3.14159")
+
+        #expect(statements.count == 1)
+        guard case .constantDeclaration(let constDecl) = statements[0] else {
+            #expect(Bool(false), "Expected constant declaration")
+            return
+        }
+
+        #expect(constDecl.name == "PI")
+        #expect(constDecl.type == .real)
+        #expect(constDecl.initialValue == .literal(.real(3.14159)))
+    }
+
+    @Test("Constant Declaration with Integer")
+    func testConstantDeclarationWithInteger() throws {
+        let statements = try parseStatements("定数 MAX_SIZE: 整数型 ← 100")
+
+        #expect(statements.count == 1)
+        guard case .constantDeclaration(let constDecl) = statements[0] else {
+            #expect(Bool(false), "Expected constant declaration")
+            return
+        }
+
+        #expect(constDecl.name == "MAX_SIZE")
+        #expect(constDecl.type == .integer)
+        #expect(constDecl.initialValue == .literal(.integer(100)))
+    }
+
+    @Test("Constant Declaration with String")
+    func testConstantDeclarationWithString() throws {
+        let statements = try parseStatements("定数 GREETING: 文字列型 ← \"Hello, World!\"")
+
+        #expect(statements.count == 1)
+        guard case .constantDeclaration(let constDecl) = statements[0] else {
+            #expect(Bool(false), "Expected constant declaration")
+            return
+        }
+
+        #expect(constDecl.name == "GREETING")
+        #expect(constDecl.type == .string)
+        #expect(constDecl.initialValue == .literal(.string("Hello, World!")))
+    }
+
+    @Test("Constant Declaration with Expression")
+    func testConstantDeclarationWithExpression() throws {
+        let statements = try parseStatements("定数 RESULT: 整数型 ← 10 + 20")
+
+        #expect(statements.count == 1)
+        guard case .constantDeclaration(let constDecl) = statements[0] else {
+            #expect(Bool(false), "Expected constant declaration")
+            return
+        }
+
+        #expect(constDecl.name == "RESULT")
+        #expect(constDecl.type == .integer)
+        #expect(constDecl.initialValue == .binary(.add, .literal(.integer(10)), .literal(.integer(20))))
+    }
+
+    @Test("Multiple Declarations")
+    func testMultipleDeclarations() throws {
+        let input = """
+        変数 x: 整数型 ← 5
+        定数 PI: 実数型 ← 3.14
+        変数 name: 文字列型
+        """
+        let statements = try parseStatements(input)
+
+        #expect(statements.count == 3)
+
+        // First statement: variable declaration
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+        #expect(varDecl.name == "x")
+        #expect(varDecl.type == .integer)
+
+        // Second statement: constant declaration
+        guard case .constantDeclaration(let constDecl) = statements[1] else {
+            #expect(Bool(false), "Expected constant declaration")
+            return
+        }
+        #expect(constDecl.name == "PI")
+        #expect(constDecl.type == .real)
+
+        // Third statement: variable declaration without initial value
+        guard case .variableDeclaration(let varDecl2) = statements[2] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+        #expect(varDecl2.name == "name")
+        #expect(varDecl2.type == .string)
+        #expect(varDecl2.initialValue == nil)
+    }
+
+    // MARK: - Declaration Error Tests
+
+    @Test("Variable Declaration Missing Identifier")
+    func testVariableDeclarationMissingIdentifier() throws {
+        #expect(throws: StatementParsingError.expectedIdentifier) {
+            try parseStatements("変数 : 整数型")
+        }
+    }
+
+    @Test("Variable Declaration Missing Type")
+    func testVariableDeclarationMissingType() throws {
+        #expect(throws: StatementParsingError.expectedDataType) {
+            try parseStatements("変数 x:")
+        }
+    }
+
+    @Test("Constant Declaration Missing Initial Value")
+    func testConstantDeclarationMissingInitialValue() throws {
+        #expect(throws: StatementParsingError.self) {
+            try parseStatements("定数 PI: 実数型")
+        }
+    }
+
+    @Test("Constant Declaration Missing Identifier")
+    func testConstantDeclarationMissingIdentifier() throws {
+        #expect(throws: StatementParsingError.expectedIdentifier) {
+            try parseStatements("定数 : 整数型 ← 5")
+        }
+    }
+
+    @Test("Constant Declaration Missing Type")
+    func testConstantDeclarationMissingType() throws {
+        #expect(throws: StatementParsingError.expectedDataType) {
+            try parseStatements("定数 PI:")
+        }
+    }
+
+    // MARK: - Advanced Declaration Edge Case Tests
+
+    @Test("Variable Declaration with Complex Expression")
+    func testVariableDeclarationWithComplexExpression() throws {
+        let statements = try parseStatements("変数 result: 整数型 ← (x + y) * 2")
+
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+
+        #expect(varDecl.name == "result")
+        #expect(varDecl.type == .integer)
+        // Verify complex expression parsing - should be binary multiplication
+        guard case .binary(.multiply, let leftExpr, .literal(.integer(2))) = varDecl.initialValue else {
+            #expect(Bool(false), "Expected complex expression with multiplication")
+            return
+        }
+        // Left side should be (x + y) in parentheses - parsed as addition
+        guard case .binary(.add, .identifier("x"), .identifier("y")) = leftExpr else {
+            #expect(Bool(false), "Expected addition expression in parentheses")
+            return
+        }
+    }
+
+    @Test("Unicode Identifiers")
+    func testUnicodeIdentifiers() throws {
+        let statements = try parseStatements("変数 データ: 整数型 ← 42")
+
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+
+        #expect(varDecl.name == "データ")
+        #expect(varDecl.type == .integer)
+        #expect(varDecl.initialValue == .literal(.integer(42)))
+    }
+
+    @Test("Malformed Declarations")
+    func testMalformedDeclarations() throws {
+        // Test invalid identifier starting with number
+        #expect(throws: StatementParsingError.self) {
+            try parseStatements("変数 123: 整数型")
+        }
+
+        // Test missing colon
+        #expect(throws: StatementParsingError.self) {
+            try parseStatements("変数 x 整数型")
+        }
+    }
+
+    @Test("Declaration with Nested Function Call Expression")
+    func testDeclarationWithNestedFunctionCall() throws {
+        let statements = try parseStatements("変数 result: 整数型 ← func(getValue())")
+
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+
+        #expect(varDecl.name == "result")
+        #expect(varDecl.type == .integer)
+        // Verify nested function call parsing
+        guard case .functionCall("func", let args) = varDecl.initialValue else {
+            #expect(Bool(false), "Expected function call as initial value")
+            return
+        }
+        #expect(args.count == 1)
+        guard case .functionCall("getValue", let innerArgs) = args[0] else {
+            #expect(Bool(false), "Expected nested function call")
+            return
+        }
+        #expect(innerArgs.isEmpty)
+    }
+
+    @Test("Declaration with Array Access Expression")
+    func testDeclarationWithArrayAccessExpression() throws {
+        let statements = try parseStatements("変数 value: 整数型 ← array[index + 1]")
+
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+
+        #expect(varDecl.name == "value")
+        #expect(varDecl.type == .integer)
+        // Verify array access with expression index
+        guard case .arrayAccess(.identifier("array"), let indexExpr) = varDecl.initialValue else {
+            #expect(Bool(false), "Expected array access as initial value")
+            return
+        }
+        guard case .binary(.add, .identifier("index"), .literal(.integer(1))) = indexExpr else {
+            #expect(Bool(false), "Expected addition expression as array index")
+            return
+        }
+    }
+
+    @Test("Return Statement without Expression - Fixed")
+    func testReturnStatementWithoutExpressionFixed() throws {
+        let statements = try parseStatements("return")
+
+        #expect(statements.count == 1)
+        guard case .returnStatement(let returnStmt) = statements[0] else {
+            #expect(Bool(false), "Expected return statement")
+            return
+        }
+
+        #expect(returnStmt.expression == nil)
+    }
+
     // MARK: - Break Statement Tests
 
     @Test("Break Statement")
@@ -331,7 +657,7 @@ struct StatementParserTests {
         }
     }
 
-        @Test("Mixed Postfix Operations")
+    @Test("Mixed Postfix Operations")
     func testMixedPostfixOperations() throws {
         // Simplified test for now - field access on array element
         let statements = try parseStatements("result ← users[0].name")
@@ -351,7 +677,7 @@ struct StatementParserTests {
 
     // MARK: - Security and Edge Case Tests
 
-        @Test("Maximum Nesting Depth Security")
+    @Test("Maximum Nesting Depth Security")
     func testMaximumNestingDepth() throws {
         // Create a simple test with reasonable depth that should succeed
         let simpleNesting = "if true then if true then x ← 1 endif endif"
@@ -375,13 +701,13 @@ struct StatementParserTests {
         // and test that normal input works correctly
     }
 
-        @Test("Long Identifier Security")
+    @Test("Long Identifier Security")
     func testLongIdentifierSecurity() throws {
         let longIdentifier = String(repeating: "a", count: 300)
 
         // The tokenizer should handle this gracefully, so this test should not throw
         // We're testing that the system can handle long identifiers without crashing
         let statements = try parseStatements("\(longIdentifier) ← 1")
-        #expect(statements.count == 1)
+                #expect(statements.count == 1)
     }
 }

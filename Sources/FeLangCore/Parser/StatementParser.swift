@@ -82,6 +82,10 @@ public struct StatementParser {
             return .whileStatement(try parseWhileStatement(&parser, nestingDepth: nestingDepth))
         case .forKeyword:
             return .forStatement(try parseForStatement(&parser, nestingDepth: nestingDepth))
+        case .variableKeyword:
+            return .variableDeclaration(try parseVariableDeclaration(&parser))
+        case .constantKeyword:
+            return .constantDeclaration(try parseConstantDeclaration(&parser))
         case .functionKeyword:
             return .functionDeclaration(try parseFunctionDeclaration(&parser, nestingDepth: nestingDepth))
         case .procedureKeyword:
@@ -268,6 +272,83 @@ public struct StatementParser {
         } else {
             throw StatementParsingError.expectedToken(.assign)
         }
+    }
+
+    // MARK: - Declaration Parsing
+
+    /// Common declaration components extracted from parsing
+    private struct DeclarationComponents {
+        let name: String
+        let type: DataType
+        let initialValue: Expression?
+    }
+
+    /// Parses the common declaration pattern: keyword name: type [← value]
+    /// This helper consolidates shared parsing logic between variable and constant declarations.
+    /// - Parameters:
+    ///   - parser: Token stream to parse from
+    ///   - keywordType: Expected declaration keyword (.variableKeyword or .constantKeyword)
+    ///   - requiresInitialValue: Whether initial value is required (true for constants)
+    /// - Returns: Parsed declaration components
+    private func parseDeclarationComponents(
+        _ parser: inout TokenStream,
+        keywordType: TokenType,
+        requiresInitialValue: Bool
+    ) throws -> DeclarationComponents {
+        // Consume declaration keyword
+        try expectToken(&parser, keywordType)
+
+        // Parse identifier name
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw StatementParsingError.expectedIdentifier
+        }
+        let name = nameToken.lexeme
+
+        // Parse type annotation
+        try expectToken(&parser, .colon) // consume ':'
+        let type = try parseDataType(&parser)
+
+        // Parse initial value (optional for variables, required for constants)
+        var initialValue: Expression?
+        if parser.peek()?.type == .assign {
+            parser.advance() // consume '←'
+            initialValue = try parseExpression(&parser)
+        } else if requiresInitialValue {
+            throw StatementParsingError.expectedToken(.assign)
+        }
+
+        return DeclarationComponents(name: name, type: type, initialValue: initialValue)
+    }
+
+    /// Parses a variable declaration (変数 name: type ← initialValue).
+    private func parseVariableDeclaration(_ parser: inout TokenStream) throws -> VariableDeclaration {
+        let components = try parseDeclarationComponents(
+            &parser,
+            keywordType: .variableKeyword,
+            requiresInitialValue: false
+        )
+
+        return VariableDeclaration(
+            name: components.name,
+            type: components.type,
+            initialValue: components.initialValue
+        )
+    }
+
+    /// Parses a constant declaration (定数 name: type ← value).
+    private func parseConstantDeclaration(_ parser: inout TokenStream) throws -> ConstantDeclaration {
+        let components = try parseDeclarationComponents(
+            &parser,
+            keywordType: .constantKeyword,
+            requiresInitialValue: true
+        )
+
+        // Safe force unwrap: requiresInitialValue: true guarantees initialValue exists
+        return ConstantDeclaration(
+            name: components.name,
+            type: components.type,
+            initialValue: components.initialValue!
+        )
     }
 
     // MARK: - Function/Procedure Parsing
@@ -639,6 +720,11 @@ public struct StatementParser {
         case .ifKeyword,        // IF-THEN-ELSE conditional statements
              .whileKeyword,     // WHILE-DO loop statements
              .forKeyword:       // FOR loop statements (range or forEach)
+            return true
+
+        // Declaration statements
+        case .variableKeyword,  // Variable declarations: 変数 name: type ← value
+             .constantKeyword:  // Constant declarations: 定数 name: type ← value
             return true
 
         // Function/procedure declarations
