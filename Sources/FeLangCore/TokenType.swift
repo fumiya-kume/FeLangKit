@@ -77,7 +77,6 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case whitespace
     case newline
     case eof
-    case invalid
 }
 
 extension TokenType {
