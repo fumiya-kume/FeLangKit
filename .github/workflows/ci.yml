@@ -15,12 +15,7 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-
-      - name: Install Swift ${{ matrix.swift }}
-        uses: fwal/setup-swift@v2
-        with:
-          swift-version: ${{ matrix.swift }}
-
+        
       - name: Install SwiftLint
         run: brew install swiftlint
 
