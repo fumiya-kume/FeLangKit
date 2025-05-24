@@ -180,8 +180,8 @@ struct ParsingTokenizerTests {
         let input = "変数 カウンタ 日本語識別子"
         let tokens = try ParsingTokenizer.tokenize(input)
 
-        #expect(tokens.count == 4) // 3 identifiers + eof
-        #expect(tokens[0].type == .identifier)
+        #expect(tokens.count == 4) // keyword + 2 identifiers + eof
+        #expect(tokens[0].type == .variableKeyword)
         #expect(tokens[0].lexeme == "変数")
         #expect(tokens[1].type == .identifier)
         #expect(tokens[1].lexeme == "カウンタ")
