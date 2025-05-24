@@ -53,13 +53,13 @@ public enum ThreadSafetyValidators {
 
     /// Threshold for detecting suspicious timing variance that might indicate race conditions
     private static let contentionThreshold: TimeInterval = 0.01
-    
+
     /// Multiplier for determining unusual operation duration (10x average)
     private static let unusualDurationMultiplier: Double = 10.0
-    
+
     /// Minimum duration threshold for considering an operation as potentially conflicted
     private static let minimumConflictDuration: TimeInterval = 0.001
-    
+
     /// Multiplier for timing variance detection (100x difference indicates potential issues)
     private static let timingVarianceMultiplier: Double = 100.0
 
@@ -74,7 +74,7 @@ public enum ThreadSafetyValidators {
 
         // Note: This check is simplified since we can't easily test Sendable conformance at runtime
         // In practice, this would be validated by the Swift compiler
-        
+
         // For types that use @unchecked Sendable, this would need to be verified through 
         // static analysis or compiler warnings rather than runtime checks
         if typeName.contains("AnyCodable") {
