@@ -10,12 +10,12 @@ struct PerformanceBenchmarkTests {
     // MARK: - Configuration
 
     private static let performanceThresholds = PerformanceThresholds(
-        singleLiteralEncodingMs: 1.0,
-        singleLiteralDecodingMs: 1.0,
-        batchEncodingMsPerItem: 0.1,
-        batchDecodingMsPerItem: 0.1,
-        largeLiteralEncodingMs: 100.0,
-        largeLiteralDecodingMs: 100.0
+        singleEncodingMs: 0.5,
+        singleDecodingMs: 0.1,
+        batchEncodingMsPerItem: 0.015,
+        batchDecodingMsPerItem: 0.15,
+        concurrentOpsPerSecond: 50000.0,
+        memoryIncreaseMB: 50.0
     )
 
     // MARK: - Single Item Performance Tests
@@ -47,8 +47,8 @@ struct PerformanceBenchmarkTests {
             let averageTime = measurements.average * 1000 // Convert to milliseconds
             results[description] = averageTime
 
-            #expect(averageTime < Self.performanceThresholds.singleLiteralEncodingMs,
-                   "Single \(description) encoding took \(averageTime)ms, exceeds threshold of \(Self.performanceThresholds.singleLiteralEncodingMs)ms")
+            #expect(averageTime < Self.performanceThresholds.singleEncodingMs,
+                   "Single \(description) encoding took \(averageTime)ms, exceeds threshold of \(Self.performanceThresholds.singleEncodingMs)ms")
         }
 
         printPerformanceResults(title: "Single Literal Encoding Performance", results: results, unit: "ms")
@@ -84,8 +84,8 @@ struct PerformanceBenchmarkTests {
             let averageTime = measurements.average * 1000 // Convert to milliseconds
             results[description] = averageTime
 
-            #expect(averageTime < Self.performanceThresholds.singleLiteralDecodingMs,
-                   "Single \(description) decoding took \(averageTime)ms, exceeds threshold of \(Self.performanceThresholds.singleLiteralDecodingMs)ms")
+            #expect(averageTime < Self.performanceThresholds.singleDecodingMs,
+                   "Single \(description) decoding took \(averageTime)ms, exceeds threshold of \(Self.performanceThresholds.singleDecodingMs)ms")
         }
 
         printPerformanceResults(title: "Single Literal Decoding Performance", results: results, unit: "ms")
@@ -176,8 +176,8 @@ struct PerformanceBenchmarkTests {
                 }
             } * 1000 // Convert to milliseconds
 
-            #expect(encodingTime < Self.performanceThresholds.largeLiteralEncodingMs,
-                   "Large string encoding (\(stringSize) chars) took \(encodingTime)ms, exceeds threshold of \(Self.performanceThresholds.largeLiteralEncodingMs)ms")
+            #expect(encodingTime < Self.performanceThresholds.singleEncodingMs,
+                   "Large string encoding (\(stringSize) chars) took \(encodingTime)ms, exceeds threshold of \(Self.performanceThresholds.singleEncodingMs)ms")
 
             // Test decoding performance
             let encodedData = try encoder.encode(largeLiteral)
@@ -190,8 +190,8 @@ struct PerformanceBenchmarkTests {
                 }
             } * 1000 // Convert to milliseconds
 
-            #expect(decodingTime < Self.performanceThresholds.largeLiteralDecodingMs,
-                   "Large string decoding (\(stringSize) chars) took \(decodingTime)ms, exceeds threshold of \(Self.performanceThresholds.largeLiteralDecodingMs)ms")
+            #expect(decodingTime < Self.performanceThresholds.singleDecodingMs,
+                   "Large string decoding (\(stringSize) chars) took \(decodingTime)ms, exceeds threshold of \(Self.performanceThresholds.singleDecodingMs)ms")
 
             print("Large string performance (\(stringSize) chars): encoding \(encodingTime)ms, decoding \(decodingTime)ms")
         }
@@ -286,7 +286,7 @@ struct PerformanceBenchmarkTests {
         print("Concurrent performance: \(operationsPerSecond) operations/second with \(concurrentOperations) concurrent threads")
 
         // Expect reasonable concurrent performance
-        #expect(operationsPerSecond > 1000, "Concurrent operations should achieve at least 1000 ops/sec")
+        #expect(operationsPerSecond > Self.performanceThresholds.concurrentOpsPerSecond, "Concurrent operations should achieve at least 50000 ops/sec")
         #expect(totalTime < 10.0, "Concurrent test should complete within 10 seconds")
     }
 
@@ -424,12 +424,12 @@ struct PerformanceBenchmarkTests {
 // MARK: - Supporting Types
 
 private struct PerformanceThresholds {
-    let singleLiteralEncodingMs: TimeInterval
-    let singleLiteralDecodingMs: TimeInterval
+    let singleEncodingMs: TimeInterval
+    let singleDecodingMs: TimeInterval
     let batchEncodingMsPerItem: TimeInterval
     let batchDecodingMsPerItem: TimeInterval
-    let largeLiteralEncodingMs: TimeInterval
-    let largeLiteralDecodingMs: TimeInterval
+    let concurrentOpsPerSecond: Double
+    let memoryIncreaseMB: Double
 }
 
 private struct PerformanceMeasurement {

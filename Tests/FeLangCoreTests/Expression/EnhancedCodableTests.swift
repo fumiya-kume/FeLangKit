@@ -187,8 +187,14 @@ struct EnhancedCodableTests {
         let totalTime = CFAbsoluteTimeGetCurrent() - startTime
         let timePerOperation = totalTime / Double(iterations) * 1000 // Convert to milliseconds
 
-        // Performance should be improved (adjust threshold based on baseline)
-        #expect(timePerOperation < 0.1, "Optimized performance should be < 0.1ms per operation, got \(timePerOperation)ms")
+        // Performance should be improved (allowing a tolerance window)
+        let baselinePerformance = 0.02 // More realistic baseline in milliseconds  
+        let tolerance = 0.05 // Wider allowable deviation to account for system variations
+        let lowerBound = 0.001 // Minimum reasonable bound
+        let upperBound = baselinePerformance + tolerance
+
+        #expect(timePerOperation >= lowerBound && timePerOperation <= upperBound,
+               "Optimized performance should be within \(lowerBound)ms and \(upperBound)ms per operation, got \(timePerOperation)ms")
 
         print("Optimized SafeAnyCodable performance: \(timePerOperation)ms per operation")
     }
@@ -266,8 +272,7 @@ struct EnhancedCodableTests {
             "{ \"real\": 3.14159 }",
             "{ \"string\": \"hello world\" }",
             "{ \"character\": \"A\" }",
-            "{ \"boolean\": true }",
-            "{ \"integer\": 42, \"real\": 3.14 }" // Multiple keys (first valid key used)
+            "{ \"boolean\": true }"
         ]
 
         let expectedLiterals: [Literal] = [
@@ -275,8 +280,7 @@ struct EnhancedCodableTests {
             .real(3.14159),
             .string("hello world"),
             .character("A"),
-            .boolean(true),
-            .integer(42) // Should use first valid key
+            .boolean(true)
         ]
 
         for (jsonString, expectedLiteral) in zip(existingJSONSamples, expectedLiterals) {
@@ -284,6 +288,22 @@ struct EnhancedCodableTests {
             let decoded = try decoder.decode(Literal.self, from: data)
 
             #expect(decoded == expectedLiteral, "Backward compatibility failed for: \(jsonString)")
+        }
+
+        // Test that multiple keys now throw errors (enhanced behavior)
+        let multipleKeysJSON = """
+            { "real": 3.14, "integer": 42 }
+        """
+
+        do {
+            _ = try decoder.decode(Literal.self, from: multipleKeysJSON.data(using: .utf8)!)
+            #expect(Bool(false), "Should have thrown error for multiple keys")
+        } catch {
+            // This is the expected behavior now - multiple keys should be rejected
+            #expect(error is DecodingError, "Should throw DecodingError for multiple keys")
+            if case let DecodingError.dataCorrupted(context) = error {
+                #expect(context.debugDescription.contains("Multiple keys found"), "Error should mention multiple keys")
+            }
         }
     }
 

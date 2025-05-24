@@ -67,11 +67,24 @@ extension Literal: Codable {
             ))
         }
 
-        // Check for multiple keys (document the behavior)
+        // Check for multiple keys and enforce stricter handling
         if dict.count > 1 {
             let keys = dict.keys.joined(separator: ", ")
-            // Note: Current implementation accepts this and uses the first valid key
-            // This could be enhanced in the future to be stricter
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath,
+                debugDescription: """
+                Multiple keys found in literal object: \(keys).
+
+                Expected format: { "type": value } where type is one of:
+                - "integer": for integer values
+                - "real": for floating-point values
+                - "string": for text values
+                - "character": for single character values
+                - "boolean": for true/false values
+
+                Example: { "integer": 42 }
+                """
+            ))
         }
 
         // Try to decode each literal type with enhanced error handling
@@ -124,7 +137,7 @@ extension Literal: Codable {
             var suggestions: [String] = []
             for key in dict.keys {
                 for recognizedType in recognizedTypes {
-                    let distance = levenshteinDistance(key, recognizedType)
+                    let distance = StringUtilities.levenshteinDistance(key, recognizedType)
                     if distance <= 2 && distance > 0 {
                         suggestions.append("Did you mean \"\(recognizedType)\" instead of \"\(key)\"?")
                     }
@@ -176,13 +189,8 @@ extension Literal: Codable {
             result = doubleValue
 
         case let intValue as Int:
-            // Check for potential precision loss when converting large integers
-            if intValue == Int.max || intValue == Int.min {
-                // Document potential precision loss for extreme integer values
-                result = Double(intValue)
-            } else {
-                result = Double(intValue)
-            }
+            // Convert Int to Double, noting potential precision loss for extreme values like Int.max and Int.min
+            result = Double(intValue)
 
         case let floatValue as Float:
             // Convert Float to Double with explicit casting
@@ -473,36 +481,39 @@ extension Literal {
 
 }
 
-/// Helper function to calculate Levenshtein distance for typo detection
-/// Used to provide helpful suggestions when users mistype literal type names
-private func levenshteinDistance(_ string1: String, _ string2: String) -> Int {
-    let chars1 = Array(string1)
-    let chars2 = Array(string2)
-    let length1 = chars1.count
-    let length2 = chars2.count
-    
-    // Create a matrix to store distances
-    var matrix = Array(repeating: Array(repeating: 0, count: length2 + 1), count: length1 + 1)
-    
-    // Initialize first row and column
-    for row in 0...length1 {
-        matrix[row][0] = row
-    }
-    for col in 0...length2 {
-        matrix[0][col] = col
-    }
-    
-    // Fill in the matrix
-    for row in 1...length1 {
-        for col in 1...length2 {
-            let cost = chars1[row - 1] == chars2[col - 1] ? 0 : 1
-            matrix[row][col] = min(
-                matrix[row - 1][col] + 1,      // deletion
-                matrix[row][col - 1] + 1,      // insertion
-                matrix[row - 1][col - 1] + cost // substitution
-            )
+/// Utility type for string-related helper functions
+private struct StringUtilities {
+    /// Calculates Levenshtein distance for typo detection
+    /// Used to provide helpful suggestions when users mistype literal type names
+    static func levenshteinDistance(_ string1: String, _ string2: String) -> Int {
+        let chars1 = Array(string1)
+        let chars2 = Array(string2)
+        let length1 = chars1.count
+        let length2 = chars2.count
+        
+        // Create a matrix to store distances
+        var matrix = Array(repeating: Array(repeating: 0, count: length2 + 1), count: length1 + 1)
+        
+        // Initialize first row and column
+        for row in 0...length1 {
+            matrix[row][0] = row
         }
+        for col in 0...length2 {
+            matrix[0][col] = col
+        }
+        
+        // Fill in the matrix
+        for row in 1...length1 {
+            for col in 1...length2 {
+                let cost = chars1[row - 1] == chars2[col - 1] ? 0 : 1
+                matrix[row][col] = min(
+                    matrix[row - 1][col] + 1,      // deletion
+                    matrix[row][col - 1] + 1,      // insertion
+                    matrix[row - 1][col - 1] + cost // substitution
+                )
+            }
+        }
+        
+        return matrix[length1][length2]
     }
-    
-    return matrix[length1][length2]
 }
