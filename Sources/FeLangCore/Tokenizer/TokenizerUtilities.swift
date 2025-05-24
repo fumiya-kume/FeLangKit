@@ -8,36 +8,52 @@ public enum TokenizerUtilities {
 
     /// Mapping of keywords to their token types
     /// Ordered with longer keywords first to ensure proper matching
+    /// Note: Current tokenizers extract complete identifiers first, so this ordering
+    /// is for consistency and future-proofing rather than functional necessity
     public static let keywords: [(String, TokenType)] = [
-        // Japanese keywords (longest first)
-        ("文字列型", .stringType),
-        ("整数型", .integerType),
-        ("実数型", .realType),
-        ("文字型", .characterType),
-        ("論理型", .booleanType),
-        ("レコード", .recordType),
-        ("配列", .arrayType),
-
-        // English keywords (longest first)
+        // 12 characters
         ("endprocedure", .endprocedureKeyword),
+        
+        // 11 characters  
         ("endfunction", .endfunctionKeyword),
-        ("endwhile", .endwhileKeyword),
+        
+        // 9 characters
         ("procedure", .procedureKeyword),
+        
+        // 8 characters
+        ("endwhile", .endwhileKeyword),
         ("function", .functionKeyword),
-        ("endfor", .endforKeyword),
-        ("endif", .endifKeyword),
+        
+        // 6 characters
         ("return", .returnKeyword),
+        ("endfor", .endforKeyword),
+        
+        // 5 characters
+        ("endif", .endifKeyword),
         ("break", .breakKeyword),
         ("while", .whileKeyword),
         ("false", .falseKeyword),
+        
+        // 4 characters - Japanese and English mixed by length
+        ("文字列型", .stringType),
+        ("レコード", .recordType),
         ("true", .trueKeyword),
         ("then", .thenKeyword),
         ("else", .elseKeyword),
         ("elif", .elifKeyword),
         ("step", .stepKeyword),
+        
+        // 3 characters
+        ("整数型", .integerType),
+        ("実数型", .realType),
+        ("文字型", .characterType),
+        ("論理型", .booleanType),
         ("and", .andKeyword),
         ("not", .notKeyword),
         ("for", .forKeyword),
+        
+        // 2 characters
+        ("配列", .arrayType),
         ("or", .orKeyword),
         ("to", .toKeyword),
         ("in", .inKeyword),
