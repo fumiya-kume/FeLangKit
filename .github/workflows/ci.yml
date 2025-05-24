@@ -67,7 +67,6 @@ jobs:
   test:
     name: Unit Tests
     runs-on: macos-15
-    needs: build
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
