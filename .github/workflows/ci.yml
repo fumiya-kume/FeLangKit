@@ -41,9 +41,9 @@ jobs:
             swiftpm-build-${{ runner.os }}-
 
       - name: Setup Swift 6.0
-        uses: swift-actions/setup-swift@v1
+        uses: swift-actions/setup-swift@v2
         with:
-          swift-version: 6.0
+          swift-version: "6.0"
 
       - name: Resolve dependencies
         run: swift package resolve
@@ -72,9 +72,9 @@ jobs:
             swiftpm-test-${{ runner.os }}-
 
       - name: Setup Swift 6.0
-        uses: swift-actions/setup-swift@v1
+        uses: swift-actions/setup-swift@v2
         with:
-          swift-version: 6.0
+          swift-version: "6.0"
 
       - name: Resolve dependencies
         run: swift package resolve
