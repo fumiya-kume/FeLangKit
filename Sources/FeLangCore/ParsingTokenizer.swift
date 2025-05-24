@@ -106,7 +106,7 @@ public struct ParsingTokenizer {
         guard index < input.endIndex else { return nil }
 
         // Single line comment
-        if matchString("//", in: input, at: index) {
+        if TokenizerUtilities.matchString("//", in: input, at: index) {
             let start = index
             index = input.index(index, offsetBy: 2)
 
@@ -120,13 +120,13 @@ public struct ParsingTokenizer {
         }
 
         // Multi-line comment
-        if matchString("/*", in: input, at: index) {
+        if TokenizerUtilities.matchString("/*", in: input, at: index) {
             let start = index
             index = input.index(index, offsetBy: 2)
 
             // Read until */
             while index < input.endIndex {
-                if matchString("*/", in: input, at: index) {
+                if TokenizerUtilities.matchString("*/", in: input, at: index) {
                     index = input.index(index, offsetBy: 2)
                     break
                 }
@@ -141,33 +141,10 @@ public struct ParsingTokenizer {
     }
 
     private func parseKeyword(from input: String, at index: inout String.Index) -> TokenData? {
-        let keywords: [(String, TokenType)] = [
-            // Japanese keywords (longest first)
-            ("文字列型", .stringType),
-            ("整数型", .integerType),
-            ("実数型", .realType),
-            ("文字型", .characterType),
-            ("論理型", .booleanType),
-            ("レコード", .recordType),
-            ("配列", .arrayType),
-
-            // English keywords
-            ("return", .returnKeyword),
-            ("break", .breakKeyword),
-            ("while", .whileKeyword),
-            ("false", .falseKeyword),
-            ("true", .trueKeyword),
-            ("and", .andKeyword),
-            ("not", .notKeyword),
-            ("for", .forKeyword),
-            ("or", .orKeyword),
-            ("if", .ifKeyword)
-        ]
-
-        for (keyword, tokenType) in keywords where matchString(keyword, in: input, at: index) {
+        for (keyword, tokenType) in TokenizerUtilities.keywords where TokenizerUtilities.matchString(keyword, in: input, at: index) {
             // Check if it's a complete word (not part of identifier)
             let endIndex = input.index(index, offsetBy: keyword.count)
-            if endIndex == input.endIndex || !isIdentifierChar(input[endIndex]) {
+            if TokenizerUtilities.isValidKeywordBoundary(in: input, at: endIndex) {
                 index = endIndex
                 return TokenData(type: tokenType, lexeme: keyword)
             }
@@ -177,22 +154,7 @@ public struct ParsingTokenizer {
     }
 
     private func parseOperator(from input: String, at index: inout String.Index) -> TokenData? {
-        let operators: [(String, TokenType)] = [
-            ("←", .assign),
-            ("≠", .notEqual),
-            ("≧", .greaterEqual),
-            ("≦", .lessEqual),
-            ("+", .plus),
-            ("-", .minus),
-            ("*", .multiply),
-            ("/", .divide),
-            ("%", .modulo),
-            ("=", .equal),
-            (">", .greater),
-            ("<", .less)
-        ]
-
-        for (operatorString, tokenType) in operators where matchString(operatorString, in: input, at: index) {
+        for (operatorString, tokenType) in TokenizerUtilities.operators where TokenizerUtilities.matchString(operatorString, in: input, at: index) {
             index = input.index(index, offsetBy: operatorString.count)
             return TokenData(type: tokenType, lexeme: operatorString)
         }
@@ -201,20 +163,7 @@ public struct ParsingTokenizer {
     }
 
     private func parseDelimiter(from input: String, at index: inout String.Index) -> TokenData? {
-        let delimiters: [(String, TokenType)] = [
-            ("(", .leftParen),
-            (")", .rightParen),
-            ("[", .leftBracket),
-            ("]", .rightBracket),
-            ("{", .leftBrace),
-            ("}", .rightBrace),
-            (",", .comma),
-            (".", .dot),
-            (";", .semicolon),
-            (":", .colon)
-        ]
-
-        for (delimiter, tokenType) in delimiters where matchString(delimiter, in: input, at: index) {
+        for (delimiter, tokenType) in TokenizerUtilities.delimiters where TokenizerUtilities.matchString(delimiter, in: input, at: index) {
             index = input.index(index, offsetBy: delimiter.count)
             return TokenData(type: tokenType, lexeme: delimiter)
         }
@@ -272,7 +221,7 @@ public struct ParsingTokenizer {
         }
 
         let lexeme = String(input[start..<index])
-        let tokenType: TokenType = hasDecimal ? .realLiteral : .integerLiteral
+        let tokenType = TokenizerUtilities.numberTokenType(hasDecimal: hasDecimal)
         return TokenData(type: tokenType, lexeme: lexeme)
     }
 
@@ -297,19 +246,19 @@ public struct ParsingTokenizer {
 
         let lexeme = String(input[start..<index])
         let content = String(lexeme.dropFirst().dropLast()) // Remove quotes
+        let tokenType = TokenizerUtilities.stringLiteralTokenType(content: content)
 
-        let tokenType: TokenType = content.count == 1 ? .characterLiteral : .stringLiteral
         return TokenData(type: tokenType, lexeme: lexeme)
     }
 
     private func parseIdentifier(from input: String, at index: inout String.Index) -> TokenData? {
-        guard index < input.endIndex && isFirstIdentifierChar(input[index]) else { return nil }
+        guard index < input.endIndex && TokenizerUtilities.isIdentifierStart(input[index]) else { return nil }
 
         let start = index
         index = input.index(after: index)
 
         // Read remaining identifier characters
-        while index < input.endIndex && isIdentifierChar(input[index]) {
+        while index < input.endIndex && TokenizerUtilities.isIdentifierContinue(input[index]) {
             index = input.index(after: index)
         }
 
@@ -319,37 +268,8 @@ public struct ParsingTokenizer {
 
     // MARK: - Helper Methods
 
-    private func matchString(_ target: String, in input: String, at index: String.Index) -> Bool {
-        guard let endIndex = input.index(index, offsetBy: target.count, limitedBy: input.endIndex) else {
-            return false
-        }
-        return String(input[index..<endIndex]) == target
-    }
-
-    private func isFirstIdentifierChar(_ char: Character) -> Bool {
-        return char.isLetter || char == "_" || isJapaneseChar(char)
-    }
-
-    private func isIdentifierChar(_ char: Character) -> Bool {
-        return char.isLetter || char.isNumber || char == "_" || isJapaneseChar(char)
-    }
-
-    private func isJapaneseChar(_ char: Character) -> Bool {
-        guard let scalar = char.unicodeScalars.first else { return false }
-        let value = scalar.value
-        return (value >= 0x3040 && value <= 0x309F) ||  // Hiragana
-               (value >= 0x30A0 && value <= 0x30FF) ||  // Katakana
-               (value >= 0x4E00 && value <= 0x9FAF)     // CJK Unified Ideographs
-    }
-
     private func sourcePosition(from input: String, startIndex: String.Index, currentIndex: String.Index) -> SourcePosition {
-        let processed = String(input[startIndex..<currentIndex])
-        let lines = processed.components(separatedBy: "\n")
-        let line = lines.count
-        let column = (lines.last?.count ?? 0) + 1
-        let offset = input.distance(from: startIndex, to: currentIndex)
-
-        return SourcePosition(line: line, column: column, offset: offset)
+        return TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: currentIndex)
     }
 }
 

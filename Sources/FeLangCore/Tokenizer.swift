@@ -13,26 +13,8 @@ public final class Tokenizer {
     /// Using NULL character (U+0000) which is guaranteed to exist and won't appear in normal text
     private static let endOfInputSentinel = UnicodeScalar(0x0000)! // swiftlint:disable:this force_unwrapping
 
-    /// Mapping of keywords to their token types
-    private static let keywords: [String: TokenType] = [
-        "整数型": .integerType,
-        "実数型": .realType,
-        "文字型": .characterType,
-        "文字列型": .stringType,
-        "論理型": .booleanType,
-        "レコード": .recordType,
-        "配列": .arrayType,
-        "if": .ifKeyword,
-        "while": .whileKeyword,
-        "for": .forKeyword,
-        "and": .andKeyword,
-        "or": .orKeyword,
-        "not": .notKeyword,
-        "return": .returnKeyword,
-        "break": .breakKeyword,
-        "true": .trueKeyword,
-        "false": .falseKeyword
-    ]
+    /// Mapping of keywords to their token types (using shared utilities)
+    private static let keywords = TokenizerUtilities.keywordMap
 
     /// Creates a new tokenizer for the given input.
     /// - Parameter input: The source code to tokenize
@@ -282,12 +264,9 @@ public final class Tokenizer {
 
         let content = String(source[contentStartIndex..<source.index(before: current)])
         let lexeme = String(source[startIndex..<current])
+        let tokenType = TokenizerUtilities.stringLiteralTokenType(content: content)
 
-        if content.count == 1 {
-            return Token(type: .characterLiteral, lexeme: lexeme, position: position)
-        } else {
-            return Token(type: .stringLiteral, lexeme: lexeme, position: position)
-        }
+        return Token(type: tokenType, lexeme: lexeme, position: position)
     }
 
     /// Scans a number (integer or real)
@@ -309,7 +288,7 @@ public final class Tokenizer {
         }
 
         let lexeme = String(source[startIndex..<current])
-        let tokenType: TokenType = isReal ? .realLiteral : .integerLiteral
+        let tokenType = TokenizerUtilities.numberTokenType(hasDecimal: isReal)
 
         return Token(type: tokenType, lexeme: lexeme, position: position)
     }
@@ -323,12 +302,12 @@ public final class Tokenizer {
         }
 
         let lexeme = String(source[startIndex..<current])
-        let tokenType = Self.keywords[lexeme] ?? .identifier
+        let tokenType = TokenizerUtilities.keywordMap[lexeme] ?? .identifier
 
         return Token(type: tokenType, lexeme: lexeme, position: position)
     }
 
-    /// Checks if a character can start an identifier
+        /// Checks if a character can start an identifier
     /// Handles Unicode letters, underscore, and CJK characters robustly
     private func isIdentifierStart(_ char: UnicodeScalar) -> Bool {
         // Handle end-of-input sentinel
@@ -336,7 +315,7 @@ public final class Tokenizer {
             return false
         }
 
-        return char.isLetter || char == "_" || isJapaneseCharacter(char)
+        return TokenizerUtilities.isIdentifierStart(char)
     }
 
     /// Checks if a character can continue an identifier
@@ -347,29 +326,6 @@ public final class Tokenizer {
             return false
         }
 
-        return char.isLetter || char.isNumber || char == "_" || isJapaneseCharacter(char)
-    }
-
-    /// Checks if a character is a Japanese character (Hiragana, Katakana, or Kanji)
-    /// Includes comprehensive Unicode ranges for CJK characters
-    private func isJapaneseCharacter(_ char: UnicodeScalar) -> Bool {
-        let value = char.value
-        return (value >= 0x3040 && value <= 0x309F) ||  // Hiragana
-               (value >= 0x30A0 && value <= 0x30FF) ||  // Katakana
-               (value >= 0x4E00 && value <= 0x9FAF) ||  // CJK Unified Ideographs (main block)
-               (value >= 0x3400 && value <= 0x4DBF) ||  // CJK Extension A
-               (value >= 0x20000 && value <= 0x2A6DF)   // CJK Extension B
-    }
-}
-
-extension UnicodeScalar {
-    /// Returns true if this scalar represents a letter
-    var isLetter: Bool {
-        return CharacterSet.letters.contains(self)
-    }
-
-    /// Returns true if this scalar represents a number
-    var isNumber: Bool {
-        return CharacterSet.decimalDigits.contains(self)
+        return TokenizerUtilities.isIdentifierContinue(char)
     }
 }
