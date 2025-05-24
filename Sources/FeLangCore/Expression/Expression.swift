@@ -50,6 +50,9 @@ extension Literal: Codable {
             self = .integer(value)
         } else if let value = dict["real"]?.value as? Double {
             self = .real(value)
+        } else if let intValue = dict["real"]?.value as? Int {
+            // Handle case where JSON encodes 0.0 as 0 (Int instead of Double)
+            self = .real(Double(intValue))
         } else if let value = dict["string"]?.value as? String {
             self = .string(value)
         } else if let value = dict["character"]?.value as? String, let char = value.first {
