@@ -18,8 +18,6 @@ struct ExpressionParserTests {
         return try parser.parseExpression(from: tokens)
     }
 
-
-
         // MARK: - Basic Literal Tests
 
     @Test func testRealLiteral() throws {
