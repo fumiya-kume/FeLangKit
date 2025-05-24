@@ -1,4 +1,4 @@
-// swift-tools-version:5.9
+// swift-tools-version:6.0
 import PackageDescription
 
 let package = Package(
@@ -13,7 +13,7 @@ let package = Package(
         .library(name: "FeLangServer", targets: ["FeLangServer"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-testing.git", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-testing.git", from: "0.1.0"),
         .package(url: "https://github.com/pointfreeco/swift-parsing.git", from: "0.5.0")
     ],
     targets: [
@@ -45,19 +45,31 @@ let package = Package(
         ),
         .testTarget(
             name: "FeLangCoreTests",
-            dependencies: ["FeLangCore"]
+            dependencies: [
+                "FeLangCore",
+                .product(name: "Testing", package: "swift-testing")
+            ]
         ),
         .testTarget(
             name: "FeLangKitTests",
-            dependencies: ["FeLangKit"]
+            dependencies: [
+                "FeLangKit",
+                .product(name: "Testing", package: "swift-testing")
+            ]
         ),
         .testTarget(
             name: "FeLangRuntimeTests",
-            dependencies: ["FeLangRuntime"]
+            dependencies: [
+                "FeLangRuntime",
+                .product(name: "Testing", package: "swift-testing")
+            ]
         ),
         .testTarget(
             name: "FeLangServerTests",
-            dependencies: ["FeLangServer"]
+            dependencies: [
+                "FeLangServer",
+                .product(name: "Testing", package: "swift-testing")
+            ]
         )
     ]
 )

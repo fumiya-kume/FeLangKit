@@ -7,35 +7,90 @@ on:
     branches: [ master ]
 
 jobs:
-  build-and-test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        swift: [5.7, 5.8, 5.9]
+  lint:
+    name: SwiftLint
+    runs-on: macos-15
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Install Swift ${{ matrix.swift }}
-        uses: fwal/setup-swift@v2
+      - name: Cache SwiftLint
+        uses: actions/cache@v4
         with:
-          swift-version: ${{ matrix.swift }}
+          path: /usr/local/bin/swiftlint
+          key: swiftlint-${{ runner.os }}
 
       - name: Install SwiftLint
-        uses: davedelong/SwiftLint@v0.2.0
+        run: |
+          if ! command -v swiftlint &> /dev/null; then
+            brew install swiftlint
+          fi
 
-      - name: Autocorrect SwiftLint violations
-        run: swiftlint autocorrect
+      - name: Run SwiftLint
+        run: swiftlint lint --strict --quiet --reporter github-actions-logging
 
-      - name: Lint Swift code
-        run: swiftlint
+  build:
+    name: Build (${{ matrix.configuration }})
+    runs-on: macos-15
+    strategy:
+      matrix:
+        configuration: [debug, release]
+      fail-fast: false  # Don't cancel other builds if one fails
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            .swiftpm
+          key: swiftpm-${{ matrix.configuration }}-${{ runner.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          restore-keys: |
+            swiftpm-${{ matrix.configuration }}-${{ runner.os }}-
+            swiftpm-${{ runner.os }}-
 
       - name: Resolve dependencies
         run: swift package resolve
 
-      - name: Build
-        run: swift build --configuration release
+      - name: Build ${{ matrix.configuration }}
+        run: swift build --configuration ${{ matrix.configuration }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.configuration }}-build
+          path: .build/${{ matrix.configuration }}/
+          retention-days: ${{ matrix.configuration == 'release' && 7 || 1 }}
+
+  test:
+    name: Unit Tests
+    runs-on: macos-15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            .swiftpm
+          key: swiftpm-debug-${{ runner.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          restore-keys: |
+            swiftpm-debug-${{ runner.os }}-
+            swiftpm-${{ runner.os }}-
+
+      - name: Resolve dependencies
+        run: swift package resolve
 
       - name: Run tests
         run: swift test --enable-code-coverage
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: .build/debug/codecov/
+          retention-days: 7
