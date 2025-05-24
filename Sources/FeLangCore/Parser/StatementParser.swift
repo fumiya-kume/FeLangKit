@@ -276,44 +276,79 @@ public struct StatementParser {
 
     // MARK: - Declaration Parsing
 
-    /// Parses a variable declaration (変数 name: type ← initialValue).
-    private func parseVariableDeclaration(_ parser: inout TokenStream) throws -> VariableDeclaration {
-        try expectToken(&parser, .variableKeyword) // consume '変数'
+    /// Common declaration components extracted from parsing
+    private struct DeclarationComponents {
+        let name: String
+        let type: DataType
+        let initialValue: Expression?
+    }
 
+    /// Parses the common declaration pattern: keyword name: type [← value]
+    /// This helper consolidates shared parsing logic between variable and constant declarations.
+    /// - Parameters:
+    ///   - parser: Token stream to parse from
+    ///   - keywordType: Expected declaration keyword (.variableKeyword or .constantKeyword)
+    ///   - requiresInitialValue: Whether initial value is required (true for constants)
+    /// - Returns: Parsed declaration components
+    private func parseDeclarationComponents(
+        _ parser: inout TokenStream,
+        keywordType: TokenType,
+        requiresInitialValue: Bool
+    ) throws -> DeclarationComponents {
+        // Consume declaration keyword
+        try expectToken(&parser, keywordType)
+
+        // Parse identifier name
         guard let nameToken = parser.advance(), nameToken.type == .identifier else {
             throw StatementParsingError.expectedIdentifier
         }
         let name = nameToken.lexeme
 
+        // Parse type annotation
         try expectToken(&parser, .colon) // consume ':'
         let type = try parseDataType(&parser)
 
-        // Optional initial value
+        // Parse initial value (optional for variables, required for constants)
         var initialValue: Expression?
         if parser.peek()?.type == .assign {
             parser.advance() // consume '←'
             initialValue = try parseExpression(&parser)
+        } else if requiresInitialValue {
+            throw StatementParsingError.expectedToken(.assign)
         }
 
-        return VariableDeclaration(name: name, type: type, initialValue: initialValue)
+        return DeclarationComponents(name: name, type: type, initialValue: initialValue)
+    }
+
+    /// Parses a variable declaration (変数 name: type ← initialValue).
+    private func parseVariableDeclaration(_ parser: inout TokenStream) throws -> VariableDeclaration {
+        let components = try parseDeclarationComponents(
+            &parser,
+            keywordType: .variableKeyword,
+            requiresInitialValue: false
+        )
+
+        return VariableDeclaration(
+            name: components.name,
+            type: components.type,
+            initialValue: components.initialValue
+        )
     }
 
     /// Parses a constant declaration (定数 name: type ← value).
     private func parseConstantDeclaration(_ parser: inout TokenStream) throws -> ConstantDeclaration {
-        try expectToken(&parser, .constantKeyword) // consume '定数'
+        let components = try parseDeclarationComponents(
+            &parser,
+            keywordType: .constantKeyword,
+            requiresInitialValue: true
+        )
 
-        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
-            throw StatementParsingError.expectedIdentifier
-        }
-        let name = nameToken.lexeme
-
-        try expectToken(&parser, .colon) // consume ':'
-        let type = try parseDataType(&parser)
-
-        try expectToken(&parser, .assign) // consume '←' (required for constants)
-        let initialValue = try parseExpression(&parser)
-
-        return ConstantDeclaration(name: name, type: type, initialValue: initialValue)
+        // Safe force unwrap: requiresInitialValue: true guarantees initialValue exists
+        return ConstantDeclaration(
+            name: components.name,
+            type: components.type,
+            initialValue: components.initialValue!
+        )
     }
 
     // MARK: - Function/Procedure Parsing
