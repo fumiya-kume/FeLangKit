@@ -409,20 +409,32 @@ public struct StatementParser {
         if typeToken.type == .identifier {
             let typeName = typeToken.lexeme.lowercased()
 
-            // Support multiple variants of basic types
+            // Support multiple variants of basic types with bilingual (English/Japanese) keywords
+            // This enables FE pseudo-language to be used in both English and Japanese environments
             switch typeName {
+            // Integer types: supports English variants and Japanese equivalents
             case "integer", "int", "整数型", "整数":
                 return .integer
+
+            // Real number types: supports floating-point number variants
             case "real", "double", "float", "実数型", "実数":
                 return .real
+
+            // String types: supports text/string variants
             case "string", "str", "文字列型", "文字列":
                 return .string
+
+            // Character types: supports single character types
             case "character", "char", "文字型", "文字":
                 return .character
+
+            // Boolean types: supports logical/boolean variants including Japanese "ブール"
             case "boolean", "bool", "論理型", "論理", "ブール":
                 return .boolean
+
+            // Array types: supports both English "array of type" and Japanese "配列型"
             case "array", "配列型", "配列":
-                // Handle array type with element specification
+                // Handle array type with element specification: "array of integer" or "配列 の 整数"
                 if parser.peek()?.lexeme == "of" || parser.peek()?.lexeme == "の" {
                     parser.advance() // consume "of" or "の"
                     let elementType = try parseDataType(&parser)
@@ -431,14 +443,17 @@ public struct StatementParser {
                     // Default to integer array for backwards compatibility
                     return .array(.integer)
                 }
+
+            // Record types: supports structured data types with custom names
             case "record", "レコード型", "レコード":
-                // Handle record type with name
+                // Handle record type with name: "record PersonRecord"
                 guard let nameToken = parser.advance(), nameToken.type == .identifier else {
                     throw StatementParsingError.expectedIdentifier
                 }
                 return .record(nameToken.lexeme)
+
             default:
-                // Treat unknown identifiers as custom record types
+                // Treat unknown identifiers as custom record types for extensibility
                 return .record(typeToken.lexeme)
             }
         }
@@ -568,9 +583,35 @@ public struct StatementParser {
     /// Checks if a token type indicates the end of an expression (statement boundary).
     private func isStatementTerminator(_ tokenType: TokenType) -> Bool {
         switch tokenType {
-        case .newline, .eof, .thenKeyword, .elseKeyword, .elifKeyword, .endifKeyword, .doKeyword, .endwhileKeyword, .endforKeyword,
-             .endfunctionKeyword, .endprocedureKeyword, .comma, .toKeyword, .stepKeyword, .inKeyword:
+        // Basic terminators
+        case .newline, .eof:
             return true
+
+        // Control flow keywords that end expressions and start new statement blocks
+        case .thenKeyword,      // IF condition ends, THEN block begins
+             .elseKeyword,      // Previous block ends, ELSE block begins
+             .elifKeyword,      // Previous block ends, ELIF condition begins
+             .doKeyword:        // WHILE/FOR condition ends, DO block begins
+            return true
+
+        // Block termination keywords that end expressions and close statement blocks
+        case .endifKeyword,     // IF statement block ends
+             .endwhileKeyword,  // WHILE statement block ends
+             .endforKeyword,    // FOR statement block ends
+             .endfunctionKeyword,   // FUNCTION declaration block ends
+             .endprocedureKeyword:  // PROCEDURE declaration block ends
+            return true
+
+        // FOR loop specific keywords that separate expression components
+        case .toKeyword,        // Separates start and end expressions: FOR i ← 1 TO 10
+             .stepKeyword,      // Separates end and step expressions: TO 10 STEP 2
+             .inKeyword:        // Separates variable and iterable: FOR item IN array
+            return true
+
+        // General expression separators
+        case .comma:            // Separates function arguments, parameter lists
+            return true
+
         default:
             return false
         }
@@ -584,6 +625,7 @@ public struct StatementParser {
         let token = parser.tokens[index]
 
         // Check for assignment pattern: identifier ←
+        // This detects variable assignments like "x ← 5" or array assignments like "arr[i] ← value"
         if token.type == .identifier && index + 1 < parser.tokens.count {
             let nextToken = parser.tokens[index + 1]
             if nextToken.type == .assign {
@@ -591,10 +633,24 @@ public struct StatementParser {
             }
         }
 
-        // Check for control flow keywords
+        // Check for statement-starting keywords
         switch token.type {
-        case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword, .returnKeyword, .breakKeyword:
+        // Control flow statements
+        case .ifKeyword,        // IF-THEN-ELSE conditional statements
+             .whileKeyword,     // WHILE-DO loop statements
+             .forKeyword:       // FOR loop statements (range or forEach)
             return true
+
+        // Function/procedure declarations
+        case .functionKeyword,  // FUNCTION declarations with return values
+             .procedureKeyword: // PROCEDURE declarations without return values
+            return true
+
+        // Flow control statements
+        case .returnKeyword,    // RETURN statements (with or without values)
+             .breakKeyword:     // BREAK statements for loop termination
+            return true
+
         default:
             return false
         }
