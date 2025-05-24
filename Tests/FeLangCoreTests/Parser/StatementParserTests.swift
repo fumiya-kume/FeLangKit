@@ -404,6 +404,122 @@ struct StatementParserTests {
         }
     }
 
+    @Test("Constant Declaration Missing Identifier") 
+    func testConstantDeclarationMissingIdentifier() throws {
+        #expect(throws: StatementParsingError.expectedIdentifier) {
+            try parseStatements("定数 : 整数型 ← 5")
+        }
+    }
+
+    @Test("Constant Declaration Missing Type")
+    func testConstantDeclarationMissingType() throws {
+        #expect(throws: StatementParsingError.expectedDataType) {
+            try parseStatements("定数 PI:")
+        }
+    }
+
+    // MARK: - Advanced Declaration Edge Case Tests
+
+    @Test("Variable Declaration with Complex Expression")
+    func testVariableDeclarationWithComplexExpression() throws {
+        let statements = try parseStatements("変数 result: 整数型 ← (x + y) * 2")
+        
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+        
+        #expect(varDecl.name == "result")
+        #expect(varDecl.type == .integer)
+        // Verify complex expression parsing - should be binary multiplication
+        guard case .binary(.multiply, let leftExpr, .literal(.integer(2))) = varDecl.initialValue else {
+            #expect(Bool(false), "Expected complex expression with multiplication")
+            return
+        }
+        // Left side should be (x + y) in parentheses - parsed as addition
+        guard case .binary(.add, .identifier("x"), .identifier("y")) = leftExpr else {
+            #expect(Bool(false), "Expected addition expression in parentheses")
+            return
+        }
+    }
+
+    @Test("Unicode Identifiers")
+    func testUnicodeIdentifiers() throws {
+        let statements = try parseStatements("変数 データ: 整数型 ← 42")
+        
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+        
+        #expect(varDecl.name == "データ")
+        #expect(varDecl.type == .integer)
+        #expect(varDecl.initialValue == .literal(.integer(42)))
+    }
+
+    @Test("Malformed Declarations")
+    func testMalformedDeclarations() throws {
+        // Test invalid identifier starting with number
+        #expect(throws: StatementParsingError.self) {
+            try parseStatements("変数 123: 整数型")
+        }
+        
+        // Test missing colon
+        #expect(throws: StatementParsingError.self) {
+            try parseStatements("変数 x 整数型")
+        }
+    }
+
+    @Test("Declaration with Nested Function Call Expression")
+    func testDeclarationWithNestedFunctionCall() throws {
+        let statements = try parseStatements("変数 result: 整数型 ← func(getValue())")
+        
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+        
+        #expect(varDecl.name == "result")
+        #expect(varDecl.type == .integer)
+        // Verify nested function call parsing
+        guard case .functionCall("func", let args) = varDecl.initialValue else {
+            #expect(Bool(false), "Expected function call as initial value")
+            return
+        }
+        #expect(args.count == 1)
+        guard case .functionCall("getValue", let innerArgs) = args[0] else {
+            #expect(Bool(false), "Expected nested function call")
+            return
+        }
+        #expect(innerArgs.count == 0)
+    }
+
+    @Test("Declaration with Array Access Expression")
+    func testDeclarationWithArrayAccessExpression() throws {
+        let statements = try parseStatements("変数 value: 整数型 ← array[index + 1]")
+        
+        #expect(statements.count == 1)
+        guard case .variableDeclaration(let varDecl) = statements[0] else {
+            #expect(Bool(false), "Expected variable declaration")
+            return
+        }
+        
+        #expect(varDecl.name == "value")
+        #expect(varDecl.type == .integer)
+        // Verify array access with expression index
+        guard case .arrayAccess(.identifier("array"), let indexExpr) = varDecl.initialValue else {
+            #expect(Bool(false), "Expected array access as initial value")
+            return
+        }
+        guard case .binary(.add, .identifier("index"), .literal(.integer(1))) = indexExpr else {
+            #expect(Bool(false), "Expected addition expression as array index")
+            return
+        }
+    }
+
     @Test("Return Statement without Expression - Fixed")
     func testReturnStatementWithoutExpressionFixed() throws {
         let statements = try parseStatements("return")
@@ -541,7 +657,7 @@ struct StatementParserTests {
         }
     }
 
-        @Test("Mixed Postfix Operations")
+    @Test("Mixed Postfix Operations")
     func testMixedPostfixOperations() throws {
         // Simplified test for now - field access on array element
         let statements = try parseStatements("result ← users[0].name")
@@ -561,7 +677,7 @@ struct StatementParserTests {
 
     // MARK: - Security and Edge Case Tests
 
-        @Test("Maximum Nesting Depth Security")
+    @Test("Maximum Nesting Depth Security")
     func testMaximumNestingDepth() throws {
         // Create a simple test with reasonable depth that should succeed
         let simpleNesting = "if true then if true then x ← 1 endif endif"
@@ -585,13 +701,13 @@ struct StatementParserTests {
         // and test that normal input works correctly
     }
 
-        @Test("Long Identifier Security")
+    @Test("Long Identifier Security")
     func testLongIdentifierSecurity() throws {
         let longIdentifier = String(repeating: "a", count: 300)
 
         // The tokenizer should handle this gracefully, so this test should not throw
         // We're testing that the system can handle long identifiers without crashing
         let statements = try parseStatements("\(longIdentifier) ← 1")
-        #expect(statements.count == 1)
+                #expect(statements.count == 1)
     }
 }
