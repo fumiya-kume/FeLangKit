@@ -245,14 +245,17 @@ public struct ParsingTokenizer {
     }
 
     private func parseString(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenData? {
-        guard index < input.endIndex && input[index] == "'" else { return nil }
+        guard index < input.endIndex else { return nil }
+
+        let quoteChar = input[index]
+        guard quoteChar == "'" || quoteChar == "\"" else { return nil }
 
         let start = index
         let position = TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
         index = input.index(after: index) // Skip opening quote
 
         // Read until closing quote
-        while index < input.endIndex && input[index] != "'" {
+        while index < input.endIndex && input[index] != quoteChar {
             index = input.index(after: index)
         }
 

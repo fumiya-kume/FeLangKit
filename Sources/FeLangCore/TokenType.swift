@@ -13,8 +13,22 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
 
     /// Control flow keywords
     case ifKeyword = "if"
+    case thenKeyword = "then"
+    case elseKeyword = "else"
+    case elifKeyword = "elif"
+    case endifKeyword = "endif"
     case whileKeyword = "while"
+    case doKeyword = "do"
+    case endwhileKeyword = "endwhile"
     case forKeyword = "for"
+    case toKeyword = "to"
+    case stepKeyword = "step"
+    case inKeyword = "in"
+    case endforKeyword = "endfor"
+    case functionKeyword = "function"
+    case endfunctionKeyword = "endfunction"
+    case procedureKeyword = "procedure"
+    case endprocedureKeyword = "endprocedure"
     case returnKeyword = "return"
     case breakKeyword = "break"
 
@@ -84,7 +98,9 @@ extension TokenType {
     public var isKeyword: Bool {
         switch self {
         case .integerType, .realType, .characterType, .stringType, .booleanType,
-             .recordType, .arrayType, .ifKeyword, .whileKeyword, .forKeyword,
+             .recordType, .arrayType, .ifKeyword, .thenKeyword, .elseKeyword, .elifKeyword, .endifKeyword,
+             .whileKeyword, .doKeyword, .endwhileKeyword, .forKeyword, .toKeyword, .stepKeyword, .inKeyword, .endforKeyword,
+             .functionKeyword, .endfunctionKeyword, .procedureKeyword, .endprocedureKeyword,
              .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword,
              .trueKeyword, .falseKeyword:
             return true

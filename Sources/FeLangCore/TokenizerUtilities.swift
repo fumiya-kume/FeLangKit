@@ -19,15 +19,29 @@ public enum TokenizerUtilities {
         ("配列", .arrayType),
 
         // English keywords (longest first)
+        ("endprocedure", .endprocedureKeyword),
+        ("endfunction", .endfunctionKeyword),
+        ("endwhile", .endwhileKeyword),
+        ("procedure", .procedureKeyword),
+        ("function", .functionKeyword),
+        ("endfor", .endforKeyword),
+        ("endif", .endifKeyword),
         ("return", .returnKeyword),
         ("break", .breakKeyword),
         ("while", .whileKeyword),
         ("false", .falseKeyword),
         ("true", .trueKeyword),
+        ("then", .thenKeyword),
+        ("else", .elseKeyword),
+        ("elif", .elifKeyword),
+        ("step", .stepKeyword),
         ("and", .andKeyword),
         ("not", .notKeyword),
         ("for", .forKeyword),
         ("or", .orKeyword),
+        ("to", .toKeyword),
+        ("in", .inKeyword),
+        ("do", .doKeyword),
         ("if", .ifKeyword)
     ]
 
