@@ -6,10 +6,22 @@ public struct ExpressionParser {
 
     public init() {}
 
-    /// Parses an expression from an array of tokens.
-    /// - Parameter tokens: Array of tokens to parse
-    /// - Returns: Parsed expression
-    /// - Throws: ParsingError if parsing fails
+    /// Parses an expression from an array of tokens using precedence climbing.
+    /// 
+    /// This method processes tokens and returns a parsed Expression object using 
+    /// the precedence climbing algorithm for correct operator precedence and associativity.
+    /// Supports arithmetic, logical, comparison operators, function calls, array/field access.
+    /// 
+    /// - Parameter tokens: Array of tokens to parse, including an EOF token
+    /// - Returns: Parsed Expression object representing the expression tree
+    /// - Throws: ParsingError for syntax errors, unexpected tokens, or malformed expressions
+    /// 
+    /// Example:
+    /// ```swift
+    /// let tokens = try tokenizer.tokenize("a + b * c")
+    /// let expr = try parser.parseExpression(from: tokens)
+    /// // Returns: binary(.add, identifier("a"), binary(.multiply, identifier("b"), identifier("c")))
+    /// ```
     public func parseExpression(from tokens: [Token]) throws -> Expression {
         var parser = TokenStream(tokens)
         let expression = try parseExpression(&parser)
@@ -58,7 +70,7 @@ public struct ExpressionParser {
         return try parsePostfixExpression(&parser)
     }
 
-    /// Parses postfix expressions (array access and function calls).
+    /// Parses postfix expressions (array access, field access, and function calls).
     private func parsePostfixExpression(_ parser: inout TokenStream) throws -> Expression {
         var expr = try parsePrimaryExpression(&parser)
 
@@ -70,6 +82,13 @@ public struct ExpressionParser {
                 let indexExpr = try parseExpression(&parser)
                 try expectToken(&parser, .rightBracket)
                 expr = Expression.arrayAccess(expr, indexExpr)
+            } else if parser.peek()?.type == .dot {
+                // Field access: expr.field
+                parser.advance() // consume '.'
+                guard let fieldToken = parser.advance(), fieldToken.type == .identifier else {
+                    throw ParsingError.expectedIdentifier
+                }
+                expr = Expression.fieldAccess(expr, fieldToken.lexeme)
             } else if parser.peek()?.type == .leftParen,
                       case .identifier(let name) = expr {
                 // Function call: identifier(args...)
@@ -203,6 +222,7 @@ public enum ParsingError: Error, Equatable {
     case unexpectedEndOfInput
     case unexpectedToken(Token, expected: TokenType)
     case expectedPrimaryExpression(Token)
+    case expectedIdentifier
 }
 
 extension ParsingError: LocalizedError {
@@ -214,6 +234,8 @@ extension ParsingError: LocalizedError {
             return "Unexpected token '\(token.lexeme)' at \(token.position), expected \(expected)"
         case .expectedPrimaryExpression(let token):
             return "Expected primary expression at \(token.position), got '\(token.lexeme)'"
+        case .expectedIdentifier:
+            return "Expected identifier"
         }
     }
 }

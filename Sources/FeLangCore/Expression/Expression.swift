@@ -12,6 +12,7 @@ public indirect enum Expression: Equatable, Codable, Sendable {
 
     // Postfix expressions
     case arrayAccess(Expression, Expression)
+    case fieldAccess(Expression, String)
     case functionCall(String, [Expression])
 }
 
@@ -228,12 +229,14 @@ extension Literal {
             guard let value = Double(token.lexeme) else { return nil }
             self = .real(value)
         case .stringLiteral:
-            // Remove the surrounding quotes
-            let content = String(token.lexeme.dropFirst().dropLast())
+            // Remove the surrounding quotes and process escape sequences
+            let rawContent = String(token.lexeme.dropFirst().dropLast())
+            let content = StringEscapeUtilities.processEscapeSequences(rawContent)
             self = .string(content)
         case .characterLiteral:
-            // Remove the surrounding quotes and get the character
-            let content = token.lexeme.dropFirst().dropLast()
+            // Remove the surrounding quotes, process escape sequences, and get the character
+            let rawContent = token.lexeme.dropFirst().dropLast()
+            let content = StringEscapeUtilities.processEscapeSequences(String(rawContent))
             guard let character = content.first else { return nil }
             self = .character(character)
         case .trueKeyword:
@@ -244,4 +247,5 @@ extension Literal {
             return nil
         }
     }
+
 }
