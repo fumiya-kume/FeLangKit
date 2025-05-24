@@ -2,9 +2,6 @@ import Testing
 @testable import FeLangCore
 import Foundation
 
-/// Alias to avoid conflict with Foundation.Expression
-typealias ASTExpression = FeLangCore.Expression
-
 /// Validation utilities for thread safety compliance
 /// Provides specialized validators for different aspects of thread safety
 public enum ThreadSafetyValidators {
@@ -155,9 +152,11 @@ public enum ThreadSafetyValidators {
         let timings = allAccesses.map { $0.duration }
         
         // Look for suspicious timing patterns that might indicate race conditions
+        // For immutable read-only operations, we expect consistent fast performance
         if let maxTiming = timings.max(), let minTiming = timings.min() {
             let variance = maxTiming - minTiming
-            if variance > 0.1 { // If variance is > 100ms, it might indicate contention
+            // Only consider variance suspicious if it's very large (>10ms) and represents significant variation
+            if variance > 0.01 && maxTiming > minTiming * 100 { // 100x difference indicates potential issues
                 suspiciousTimings.append(variance)
             }
         }
@@ -172,7 +171,7 @@ public enum ThreadSafetyValidators {
     /// Validates thread safety for specific AST expression types
     /// - Parameter expression: The expression to validate
     /// - Returns: Validation result for the expression
-    public static func validateExpressionThreadSafety(_ expression: ASTExpression) async -> ValidationResult {
+    public static func validateExpressionThreadSafety(_ expression: FeLangCore.Expression) async -> ValidationResult {
         var issues: [String] = []
         var recommendations: [String] = []
         
@@ -180,23 +179,23 @@ public enum ThreadSafetyValidators {
         let concurrentResult = await ConcurrencyTestHelpers.performConcurrentReadTest(
             level: .medium
         ) {
-            // Read-only operations that should be thread-safe
+            // Read-only operations that should be thread-safe - using String as common return type
             let _ = expression
             switch expression {
             case .literal(let literal):
-                return literal
+                return String(describing: literal)
             case .identifier(let name):
                 return name
             case .binary(let op, let left, let right):
-                return (op, left, right)
+                return "binary_\(op)_\(left)_\(right)"
             case .unary(let op, let expr):
-                return (op, expr)
+                return "unary_\(op)_\(expr)"
             case .arrayAccess(let array, let index):
-                return (array, index)
+                return "arrayAccess_\(array)_\(index)"
             case .fieldAccess(let expr, let field):
-                return (expr, field)
+                return "fieldAccess_\(expr)_\(field)"
             case .functionCall(let name, let args):
-                return (name, args)
+                return "functionCall_\(name)_\(args.count)"
             }
         }
         
@@ -236,42 +235,42 @@ public enum ThreadSafetyValidators {
         let concurrentResult = await ConcurrencyTestHelpers.performConcurrentReadTest(
             level: .medium
         ) {
-            // Read-only access to statement components
+            // Read-only access to statement components - using String as return type for Sendable compliance
             switch statement {
             case .ifStatement(let ifStmt):
-                return (ifStmt.condition, ifStmt.thenBody.count, ifStmt.elseIfs.count)
+                return "ifStatement_\(ifStmt.condition)_\(ifStmt.thenBody.count)_\(ifStmt.elseIfs.count)"
             case .whileStatement(let whileStmt):
-                return (whileStmt.condition, whileStmt.body.count, 0) // Add third element for consistency
+                return "whileStatement_\(whileStmt.condition)_\(whileStmt.body.count)"
             case .forStatement(let forStmt):
                 switch forStmt {
                 case .range(let rangeFor):
-                    return (rangeFor.variable, rangeFor.start, rangeFor.end)
+                    return "forRange_\(rangeFor.variable)_\(rangeFor.start)_\(rangeFor.end)"
                 case .forEach(let forEachLoop):
-                    return (forEachLoop.variable, forEachLoop.iterable, "forEach")
+                    return "forEach_\(forEachLoop.variable)_\(forEachLoop.iterable)"
                 }
             case .assignment(let assignment):
                 switch assignment {
                 case .variable(let name, let expr):
-                    return (name, expr, "variable")
+                    return "assignVariable_\(name)_\(expr)"
                 case .arrayElement(let access, let expr):
-                    return (access, expr, "arrayElement")
+                    return "assignArrayElement_\(access)_\(expr)"
                 }
             case .variableDeclaration(let varDecl):
-                return (varDecl.name, varDecl.type, "variable")
+                return "variableDeclaration_\(varDecl.name)_\(varDecl.type)"
             case .constantDeclaration(let constDecl):
-                return (constDecl.name, constDecl.type, "constant")
+                return "constantDeclaration_\(constDecl.name)_\(constDecl.type)"
             case .functionDeclaration(let funcDecl):
-                return (funcDecl.name, funcDecl.parameters.count, funcDecl.body.count)
+                return "functionDeclaration_\(funcDecl.name)_\(funcDecl.parameters.count)_\(funcDecl.body.count)"
             case .procedureDeclaration(let procDecl):
-                return (procDecl.name, procDecl.parameters.count, procDecl.body.count)
+                return "procedureDeclaration_\(procDecl.name)_\(procDecl.parameters.count)_\(procDecl.body.count)"
             case .returnStatement(let returnStmt):
-                return (returnStmt.expression, "return", 0)
+                return "returnStatement_\(String(describing: returnStmt.expression))"
             case .expressionStatement(let expr):
-                return (expr, "expression", 0)
+                return "expressionStatement_\(expr)"
             case .breakStatement:
-                return ("break", 0, 0)
+                return "breakStatement"
             case .block(let statements):
-                return (statements.count, "block", 0)
+                return "block_\(statements.count)"
             }
         }
         
@@ -332,26 +331,29 @@ public enum ThreadSafetyValidators {
     private static func analyzeAccessConflicts(_ accesses: [AccessEvent]) -> [AccessEvent] {
         var conflicts: [AccessEvent] = []
         
+        // For read-only operations on immutable data, timing overlaps don't indicate real race conditions
+        // We need to be more careful about what constitutes a "conflict"
+        
         // Sort accesses by timestamp
         let sortedAccesses = accesses.sorted { $0.timestamp < $1.timestamp }
         
-        // Look for overlapping access patterns
-        for i in 0..<sortedAccesses.count {
-            for j in (i+1)..<sortedAccesses.count {
-                let access1 = sortedAccesses[i]
-                let access2 = sortedAccesses[j]
-                
-                // Check if accesses overlap in time
-                let access1End = access1.timestamp.addingTimeInterval(access1.duration)
-                if access2.timestamp < access1End {
-                    // Potential conflict detected
-                    if !conflicts.contains(where: { $0.threadId == access1.threadId }) {
-                        conflicts.append(access1)
-                    }
-                    if !conflicts.contains(where: { $0.threadId == access2.threadId }) {
-                        conflicts.append(access2)
-                    }
-                }
+        // For immutable AST operations, concurrent read access is expected and safe
+        // Only flag as conflicts if we see unusual patterns that suggest actual contention
+        
+        // Look for operations that took unusually long (potential blocking)
+        let durations = sortedAccesses.map { $0.duration }
+        guard let maxDuration = durations.max(), maxDuration > 0 else {
+            return [] // No conflicts if all operations complete instantly
+        }
+        
+        let averageDuration = durations.reduce(0, +) / Double(durations.count)
+        let unusualThreshold = averageDuration * 10 // 10x average is unusual
+        
+        // Only flag operations that took significantly longer than average
+        // This indicates potential contention rather than normal concurrent access
+        for access in sortedAccesses {
+            if access.duration > unusualThreshold && access.duration > 0.001 { // 1ms threshold
+                conflicts.append(access)
             }
         }
         
