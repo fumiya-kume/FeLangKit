@@ -8,10 +8,9 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
         swift: [5.7, 5.8, 5.9]
     steps:
       - name: Checkout source
