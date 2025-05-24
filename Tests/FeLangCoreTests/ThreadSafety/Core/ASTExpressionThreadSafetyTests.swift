@@ -6,9 +6,9 @@ import Foundation
 /// Implements enhanced concurrent access testing as outlined in Issue #37
 @Suite("AST Expression Thread Safety Tests")
 struct ASTExpressionThreadSafetyTests {
-    
+
     // MARK: - Literal Expression Thread Safety
-    
+
     @Test("Literal Expressions Concurrent Access - High Concurrency")
     func testLiteralExpressionsConcurrentAccess() async throws {
         let literalExpressions: [FeLangCore.Expression] = [
@@ -19,16 +19,16 @@ struct ASTExpressionThreadSafetyTests {
             .literal(.boolean(true)),
             .literal(.boolean(false))
         ]
-        
+
         for literalExpr in literalExpressions {
             // Test with 100 concurrent tasks
             let result = await ConcurrencyTestHelpers.performConcurrentReadTest(level: .high) {
                 return literalExpr
             }
-            
+
             #expect(result.success, "Literal expression \(literalExpr) should handle 100 concurrent accesses")
             #expect(result.tasksCompleted == 100, "All 100 tasks should complete for literal \(literalExpr)")
-            
+
             // Validate consistency across concurrent access
             let isConsistent = await ConcurrencyTestHelpers.validateConcurrentConsistency(level: .high) {
                 return literalExpr
@@ -36,7 +36,7 @@ struct ASTExpressionThreadSafetyTests {
             #expect(isConsistent, "Literal expression \(literalExpr) should be consistent across concurrent access")
         }
     }
-    
+
     @Test("Identifier Expressions Thread Safety")
     func testIdentifierExpressionsThreadSafety() async throws {
         let identifierExpressions: [FeLangCore.Expression] = [
@@ -51,22 +51,22 @@ struct ASTExpressionThreadSafetyTests {
             .identifier("index"),
             .identifier("value")
         ]
-        
+
         for identifierExpr in identifierExpressions {
             let result = await ConcurrencyTestHelpers.performConcurrentReadTest(level: .high) {
                 return identifierExpr
             }
-            
+
             #expect(result.success, "Identifier expression \(identifierExpr) should be thread-safe")
-            
+
             // Test specific thread safety validation
             let validationResult = await ThreadSafetyValidators.validateExpressionThreadSafety(identifierExpr)
             #expect(validationResult.isValid, "Identifier expression should pass validation: \(validationResult.issues)")
         }
     }
-    
+
     // MARK: - Binary Expression Thread Safety
-    
+
     @Test("Binary Expressions Comprehensive Thread Safety")
     func testBinaryExpressionsComprehensiveThreadSafety() async throws {
         let binaryOperators: [BinaryOperator] = [
@@ -74,22 +74,22 @@ struct ASTExpressionThreadSafetyTests {
             .equal, .notEqual, .less, .lessEqual, .greater, .greaterEqual,
             .and, .or
         ]
-        
+
         for op in binaryOperators {
             let binaryExpr = FeLangCore.Expression.binary(
                 op,
                 .literal(.integer(10)),
                 .literal(.integer(5))
             )
-            
+
             // Test high concurrency (100 tasks)
             let result = await ConcurrencyTestHelpers.performConcurrentReadTest(level: .high) {
                 return binaryExpr
             }
-            
+
             #expect(result.success, "Binary expression with \(op) should handle 100 concurrent accesses")
             #expect(result.tasksCompleted == 100, "All tasks should complete for binary operator \(op)")
-            
+
             // Test consistency
             let isConsistent = await ConcurrencyTestHelpers.validateConcurrentConsistency(level: .medium) {
                 return binaryExpr
@@ -97,7 +97,7 @@ struct ASTExpressionThreadSafetyTests {
             #expect(isConsistent, "Binary expression with \(op) should be consistent")
         }
     }
-    
+
     @Test("Nested Binary Expressions Thread Safety")
     func testNestedBinaryExpressionsThreadSafety() async throws {
         let deeplyNestedExpr = FeLangCore.Expression.binary(
@@ -111,7 +111,7 @@ struct ASTExpressionThreadSafetyTests {
                 .literal(.integer(3))
             )
         )
-        
+
         // Stress test with high concurrency
         let stressResult = await ConcurrencyTestHelpers.performStressTest(
             iterations: 20,
@@ -120,21 +120,21 @@ struct ASTExpressionThreadSafetyTests {
                 return deeplyNestedExpr
             }
         )
-        
+
         #expect(stressResult.success, "Deeply nested binary expressions should pass stress testing")
         #expect(stressResult.tasksCompleted == 2000, "Should complete 2000 total operations")
-        
+
         // Validate thread safety
         let validationResult = await ThreadSafetyValidators.validateExpressionThreadSafety(deeplyNestedExpr)
         #expect(validationResult.isValid, "Nested binary expression should pass thread safety validation")
     }
-    
+
     // MARK: - Unary Expression Thread Safety
-    
+
     @Test("Unary Expressions Thread Safety")
     func testUnaryExpressionsThreadSafety() async throws {
         let unaryOperators: [UnaryOperator] = [.plus, .minus, .not]
-        
+
         let testExpressions: [FeLangCore.Expression] = [
             .literal(.integer(42)),
             .literal(.real(-3.14)),
@@ -142,17 +142,17 @@ struct ASTExpressionThreadSafetyTests {
             .binary(.add, .literal(.integer(1)), .literal(.integer(2))),
             .identifier("value")
         ]
-        
+
         for op in unaryOperators {
             for expr in testExpressions {
                 let unaryExpr = FeLangCore.Expression.unary(op, expr)
-                
+
                 let result = await ConcurrencyTestHelpers.performConcurrentReadTest(level: .medium) {
                     return unaryExpr
                 }
-                
+
                 #expect(result.success, "Unary expression \(op) with \(expr) should be thread-safe")
-                
+
                 // Test consistency
                 let isConsistent = await ConcurrencyTestHelpers.validateConcurrentConsistency(level: .medium) {
                     return unaryExpr
@@ -161,9 +161,9 @@ struct ASTExpressionThreadSafetyTests {
             }
         }
     }
-    
+
     // MARK: - Function Call Expression Thread Safety
-    
+
     @Test("Function Call Expressions Thread Safety")
     func testFunctionCallExpressionsThreadSafety() async throws {
         let functionCallExpressions: [FeLangCore.Expression] = [
@@ -185,19 +185,19 @@ struct ASTExpressionThreadSafetyTests {
                 .functionCall("anotherFunction", [.literal(.string("nested"))])
             ])
         ]
-        
+
         for funcCall in functionCallExpressions {
             // Test high concurrency
             let result = await ConcurrencyTestHelpers.performConcurrentReadTest(level: .high) {
                 return funcCall
             }
-            
+
             #expect(result.success, "Function call \(funcCall) should handle 100 concurrent accesses")
-            
+
             // Validate thread safety
             let validationResult = await ThreadSafetyValidators.validateExpressionThreadSafety(funcCall)
             #expect(validationResult.isValid, "Function call should pass thread safety validation")
-            
+
             // Test consistency
             let isConsistent = await ConcurrencyTestHelpers.validateConcurrentConsistency(level: .medium) {
                 return funcCall
@@ -205,9 +205,9 @@ struct ASTExpressionThreadSafetyTests {
             #expect(isConsistent, "Function call should be consistent across concurrent access")
         }
     }
-    
+
     // MARK: - Array Access Expression Thread Safety
-    
+
     @Test("Array Access Expressions Thread Safety")
     func testArrayAccessExpressionsThreadSafety() async throws {
         let arrayAccessExpressions: [FeLangCore.Expression] = [
@@ -226,23 +226,23 @@ struct ASTExpressionThreadSafetyTests {
                 .unary(.minus, .literal(.integer(-2)))
             )
         ]
-        
+
         for arrayAccess in arrayAccessExpressions {
             // Test medium to high concurrency
             let result = await ConcurrencyTestHelpers.performConcurrentReadTest(level: .high) {
                 return arrayAccess
             }
-            
+
             #expect(result.success, "Array access \(arrayAccess) should be thread-safe")
-            
+
             // Validate thread safety
             let validationResult = await ThreadSafetyValidators.validateExpressionThreadSafety(arrayAccess)
             #expect(validationResult.isValid, "Array access should pass thread safety validation")
         }
     }
-    
+
     // MARK: - Field Access Expression Thread Safety
-    
+
     @Test("Field Access Expressions Thread Safety")
     func testFieldAccessExpressionsThreadSafety() async throws {
         let fieldAccessExpressions: [FeLangCore.Expression] = [
@@ -263,15 +263,15 @@ struct ASTExpressionThreadSafetyTests {
                 "deepProperty"
             )
         ]
-        
+
         for fieldAccess in fieldAccessExpressions {
             // Test high concurrency
             let result = await ConcurrencyTestHelpers.performConcurrentReadTest(level: .high) {
                 return fieldAccess
             }
-            
+
             #expect(result.success, "Field access \(fieldAccess) should handle 100 concurrent accesses")
-            
+
             // Test consistency
             let isConsistent = await ConcurrencyTestHelpers.validateConcurrentConsistency(level: .medium) {
                 return fieldAccess
@@ -279,9 +279,9 @@ struct ASTExpressionThreadSafetyTests {
             #expect(isConsistent, "Field access should be consistent across concurrent access")
         }
     }
-    
+
     // MARK: - Complex Combined Expression Thread Safety
-    
+
     @Test("Complex Combined Expressions Thread Safety")
     func testComplexCombinedExpressionsThreadSafety() async throws {
         let complexExpressions: [FeLangCore.Expression] = [
@@ -296,7 +296,7 @@ struct ASTExpressionThreadSafetyTests {
                     .fieldAccess(.identifier("config"), "divisor")
                 )
             ),
-            
+
             // Logical expression with complex conditions
             .binary(.and,
                 .binary(.or,
@@ -310,7 +310,7 @@ struct ASTExpressionThreadSafetyTests {
                     )
                 )
             ),
-            
+
             // Nested function calls and array/field access
             .functionCall("processResult", [
                 .arrayAccess(
@@ -326,7 +326,7 @@ struct ASTExpressionThreadSafetyTests {
                 )
             ])
         ]
-        
+
         for complexExpr in complexExpressions {
             // Perform stress testing with high concurrency
             let stressResult = await ConcurrencyTestHelpers.performStressTest(
@@ -336,14 +336,14 @@ struct ASTExpressionThreadSafetyTests {
                     return complexExpr
                 }
             )
-            
+
             #expect(stressResult.success, "Complex expression should pass stress testing")
             #expect(stressResult.errors.isEmpty, "No errors should occur during stress testing")
-            
+
             // Validate thread safety
             let validationResult = await ThreadSafetyValidators.validateExpressionThreadSafety(complexExpr)
             #expect(validationResult.isValid, "Complex expression should pass thread safety validation")
-            
+
             // Test memory safety
             let memoryResult = await ThreadSafetyValidators.validateMemorySafety(
                 operation: {
@@ -354,9 +354,9 @@ struct ASTExpressionThreadSafetyTests {
             #expect(memoryResult.isValid, "Complex expression should be memory-safe under concurrent access")
         }
     }
-    
+
     // MARK: - Race Condition Detection
-    
+
     @Test("Expression Race Condition Detection")
     func testExpressionRaceConditionDetection() async throws {
         let testExpressions: [FeLangCore.Expression] = [
@@ -365,7 +365,7 @@ struct ASTExpressionThreadSafetyTests {
             .arrayAccess(.identifier("arr"), .literal(.integer(0))),
             .fieldAccess(.identifier("obj"), "field")
         ]
-        
+
         for expr in testExpressions {
             let raceResult = await ThreadSafetyValidators.detectRaceConditions(
                 in: {
@@ -373,14 +373,14 @@ struct ASTExpressionThreadSafetyTests {
                 },
                 concurrencyLevel: 75
             )
-            
+
             #expect(!raceResult.raceDetected, "No race conditions should be detected for expression \(expr)")
             #expect(raceResult.conflictingAccesses.isEmpty, "No conflicting accesses should be found")
         }
     }
-    
+
     // MARK: - Performance Impact Assessment
-    
+
     @Test("Expression Thread Safety Performance Impact")
     func testExpressionThreadSafetyPerformanceImpact() async throws {
         let performanceTestExpressions: [FeLangCore.Expression] = [
@@ -389,7 +389,7 @@ struct ASTExpressionThreadSafetyTests {
             .functionCall("func", [.literal(.string("test"))]),
             .arrayAccess(.identifier("array"), .literal(.integer(0)))
         ]
-        
+
         for expr in performanceTestExpressions {
             let performanceMetrics = await ConcurrencyTestHelpers.measureConcurrentPerformance(
                 baseline: {
@@ -400,18 +400,18 @@ struct ASTExpressionThreadSafetyTests {
                 },
                 level: .medium
             )
-            
+
             #expect(performanceMetrics.success, "Performance measurement should succeed for \(expr)")
-            
+
             // Performance overhead should be reasonable for immutable value types
             // Account for concurrent testing framework overhead
-            #expect(performanceMetrics.overheadPercentage < 1000000.0, 
+            #expect(performanceMetrics.overheadPercentage < 1000000.0,
                    "Performance overhead should be reasonable for \(expr): \(performanceMetrics.overheadPercentage)%")
         }
     }
-    
+
     // MARK: - Immutability Validation
-    
+
     @Test("Expression Immutability Under Concurrent Access")
     func testExpressionImmutabilityUnderConcurrentAccess() async throws {
         let testExpression = FeLangCore.Expression.binary(
@@ -423,14 +423,14 @@ struct ASTExpressionThreadSafetyTests {
             ]),
             .unary(.minus, .literal(.real(2.5)))
         )
-        
+
         // Test immutability validation
         let immutabilityResult = ThreadSafetyValidators.validateImmutability(of: testExpression)
         #expect(immutabilityResult.isValid, "Expression should maintain immutability")
-        
+
         // Test that concurrent access doesn't modify the expression
         let collector = ThreadSafeTestCollector()
-        
+
         await withTaskGroup(of: Void.self) { group in
             for _ in 0..<50 {
                 group.addTask { @Sendable in
@@ -439,11 +439,11 @@ struct ASTExpressionThreadSafetyTests {
                 }
             }
         }
-        
+
         let resultCount = await collector.getResultCount()
         let hasErrors = await collector.hasErrors()
-        
+
         #expect(resultCount == 50, "Should collect 50 results")
         #expect(!hasErrors, "Should have no errors during concurrent access")
     }
-} 
+}

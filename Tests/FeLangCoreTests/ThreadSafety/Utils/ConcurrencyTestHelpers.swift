@@ -5,14 +5,14 @@ import Foundation
 /// Utilities for concurrent testing patterns
 /// Provides standardized helpers for thread safety validation
 public enum ConcurrencyTestHelpers {
-    
+
     /// Standard concurrency levels for different test scenarios
     public enum ConcurrencyLevel {
         case light  // 10 concurrent tasks
         case medium // 50 concurrent tasks  
         case high   // 100 concurrent tasks
         case stress // 1000 concurrent tasks
-        
+
         var taskCount: Int {
             switch self {
             case .light: return 10
@@ -22,7 +22,7 @@ public enum ConcurrencyTestHelpers {
             }
         }
     }
-    
+
     /// Result of a concurrent test execution
     public struct ConcurrentTestResult {
         public let success: Bool
@@ -30,7 +30,7 @@ public enum ConcurrencyTestHelpers {
         public let tasksCompleted: Int
         public let errors: [Error]
         public let metadata: [String: Any]
-        
+
         public init(success: Bool, executionTime: TimeInterval, tasksCompleted: Int, errors: [Error] = [], metadata: [String: Any] = [:]) {
             self.success = success
             self.executionTime = executionTime
@@ -39,7 +39,7 @@ public enum ConcurrencyTestHelpers {
             self.metadata = metadata
         }
     }
-    
+
     /// Performs concurrent read-only access testing
     /// - Parameters:
     ///   - level: Concurrency level for the test
@@ -52,7 +52,7 @@ public enum ConcurrencyTestHelpers {
         let startTime = Date()
         var completedTasks = 0
         var collectedErrors: [Error] = []
-        
+
         let allSuccess = await withTaskGroup(of: Bool.self) { group in
             for _ in 0..<level.taskCount {
                 group.addTask { @Sendable in
@@ -64,18 +64,18 @@ public enum ConcurrencyTestHelpers {
                     }
                 }
             }
-            
+
             var allSucceeded = true
             for await result in group {
                 completedTasks += 1
                 allSucceeded = allSucceeded && result
             }
-            
+
             return allSucceeded
         }
-        
+
         let executionTime = Date().timeIntervalSince(startTime)
-        
+
         return ConcurrentTestResult(
             success: allSuccess,
             executionTime: executionTime,
@@ -84,7 +84,7 @@ public enum ConcurrencyTestHelpers {
             metadata: ["concurrencyLevel": level.taskCount]
         )
     }
-    
+
     /// Performs concurrent validation testing with result collection
     /// - Parameters:
     ///   - level: Concurrency level for the test
@@ -98,7 +98,7 @@ public enum ConcurrencyTestHelpers {
         var completedTasks = 0
         var collectedErrors: [Error] = []
         var results: [T] = []
-        
+
         await withTaskGroup(of: Result<T, Error>.self) { group in
             for _ in 0..<level.taskCount {
                 group.addTask { @Sendable in
@@ -110,7 +110,7 @@ public enum ConcurrencyTestHelpers {
                     }
                 }
             }
-            
+
             for await result in group {
                 completedTasks += 1
                 switch result {
@@ -121,10 +121,10 @@ public enum ConcurrencyTestHelpers {
                 }
             }
         }
-        
+
         let executionTime = Date().timeIntervalSince(startTime)
         let success = collectedErrors.isEmpty
-        
+
         return ConcurrentTestResult(
             success: success,
             executionTime: executionTime,
@@ -137,7 +137,7 @@ public enum ConcurrencyTestHelpers {
             ]
         )
     }
-    
+
     /// Performs stress testing with repeated operations
     /// - Parameters:
     ///   - iterations: Number of stress test iterations
@@ -153,20 +153,20 @@ public enum ConcurrencyTestHelpers {
         var totalCompletedTasks = 0
         var allErrors: [Error] = []
         var allIterationsSuccess = true
-        
+
         for iteration in 0..<iterations {
             let iterationResult = await performConcurrentReadTest(
                 level: concurrencyLevel,
                 operation: operation
             )
-            
+
             totalCompletedTasks += iterationResult.tasksCompleted
             allErrors.append(contentsOf: iterationResult.errors)
             allIterationsSuccess = allIterationsSuccess && iterationResult.success
         }
-        
+
         let totalExecutionTime = Date().timeIntervalSince(startTime)
-        
+
         return ConcurrentTestResult(
             success: allIterationsSuccess,
             executionTime: totalExecutionTime,
@@ -179,7 +179,7 @@ public enum ConcurrencyTestHelpers {
             ]
         )
     }
-    
+
     /// Validates that all results from concurrent operations are identical
     /// - Parameters:
     ///   - level: Concurrency level for the test
@@ -190,7 +190,7 @@ public enum ConcurrencyTestHelpers {
         operation: @escaping @Sendable () async throws -> T
     ) async -> Bool {
         var results: [T] = []
-        
+
         await withTaskGroup(of: T?.self) { group in
             for _ in 0..<level.taskCount {
                 group.addTask { @Sendable in
@@ -201,19 +201,19 @@ public enum ConcurrencyTestHelpers {
                     }
                 }
             }
-            
+
             for await result in group {
                 if let result = result {
                     results.append(result)
                 }
             }
         }
-        
+
         // All results should be identical
         guard let firstResult = results.first else { return false }
         return results.allSatisfy { $0 == firstResult }
     }
-    
+
     /// Measures performance impact of concurrent operations
     /// - Parameters:
     ///   - baseline: Single-threaded baseline operation
@@ -233,10 +233,10 @@ public enum ConcurrencyTestHelpers {
             // Handle error if needed
         }
         let baselineTime = Date().timeIntervalSince(baselineStart)
-        
+
         // Measure concurrent performance
         let concurrentResult = await performConcurrentReadTest(level: level, operation: concurrent)
-        
+
         return PerformanceMetrics(
             baselineTime: baselineTime,
             concurrentTime: concurrentResult.executionTime,
@@ -252,13 +252,13 @@ public struct PerformanceMetrics {
     public let concurrentTime: TimeInterval
     public let tasksExecuted: Int
     public let success: Bool
-    
+
     /// Performance overhead percentage (positive = slower, negative = faster)
     public var overheadPercentage: Double {
         guard baselineTime > 0 else { return 0 }
         return ((concurrentTime - baselineTime) / baselineTime) * 100
     }
-    
+
     /// Throughput improvement factor
     public var throughputFactor: Double {
         guard concurrentTime > 0 else { return 0 }
@@ -266,7 +266,7 @@ public struct PerformanceMetrics {
         let baselineThroughput = 1.0 / baselineTime
         return concurrentThroughput / baselineThroughput
     }
-    
+
     public init(baselineTime: TimeInterval, concurrentTime: TimeInterval, tasksExecuted: Int, success: Bool) {
         self.baselineTime = baselineTime
         self.concurrentTime = concurrentTime
@@ -280,32 +280,32 @@ public actor ThreadSafeTestCollector {
     private var results: [Any] = []
     private var errors: [Error] = []
     private var completedCount = 0
-    
+
     public init() {}
-    
+
     public func addResult<T>(_ result: T) {
         results.append(result)
         completedCount += 1
     }
-    
+
     public func addError(_ error: Error) {
         errors.append(error)
         completedCount += 1
     }
-    
+
     public func getCompletedCount() -> Int {
         return completedCount
     }
-    
+
     public func getErrors() -> [Error] {
         return errors
     }
-    
+
     public func hasErrors() -> Bool {
         return !errors.isEmpty
     }
-    
+
     public func getResultCount() -> Int {
         return results.count
     }
-} 
+}
