@@ -2,6 +2,15 @@ import Testing
 @testable import FeLangCore
 import Foundation
 
+/// Simple error type for test failures
+struct TestError: Error {
+    let message: String
+    
+    init(_ message: String) {
+        self.message = message
+    }
+}
+
 /// Deep Copy Verification Tests
 /// Implements the comprehensive deep copy testing requirements from GitHub issue #31
 /// Ensures value semantics work correctly across complex nested structures
@@ -588,7 +597,7 @@ struct DeepCopyVerificationTests {
         let decoder = JSONDecoder()
 
         let originalLiteral = Literal.integer(12345)
-        
+
         // Encode and decode to simulate AnyCodable usage
         let encodedData = try encoder.encode(originalLiteral)
         let decodedLiteral = try decoder.decode(Literal.self, from: encodedData)
@@ -766,7 +775,7 @@ struct DeepCopyVerificationTests {
 
         for (index, structure) in structures.enumerated() {
             let metrics = DeepCopyTestUtilities.measureDeepCopyPerformance(structure: structure, iterations: 50)
-            
+
             // Performance should remain reasonable even for complex structures
             #expect(metrics.averageTime < 0.01, "Deep copy should complete in less than 10ms for structure \(index)")
             #expect(metrics.memoryDelta < 1024 * 1024, "Memory usage should be reasonable for structure \(index)")
@@ -919,12 +928,14 @@ struct DeepCopyVerificationTests {
 
     @Test("Edge Case - Deeply Nested If-Else Chains")
     func testEdgeCaseDeeplyNestedIfElse() throws {
-        let deepChain = DeepCopyTestUtilities.createEdgeCaseStructures().first { structure in
-            if case .ifStatement(_) = structure {
+        guard let deepChain = DeepCopyTestUtilities.createEdgeCaseStructures().first(where: { structure in
+            if case .ifStatement = structure {
                 return true
             }
             return false
-        }!
+        }) else {
+            throw TestError("Could not find if statement in edge case structures")
+        }
 
         let copiedChain = deepChain
 
@@ -1155,7 +1166,7 @@ struct DeepCopyVerificationTests {
                     return true // Task succeeded
                 }
             }
-            
+
             // Collect results from all tasks
             for await taskResult in group {
                 if !taskResult {
@@ -1300,4 +1311,4 @@ struct DeepCopyVerificationTests {
             .fieldAccess(.identifier("obj"), "property")
         ]
     }
-} 
+}

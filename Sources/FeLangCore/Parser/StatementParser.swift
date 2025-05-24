@@ -1,5 +1,11 @@
 import Foundation
 
+/// Helper function to suppress unused result warnings for advance() calls
+@inline(__always)
+private func advanceAndDiscard(_ parser: inout TokenStream) {
+    _ = parser.advance()
+}
+
 /// A parser for FE pseudo-language statements using recursive descent parsing.
 /// This parser handles control structures, assignments, function/procedure declarations,
 /// and integrates with the ExpressionParser for expressions.
@@ -343,11 +349,14 @@ public struct StatementParser {
             requiresInitialValue: true
         )
 
-        // Safe force unwrap: requiresInitialValue: true guarantees initialValue exists
+        // Safe unwrap: requiresInitialValue: true guarantees initialValue exists
+        guard let initialValue = components.initialValue else {
+            throw StatementParsingError.expectedToken(.assign)
+        }
         return ConstantDeclaration(
             name: components.name,
             type: components.type,
-            initialValue: components.initialValue!
+            initialValue: initialValue
         )
     }
 

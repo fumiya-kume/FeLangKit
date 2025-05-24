@@ -106,15 +106,15 @@ public struct DeepCopyTestUtilities {
 
         // Warm up to reduce measurement noise
         for _ in 0..<min(10, iterations / 10) {
-            let _ = structure
+            _ = structure
         }
 
         for _ in 0..<iterations {
             let startTime = CFAbsoluteTimeGetCurrent()
-            
+
             // Perform the actual copy operation
-            let _ = structure
-            
+            _ = structure
+
             let elapsedTime = CFAbsoluteTimeGetCurrent() - startTime
             times.append(max(elapsedTime, 0.0)) // Ensure non-negative
         }
@@ -217,7 +217,7 @@ public struct DeepCopyTestUtilities {
 
         // Perform many copy operations
         for _ in 0..<iterations {
-            let _ = structure
+            _ = structure
         }
 
         // Force garbage collection
@@ -367,17 +367,17 @@ public struct DeepCopyTestUtilities {
 
     private static func describeStructure(_ structure: Statement) -> String {
         switch structure {
-        case .expressionStatement(_):
+        case .expressionStatement:
             return "ExpressionStatement"
-        case .ifStatement(_):
+        case .ifStatement:
             return "IfStatement"
-        case .whileStatement(_):
+        case .whileStatement:
             return "WhileStatement"
-        case .functionDeclaration(_):
+        case .functionDeclaration:
             return "FunctionDeclaration"
-        case .assignment(_):
+        case .assignment:
             return "Assignment"
-        case .variableDeclaration(_):
+        case .variableDeclaration:
             return "VariableDeclaration"
         case .breakStatement:
             return "BreakStatement"
@@ -440,8 +440,8 @@ public enum ValidationResult {
 
     public var isSuccess: Bool {
         switch self {
-        case .success(_): return true
-        case .failure(_): return false
+        case .success: return true
+        case .failure: return false
         }
     }
 
@@ -467,8 +467,8 @@ public enum MemoryLeakResult {
 
     public var hasLeak: Bool {
         switch self {
-        case .noLeaksDetected(_): return false
-        case .leakDetected(_): return true
+        case .noLeaksDetected: return false
+        case .leakDetected: return true
         }
     }
 }
@@ -505,4 +505,4 @@ extension DataType: CaseIterable {
             .record("TestRecord")
         ]
     }
-} 
+}
