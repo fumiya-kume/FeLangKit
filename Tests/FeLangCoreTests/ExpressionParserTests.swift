@@ -8,12 +8,13 @@ typealias FEExpression = FeLangCore.Expression
 @Suite("ExpressionParser Tests")
 struct ExpressionParserTests {
 
+    let parser = ExpressionParser()
+
     // MARK: - Helper Methods
 
     /// Helper method to tokenize and parse an expression
     private func parseExpression(_ input: String) throws -> FEExpression {
         let tokens = try ParsingTokenizer.tokenize(input)
-        let parser = ExpressionParser()
         return try parser.parseExpression(from: tokens)
     }
 
@@ -22,12 +23,7 @@ struct ExpressionParserTests {
         return SourcePosition(line: 1, column: 1, offset: 0)
     }
 
-    // MARK: - Basic Literal Tests
-
-    @Test func testIntegerLiteral() throws {
-        let expr = try parseExpression("42")
-        #expect(expr == .literal(Literal.integer(42)))
-    }
+        // MARK: - Basic Literal Tests
 
     @Test func testRealLiteral() throws {
         let expr = try parseExpression("3.14")

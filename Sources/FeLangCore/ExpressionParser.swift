@@ -58,7 +58,7 @@ public struct ExpressionParser {
         return try parsePostfixExpression(&parser)
     }
 
-    /// Parses postfix expressions (array access and function calls).
+    /// Parses postfix expressions (array access, field access, and function calls).
     private func parsePostfixExpression(_ parser: inout TokenStream) throws -> Expression {
         var expr = try parsePrimaryExpression(&parser)
 
@@ -70,6 +70,13 @@ public struct ExpressionParser {
                 let indexExpr = try parseExpression(&parser)
                 try expectToken(&parser, .rightBracket)
                 expr = Expression.arrayAccess(expr, indexExpr)
+            } else if parser.peek()?.type == .dot {
+                // Field access: expr.field
+                parser.advance() // consume '.'
+                guard let fieldToken = parser.advance(), fieldToken.type == .identifier else {
+                    throw ParsingError.expectedIdentifier
+                }
+                expr = Expression.fieldAccess(expr, fieldToken.lexeme)
             } else if parser.peek()?.type == .leftParen,
                       case .identifier(let name) = expr {
                 // Function call: identifier(args...)
@@ -203,6 +210,7 @@ public enum ParsingError: Error, Equatable {
     case unexpectedEndOfInput
     case unexpectedToken(Token, expected: TokenType)
     case expectedPrimaryExpression(Token)
+    case expectedIdentifier
 }
 
 extension ParsingError: LocalizedError {
@@ -214,6 +222,8 @@ extension ParsingError: LocalizedError {
             return "Unexpected token '\(token.lexeme)' at \(token.position), expected \(expected)"
         case .expectedPrimaryExpression(let token):
             return "Expected primary expression at \(token.position), got '\(token.lexeme)'"
+        case .expectedIdentifier:
+            return "Expected identifier"
         }
     }
 }

@@ -161,18 +161,47 @@ public struct StatementParser {
 
     // MARK: - Assignment Parsing
 
-    /// Parses assignment or expression statement based on lookahead.
+    /// Parses assignment or expression statement using lookahead instead of backtracking.
     private func parseAssignmentOrExpressionStatement(_ parser: inout TokenStream) throws -> Statement {
-        // Save current position for backtracking
-        let savedIndex = parser.index
-
-        // Try to parse as assignment first
-        if let assignment = try? parseAssignment(&parser) {
-            return .assignment(assignment)
+        // Use lookahead to determine if this is an assignment
+        guard let firstToken = parser.peek(), firstToken.type == .identifier else {
+            // Not an identifier, must be expression
+            let expression = try parseExpression(&parser)
+            return .expressionStatement(expression)
         }
 
-        // Backtrack and parse as expression statement
-        parser.index = savedIndex
+        // Look ahead to see if this is an assignment pattern
+        var lookaheadIndex = parser.index + 1
+
+        // Check for array access assignment: identifier[...] ←
+        if lookaheadIndex < parser.tokens.count && parser.tokens[lookaheadIndex].type == .leftBracket {
+            // Skip to matching right bracket
+            var bracketCount = 1
+            lookaheadIndex += 1
+            while lookaheadIndex < parser.tokens.count && bracketCount > 0 {
+                switch parser.tokens[lookaheadIndex].type {
+                case .leftBracket:
+                    bracketCount += 1
+                case .rightBracket:
+                    bracketCount -= 1
+                default:
+                    break
+                }
+                lookaheadIndex += 1
+            }
+
+            // Check if followed by assignment operator
+            if lookaheadIndex < parser.tokens.count && parser.tokens[lookaheadIndex].type == .assign {
+                return .assignment(try parseAssignment(&parser))
+            }
+        }
+
+        // Check for simple variable assignment: identifier ←
+        if lookaheadIndex < parser.tokens.count && parser.tokens[lookaheadIndex].type == .assign {
+            return .assignment(try parseAssignment(&parser))
+        }
+
+        // Not an assignment, parse as expression
         let expression = try parseExpression(&parser)
         return .expressionStatement(expression)
     }
@@ -333,16 +362,26 @@ public struct StatementParser {
             return basicType
         }
 
-        // Handle array types
+        // Handle array types properly
         if typeToken.type == .arrayType {
-            // TODO: For now, assume integer array; could be extended to parse element type
-            return .array(.integer)
+            // Expect "of" keyword followed by element type
+            if parser.peek()?.lexeme == "of" {
+                parser.advance() // consume "of"
+                let elementType = try parseDataType(&parser)
+                return .array(elementType)
+            } else {
+                // Default to integer array for backwards compatibility
+                return .array(.integer)
+            }
         }
 
-        // Handle record types
+        // Handle record types properly  
         if typeToken.type == .recordType {
-            // TODO: For now, use a default record name; could be extended to parse record name
-            return .record("DefaultRecord")
+            // Expect record name
+            guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+                throw StatementParsingError.expectedIdentifier
+            }
+            return .record(nameToken.lexeme)
         }
 
         throw StatementParsingError.expectedDataType
@@ -373,20 +412,9 @@ public struct StatementParser {
 
     /// Parses an expression using the ExpressionParser.
     private func parseExpression(_ parser: inout TokenStream) throws -> Expression {
-        // Create a temporary token stream with remaining tokens
-        let remainingTokens = Array(parser.tokens[parser.index...])
-
-        // Use a local token stream for expression parsing
-        var tempParser = TokenStream(remainingTokens)
-        let expression = try parseExpressionInternal(&tempParser)
-
-        // Advance main parser by the number of tokens consumed by expression parser
-        let tokensConsumed = tempParser.index
-        for _ in 0..<tokensConsumed {
-            parser.advance()
-        }
-
-        return expression
+        // For now, use the internal parsing until we can better integrate ExpressionParser
+        // TODO: Improve integration by making ExpressionParser return consumed token count
+        return try parseExpressionInternal(&parser)
     }
 
     /// Internal expression parsing that works with our token stream.
@@ -424,7 +452,7 @@ public struct StatementParser {
         return try parsePostfixExpression(&parser)
     }
 
-    /// Parses postfix expressions (array access and function calls).
+    /// Parses postfix expressions (array access, field access, and function calls).
     private func parsePostfixExpression(_ parser: inout TokenStream) throws -> Expression {
         var expr = try parsePrimaryExpression(&parser)
 
@@ -436,6 +464,13 @@ public struct StatementParser {
                 let indexExpr = try parseExpressionWithPrecedence(&parser, minPrecedence: 0)
                 try expectToken(&parser, .rightBracket)
                 expr = Expression.arrayAccess(expr, indexExpr)
+            } else if parser.peek()?.type == .dot {
+                // Field access: expr.field
+                parser.advance() // consume '.'
+                guard let fieldToken = parser.advance(), fieldToken.type == .identifier else {
+                    throw StatementParsingError.expectedIdentifier
+                }
+                expr = Expression.fieldAccess(expr, fieldToken.lexeme)
             } else if parser.peek()?.type == .leftParen,
                       case .identifier(let name) = expr {
                 // Function call: identifier(args...)

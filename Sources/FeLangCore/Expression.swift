@@ -12,6 +12,7 @@ public indirect enum Expression: Equatable, Codable, Sendable {
 
     // Postfix expressions
     case arrayAccess(Expression, Expression)
+    case fieldAccess(Expression, String)
     case functionCall(String, [Expression])
 }
 
