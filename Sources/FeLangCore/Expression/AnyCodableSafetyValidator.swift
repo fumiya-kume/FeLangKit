@@ -77,55 +77,110 @@ public enum AnyCodableSafetyValidator {
 /// Type-safe wrapper for AnyCodable that enforces immutability constraints
 public struct SafeAnyCodable: Codable, @unchecked Sendable {
     private let value: Any // Value is validated to only contain Sendable types
+    private let typeTag: TypeTag // Cache the type for faster access
 
-    /// Creates a SafeAnyCodable with validated type constraints
-    /// Throws AnyCodableSafetyError.unsupportedType if the value type is not supported
-    init<T>(_ value: T) throws {
-        guard AnyCodableSafetyValidator.validateValueType(value) else {
-            throw AnyCodableSafetyError.unsupportedType(String(describing: type(of: value)))
+    /// Internal type tag for faster type checking
+    private enum TypeTag: UInt8, CaseIterable {
+        case int = 0
+        case double = 1
+        case string = 2
+        case bool = 3
+
+        var supportedType: Any.Type {
+            switch self {
+            case .int: return Int.self
+            case .double: return Double.self
+            case .string: return String.self
+            case .bool: return Bool.self
+            }
         }
-        self.value = value
     }
 
-    /// Safely retrieves the stored value with type checking
+    /// Creates a SafeAnyCodable with validated type constraints
+    /// Optimized version with cached type information
+    /// Throws AnyCodableSafetyError.unsupportedType if the value type is not supported
+    init<T>(_ value: T) throws {
+        // Fast type checking using pattern matching
+        switch value {
+        case let intValue as Int:
+            self.value = intValue
+            self.typeTag = .int
+        case let doubleValue as Double:
+            self.value = doubleValue
+            self.typeTag = .double
+        case let stringValue as String:
+            self.value = stringValue
+            self.typeTag = .string
+        case let boolValue as Bool:
+            self.value = boolValue
+            self.typeTag = .bool
+        default:
+            throw AnyCodableSafetyError.unsupportedType(String(describing: type(of: value)))
+        }
+    }
+
+    /// Safely retrieves the stored value with optimized type checking
     /// Throws AnyCodableSafetyError.typeValidationFailed if type doesn't match
     public func getValue<T>() throws -> T {
-        guard let typedValue = value as? T else {
+        // Use cached type tag for faster validation - replaced force casts with safe error handling
+        switch (T.self, typeTag) {
+        case (is Int.Type, .int):
+            guard let intValue = value as? T else {
+                throw AnyCodableSafetyError.typeValidationFailed
+            }
+            return intValue
+        case (is Double.Type, .double):
+            guard let doubleValue = value as? T else {
+                throw AnyCodableSafetyError.typeValidationFailed
+            }
+            return doubleValue
+        case (is String.Type, .string):
+            guard let stringValue = value as? T else {
+                throw AnyCodableSafetyError.typeValidationFailed
+            }
+            return stringValue
+        case (is Bool.Type, .bool):
+            guard let boolValue = value as? T else {
+                throw AnyCodableSafetyError.typeValidationFailed
+            }
+            return boolValue
+        default:
             throw AnyCodableSafetyError.typeValidationFailed
         }
-        return typedValue
     }
 
     /// Safely retrieves the stored value with type checking (optional variant)
+    /// Optimized version using cached type information
     /// Returns nil if type doesn't match - provided for backward compatibility
     public func getValueOptional<T>() -> T? {
-        return value as? T
+        // Use cached type tag for faster validation
+        switch (T.self, typeTag) {
+        case (is Int.Type, .int),
+             (is Double.Type, .double),
+             (is String.Type, .string),
+             (is Bool.Type, .bool):
+            return value as? T
+        default:
+            return nil
+        }
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
 
-        // Try to decode as supported types only
+        // Optimized type checking with early exit
         if let intValue = try? container.decode(Int.self) {
-            guard AnyCodableSafetyValidator.validateValueType(intValue) else {
-                throw AnyCodableSafetyError.unsupportedType("Int")
-            }
             self.value = intValue
+            self.typeTag = .int
         } else if let doubleValue = try? container.decode(Double.self) {
-            guard AnyCodableSafetyValidator.validateValueType(doubleValue) else {
-                throw AnyCodableSafetyError.unsupportedType("Double")
-            }
             self.value = doubleValue
+            self.typeTag = .double
         } else if let stringValue = try? container.decode(String.self) {
-            guard AnyCodableSafetyValidator.validateValueType(stringValue) else {
-                throw AnyCodableSafetyError.unsupportedType("String")
-            }
             self.value = stringValue
+            self.typeTag = .string
         } else if let boolValue = try? container.decode(Bool.self) {
-            guard AnyCodableSafetyValidator.validateValueType(boolValue) else {
-                throw AnyCodableSafetyError.unsupportedType("Bool")
-            }
             self.value = boolValue
+            self.typeTag = .bool
         } else {
             throw AnyCodableSafetyError.decodingFailed("No supported type found")
         }
@@ -134,18 +189,28 @@ public struct SafeAnyCodable: Codable, @unchecked Sendable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
 
-        // Encode based on the validated type
-        switch value {
-        case let intValue as Int:
+        // Use cached type tag for faster encoding - replaced force casts with safe error handling
+        switch typeTag {
+        case .int:
+            guard let intValue = value as? Int else {
+                throw AnyCodableSafetyError.encodingFailed("Type tag indicates Int but value conversion failed")
+            }
             try container.encode(intValue)
-        case let doubleValue as Double:
+        case .double:
+            guard let doubleValue = value as? Double else {
+                throw AnyCodableSafetyError.encodingFailed("Type tag indicates Double but value conversion failed")
+            }
             try container.encode(doubleValue)
-        case let stringValue as String:
+        case .string:
+            guard let stringValue = value as? String else {
+                throw AnyCodableSafetyError.encodingFailed("Type tag indicates String but value conversion failed")
+            }
             try container.encode(stringValue)
-        case let boolValue as Bool:
+        case .bool:
+            guard let boolValue = value as? Bool else {
+                throw AnyCodableSafetyError.encodingFailed("Type tag indicates Bool but value conversion failed")
+            }
             try container.encode(boolValue)
-        default:
-            throw AnyCodableSafetyError.encodingFailed("Unsupported type: \(type(of: value))")
         }
     }
 }

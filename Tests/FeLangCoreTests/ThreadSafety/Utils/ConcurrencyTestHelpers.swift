@@ -315,15 +315,15 @@ public actor ThreadSafeTestCollector {
 /// Actor for thread-safe error collection during concurrent testing
 private actor ErrorCollector {
     private var errors: [Error] = []
-    
+
     func addError(_ error: Error) {
         errors.append(error)
     }
-    
+
     func getErrors() -> [Error] {
         return errors
     }
-    
+
     func clearErrors() {
         errors.removeAll()
     }
