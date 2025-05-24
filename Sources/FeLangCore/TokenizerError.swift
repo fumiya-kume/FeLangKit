@@ -10,6 +10,9 @@ public enum TokenizerError: Error, Equatable, Sendable {
 
     /// A comment was not properly terminated
     case unterminatedComment(SourcePosition)
+
+    /// An invalid escape sequence was found in a string literal
+    case invalidEscapeSequence(SourcePosition)
 }
 
 extension TokenizerError: CustomStringConvertible {
@@ -21,6 +24,8 @@ extension TokenizerError: CustomStringConvertible {
             return "Unterminated string literal at line \(pos.line), column \(pos.column)"
         case .unterminatedComment(let pos):
             return "Unterminated comment at line \(pos.line), column \(pos.column)"
+        case .invalidEscapeSequence(let pos):
+            return "Invalid escape sequence in string literal at line \(pos.line), column \(pos.column)"
         }
     }
 }

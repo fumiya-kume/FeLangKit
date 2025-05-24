@@ -278,7 +278,13 @@ public struct ParsingTokenizer {
         index = input.index(after: index) // Skip closing quote
 
         let lexeme = String(input[start..<index])
-        let content = String(lexeme.dropFirst().dropLast()) // Remove quotes (escape processing happens in Literal extension)
+        let content = String(lexeme.dropFirst().dropLast()) // Remove quotes
+
+        // Validate escape sequences during tokenization for early error detection
+        guard StringEscapeUtilities.validateEscapeSequences(content) else {
+            throw TokenizerError.invalidEscapeSequence(position)
+        }
+
         let tokenType = TokenizerUtilities.stringLiteralTokenType(content: content)
 
         return TokenData(type: tokenType, lexeme: lexeme)
