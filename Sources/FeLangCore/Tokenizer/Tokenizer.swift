@@ -109,7 +109,7 @@ public final class Tokenizer {
         case "+":
             return Token(type: .plus, lexeme: "+", position: position)
         case "-":
-            return scanMinusOrNumber(position, startIndex: startIndex)
+            return try scanMinusOrNumber(position, startIndex: startIndex)
         case "*":
             return Token(type: .multiply, lexeme: "*", position: position)
         case "%":
@@ -152,7 +152,7 @@ public final class Tokenizer {
             return try scanStringOrCharacterLiteral(position, startIndex: startIndex)
         default:
             if char.isNumber {
-                return scanNumber(position, startIndex: startIndex)
+                return try scanNumber(position, startIndex: startIndex)
             } else if isIdentifierStart(char) {
                 return scanIdentifier(position, startIndex: startIndex)
             } else {
@@ -219,9 +219,9 @@ public final class Tokenizer {
     }
 
     /// Scans either a minus operator or a negative number
-    private func scanMinusOrNumber(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) -> Token {
-        if !isAtEnd && peek().isNumber {
-            return scanNumber(position, startIndex: startIndex)
+    private func scanMinusOrNumber(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) throws -> Token {
+        if !isAtEnd && (peek().isNumber || (peek() == "." && peekNext().isNumber)) {
+            return try scanNumber(position, startIndex: startIndex)
         } else {
             return Token(type: .minus, lexeme: "-", position: position)
         }
@@ -269,27 +269,189 @@ public final class Tokenizer {
         return Token(type: tokenType, lexeme: lexeme, position: position)
     }
 
-    /// Scans a number (integer or real)
-    private func scanNumber(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) -> Token {
-        while !isAtEnd && peek().isNumber {
+    /// Scans a number (integer, real, scientific notation, or alternative bases)
+    private func scanNumber(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) throws -> Token {
+        // Get the first character that was already consumed
+        let firstChar = source[source.index(before: current)]
+        
+        // Check for alternative number bases (0x, 0b, 0o)
+        if firstChar == "0" && !isAtEnd {
+            let nextChar = peek()
+            if nextChar == "x" || nextChar == "X" {
+                return try scanHexadecimalNumber(position, startIndex: startIndex)
+            } else if nextChar == "b" || nextChar == "B" {
+                return try scanBinaryNumber(position, startIndex: startIndex)
+            } else if nextChar == "o" || nextChar == "O" {
+                return try scanOctalNumber(position, startIndex: startIndex)
+            }
+        }
+
+        // Scan regular number (decimal, integer, or scientific notation)
+        return try scanDecimalNumber(position, startIndex: startIndex)
+    }
+
+    /// Scans a hexadecimal number (0xFF, 0x1A2B, etc.)
+    private func scanHexadecimalNumber(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) throws -> Token {
+        // '0' was already consumed in nextToken(), now consume 'x' or 'X'
+        _ = advance() // consume 'x' or 'X'
+
+        // Must have at least one hex digit
+        guard !isAtEnd else {
+            let lexeme = String(source[startIndex..<current])
+            throw TokenizerError.invalidNumberFormat(lexeme, position)
+        }
+        
+        guard TokenizerUtilities.isHexDigit(peek()) || peek() == "_" else {
+            let lexeme = String(source[startIndex..<current])
+            throw TokenizerError.invalidNumberFormat(lexeme, position)
+        }
+
+        while !isAtEnd && (TokenizerUtilities.isHexDigit(peek()) || peek() == "_") {
             _ = advance()
         }
 
-        var isReal = false
+        // Check if there's an invalid character that looks like it should be part of the hex number
+        if !isAtEnd && (peek().isLetter || peek().isNumber) {
+            let lexeme = String(source[startIndex..<current])
+            throw TokenizerError.invalidNumberFormat(lexeme, position)
+        }
+
+        let lexeme = String(source[startIndex..<current])
+        
+        // Validate the format
+        try TokenizerUtilities.validateHexadecimalNumber(lexeme)
+        
+        return Token(type: .integerLiteral, lexeme: lexeme, position: position)
+    }
+
+    /// Scans a binary number (0b1010, 0B1100, etc.)
+    private func scanBinaryNumber(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) throws -> Token {
+        // '0' was already consumed in nextToken(), now consume 'b' or 'B'
+        _ = advance() // consume 'b' or 'B'
+
+        // Must have at least one binary digit
+        guard !isAtEnd else {
+            let lexeme = String(source[startIndex..<current])
+            throw TokenizerError.invalidNumberFormat(lexeme, position)
+        }
+        
+        guard TokenizerUtilities.isBinaryDigit(peek()) || peek() == "_" else {
+            let lexeme = String(source[startIndex..<current])
+            throw TokenizerError.invalidNumberFormat(lexeme, position)
+        }
+
+        while !isAtEnd && (TokenizerUtilities.isBinaryDigit(peek()) || peek() == "_") {
+            _ = advance()
+        }
+
+        // Check if there's an invalid character that looks like it should be part of the binary number
+        if !isAtEnd && (peek().isLetter || peek().isNumber) {
+            let lexeme = String(source[startIndex..<current])
+            throw TokenizerError.invalidNumberFormat(lexeme, position)
+        }
+
+        let lexeme = String(source[startIndex..<current])
+        
+        // Validate the format
+        try TokenizerUtilities.validateBinaryNumber(lexeme)
+        
+        return Token(type: .integerLiteral, lexeme: lexeme, position: position)
+    }
+
+    /// Scans an octal number (0o777, 0O123, etc.)
+    private func scanOctalNumber(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) throws -> Token {
+        // '0' was already consumed in nextToken(), now consume 'o' or 'O'
+        _ = advance() // consume 'o' or 'O'
+
+        // Must have at least one octal digit
+        guard !isAtEnd else {
+            let lexeme = String(source[startIndex..<current])
+            throw TokenizerError.invalidNumberFormat(lexeme, position)
+        }
+        
+        guard TokenizerUtilities.isOctalDigit(peek()) || peek() == "_" else {
+            let lexeme = String(source[startIndex..<current])
+            throw TokenizerError.invalidNumberFormat(lexeme, position)
+        }
+
+        while !isAtEnd && (TokenizerUtilities.isOctalDigit(peek()) || peek() == "_") {
+            _ = advance()
+        }
+
+        // Check if there's an invalid character that looks like it should be part of the octal number
+        if !isAtEnd && (peek().isLetter || peek().isNumber) {
+            let lexeme = String(source[startIndex..<current])
+            throw TokenizerError.invalidNumberFormat(lexeme, position)
+        }
+
+        let lexeme = String(source[startIndex..<current])
+        
+        // Validate the format
+        try TokenizerUtilities.validateOctalNumber(lexeme)
+        
+        return Token(type: .integerLiteral, lexeme: lexeme, position: position)
+    }
+
+    /// Scans a decimal number (including scientific notation and underscores)
+    private func scanDecimalNumber(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) throws -> Token {
+        // Scan integer part (including underscores)
+        while !isAtEnd && (peek().isNumber || peek() == "_") {
+            _ = advance()
+        }
+
+        var hasDecimal = false
 
         // Check for decimal point
         if !isAtEnd && peek() == "." && peekNext().isNumber {
-            isReal = true
+            hasDecimal = true
             _ = advance() // consume '.'
 
-            while !isAtEnd && peek().isNumber {
+            // Scan fractional part
+            while !isAtEnd && (peek().isNumber || peek() == "_") {
                 _ = advance()
             }
         }
 
-        let lexeme = String(source[startIndex..<current])
-        let tokenType = TokenizerUtilities.numberTokenType(hasDecimal: isReal)
+        // Check for scientific notation
+        if !isAtEnd && (peek() == "e" || peek() == "E") {
+            hasDecimal = true // Scientific notation is always real
+            _ = advance() // consume 'e' or 'E'
 
+            // Optional sign
+            if !isAtEnd && (peek() == "+" || peek() == "-") {
+                _ = advance()
+            }
+
+            // Must have at least one digit in exponent
+            guard !isAtEnd && (peek().isNumber || peek() == "_") else {
+                let lexeme = String(source[startIndex..<current])
+                throw TokenizerError.invalidNumberFormat(lexeme, position)
+            }
+
+            // Scan exponent digits
+            while !isAtEnd && (peek().isNumber || peek() == "_") {
+                _ = advance()
+            }
+
+            // Check if there's an invalid character that looks like it should be part of the scientific notation
+            if !isAtEnd && (peek() == "e" || peek() == "E" || (peek().isLetter && peek() != "_")) {
+                let lexeme = String(source[startIndex..<current])
+                throw TokenizerError.invalidNumberFormat(lexeme, position)
+            }
+        }
+
+        let lexeme = String(source[startIndex..<current])
+        
+        // Validate underscore placement and scientific notation if present
+        if lexeme.contains("_") {
+            _ = try TokenizerUtilities.validateAndCleanNumber(lexeme)
+        }
+        
+        if lexeme.lowercased().contains("e") {
+            try TokenizerUtilities.validateScientificNotation(lexeme)
+        }
+
+        let tokenType = TokenizerUtilities.enhancedNumberTokenType(lexeme: lexeme)
         return Token(type: tokenType, lexeme: lexeme, position: position)
     }
 
