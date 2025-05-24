@@ -1,24 +1,62 @@
-// swift-tools-version: 6.1
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
+// swift-tools-version:5.9
 import PackageDescription
 
 let package = Package(
     name: "FeLangKit",
+    platforms: [
+        .macOS(.v13)
+    ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
-        .library(
-            name: "FeLangKit",
-            targets: ["FeLangKit"]),
+        .library(name: "FeLangCore", targets: ["FeLangCore"]),
+        .library(name: "FeLangKit", targets: ["FeLangKit"]),
+        .library(name: "FeLangRuntime", targets: ["FeLangRuntime"]),
+        .library(name: "FeLangServer", targets: ["FeLangServer"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/pointfreeco/swift-parsing.git", from: "0.5.0")
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "FeLangKit"),
+            name: "FeLangCore",
+            dependencies: [
+                .product(name: "Parsing", package: "swift-parsing")
+            ]
+        ),
+        .target(
+            name: "FeLangKit",
+            dependencies: [
+                "FeLangCore",
+                "FeLangRuntime"
+            ]
+        ),
+        .target(
+            name: "FeLangRuntime",
+            dependencies: [
+                "FeLangCore"
+            ]
+        ),
+        .target(
+            name: "FeLangServer",
+            dependencies: [
+                "FeLangCore",
+                "FeLangKit"
+            ]
+        ),
+        .testTarget(
+            name: "FeLangCoreTests",
+            dependencies: ["FeLangCore"]
+        ),
         .testTarget(
             name: "FeLangKitTests",
             dependencies: ["FeLangKit"]
         ),
+        .testTarget(
+            name: "FeLangRuntimeTests",
+            dependencies: ["FeLangRuntime"]
+        ),
+        .testTarget(
+            name: "FeLangServerTests",
+            dependencies: ["FeLangServer"]
+        )
     ]
 )
