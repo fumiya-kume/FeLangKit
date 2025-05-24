@@ -22,14 +22,15 @@ jobs:
         with:
           swift-version: ${{ matrix.swift }}
 
-      - name: Install SwiftLint
-        uses: davedelong/SwiftLint@v0.2.0
-
       - name: Autocorrect SwiftLint violations
-        run: swiftlint autocorrect
+        uses: norwoodj/action-swiftlint@v3
+        with:
+          args: autocorrect
 
       - name: Lint Swift code
-        run: swiftlint
+        uses: norwoodj/action-swiftlint@v3
+        with:
+          args: lint
 
       - name: Resolve dependencies
         run: swift package resolve
