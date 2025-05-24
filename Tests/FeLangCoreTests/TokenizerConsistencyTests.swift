@@ -155,4 +155,47 @@ struct TokenizerConsistencyTests {
             #expect(parsingTokens[0].lexeme == string)
         }
     }
-} 
+
+    @Test func testErrorHandlingConsistency() throws {
+        // Test that both tokenizers throw the same errors for invalid input
+        let errorTestCases = [
+            "/* unterminated comment",
+            "'unterminated string"
+        ]
+
+        for testCase in errorTestCases {
+            // Both tokenizers should throw TokenizerError
+            var originalError: TokenizerError?
+            var parsingError: TokenizerError?
+
+            do {
+                let originalTokenizer = Tokenizer(input: testCase)
+                _ = try originalTokenizer.tokenize()
+            } catch let error as TokenizerError {
+                originalError = error
+            }
+
+            do {
+                _ = try ParsingTokenizer.tokenize(testCase)
+            } catch let error as TokenizerError {
+                parsingError = error
+            }
+
+            // Both should throw the same type of error
+            #expect(originalError != nil, "Original tokenizer should throw error for: '\(testCase)'")
+            #expect(parsingError != nil, "Parsing tokenizer should throw error for: '\(testCase)'")
+
+            if let original = originalError, let parsing = parsingError {
+                // Check that error types match
+                switch (original, parsing) {
+                case (.unterminatedComment, .unterminatedComment),
+                     (.unterminatedString, .unterminatedString):
+                    // Errors match - this is expected
+                    break
+                default:
+                    #expect(Bool(false), "Error types don't match for '\(testCase)'. Original: \(original), Parsing: \(parsing)")
+                }
+            }
+        }
+    }
+}

@@ -278,4 +278,20 @@ struct ParsingTokenizerTests {
             try ParsingTokenizer.tokenize(input)
         }
     }
+
+    @Test func testUnterminatedComment() throws {
+        let input = "/* unterminated comment"
+
+        #expect(throws: TokenizerError.self) {
+            try ParsingTokenizer.tokenize(input)
+        }
+    }
+
+    @Test func testUnterminatedString() throws {
+        let input = "'unterminated string"
+
+        #expect(throws: TokenizerError.self) {
+            try ParsingTokenizer.tokenize(input)
+        }
+    }
 }

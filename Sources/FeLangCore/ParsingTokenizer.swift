@@ -23,7 +23,7 @@ public struct ParsingTokenizer {
 
             // Try to parse a token
             let beforeIndex = index
-            if let token = parseNextToken(from: input, at: &index) {
+            if let token = try parseNextToken(from: input, at: &index, startIndex: startIndex) {
                 let tokenWithPosition = Token(
                     type: token.type,
                     lexeme: token.lexeme,
@@ -61,9 +61,9 @@ public struct ParsingTokenizer {
         return tokens
     }
 
-    private func parseNextToken(from input: String, at index: inout String.Index) -> TokenData? {
+    private func parseNextToken(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenData? {
         // Try to parse comments first (skip them, don't return tokens)
-        if parseComment(from: input, at: &index) != nil {
+        if try parseComment(from: input, at: &index, startIndex: startIndex) != nil {
             return nil // Comments are skipped
         }
 
@@ -88,7 +88,7 @@ public struct ParsingTokenizer {
         }
 
         // Try to parse strings
-        if let token = parseString(from: input, at: &index) {
+        if let token = try parseString(from: input, at: &index, startIndex: startIndex) {
             return token
         }
 
@@ -102,7 +102,7 @@ public struct ParsingTokenizer {
 
     // MARK: - Parsing Methods
 
-    private func parseComment(from input: String, at index: inout String.Index) -> TokenData? {
+    private func parseComment(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenData? {
         guard index < input.endIndex else { return nil }
 
         // Single line comment
@@ -121,19 +121,27 @@ public struct ParsingTokenizer {
 
         // Multi-line comment
         if TokenizerUtilities.matchString("/*", in: input, at: index) {
-            let start = index
+            let commentStart = index
+            let position = TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
             index = input.index(index, offsetBy: 2)
 
+            var foundTerminator = false
             // Read until */
             while index < input.endIndex {
                 if TokenizerUtilities.matchString("*/", in: input, at: index) {
                     index = input.index(index, offsetBy: 2)
+                    foundTerminator = true
                     break
                 }
                 index = input.index(after: index)
             }
 
-            let lexeme = String(input[start..<index])
+            // Check if comment was properly terminated
+            if !foundTerminator {
+                throw TokenizerError.unterminatedComment(position)
+            }
+
+            let lexeme = String(input[commentStart..<index])
             return TokenData(type: .comment, lexeme: lexeme)
         }
 
@@ -225,10 +233,11 @@ public struct ParsingTokenizer {
         return TokenData(type: tokenType, lexeme: lexeme)
     }
 
-    private func parseString(from input: String, at index: inout String.Index) -> TokenData? {
+    private func parseString(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenData? {
         guard index < input.endIndex && input[index] == "'" else { return nil }
 
         let start = index
+        let position = TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
         index = input.index(after: index) // Skip opening quote
 
         // Read until closing quote
@@ -238,8 +247,7 @@ public struct ParsingTokenizer {
 
         // Must have closing quote
         guard index < input.endIndex else {
-            index = start
-            return nil
+            throw TokenizerError.unterminatedString(position)
         }
 
         index = input.index(after: index) // Skip closing quote
