@@ -1,0 +1,41 @@
+name: Swift CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        swift: [5.7, 5.8, 5.9]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Swift ${{ matrix.swift }}
+        uses: fwal/setup-swift@v2
+        with:
+          swift-version: ${{ matrix.swift }}
+
+      - name: Install SwiftLint
+        uses: davedelong/SwiftLint@v0.2.0
+
+      - name: Autocorrect SwiftLint violations
+        run: swiftlint autocorrect
+
+      - name: Lint Swift code
+        run: swiftlint
+
+      - name: Resolve dependencies
+        run: swift package resolve
+
+      - name: Build
+        run: swift build --configuration release
+
+      - name: Run tests
+        run: swift test --enable-code-coverage
