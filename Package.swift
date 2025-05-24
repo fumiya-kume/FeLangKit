@@ -13,7 +13,7 @@ let package = Package(
         .library(name: "FeLangServer", targets: ["FeLangServer"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-testing.git", branch: "main"),
+        .package(url: "https://github.com/apple/swift-testing.git", from: "0.1.0"),
         .package(url: "https://github.com/pointfreeco/swift-parsing.git", from: "0.5.0")
     ],
     targets: [
