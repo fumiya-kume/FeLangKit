@@ -1,4 +1,3 @@
-// swiftlint:disable cyclomatic_complexity
 import Foundation
 
 /// A tokenizer for FE pseudo-language that converts source code into tokens.
@@ -70,7 +69,7 @@ public final class Tokenizer {
 
     /// Advances to the next character and returns the current one
     private func advance() -> UnicodeScalar {
-        guard !isAtEnd else { return UnicodeScalar(0)! }
+        guard !isAtEnd else { return UnicodeScalar(0) ?? UnicodeScalar(32) }
 
         let char = source[current]
         current = source.index(after: current)
@@ -88,14 +87,14 @@ public final class Tokenizer {
 
     /// Peeks at the current character without advancing
     private func peek() -> UnicodeScalar {
-        guard !isAtEnd else { return UnicodeScalar(0)! }
+        guard !isAtEnd else { return UnicodeScalar(0) ?? UnicodeScalar(32) }
         return source[current]
     }
 
     /// Peeks at the next character without advancing
     private func peekNext() -> UnicodeScalar {
         let next = source.index(after: current)
-        guard next < source.endIndex else { return UnicodeScalar(0)! }
+        guard next < source.endIndex else { return UnicodeScalar(0) ?? UnicodeScalar(32) }
         return source[next]
     }
 
@@ -109,7 +108,7 @@ public final class Tokenizer {
     }
 
     /// Scans the next token from the input
-    private func nextToken() throws -> Token {
+    private func nextToken() throws -> Token { // swiftlint:disable:this cyclomatic_complexity
         let position = currentPosition()
         let char = advance()
 
@@ -256,7 +255,7 @@ public final class Tokenizer {
     /// Scans a decimal number that starts with a dot (e.g., .5, .25)
     private func scanLeadingDotNumber(_ position: SourcePosition) -> Token {
         let startIndex = source.index(source.startIndex, offsetBy: position.offset)
-        
+
         // We already know the next character is a digit
         while !isAtEnd && peek().isNumber {
             _ = advance()

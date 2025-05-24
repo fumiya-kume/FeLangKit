@@ -14,7 +14,7 @@ struct LeadingDotTests {
             (".0", TokenType.realLiteral),
             (".123456", TokenType.realLiteral)
         ]
-        
+
         for (input, expectedType) in testCases {
             // Test original tokenizer
             let tokenizer = Tokenizer(input: input)
@@ -23,7 +23,7 @@ struct LeadingDotTests {
             #expect(originalTokens[0].type == expectedType)
             #expect(originalTokens[0].lexeme == input)
             #expect(originalTokens[1].type == .eof)
-            
+
             // Test parsing tokenizer
             let parsingTokens = try ParsingTokenizer.tokenize(input)
             #expect(parsingTokens.count == 2) // number + eof
@@ -36,7 +36,7 @@ struct LeadingDotTests {
     @Test func testDotVsLeadingDotDecimal() throws {
         // Test that regular dots are still recognized correctly
         let input = "obj.field .5"
-        
+
         // Test original tokenizer
         let tokenizer = Tokenizer(input: input)
         let originalTokens = try tokenizer.tokenize()
@@ -50,7 +50,7 @@ struct LeadingDotTests {
         #expect(originalTokens[3].type == .realLiteral)
         #expect(originalTokens[3].lexeme == ".5")
         #expect(originalTokens[4].type == .eof)
-        
+
         // Test parsing tokenizer
         let parsingTokens = try ParsingTokenizer.tokenize(input)
         #expect(parsingTokens.count == 5) // identifier, dot, identifier, realLiteral, eof
@@ -64,4 +64,4 @@ struct LeadingDotTests {
         #expect(parsingTokens[3].lexeme == ".5")
         #expect(parsingTokens[4].type == .eof)
     }
-} 
+}

@@ -232,12 +232,12 @@ public struct ParsingTokenizer {
             if nextIndex < input.endIndex && input[nextIndex].isNumber {
                 hasDecimal = true
                 index = nextIndex
-                
+
                 // Read fractional part
                 while index < input.endIndex && input[index].isNumber {
                     index = input.index(after: index)
                 }
-                
+
                 let lexeme = String(input[start..<index])
                 return TokenData(type: .realLiteral, lexeme: lexeme)
             } else {
