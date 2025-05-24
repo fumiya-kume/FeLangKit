@@ -8,6 +8,10 @@ public indirect enum Statement: Equatable, Codable, Sendable {
     // Assignments
     case assignment(Assignment)
 
+    // Declarations
+    case variableDeclaration(VariableDeclaration)
+    case constantDeclaration(ConstantDeclaration)
+
     // Function/Procedure
     case functionDeclaration(FunctionDeclaration)
     case procedureDeclaration(ProcedureDeclaration)
@@ -198,6 +202,19 @@ public struct VariableDeclaration: Equatable, Codable, Sendable {
     public let initialValue: Expression?
 
     public init(name: String, type: DataType, initialValue: Expression? = nil) {
+        self.name = name
+        self.type = type
+        self.initialValue = initialValue
+    }
+}
+
+/// Represents constant declarations.
+public struct ConstantDeclaration: Equatable, Codable, Sendable {
+    public let name: String
+    public let type: DataType
+    public let initialValue: Expression
+
+    public init(name: String, type: DataType, initialValue: Expression) {
         self.name = name
         self.type = type
         self.initialValue = initialValue

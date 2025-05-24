@@ -82,6 +82,10 @@ public struct StatementParser {
             return .whileStatement(try parseWhileStatement(&parser, nestingDepth: nestingDepth))
         case .forKeyword:
             return .forStatement(try parseForStatement(&parser, nestingDepth: nestingDepth))
+        case .variableKeyword:
+            return .variableDeclaration(try parseVariableDeclaration(&parser))
+        case .constantKeyword:
+            return .constantDeclaration(try parseConstantDeclaration(&parser))
         case .functionKeyword:
             return .functionDeclaration(try parseFunctionDeclaration(&parser, nestingDepth: nestingDepth))
         case .procedureKeyword:
@@ -268,6 +272,48 @@ public struct StatementParser {
         } else {
             throw StatementParsingError.expectedToken(.assign)
         }
+    }
+
+    // MARK: - Declaration Parsing
+
+    /// Parses a variable declaration (変数 name: type ← initialValue).
+    private func parseVariableDeclaration(_ parser: inout TokenStream) throws -> VariableDeclaration {
+        try expectToken(&parser, .variableKeyword) // consume '変数'
+
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw StatementParsingError.expectedIdentifier
+        }
+        let name = nameToken.lexeme
+
+        try expectToken(&parser, .colon) // consume ':'
+        let type = try parseDataType(&parser)
+
+        // Optional initial value
+        var initialValue: Expression?
+        if parser.peek()?.type == .assign {
+            parser.advance() // consume '←'
+            initialValue = try parseExpression(&parser)
+        }
+
+        return VariableDeclaration(name: name, type: type, initialValue: initialValue)
+    }
+
+    /// Parses a constant declaration (定数 name: type ← value).
+    private func parseConstantDeclaration(_ parser: inout TokenStream) throws -> ConstantDeclaration {
+        try expectToken(&parser, .constantKeyword) // consume '定数'
+
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw StatementParsingError.expectedIdentifier
+        }
+        let name = nameToken.lexeme
+
+        try expectToken(&parser, .colon) // consume ':'
+        let type = try parseDataType(&parser)
+
+        try expectToken(&parser, .assign) // consume '←' (required for constants)
+        let initialValue = try parseExpression(&parser)
+
+        return ConstantDeclaration(name: name, type: type, initialValue: initialValue)
     }
 
     // MARK: - Function/Procedure Parsing
@@ -639,6 +685,11 @@ public struct StatementParser {
         case .ifKeyword,        // IF-THEN-ELSE conditional statements
              .whileKeyword,     // WHILE-DO loop statements
              .forKeyword:       // FOR loop statements (range or forEach)
+            return true
+
+        // Declaration statements
+        case .variableKeyword,  // Variable declarations: 変数 name: type ← value
+             .constantKeyword:  // Constant declarations: 定数 name: type ← value
             return true
 
         // Function/procedure declarations

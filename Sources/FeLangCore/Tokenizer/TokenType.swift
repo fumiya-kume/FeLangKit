@@ -41,6 +41,10 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case trueKeyword = "true"
     case falseKeyword = "false"
 
+    /// Declaration keywords
+    case variableKeyword = "変数"
+    case constantKeyword = "定数"
+
     // MARK: - Literals
 
     case integerLiteral
@@ -102,7 +106,7 @@ extension TokenType {
              .whileKeyword, .doKeyword, .endwhileKeyword, .forKeyword, .toKeyword, .stepKeyword, .inKeyword, .endforKeyword,
              .functionKeyword, .endfunctionKeyword, .procedureKeyword, .endprocedureKeyword,
              .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword,
-             .trueKeyword, .falseKeyword:
+             .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword:
             return true
         default:
             return false

@@ -13,27 +13,27 @@ public enum TokenizerUtilities {
     public static let keywords: [(String, TokenType)] = [
         // 12 characters
         ("endprocedure", .endprocedureKeyword),
-        
+
         // 11 characters  
         ("endfunction", .endfunctionKeyword),
-        
+
         // 9 characters
         ("procedure", .procedureKeyword),
-        
+
         // 8 characters
         ("endwhile", .endwhileKeyword),
         ("function", .functionKeyword),
-        
+
         // 6 characters
         ("return", .returnKeyword),
         ("endfor", .endforKeyword),
-        
+
         // 5 characters
         ("endif", .endifKeyword),
         ("break", .breakKeyword),
         ("while", .whileKeyword),
         ("false", .falseKeyword),
-        
+
         // 4 characters - Japanese and English mixed by length
         ("文字列型", .stringType),
         ("レコード", .recordType),
@@ -42,7 +42,7 @@ public enum TokenizerUtilities {
         ("else", .elseKeyword),
         ("elif", .elifKeyword),
         ("step", .stepKeyword),
-        
+
         // 3 characters
         ("整数型", .integerType),
         ("実数型", .realType),
@@ -51,9 +51,11 @@ public enum TokenizerUtilities {
         ("and", .andKeyword),
         ("not", .notKeyword),
         ("for", .forKeyword),
-        
+
         // 2 characters
         ("配列", .arrayType),
+        ("変数", .variableKeyword),
+        ("定数", .constantKeyword),
         ("or", .orKeyword),
         ("to", .toKeyword),
         ("in", .inKeyword),
