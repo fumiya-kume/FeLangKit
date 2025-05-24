@@ -192,17 +192,15 @@ public struct ParsingTokenizer {
 
     private func parseNumber(from input: String, at index: inout String.Index) -> TokenData? {
         let start = index
-        var hasDecimal = false
 
         // Check for leading dot decimal (e.g., .5, .25)
         if index < input.endIndex && input[index] == "." {
             let nextIndex = input.index(after: index)
             if nextIndex < input.endIndex && input[nextIndex].isNumber {
-                hasDecimal = true
                 index = nextIndex
 
-                // Read fractional part
-                while index < input.endIndex && input[index].isNumber {
+                // Read fractional part (including underscores)
+                while index < input.endIndex && (input[index].isNumber || input[index] == "_") {
                     index = input.index(after: index)
                 }
 
@@ -219,10 +217,86 @@ public struct ParsingTokenizer {
             return nil
         }
 
-        // Read digits
-        while index < input.endIndex && input[index].isNumber {
+        // Check for alternative number bases (0x, 0b, 0o)
+        if input[index] == "0" {
+            let nextIndex = input.index(after: index)
+            if nextIndex < input.endIndex {
+                let nextChar = input[nextIndex]
+                if nextChar == "x" || nextChar == "X" {
+                    return parseHexadecimalNumber(from: input, at: &index, start: start)
+                } else if nextChar == "b" || nextChar == "B" {
+                    return parseBinaryNumber(from: input, at: &index, start: start)
+                } else if nextChar == "o" || nextChar == "O" {
+                    return parseOctalNumber(from: input, at: &index, start: start)
+                }
+            }
+        }
+
+        // Parse regular decimal number (including scientific notation and underscores)
+        return parseDecimalNumber(from: input, at: &index, start: start)
+    }
+
+    private func parseHexadecimalNumber(from input: String, at index: inout String.Index, start: String.Index) -> TokenData? {
+        index = input.index(after: index) // consume '0'
+        index = input.index(after: index) // consume 'x' or 'X'
+
+        // Must have at least one hex digit
+        guard index < input.endIndex && (TokenizerUtilities.isHexDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") else {
+            return nil
+        }
+
+        // Read hex digits and underscores
+        while index < input.endIndex && (TokenizerUtilities.isHexDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") {
             index = input.index(after: index)
         }
+
+        let lexeme = String(input[start..<index])
+        return TokenData(type: .integerLiteral, lexeme: lexeme)
+    }
+
+    private func parseBinaryNumber(from input: String, at index: inout String.Index, start: String.Index) -> TokenData? {
+        index = input.index(after: index) // consume '0'
+        index = input.index(after: index) // consume 'b' or 'B'
+
+        // Must have at least one binary digit
+        guard index < input.endIndex && (TokenizerUtilities.isBinaryDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") else {
+            return nil
+        }
+
+        // Read binary digits and underscores
+        while index < input.endIndex && (TokenizerUtilities.isBinaryDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") {
+            index = input.index(after: index)
+        }
+
+        let lexeme = String(input[start..<index])
+        return TokenData(type: .integerLiteral, lexeme: lexeme)
+    }
+
+    private func parseOctalNumber(from input: String, at index: inout String.Index, start: String.Index) -> TokenData? {
+        index = input.index(after: index) // consume '0'
+        index = input.index(after: index) // consume 'o' or 'O'
+
+        // Must have at least one octal digit
+        guard index < input.endIndex && (TokenizerUtilities.isOctalDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") else {
+            return nil
+        }
+
+        // Read octal digits and underscores
+        while index < input.endIndex && (TokenizerUtilities.isOctalDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") {
+            index = input.index(after: index)
+        }
+
+        let lexeme = String(input[start..<index])
+        return TokenData(type: .integerLiteral, lexeme: lexeme)
+    }
+
+    private func parseDecimalNumber(from input: String, at index: inout String.Index, start: String.Index) -> TokenData? {
+        // Read integer part (including underscores)
+        while index < input.endIndex && (input[index].isNumber || input[index] == "_") {
+            index = input.index(after: index)
+        }
+
+        var hasDecimal = false
 
         // Check for decimal point
         if index < input.endIndex && input[index] == "." {
@@ -232,15 +306,36 @@ public struct ParsingTokenizer {
                 hasDecimal = true
                 index = nextIndex
 
-                // Read fractional part
-                while index < input.endIndex && input[index].isNumber {
+                // Read fractional part (including underscores)
+                while index < input.endIndex && (input[index].isNumber || input[index] == "_") {
                     index = input.index(after: index)
                 }
             }
         }
 
+        // Check for scientific notation
+        if index < input.endIndex && (input[index] == "e" || input[index] == "E") {
+            hasDecimal = true // Scientific notation is always real
+            index = input.index(after: index) // consume 'e' or 'E'
+
+            // Optional sign
+            if index < input.endIndex && (input[index] == "+" || input[index] == "-") {
+                index = input.index(after: index)
+            }
+
+            // Must have at least one digit in exponent
+            guard index < input.endIndex && (input[index].isNumber || input[index] == "_") else {
+                return nil // Invalid scientific notation
+            }
+
+            // Read exponent digits (including underscores)
+            while index < input.endIndex && (input[index].isNumber || input[index] == "_") {
+                index = input.index(after: index)
+            }
+        }
+
         let lexeme = String(input[start..<index])
-        let tokenType = TokenizerUtilities.numberTokenType(hasDecimal: hasDecimal)
+        let tokenType = TokenizerUtilities.enhancedNumberTokenType(lexeme: lexeme)
         return TokenData(type: tokenType, lexeme: lexeme)
     }
 
