@@ -7,11 +7,28 @@ on:
     branches: [ master ]
 
 jobs:
-  build-and-test:
+  lint:
+    name: SwiftLint
+    runs-on: macos-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: SwiftLint Auto Fix
+        run: swiftlint autocorrect
+
+      - name: Run SwiftLint
+        run: swiftlint lint --strict --quiet --reporter github-actions-logging
+
+  build:
+    name: Build
     runs-on: macos-latest
     strategy:
       matrix:
-        swift: [5.7, 5.8, 5.9]
+        swift: [5.7, 5.8, 5.9, 5.10]
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -22,24 +39,51 @@ jobs:
           path: |
             .build
             .swiftpm
-          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          key: swiftpm-build-${{ matrix.swift }}-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: |
-            swiftpm-${{ runner.os }}-
-              
-      - name: Install SwiftLint
-        run: brew install swiftlint
+            swiftpm-build-${{ matrix.swift }}-${{ runner.os }}-
 
-      - name: SwiftLint Auto Fix
-        run: swiftlint autocorrect
-
-      - name: Run SwiftLint
-        run: swiftlint lint --strict --quiet --reporter github-actions-logging
+      - name: Setup Swift ${{ matrix.swift }}
+        uses: swift-actions/setup-swift@v1
+        with:
+          swift-version: ${{ matrix.swift }}
 
       - name: Resolve dependencies
         run: swift package resolve
 
-      - name: Build
+      - name: Build Debug
+        run: swift build --configuration debug
+
+      - name: Build Release
         run: swift build --configuration release
+
+  test:
+    name: Unit Tests
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        swift: [5.9, 5.10]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            .swiftpm
+          key: swiftpm-test-${{ matrix.swift }}-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            swiftpm-test-${{ matrix.swift }}-${{ runner.os }}-
+
+      - name: Setup Swift ${{ matrix.swift }}
+        uses: swift-actions/setup-swift@v1
+        with:
+          swift-version: ${{ matrix.swift }}
+
+      - name: Resolve dependencies
+        run: swift package resolve
 
       - name: Run tests
         run: swift test --enable-code-coverage
