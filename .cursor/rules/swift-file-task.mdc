@@ -4,4 +4,4 @@ globs: *.swift
 alwaysApply: false
 ---
 Execute `swiftlint lint --fix && swiftlint lint` for lint validation.
-Execute `swift build && swift test` for ensure that the code is working well.
+Execute `swift build && swift test` to ensure that the code is working well.
