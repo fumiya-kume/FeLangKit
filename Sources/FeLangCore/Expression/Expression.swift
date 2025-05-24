@@ -56,7 +56,11 @@ extension Literal: Codable {
                 // Handle case where JSON encodes 0.0 as 0 (Int instead of Double)
                 self = .real(Double(intValue))
             } else {
-                throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid literal value"))
+                let actualType = type(of: realValue)
+                throw DecodingError.dataCorrupted(.init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Invalid literal value: expected a numeric type (Double or Int), but found \(actualType)"
+                ))
             }
         } else if let value = dict["string"]?.value as? String {
             self = .string(value)
