@@ -2,9 +2,6 @@ import Testing
 @testable import FeLangCore
 import Foundation
 
-// Resolve ambiguity with Foundation.Expression
-typealias ASTExpression = FeLangCore.Expression
-
 /// Deep Copy Verification Tests
 /// Implements the comprehensive deep copy testing requirements from GitHub issue #31
 /// Ensures value semantics work correctly across complex nested structures
@@ -15,7 +12,7 @@ struct DeepCopyVerificationTests {
 
     @Test("Basic Expression Deep Copy - Literal Expressions")
     func testBasicLiteralExpressionDeepCopy() throws {
-        let originalExpressions: [ASTExpression] = [
+        let originalExpressions: [FeLangCore.Expression] = [
             .literal(.integer(42)),
             .literal(.real(3.14159)),
             .literal(.string("Hello, World!")),
@@ -41,7 +38,7 @@ struct DeepCopyVerificationTests {
 
     @Test("Basic Expression Deep Copy - Identifier Expressions")
     func testBasicIdentifierExpressionDeepCopy() throws {
-        let originalExpression = ASTExpression.identifier("variableName")
+        let originalExpression = FeLangCore.Expression.identifier("variableName")
         let copiedExpression = originalExpression
 
         #expect(originalExpression == copiedExpression)
@@ -56,7 +53,7 @@ struct DeepCopyVerificationTests {
 
     @Test("Basic Expression Deep Copy - Binary Expressions")
     func testBasicBinaryExpressionDeepCopy() throws {
-        let originalExpression = ASTExpression.binary(
+        let originalExpression = FeLangCore.Expression.binary(
             .add,
             .literal(.integer(10)),
             .literal(.integer(20))
@@ -75,7 +72,7 @@ struct DeepCopyVerificationTests {
 
     @Test("Basic Expression Deep Copy - Unary Expressions")
     func testBasicUnaryExpressionDeepCopy() throws {
-        let originalExpression = ASTExpression.unary(.minus, .literal(.integer(42)))
+        let originalExpression = FeLangCore.Expression.unary(.minus, .literal(.integer(42)))
         let copiedExpression = originalExpression
 
         #expect(originalExpression == copiedExpression)
@@ -90,7 +87,7 @@ struct DeepCopyVerificationTests {
 
     @Test("Basic Expression Deep Copy - Function Call Expressions")
     func testBasicFunctionCallExpressionDeepCopy() throws {
-        let originalExpression = ASTExpression.functionCall("calculateSum", [
+        let originalExpression = FeLangCore.Expression.functionCall("calculateSum", [
             .literal(.integer(1)),
             .literal(.integer(2)),
             .literal(.integer(3))
@@ -109,7 +106,7 @@ struct DeepCopyVerificationTests {
 
     @Test("Basic Expression Deep Copy - Array Access Expressions")
     func testBasicArrayAccessExpressionDeepCopy() throws {
-        let originalExpression = ASTExpression.arrayAccess(
+        let originalExpression = FeLangCore.Expression.arrayAccess(
             .identifier("myArray"),
             .literal(.integer(0))
         )
@@ -127,7 +124,7 @@ struct DeepCopyVerificationTests {
 
     @Test("Basic Expression Deep Copy - Field Access Expressions")
     func testBasicFieldAccessExpressionDeepCopy() throws {
-        let originalExpression = ASTExpression.fieldAccess(
+        let originalExpression = FeLangCore.Expression.fieldAccess(
             .identifier("myObject"),
             "propertyName"
         )
@@ -213,7 +210,7 @@ struct DeepCopyVerificationTests {
 
     @Test("Complex Expression Deep Copy - Nested Binary Operations")
     func testComplexExpressionDeepCopy() throws {
-        let originalExpression = ASTExpression.binary(
+        let originalExpression = FeLangCore.Expression.binary(
             .multiply,
             .binary(.add, .literal(.integer(2)), .literal(.integer(3))),
             .binary(.subtract, .literal(.integer(10)), .literal(.integer(4)))
@@ -372,20 +369,20 @@ struct DeepCopyVerificationTests {
 
     @Test("Array Deep Copy - Expression Arrays in Function Calls")
     func testExpressionArrayDeepCopy() throws {
-        let originalArguments: [ASTExpression] = [
+        let originalArguments: [FeLangCore.Expression] = [
             .literal(.integer(1)),
             .binary(.add, .identifier("x"), .literal(.integer(2))),
             .functionCall("nestedCall", [.literal(.string("nested"))]),
             .arrayAccess(.identifier("arr"), .literal(.integer(0)))
         ]
-        let originalExpression = ASTExpression.functionCall("complexFunction", originalArguments)
+        let originalExpression = FeLangCore.Expression.functionCall("complexFunction", originalArguments)
         let copiedExpression = originalExpression
 
         #expect(originalExpression == copiedExpression)
 
         // Test independence
         var mutableCopy = originalExpression
-        mutableCopy = ASTExpression.functionCall("differentFunction", [ASTExpression.literal(.integer(999))])
+        mutableCopy = FeLangCore.Expression.functionCall("differentFunction", [FeLangCore.Expression.literal(.integer(999))])
 
         #expect(originalExpression != mutableCopy)
         #expect(copiedExpression == originalExpression)
@@ -437,7 +434,7 @@ struct DeepCopyVerificationTests {
 
     @Test("2-Level Deep Copy - Expression containing nested expressions")
     func test2LevelDeepCopy() throws {
-        let originalExpression = ASTExpression.binary(.add,
+        let originalExpression = FeLangCore.Expression.binary(.add,
             .binary(.multiply, .literal(.integer(2)), .literal(.integer(3))),
             .binary(.divide, .literal(.integer(10)), .literal(.integer(2)))
         )
@@ -612,7 +609,7 @@ struct DeepCopyVerificationTests {
 
     @Test("Mixed-Type Deep Copy - Heterogeneous Expression Arrays")
     func testMixedTypeDeepCopy() throws {
-        let originalMixedExpression = ASTExpression.functionCall("processValues", [
+        let originalMixedExpression = FeLangCore.Expression.functionCall("processValues", [
             .literal(.integer(42)),
             .literal(.real(3.14159)),
             .literal(.string("mixed")),
@@ -698,7 +695,7 @@ struct DeepCopyVerificationTests {
 
     @Test("Collection Deep Copy - Nested Array Access Patterns")
     func testNestedArrayAccessDeepCopy() throws {
-        let originalNestedAccess = ASTExpression.arrayAccess(
+        let originalNestedAccess = FeLangCore.Expression.arrayAccess(
             .arrayAccess(.identifier("matrix"), .literal(.integer(0))),
             .arrayAccess(.identifier("indices"), .literal(.integer(1)))
         )
@@ -800,7 +797,7 @@ struct DeepCopyVerificationTests {
         #expect(originalEmpty == copiedEmpty)
 
         // Empty arrays in expressions
-        let emptyArrayCall = ASTExpression.functionCall("createEmpty", [])
+        let emptyArrayCall = FeLangCore.Expression.functionCall("createEmpty", [])
         let copiedArrayCall = emptyArrayCall
 
         #expect(emptyArrayCall == copiedArrayCall)
@@ -831,7 +828,7 @@ struct DeepCopyVerificationTests {
         #expect(originalOneParam == copiedOneParam)
 
         // Single argument function call
-        let singleArgCall = ASTExpression.functionCall("process", [.literal(.integer(42))])
+        let singleArgCall = FeLangCore.Expression.functionCall("process", [.literal(.integer(42))])
         let copiedArgCall = singleArgCall
 
         #expect(singleArgCall == copiedArgCall)
@@ -983,7 +980,7 @@ struct DeepCopyVerificationTests {
     @Test("Edge Case - Type Safety Verification in Deep Copy")
     func testEdgeCaseTypeSafetyVerification() throws {
         // Mixed data types in complex expressions
-        let typeSafetyExpression = ASTExpression.binary(.add,
+        let typeSafetyExpression = FeLangCore.Expression.binary(.add,
             .literal(.integer(42)), // Integer
             .unary(.not, .literal(.boolean(false))) // Boolean in unary
         )
@@ -1289,7 +1286,7 @@ struct DeepCopyVerificationTests {
     }
 
     /// Creates a collection of varied expressions for testing
-    private func createVariedExpressions() -> [ASTExpression] {
+    private func createVariedExpressions() -> [FeLangCore.Expression] {
         return [
             .literal(.integer(42)),
             .literal(.real(3.14)),
