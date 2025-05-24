@@ -209,6 +209,10 @@ public struct VariableDeclaration: Equatable, Codable, Sendable {
 }
 
 /// Represents constant declarations.
+/// A constant declaration defines a named constant with a specific data type and an initial value.
+/// - `name`: The name of the constant.
+/// - `type`: The data type of the constant.
+/// - `initialValue`: The initial value assigned to the constant. This value cannot be changed after declaration.
 public struct ConstantDeclaration: Equatable, Codable, Sendable {
     public let name: String
     public let type: DataType
