@@ -55,7 +55,7 @@ extension Literal: Codable {
             self = .real(num.doubleValue)
         } else if dict["real"]?.value != nil {
             // Handle case where real value exists but is not a valid number
-            let actualType = type(of: dict["real"]!.value)
+            let actualType = type(of: dict["real"]?.value ?? "nil")
             throw DecodingError.dataCorrupted(.init(
                 codingPath: decoder.codingPath,
                 debugDescription: "Invalid literal value: expected a numeric type (Double or Int), but found \(actualType)"
