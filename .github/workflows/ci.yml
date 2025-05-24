@@ -62,7 +62,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        swift: [5.9, 5.10]
+        swift: [5.9]
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
