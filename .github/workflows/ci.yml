@@ -26,9 +26,6 @@ jobs:
   build:
     name: Build
     runs-on: macos-latest
-    strategy:
-      matrix:
-        swift: [5.9]
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -39,14 +36,14 @@ jobs:
           path: |
             .build
             .swiftpm
-          key: swiftpm-build-${{ matrix.swift }}-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          key: swiftpm-build-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: |
-            swiftpm-build-${{ matrix.swift }}-${{ runner.os }}-
+            swiftpm-build-${{ runner.os }}-
 
-      - name: Setup Swift ${{ matrix.swift }}
+      - name: Setup Swift 5.9
         uses: swift-actions/setup-swift@v1
         with:
-          swift-version: ${{ matrix.swift }}
+          swift-version: 5.9
 
       - name: Resolve dependencies
         run: swift package resolve
@@ -60,9 +57,6 @@ jobs:
   test:
     name: Unit Tests
     runs-on: macos-latest
-    strategy:
-      matrix:
-        swift: [5.9]
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -73,14 +67,14 @@ jobs:
           path: |
             .build
             .swiftpm
-          key: swiftpm-test-${{ matrix.swift }}-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          key: swiftpm-test-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: |
-            swiftpm-test-${{ matrix.swift }}-${{ runner.os }}-
+            swiftpm-test-${{ runner.os }}-
 
-      - name: Setup Swift ${{ matrix.swift }}
+      - name: Setup Swift 
         uses: swift-actions/setup-swift@v1
         with:
-          swift-version: ${{ matrix.swift }}
+          swift-version: 5.9
 
       - name: Resolve dependencies
         run: swift package resolve
