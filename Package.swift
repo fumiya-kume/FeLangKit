@@ -45,19 +45,31 @@ let package = Package(
         ),
         .testTarget(
             name: "FeLangCoreTests",
-            dependencies: ["FeLangCore"]
+            dependencies: [
+                "FeLangCore",
+                .product(name: "Testing", package: "swift-testing")
+            ]
         ),
         .testTarget(
             name: "FeLangKitTests",
-            dependencies: ["FeLangKit"]
+            dependencies: [
+                "FeLangKit",
+                .product(name: "Testing", package: "swift-testing")
+            ]
         ),
         .testTarget(
             name: "FeLangRuntimeTests",
-            dependencies: ["FeLangRuntime"]
+            dependencies: [
+                "FeLangRuntime",
+                .product(name: "Testing", package: "swift-testing")
+            ]
         ),
         .testTarget(
             name: "FeLangServerTests",
-            dependencies: ["FeLangServer"]
+            dependencies: [
+                "FeLangServer",
+                .product(name: "Testing", package: "swift-testing")
+            ]
         )
     ]
 )
