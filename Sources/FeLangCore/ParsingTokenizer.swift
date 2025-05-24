@@ -77,13 +77,13 @@ public struct ParsingTokenizer {
             return token
         }
 
-        // Try to parse delimiters
-        if let token = parseDelimiter(from: input, at: &index) {
+        // Try to parse numbers (including leading-dot decimals) before delimiters
+        if let token = parseNumber(from: input, at: &index) {
             return token
         }
 
-        // Try to parse numbers
-        if let token = parseNumber(from: input, at: &index) {
+        // Try to parse delimiters
+        if let token = parseDelimiter(from: input, at: &index) {
             return token
         }
 
@@ -225,6 +225,25 @@ public struct ParsingTokenizer {
     private func parseNumber(from input: String, at index: inout String.Index) -> TokenData? {
         let start = index
         var hasDecimal = false
+
+        // Check for leading dot decimal (e.g., .5, .25)
+        if index < input.endIndex && input[index] == "." {
+            let nextIndex = input.index(after: index)
+            if nextIndex < input.endIndex && input[nextIndex].isNumber {
+                hasDecimal = true
+                index = nextIndex
+                
+                // Read fractional part
+                while index < input.endIndex && input[index].isNumber {
+                    index = input.index(after: index)
+                }
+                
+                let lexeme = String(input[start..<index])
+                return TokenData(type: .realLiteral, lexeme: lexeme)
+            } else {
+                return nil // Just a dot, not a number
+            }
+        }
 
         // Only parse positive numbers - minus will be handled as an operator
         // Must have at least one digit

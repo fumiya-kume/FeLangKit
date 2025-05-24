@@ -247,10 +247,23 @@ public final class Tokenizer {
     /// Scans either a dot or a decimal number
     private func scanDotOrNumber(_ position: SourcePosition) -> Token {
         if !isAtEnd && peek().isNumber {
-            return scanNumber(position)
+            return scanLeadingDotNumber(position)
         } else {
             return Token(type: .dot, lexeme: ".", position: position)
         }
+    }
+
+    /// Scans a decimal number that starts with a dot (e.g., .5, .25)
+    private func scanLeadingDotNumber(_ position: SourcePosition) -> Token {
+        let startIndex = source.index(source.startIndex, offsetBy: position.offset)
+        
+        // We already know the next character is a digit
+        while !isAtEnd && peek().isNumber {
+            _ = advance()
+        }
+
+        let lexeme = String(source[startIndex..<current])
+        return Token(type: .realLiteral, lexeme: lexeme, position: position)
     }
 
     /// Scans a string or character literal
