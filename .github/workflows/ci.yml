@@ -67,6 +67,8 @@ jobs:
   test:
     name: Unit Tests
     runs-on: macos-15
+    env:
+      LLVM_PROFILE_FILE: /tmp/default.profraw
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
