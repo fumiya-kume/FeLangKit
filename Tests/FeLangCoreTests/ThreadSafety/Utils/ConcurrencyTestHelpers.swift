@@ -51,7 +51,7 @@ public enum ConcurrencyTestHelpers {
     ) async -> ConcurrentTestResult {
         let startTime = Date()
         var completedTasks = 0
-        var collectedErrors: [Error] = []
+        let errorCollector = ErrorCollector()
 
         let allSuccess = await withTaskGroup(of: Bool.self) { group in
             for _ in 0..<level.taskCount {
@@ -60,6 +60,7 @@ public enum ConcurrencyTestHelpers {
                         _ = try await operation()
                         return true
                     } catch {
+                        await errorCollector.addError(error)
                         return false
                     }
                 }
@@ -75,6 +76,7 @@ public enum ConcurrencyTestHelpers {
         }
 
         let executionTime = Date().timeIntervalSince(startTime)
+        let collectedErrors = await errorCollector.getErrors()
 
         return ConcurrentTestResult(
             success: allSuccess,
@@ -307,5 +309,22 @@ public actor ThreadSafeTestCollector {
 
     public func getResultCount() -> Int {
         return results.count
+    }
+}
+
+/// Actor for thread-safe error collection during concurrent testing
+private actor ErrorCollector {
+    private var errors: [Error] = []
+    
+    func addError(_ error: Error) {
+        errors.append(error)
+    }
+    
+    func getErrors() -> [Error] {
+        return errors
+    }
+    
+    func clearErrors() {
+        errors.removeAll()
     }
 }

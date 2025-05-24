@@ -51,6 +51,15 @@ public enum ThreadSafetyValidators {
         }
     }
 
+    /// Threshold for detecting suspicious timing variance that might indicate race conditions
+    private static let contentionThreshold: TimeInterval = 0.01
+    
+    /// Multiplier for determining unusual operation duration (10x average)
+    private static let unusualDurationMultiplier: Double = 10.0
+    
+    /// Minimum duration threshold for considering an operation as potentially conflicted
+    private static let minimumConflictDuration: TimeInterval = 0.001
+
     /// Validates Sendable conformance for AST types
     /// - Parameter type: The type to validate
     /// - Returns: Validation result indicating compliance
@@ -62,13 +71,11 @@ public enum ThreadSafetyValidators {
 
         // Note: This check is simplified since we can't easily test Sendable conformance at runtime
         // In practice, this would be validated by the Swift compiler
-
-        // Additional checks for specific types
+        
+        // For types that use @unchecked Sendable, this would need to be verified through 
+        // static analysis or compiler warnings rather than runtime checks
         if typeName.contains("AnyCodable") {
-            if typeName.contains("@unchecked") {
-                issues.append("\(typeName) uses @unchecked Sendable which bypasses compiler safety")
-                recommendations.append("Verify manual thread safety implementation for \(typeName)")
-            }
+            recommendations.append("Verify thread safety implementation for \(typeName) if using @unchecked Sendable")
         }
 
         return ValidationResult(
@@ -156,7 +163,7 @@ public enum ThreadSafetyValidators {
         if let maxTiming = timings.max(), let minTiming = timings.min() {
             let variance = maxTiming - minTiming
             // Only consider variance suspicious if it's very large (>10ms) and represents significant variation
-            if variance > 0.01 && maxTiming > minTiming * 100 { // 100x difference indicates potential issues
+            if variance > contentionThreshold && maxTiming > minTiming * 100 { // 100x difference indicates potential issues
                 suspiciousTimings.append(variance)
             }
         }
@@ -347,12 +354,12 @@ public enum ThreadSafetyValidators {
         }
 
         let averageDuration = durations.reduce(0, +) / Double(durations.count)
-        let unusualThreshold = averageDuration * 10 // 10x average is unusual
+        let unusualThreshold = averageDuration * unusualDurationMultiplier
 
         // Only flag operations that took significantly longer than average
         // This indicates potential contention rather than normal concurrent access
         for access in sortedAccesses {
-            if access.duration > unusualThreshold && access.duration > 0.001 { // 1ms threshold
+            if access.duration > unusualThreshold && access.duration > minimumConflictDuration {
                 conflicts.append(access)
             }
         }

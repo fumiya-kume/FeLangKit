@@ -27,7 +27,7 @@ struct ThreadSafetyTestSuite {
         let lightTest = await ConcurrencyTestHelpers.performConcurrentReadTest(level: .light) {
             return 42
         }
-        #expect(lightTest.tasksCompleted == 10)
+        #expect(lightTest.tasksCompleted == 10, "Light concurrency level should complete 10 tasks")
 
         let mediumTest = await ConcurrencyTestHelpers.performConcurrentReadTest(level: .medium) {
             return "medium"
