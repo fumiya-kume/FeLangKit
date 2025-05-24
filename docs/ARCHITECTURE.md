@@ -43,6 +43,8 @@ Sources/FeLangCore/
 - **TokenizerError.swift**: Specialized error types for tokenization failures
 - **TokenizerUtilities.swift**: Shared utilities (keyword maps, character classification, etc.)
 
+**📖 Module Documentation**: **[Tokenizer Module Overview](../Sources/FeLangCore/Tokenizer/docs/README.md)**
+
 ### 🔢 Expression Module (2 files)
 **Purpose**: Parsing and representing expressions in the FE language
 
@@ -58,6 +60,8 @@ Sources/FeLangCore/
   - Operator precedence management
   - Left/right associativity support
   - Security limits (max nesting depth)
+
+**📖 Module Documentation**: **[Expression Module Overview](../Sources/FeLangCore/Expression/docs/README.md)**
 
 ### 🏗️ Parser Module (2 files)
 **Purpose**: Parsing statements and building complete program ASTs
@@ -75,6 +79,8 @@ Sources/FeLangCore/
   - Nesting depth security limits
   - Multi-language keyword support
 
+**📖 Module Documentation**: **[Parser Module Overview](../Sources/FeLangCore/Parser/docs/README.md)**
+
 ### 🛠️ Utilities Module (1 file)
 **Purpose**: Shared functionality used across multiple modules
 
@@ -83,6 +89,8 @@ Sources/FeLangCore/
   - String and character literal processing
   - Validation and error detection
   - Performance-optimized implementations
+
+**📖 Module Documentation**: **[Utilities Module Overview](../Sources/FeLangCore/Utilities/docs/README.md)**
 
 ## 🔗 Module Dependencies
 

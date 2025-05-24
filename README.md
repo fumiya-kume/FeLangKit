@@ -31,12 +31,21 @@ let statements = try statementParser.parseStatements(from: tokens)
 
 ## 📚 Documentation
 
+### **🎯 Project Documentation**
 | Document | Description |
 |----------|-------------|
 | **[🏗️ Architecture Guide](docs/ARCHITECTURE.md)** | Module structure, dependencies, and organization |
 | **[🧪 Testing Guide](docs/TESTING.md)** | Test organization, coverage, and guidelines |
 | **[👥 Development Guide](docs/DEVELOPMENT.md)** | Development guidelines and contribution guide |
 | **[📋 Migration Guide](docs/MIGRATION.md)** | Package reorganization details and history |
+
+### **📦 Module Documentation**
+| Module | Documentation |
+|--------|---------------|
+| **📝 Tokenizer** | **[Module Overview](Sources/FeLangCore/Tokenizer/docs/README.md)** |
+| **🔢 Expression** | **[Module Overview](Sources/FeLangCore/Expression/docs/README.md)** |
+| **🏗️ Parser** | **[Module Overview](Sources/FeLangCore/Parser/docs/README.md)** |
+| **🛠️ Utilities** | **[Module Overview](Sources/FeLangCore/Utilities/docs/README.md)** |
 
 ## ✨ Features
 
