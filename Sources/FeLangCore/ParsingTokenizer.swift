@@ -149,7 +149,7 @@ public struct ParsingTokenizer {
             ("文字型", .characterType),
             ("論理型", .booleanType),
             ("レコード", .recordType),
-            ("配列", .arrayKeyword),
+            ("配列", .arrayType),
 
             // English keywords
             ("return", .returnKeyword),

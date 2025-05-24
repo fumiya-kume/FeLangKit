@@ -22,7 +22,7 @@ struct ParsingTokenizerTests {
         #expect(tokens[3].type == .stringType)
         #expect(tokens[4].type == .booleanType)
         #expect(tokens[5].type == .recordType)
-        #expect(tokens[6].type == .arrayKeyword)
+        #expect(tokens[6].type == .arrayType)
         #expect(tokens[7].type == .eof)
     }
 

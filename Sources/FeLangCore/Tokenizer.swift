@@ -18,7 +18,7 @@ public final class Tokenizer {
         "文字列型": .stringType,
         "論理型": .booleanType,
         "レコード": .recordType,
-        "配列": .arrayKeyword,
+        "配列": .arrayType,
         "if": .ifKeyword,
         "while": .whileKeyword,
         "for": .forKeyword,
@@ -177,11 +177,12 @@ public final class Tokenizer {
 
     /// Scans whitespace characters
     private func scanWhitespace(_ position: SourcePosition) -> Token {
+        let startIndex = source.index(source.startIndex, offsetBy: position.offset)
         while !isAtEnd && (peek() == " " || peek() == "\t") {
             _ = advance()
         }
 
-        let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
+        let lexeme = String(source[startIndex..<current])
         return Token(type: .whitespace, lexeme: lexeme, position: position)
     }
 
@@ -205,16 +206,18 @@ public final class Tokenizer {
 
     /// Scans a single-line comment
     private func scanSingleLineComment(_ position: SourcePosition) -> Token {
+        let startIndex = source.index(source.startIndex, offsetBy: position.offset)
         while !isAtEnd && peek() != "\n" {
             _ = advance()
         }
 
-        let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
+        let lexeme = String(source[startIndex..<current])
         return Token(type: .comment, lexeme: lexeme, position: position)
     }
 
     /// Scans a multi-line comment
     private func scanMultiLineComment(_ position: SourcePosition) throws -> Token {
+        let startIndex = source.index(source.startIndex, offsetBy: position.offset)
         while !isAtEnd {
             if peek() == "*" && peekNext() == "/" {
                 _ = advance() // consume '*'
@@ -228,7 +231,7 @@ public final class Tokenizer {
             throw TokenizerError.unterminatedComment(position)
         }
 
-        let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
+        let lexeme = String(source[startIndex..<current])
         return Token(type: .comment, lexeme: lexeme, position: position)
     }
 
@@ -252,7 +255,8 @@ public final class Tokenizer {
 
     /// Scans a string or character literal
     private func scanStringOrCharacterLiteral(_ position: SourcePosition) throws -> Token {
-        let startIndex = current
+        let lexemeStartIndex = source.index(source.startIndex, offsetBy: position.offset)
+        let contentStartIndex = current
 
         while !isAtEnd && peek() != "'" {
             _ = advance()
@@ -265,8 +269,8 @@ public final class Tokenizer {
         // Consume the closing quote
         _ = advance()
 
-        let content = String(source[startIndex..<source.index(before: current)])
-        let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
+        let content = String(source[contentStartIndex..<source.index(before: current)])
+        let lexeme = String(source[lexemeStartIndex..<current])
 
         if content.count == 1 {
             return Token(type: .characterLiteral, lexeme: lexeme, position: position)
@@ -277,6 +281,7 @@ public final class Tokenizer {
 
     /// Scans a number (integer or real)
     private func scanNumber(_ position: SourcePosition) -> Token {
+        let startIndex = source.index(source.startIndex, offsetBy: position.offset)
         while !isAtEnd && peek().isNumber {
             _ = advance()
         }
@@ -293,7 +298,7 @@ public final class Tokenizer {
             }
         }
 
-        let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
+        let lexeme = String(source[startIndex..<current])
         let tokenType: TokenType = isReal ? .realLiteral : .integerLiteral
 
         return Token(type: tokenType, lexeme: lexeme, position: position)
@@ -301,11 +306,12 @@ public final class Tokenizer {
 
     /// Scans an identifier or keyword
     private func scanIdentifier(_ position: SourcePosition) -> Token {
+        let startIndex = source.index(source.startIndex, offsetBy: position.offset)
         while !isAtEnd && isIdentifierContinue(peek()) {
             _ = advance()
         }
 
-        let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
+        let lexeme = String(source[startIndex..<current])
         let tokenType = Self.keywords[lexeme] ?? .identifier
 
         return Token(type: tokenType, lexeme: lexeme, position: position)

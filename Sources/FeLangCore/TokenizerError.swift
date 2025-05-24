@@ -10,9 +10,6 @@ public enum TokenizerError: Error, Equatable, Sendable {
 
     /// A comment was not properly terminated
     case unterminatedComment(SourcePosition)
-
-    /// A number has an invalid format
-    case invalidNumberFormat(String, SourcePosition)
 }
 
 extension TokenizerError: CustomStringConvertible {
@@ -24,8 +21,6 @@ extension TokenizerError: CustomStringConvertible {
             return "Unterminated string literal at line \(pos.line), column \(pos.column)"
         case .unterminatedComment(let pos):
             return "Unterminated comment at line \(pos.line), column \(pos.column)"
-        case .invalidNumberFormat(let text, let pos):
-            return "Invalid number format '\(text)' at line \(pos.line), column \(pos.column)"
         }
     }
 }

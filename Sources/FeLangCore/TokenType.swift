@@ -9,7 +9,7 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case stringType = "文字列型"
     case booleanType = "論理型"
     case recordType = "レコード"
-    case arrayKeyword = "配列"
+    case arrayType = "配列"
 
     /// Control flow keywords
     case ifKeyword = "if"
@@ -33,7 +33,6 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case realLiteral
     case stringLiteral
     case characterLiteral
-    case booleanLiteral
 
     // MARK: - Identifiers
 
@@ -86,7 +85,7 @@ extension TokenType {
     public var isKeyword: Bool {
         switch self {
         case .integerType, .realType, .characterType, .stringType, .booleanType,
-             .recordType, .arrayKeyword, .ifKeyword, .whileKeyword, .forKeyword,
+             .recordType, .arrayType, .ifKeyword, .whileKeyword, .forKeyword,
              .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword,
              .trueKeyword, .falseKeyword:
             return true
@@ -98,7 +97,7 @@ extension TokenType {
     /// Returns true if this token type represents a literal.
     public var isLiteral: Bool {
         switch self {
-        case .integerLiteral, .realLiteral, .stringLiteral, .characterLiteral, .booleanLiteral:
+        case .integerLiteral, .realLiteral, .stringLiteral, .characterLiteral:
             return true
         default:
             return false

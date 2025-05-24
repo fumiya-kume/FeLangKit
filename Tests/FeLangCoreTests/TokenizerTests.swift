@@ -26,7 +26,7 @@ struct TokenizerTests {
 
         let expectedTypes: [TokenType] = [
             .integerType, .realType, .characterType, .stringType, .booleanType,
-            .recordType, .arrayKeyword, .ifKeyword, .whileKeyword, .forKeyword,
+                         .recordType, .arrayType, .ifKeyword, .whileKeyword, .forKeyword,
             .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword,
             .trueKeyword, .falseKeyword, .eof
         ]
