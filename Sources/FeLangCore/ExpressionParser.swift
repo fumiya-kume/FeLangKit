@@ -6,10 +6,22 @@ public struct ExpressionParser {
 
     public init() {}
 
-    /// Parses an expression from an array of tokens.
-    /// - Parameter tokens: Array of tokens to parse
-    /// - Returns: Parsed expression
-    /// - Throws: ParsingError if parsing fails
+    /// Parses an expression from an array of tokens using precedence climbing.
+    /// 
+    /// This method processes tokens and returns a parsed Expression object using 
+    /// the precedence climbing algorithm for correct operator precedence and associativity.
+    /// Supports arithmetic, logical, comparison operators, function calls, array/field access.
+    /// 
+    /// - Parameter tokens: Array of tokens to parse, including an EOF token
+    /// - Returns: Parsed Expression object representing the expression tree
+    /// - Throws: ParsingError for syntax errors, unexpected tokens, or malformed expressions
+    /// 
+    /// Example:
+    /// ```swift
+    /// let tokens = try tokenizer.tokenize("a + b * c")
+    /// let expr = try parser.parseExpression(from: tokens)
+    /// // Returns: binary(.add, identifier("a"), binary(.multiply, identifier("b"), identifier("c")))
+    /// ```
     public func parseExpression(from tokens: [Token]) throws -> Expression {
         var parser = TokenStream(tokens)
         let expression = try parseExpression(&parser)

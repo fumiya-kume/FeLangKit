@@ -11,18 +11,49 @@ public struct StatementParser {
     }
 
     /// Parses a list of statements from an array of tokens.
-    /// - Parameter tokens: Array of tokens to parse
-    /// - Returns: Parsed statements
-    /// - Throws: StatementParsingError if parsing fails
+    /// 
+    /// This method processes a sequence of tokens and returns an array of parsed statements.
+    /// It handles control flow statements (IF, WHILE, FOR), function/procedure declarations,
+    /// assignments, and expression statements.
+    /// 
+    /// - Parameter tokens: Array of tokens to parse, typically from a tokenizer
+    /// - Returns: Array of parsed Statement objects
+    /// - Throws: StatementParsingError if parsing fails due to syntax errors
+    /// 
+    /// Example:
+    /// ```swift
+    /// let tokens = try tokenizer.tokenize("x ← 5")
+    /// let statements = try parser.parseStatements(from: tokens)
+    /// ```
     public func parseStatements(from tokens: [Token]) throws -> [Statement] {
+        // Input validation for security and robustness
+        guard tokens.count <= 100_000 else {
+            throw StatementParsingError.inputTooLarge
+        }
+        
         var parser = TokenStream(tokens)
         var statements: [Statement] = []
+        var nestingDepth = 0
+        let maxNestingDepth = 100  // Prevent stack overflow attacks
 
         while let token = parser.peek(), token.type != .eof {
             // Skip newlines and whitespace
             if token.type == .newline || token.type == .whitespace {
                 parser.advance()
                 continue
+            }
+
+            // Track nesting depth for security
+            switch token.type {
+            case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword:
+                nestingDepth += 1
+                guard nestingDepth <= maxNestingDepth else {
+                    throw StatementParsingError.nestingTooDeep
+                }
+            case .endifKeyword, .endwhileKeyword, .endforKeyword, .endfunctionKeyword, .endprocedureKeyword:
+                nestingDepth = max(0, nestingDepth - 1)
+            default:
+                break
             }
 
             let statement = try parseStatement(&parser)
@@ -170,16 +201,20 @@ public struct StatementParser {
             return .expressionStatement(expression)
         }
 
-        // Look ahead to see if this is an assignment pattern
-        var lookaheadIndex = parser.index + 1
-
+        // Use efficient lookahead to determine assignment pattern
+        // Check for simple variable assignment: identifier ←
+        if let nextToken = parser.peek(offset: 1), nextToken.type == .assign {
+            return .assignment(try parseAssignment(&parser))
+        }
+        
         // Check for array access assignment: identifier[...] ←
-        if lookaheadIndex < parser.tokens.count && parser.tokens[lookaheadIndex].type == .leftBracket {
-            // Skip to matching right bracket
+        if let nextToken = parser.peek(offset: 1), nextToken.type == .leftBracket {
+            // Skip to matching right bracket using balanced counting
+            var offset = 2  // Start after the '['
             var bracketCount = 1
-            lookaheadIndex += 1
-            while lookaheadIndex < parser.tokens.count && bracketCount > 0 {
-                switch parser.tokens[lookaheadIndex].type {
+            
+            while bracketCount > 0, let token = parser.peek(offset: offset) {
+                switch token.type {
                 case .leftBracket:
                     bracketCount += 1
                 case .rightBracket:
@@ -187,18 +222,13 @@ public struct StatementParser {
                 default:
                     break
                 }
-                lookaheadIndex += 1
+                offset += 1
             }
 
             // Check if followed by assignment operator
-            if lookaheadIndex < parser.tokens.count && parser.tokens[lookaheadIndex].type == .assign {
+            if let assignToken = parser.peek(offset: offset), assignToken.type == .assign {
                 return .assignment(try parseAssignment(&parser))
             }
-        }
-
-        // Check for simple variable assignment: identifier ←
-        if lookaheadIndex < parser.tokens.count && parser.tokens[lookaheadIndex].type == .assign {
-            return .assignment(try parseAssignment(&parser))
         }
 
         // Not an assignment, parse as expression
@@ -411,150 +441,80 @@ public struct StatementParser {
     }
 
     /// Parses an expression using the ExpressionParser.
+    /// This method creates a substream of tokens and delegates to ExpressionParser.
     private func parseExpression(_ parser: inout TokenStream) throws -> Expression {
-        // For now, use the internal parsing until we can better integrate ExpressionParser
-        // TODO: Improve integration by making ExpressionParser return consumed token count
-        return try parseExpressionInternal(&parser)
-    }
-
-    /// Internal expression parsing that works with our token stream.
-    private func parseExpressionInternal(_ parser: inout TokenStream) throws -> Expression {
-        return try parseExpressionWithPrecedence(&parser, minPrecedence: 0)
-    }
-
-    /// Parses an expression with the specified minimum precedence.
-    private func parseExpressionWithPrecedence(_ parser: inout TokenStream, minPrecedence: Int) throws -> Expression {
-        // Parse left operand
-        var leftExpr = try parseUnaryExpression(&parser)
-
-        // Parse operators and right operands
-        while let op = tryParseBinaryOperator(&parser, minPrecedence: minPrecedence) {
-            // For left-associative operators, increase precedence by 1
-            let nextMinPrec = op.isLeftAssociative ? op.precedence + 1 : op.precedence
-            let rightExpr = try parseExpressionWithPrecedence(&parser, minPrecedence: nextMinPrec)
-
-            // Combine into binary expression
-            leftExpr = Expression.binary(op, leftExpr, rightExpr)
-        }
-
-        return leftExpr
-    }
-
-    /// Parses a unary expression.
-    private func parseUnaryExpression(_ parser: inout TokenStream) throws -> Expression {
-        // Try to parse unary operators
-        if let op = tryParseUnaryOperator(&parser) {
-            let expr = try parseUnaryExpression(&parser)
-            return Expression.unary(op, expr)
-        }
-
-        // Parse postfix expressions
-        return try parsePostfixExpression(&parser)
-    }
-
-    /// Parses postfix expressions (array access, field access, and function calls).
-    private func parsePostfixExpression(_ parser: inout TokenStream) throws -> Expression {
-        var expr = try parsePrimaryExpression(&parser)
-
-        // Parse postfix operations
-        while true {
-            if parser.peek()?.type == .leftBracket {
-                // Array access: expr[index]
-                parser.advance() // consume '['
-                let indexExpr = try parseExpressionWithPrecedence(&parser, minPrecedence: 0)
-                try expectToken(&parser, .rightBracket)
-                expr = Expression.arrayAccess(expr, indexExpr)
-            } else if parser.peek()?.type == .dot {
-                // Field access: expr.field
-                parser.advance() // consume '.'
-                guard let fieldToken = parser.advance(), fieldToken.type == .identifier else {
-                    throw StatementParsingError.expectedIdentifier
+        // Collect tokens until we find a statement boundary or EOF
+        var expressionTokens: [Token] = []
+        let startIndex = parser.index
+        
+        // Look ahead to find the end of the expression
+        var parenDepth = 0
+        var bracketDepth = 0
+        
+        while let token = parser.peek() {
+            switch token.type {
+            case .leftParen:
+                parenDepth += 1
+                expressionTokens.append(token)
+                parser.advance()
+            case .rightParen:
+                if parenDepth > 0 {
+                    parenDepth -= 1
+                    expressionTokens.append(token)
+                    parser.advance()
+                } else {
+                    break
                 }
-                expr = Expression.fieldAccess(expr, fieldToken.lexeme)
-            } else if parser.peek()?.type == .leftParen,
-                      case .identifier(let name) = expr {
-                // Function call: identifier(args...)
-                parser.advance() // consume '('
-                let args = try parseArgumentList(&parser)
-                try expectToken(&parser, .rightParen)
-                expr = Expression.functionCall(name, args)
-            } else {
-                // No more postfix operations
-                break
+            case .leftBracket:
+                bracketDepth += 1
+                expressionTokens.append(token)
+                parser.advance()
+            case .rightBracket:
+                if bracketDepth > 0 {
+                    bracketDepth -= 1
+                    expressionTokens.append(token)
+                    parser.advance()
+                } else {
+                    break
+                }
+            case .comma, .thenKeyword, .doKeyword, .endifKeyword, .endwhileKeyword, .endforKeyword, 
+                 .endfunctionKeyword, .endprocedureKeyword, .elseKeyword, .elifKeyword, .newline, .eof:
+                if parenDepth == 0 && bracketDepth == 0 {
+                    break
+                }
+                expressionTokens.append(token)
+                parser.advance()
+            default:
+                expressionTokens.append(token)
+                parser.advance()
             }
         }
-
-        return expr
-    }
-
-    /// Parses primary expressions (literals, identifiers, parentheses).
-    private func parsePrimaryExpression(_ parser: inout TokenStream) throws -> Expression {
-        guard let token = parser.advance() else {
-            throw StatementParsingError.unexpectedEndOfInput
+        
+        // Add EOF token if not present
+        if expressionTokens.last?.type != .eof {
+            let lastPosition = expressionTokens.last?.position ?? 
+                SourcePosition(line: 1, column: 1, offset: 0)
+            expressionTokens.append(Token(type: .eof, lexeme: "", position: lastPosition))
         }
-
-        // Literal expressions
-        if let literal = Literal(token: token) {
-            return Expression.literal(literal)
+        
+        // Parse the expression tokens using ExpressionParser
+        do {
+            return try expressionParser.parseExpression(from: expressionTokens)
+        } catch {
+            // Convert ExpressionParser errors to StatementParser errors
+            switch error {
+            case ParsingError.unexpectedEndOfInput:
+                throw StatementParsingError.unexpectedEndOfInput
+            case ParsingError.unexpectedToken(let token, let expected):
+                throw StatementParsingError.unexpectedToken(token, expected: expected)
+            case ParsingError.expectedPrimaryExpression(let token):
+                throw StatementParsingError.expectedPrimaryExpression(token)
+            case ParsingError.expectedIdentifier:
+                throw StatementParsingError.expectedIdentifier
+            default:
+                throw error
+            }
         }
-
-        // Identifier expressions
-        if token.type == .identifier {
-            return Expression.identifier(token.lexeme)
-        }
-
-        // Parenthesized expressions
-        if token.type == .leftParen {
-            let expr = try parseExpressionWithPrecedence(&parser, minPrecedence: 0)
-            try expectToken(&parser, .rightParen)
-            return expr
-        }
-
-        throw StatementParsingError.expectedPrimaryExpression(token)
-    }
-
-    /// Tries to parse a binary operator with minimum precedence.
-    private func tryParseBinaryOperator(_ parser: inout TokenStream, minPrecedence: Int) -> BinaryOperator? {
-        guard let token = parser.peek(),
-              let op = BinaryOperator(tokenType: token.type),
-              op.precedence >= minPrecedence else {
-            return nil
-        }
-
-        parser.advance() // consume the operator
-        return op
-    }
-
-    /// Tries to parse a unary operator.
-    private func tryParseUnaryOperator(_ parser: inout TokenStream) -> UnaryOperator? {
-        guard let token = parser.peek(),
-              let op = UnaryOperator(tokenType: token.type) else {
-            return nil
-        }
-
-        parser.advance() // consume the operator
-        return op
-    }
-
-    /// Parses an argument list for function calls.
-    private func parseArgumentList(_ parser: inout TokenStream) throws -> [Expression] {
-        var arguments: [Expression] = []
-
-        // Handle empty argument list
-        if parser.peek()?.type == .rightParen {
-            return arguments
-        }
-
-        // Parse first argument
-        arguments.append(try parseExpressionWithPrecedence(&parser, minPrecedence: 0))
-
-        // Parse remaining arguments
-        while parser.peek()?.type == .comma {
-            parser.advance() // consume ','
-            arguments.append(try parseExpressionWithPrecedence(&parser, minPrecedence: 0))
-        }
-
-        return arguments
     }
 
     /// Expects a specific token type and consumes it.
@@ -571,27 +531,55 @@ public struct StatementParser {
 
 // MARK: - TokenStream Helper
 
-/// A simple token stream for parsing.
+/// An optimized token stream for parsing that provides efficient token access.
 private struct TokenStream {
     let tokens: [Token]
     var index: Int = 0
+    
+    /// Cache for faster boundary checking
+    private let endIndex: Int
 
     init(_ tokens: [Token]) {
         self.tokens = tokens
+        self.endIndex = tokens.count
     }
 
     /// Peeks at the current token without consuming it.
+    /// - Returns: Current token or nil if at end
+    @inline(__always)
     mutating func peek() -> Token? {
-        guard index < tokens.count else { return nil }
+        guard index < endIndex else { return nil }
         return tokens[index]
+    }
+    
+    /// Peeks at a token at the specified offset from current position.
+    /// - Parameter offset: Number of tokens to look ahead (0 = current token)
+    /// - Returns: Token at offset position or nil if out of bounds
+    @inline(__always)
+    func peek(offset: Int) -> Token? {
+        let targetIndex = index + offset
+        guard targetIndex >= 0 && targetIndex < endIndex else { return nil }
+        return tokens[targetIndex]
     }
 
     /// Advances to the next token and returns the current one.
+    /// - Returns: Current token before advancing, or nil if at end
+    @inline(__always)
     mutating func advance() -> Token? {
-        guard index < tokens.count else { return nil }
+        guard index < endIndex else { return nil }
         let token = tokens[index]
         index += 1
         return token
+    }
+    
+    /// Returns true if at end of token stream
+    var isAtEnd: Bool {
+        return index >= endIndex
+    }
+    
+    /// Returns remaining token count
+    var remainingCount: Int {
+        return max(0, endIndex - index)
     }
 }
 
@@ -606,6 +594,9 @@ public enum StatementParsingError: Error, Equatable {
     case expectedDataType
     case expectedToken(TokenType)
     case expectedPrimaryExpression(Token)
+    case inputTooLarge
+    case nestingTooDeep
+    case identifierTooLong(String)
 }
 
 extension StatementParsingError: LocalizedError {
@@ -625,6 +616,12 @@ extension StatementParsingError: LocalizedError {
             return "Expected token: \(expected)"
         case .expectedPrimaryExpression(let token):
             return "Expected primary expression at \(token.position), got '\(token.lexeme)'"
+        case .inputTooLarge:
+            return "Input too large for safe processing"
+        case .nestingTooDeep:
+            return "Nesting depth too deep, maximum allowed is 100 levels"
+        case .identifierTooLong(let name):
+            return "Identifier '\(name.prefix(20))...' is too long, maximum length is 255 characters"
         }
     }
 }

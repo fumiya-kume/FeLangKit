@@ -18,10 +18,7 @@ struct ExpressionParserTests {
         return try parser.parseExpression(from: tokens)
     }
 
-    /// Helper method to create a source position for testing
-    private func testPosition() -> SourcePosition {
-        return SourcePosition(line: 1, column: 1, offset: 0)
-    }
+
 
         // MARK: - Basic Literal Tests
 
