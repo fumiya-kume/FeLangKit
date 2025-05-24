@@ -254,9 +254,20 @@ public struct ParsingTokenizer {
         let position = TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
         index = input.index(after: index) // Skip opening quote
 
-        // Read until closing quote
+        // Read until closing quote, handling escape sequences
         while index < input.endIndex && input[index] != quoteChar {
-            index = input.index(after: index)
+            // Handle escape sequences
+            if input[index] == "\\" {
+                // Skip the backslash
+                index = input.index(after: index)
+
+                // Skip the escaped character if it exists
+                if index < input.endIndex {
+                    index = input.index(after: index)
+                }
+            } else {
+                index = input.index(after: index)
+            }
         }
 
         // Must have closing quote
@@ -267,7 +278,7 @@ public struct ParsingTokenizer {
         index = input.index(after: index) // Skip closing quote
 
         let lexeme = String(input[start..<index])
-        let content = String(lexeme.dropFirst().dropLast()) // Remove quotes
+        let content = String(lexeme.dropFirst().dropLast()) // Remove quotes (escape processing happens in Literal extension)
         let tokenType = TokenizerUtilities.stringLiteralTokenType(content: content)
 
         return TokenData(type: tokenType, lexeme: lexeme)

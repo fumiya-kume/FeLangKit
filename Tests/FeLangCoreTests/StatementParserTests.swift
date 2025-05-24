@@ -15,12 +15,37 @@ struct StatementParserTests {
         return try parser.parseStatements(from: tokens)
     }
 
-    /// Helper method to create a source position for testing
-    private func testPosition() -> SourcePosition {
-        return SourcePosition(line: 1, column: 1, offset: 0)
+    // MARK: - String Literal Tests
+
+    @Test("String with Escape Sequences")
+    func testStringWithEscapeSequences() throws {
+        let statements = try parseStatements("writeLine(\"Hello\\nWorld\\t!\")")
+
+        #expect(statements.count == 1)
+        guard case .expressionStatement(.functionCall("writeLine", let args)) = statements[0] else {
+            #expect(Bool(false), "Expected expression statement with function call")
+            return
+        }
+
+        #expect(args.count == 1)
+        #expect(args[0] == .literal(.string("Hello\nWorld\t!")))
     }
 
-        // MARK: - Assignment Statement Tests
+    @Test("String with Escaped Quotes")
+    func testStringWithEscapedQuotes() throws {
+        let statements = try parseStatements("writeLine(\"She said \\\"Hello\\\"\")")
+
+        #expect(statements.count == 1)
+        guard case .expressionStatement(.functionCall("writeLine", let args)) = statements[0] else {
+            #expect(Bool(false), "Expected expression statement with function call")
+            return
+        }
+
+        #expect(args.count == 1)
+        #expect(args[0] == .literal(.string("She said \"Hello\"")))
+    }
+
+    // MARK: - Assignment Statement Tests
 
     @Test("Variable Assignment")
     func testVariableAssignment() throws {

@@ -228,12 +228,14 @@ extension Literal {
             guard let value = Double(token.lexeme) else { return nil }
             self = .real(value)
         case .stringLiteral:
-            // Remove the surrounding quotes
-            let content = String(token.lexeme.dropFirst().dropLast())
+            // Remove the surrounding quotes and process escape sequences
+            let rawContent = String(token.lexeme.dropFirst().dropLast())
+            let content = Self.processEscapeSequences(rawContent)
             self = .string(content)
         case .characterLiteral:
-            // Remove the surrounding quotes and get the character
-            let content = token.lexeme.dropFirst().dropLast()
+            // Remove the surrounding quotes, process escape sequences, and get the character
+            let rawContent = token.lexeme.dropFirst().dropLast()
+            let content = Self.processEscapeSequences(String(rawContent))
             guard let character = content.first else { return nil }
             self = .character(character)
         case .trueKeyword:
@@ -243,5 +245,46 @@ extension Literal {
         default:
             return nil
         }
+    }
+
+    /// Processes escape sequences in string content
+    private static func processEscapeSequences(_ content: String) -> String {
+        var result = ""
+        var index = content.startIndex
+
+        while index < content.endIndex {
+            if content[index] == "\\" && content.index(after: index) < content.endIndex {
+                // Process escape sequence
+                let nextIndex = content.index(after: index)
+                let escapedChar = content[nextIndex]
+
+                switch escapedChar {
+                case "n":
+                    result.append("\n")
+                case "t":
+                    result.append("\t")
+                case "r":
+                    result.append("\r")
+                case "\\":
+                    result.append("\\")
+                case "\"":
+                    result.append("\"")
+                case "'":
+                    result.append("'")
+                default:
+                    // For unknown escape sequences, keep the backslash and character
+                    result.append("\\")
+                    result.append(escapedChar)
+                }
+
+                // Skip both the backslash and the escaped character
+                index = content.index(nextIndex, offsetBy: 1)
+            } else {
+                result.append(content[index])
+                index = content.index(after: index)
+            }
+        }
+
+        return result
     }
 }
