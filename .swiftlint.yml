@@ -1,0 +1,8 @@
+disabled_rules:
+  - trailing_whitespace
+  - line_length
+opt_in_rules:
+  - empty_count
+  - explicit_self
+included:
+  - FeLangCore

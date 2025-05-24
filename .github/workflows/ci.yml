@@ -2,9 +2,9 @@ name: Swift CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   build-and-test:
@@ -21,15 +21,14 @@ jobs:
         with:
           swift-version: ${{ matrix.swift }}
 
-      - name: Autocorrect SwiftLint violations
-        uses: norwoodj/action-swiftlint@v3
-        with:
-          args: autocorrect
+      - name: Install SwiftLint
+        run: brew install swiftlint
 
-      - name: Lint Swift code
-        uses: norwoodj/action-swiftlint@v3
-        with:
-          args: lint
+      - name: SwiftLint Auto Fix
+        run: swiftlint autocorrect --quiet
+
+      - name: Run SwiftLint
+        run: swiftlint lint --strict --quiet --reporter github-actions-logging
 
       - name: Resolve dependencies
         run: swift package resolve
