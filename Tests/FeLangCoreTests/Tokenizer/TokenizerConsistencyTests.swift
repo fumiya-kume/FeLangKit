@@ -112,7 +112,14 @@ struct TokenizerConsistencyTests {
             ("3.14", TokenType.realLiteral),
             (".5", TokenType.realLiteral),
             ("0", TokenType.integerLiteral),
-            ("0.0", TokenType.realLiteral)
+            ("0.0", TokenType.realLiteral),
+            ("1e5", TokenType.realLiteral),
+            ("1.23E-5", TokenType.realLiteral),
+            ("0xFF", TokenType.integerLiteral),
+            ("0b1010", TokenType.integerLiteral),
+            ("0o777", TokenType.integerLiteral),
+            ("1_000_000", TokenType.integerLiteral),
+            ("3.14_159", TokenType.realLiteral)
         ]
 
         for (number, expectedType) in numberTests {
