@@ -16,6 +16,16 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Set up cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            .swiftpm
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            swiftpm-${{ runner.os }}-
+              
       - name: Install SwiftLint
         run: brew install swiftlint
 
