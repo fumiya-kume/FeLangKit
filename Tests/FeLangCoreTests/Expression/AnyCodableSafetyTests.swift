@@ -37,9 +37,14 @@ struct AnyCodableSafetyTests {
         let boolAnyCodable = try AnyCodableSafetyValidator.createSafeAnyCodable(true)
 
         // Verify values can be retrieved
-        #expect(intAnyCodable.getValue() == 42)
-        #expect(stringAnyCodable.getValue() == "test")
-        #expect(boolAnyCodable.getValue() == true)
+        #expect(try intAnyCodable.getValue() == 42)
+        #expect(try stringAnyCodable.getValue() == "test")
+        #expect(try boolAnyCodable.getValue() == true)
+
+        // Test optional variant for backward compatibility
+        #expect(intAnyCodable.getValueOptional() == 42)
+        #expect(stringAnyCodable.getValueOptional() == "test")
+        #expect(boolAnyCodable.getValueOptional() == true)
 
         // Test that unsupported types throw errors
         #expect(throws: AnyCodableSafetyError.self) {
@@ -53,7 +58,7 @@ struct AnyCodableSafetyTests {
 
     @Test("JSON Data Validation")
     func testJSONDataValidation() throws {
-        // Test valid JSON with supported types
+        // Test valid JSON with supported types only
         let validJSON = Data("""
         {
             "integer": 42,
@@ -65,16 +70,69 @@ struct AnyCodableSafetyTests {
 
         #expect(try AnyCodableSafetyValidator.validateJSONData(validJSON))
 
-        // Test invalid JSON with unsupported nested structures
-        let invalidJSON = Data("""
+        // Test invalid JSON with unsupported nested structures (arrays)
+        let invalidJSONWithArray = Data("""
         {
             "array": [1, 2, 3],
-            "nested": {"key": "value"}
+            "valid": "test"
         }
         """.utf8)
 
         #expect(throws: AnyCodableSafetyError.self) {
-            _ = try AnyCodableSafetyValidator.validateJSONData(invalidJSON)
+            _ = try AnyCodableSafetyValidator.validateJSONData(invalidJSONWithArray)
+        }
+
+        // Test invalid JSON with deeply nested unsupported structures
+        let deeplyNestedInvalidJSON = Data("""
+        {
+            "level1": {
+                "level2": {
+                    "unsupportedArray": [1, 2, 3]
+                }
+            }
+        }
+        """.utf8)
+
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.validateJSONData(deeplyNestedInvalidJSON)
+        }
+
+        // Test null values (should be rejected)
+        let jsonWithNull = Data("""
+        {
+            "nullValue": null
+        }
+        """.utf8)
+
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.validateJSONData(jsonWithNull)
+        }
+
+        // Test invalid JSON syntax (should throw parsing error)
+        let malformedJSON = Data("""
+        { invalid json }
+        """.utf8)
+
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.validateJSONData(malformedJSON)
+        }
+
+        // Test root array (should be rejected for immutability)
+        let rootArrayJSON = Data("""
+        [1, 2, 3]
+        """.utf8)
+
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.validateJSONData(rootArrayJSON)
+        }
+
+        // Test another root array (should also be rejected)
+        let anotherRootArrayJSON = Data("""
+        [42, "test", true, 3.14]
+        """.utf8)
+
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.validateJSONData(anotherRootArrayJSON)
         }
     }
 
@@ -106,13 +164,13 @@ struct AnyCodableSafetyTests {
             // Verify values match
             switch value {
             case let intValue as Int:
-                #expect(decoded.getValue() == intValue, "Int value should match")
+                #expect(try decoded.getValue() == intValue, "Int value should match")
             case let doubleValue as Double:
-                #expect(decoded.getValue() == doubleValue, "Double value should match")
+                #expect(try decoded.getValue() == doubleValue, "Double value should match")
             case let stringValue as String:
-                #expect(decoded.getValue() == stringValue, "String value should match")
+                #expect(try decoded.getValue() == stringValue, "String value should match")
             case let boolValue as Bool:
-                #expect(decoded.getValue() == boolValue, "Bool value should match")
+                #expect(try decoded.getValue() == boolValue, "Bool value should match")
             default:
                 #expect(Bool(false), "Unexpected type in test")
             }
@@ -288,11 +346,18 @@ struct AnyCodableSafetyTests {
 
         #expect(auditResult.component == "AnyCodable")
         #expect(!auditResult.recommendations.isEmpty)
+        #expect(!auditResult.issues.isEmpty, "Audit should detect real issues")
+        #expect(!auditResult.isImmutable, "Should report issues found")
 
         // Verify audit identifies key concerns
         let recommendations = auditResult.recommendations.joined(separator: " ")
         #expect(recommendations.contains("type"))
         #expect(recommendations.contains("thread safety") || recommendations.contains("Sendable"))
+
+        // Verify audit identifies real issues
+        let issues = auditResult.issues.joined(separator: " ")
+        #expect(issues.contains("Any") || issues.contains("runtime"))
+        #expect(issues.contains("Sendable") || issues.contains("@unchecked"))
     }
 
     @Test("Thread Safety Verification")
@@ -304,8 +369,12 @@ struct AnyCodableSafetyTests {
             for _ in 0..<10 {
                 group.addTask { @Sendable in
                     // Concurrent access to the shared SafeAnyCodable
-                    let value: Int? = sharedSafeAnyCodable.getValue()
-                    return value == 42
+                    do {
+                        let value: Int = try sharedSafeAnyCodable.getValue()
+                        return value == 42
+                    } catch {
+                        return false
+                    }
                 }
             }
 
@@ -389,5 +458,26 @@ struct AnyCodableSafetyTests {
             #expect(json != nil, "Should produce valid JSON")
             #expect(json?.keys.count == 1, "Should have exactly one key-value pair")
         }
+    }
+
+    @Test("Type Validation Error Handling")
+    func testTypeValidationErrorHandling() throws {
+        let safeAnyCodable = try AnyCodableSafetyValidator.createSafeAnyCodable(42)
+
+        // Test successful type retrieval
+        let intValue: Int = try safeAnyCodable.getValue()
+        #expect(intValue == 42)
+
+        // Test type mismatch throws error
+        #expect(throws: AnyCodableSafetyError.self) {
+            let _: String = try safeAnyCodable.getValue()
+        }
+
+        // Test optional variant doesn't throw
+        let optionalString: String? = safeAnyCodable.getValueOptional()
+        #expect(optionalString == nil)
+
+        let optionalInt: Int? = safeAnyCodable.getValueOptional()
+        #expect(optionalInt == 42)
     }
 }

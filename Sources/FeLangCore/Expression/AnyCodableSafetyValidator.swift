@@ -26,17 +26,54 @@ public enum AnyCodableSafetyValidator {
     }
 
     /// Validates that decoded JSON data only contains supported types
+    /// Throws AnyCodableSafetyError if validation fails
     public static func validateJSONData(_ data: Data) throws -> Bool {
-        guard let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return false
+        let jsonObject: Any
+        do {
+            jsonObject = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            throw AnyCodableSafetyError.decodingFailed("Invalid JSON data: \(error.localizedDescription)")
         }
 
-        // Ensure all values in the dictionary are supported types
-        for (_, value) in jsonObject where !validateValueType(value) {
-            throw AnyCodableSafetyError.unsupportedType(String(describing: type(of: value)))
+        // Handle different root types
+        switch jsonObject {
+        case let dictionary as [String: Any]:
+            // Top-level dictionaries are allowed, validate their contents
+            for (_, dictValue) in dictionary {
+                try validateJSONValue(dictValue)
+            }
+        case is [Any]:
+            // All arrays are rejected for immutability purposes
+            throw AnyCodableSafetyError.unsupportedType("array")
+        default:
+            // Root primitives are allowed
+            guard validateValueType(jsonObject) else {
+                throw AnyCodableSafetyError.unsupportedType(String(describing: type(of: jsonObject)))
+            }
         }
 
         return true
+    }
+
+    /// Recursively validates JSON values to ensure all nested structures contain only supported types
+    /// For immutability purposes, nested arrays and dictionaries are rejected entirely
+    private static func validateJSONValue(_ value: Any) throws {
+        switch value {
+        case let dictionary as [String: Any]:
+            // Nested dictionaries are not supported for immutability
+            throw AnyCodableSafetyError.unsupportedType("nested dictionary")
+        case let array as [Any]:
+            // Arrays are not supported for immutability 
+            throw AnyCodableSafetyError.unsupportedType("array")
+        case is NSNull:
+            // null values are not supported for immutable storage
+            throw AnyCodableSafetyError.unsupportedType("null")
+        default:
+            // Check if primitive value is supported
+            guard validateValueType(value) else {
+                throw AnyCodableSafetyError.unsupportedType(String(describing: type(of: value)))
+            }
+        }
     }
 }
 
@@ -52,7 +89,17 @@ public struct SafeAnyCodable: Codable, @unchecked Sendable {
     }
 
     /// Safely retrieves the stored value with type checking
-    public func getValue<T>() -> T? {
+    /// Throws AnyCodableSafetyError.typeValidationFailed if type doesn't match
+    public func getValue<T>() throws -> T {
+        guard let typedValue = value as? T else {
+            throw AnyCodableSafetyError.typeValidationFailed
+        }
+        return typedValue
+    }
+
+    /// Safely retrieves the stored value with type checking (optional variant)
+    /// Returns nil if type doesn't match - provided for backward compatibility
+    public func getValueOptional<T>() -> T? {
         return value as? T
     }
 
@@ -242,8 +289,17 @@ extension AnyCodableSafetyValidator {
 
     /// Performs a comprehensive immutability check on AnyCodable usage
     public static func auditAnyCodableUsage() -> ImmutabilityAuditResult {
-        let issues: [String] = []
+        var issues: [String] = []
         var recommendations: [String] = []
+
+        // Issue 1: Check if Any storage is being used (inherent in AnyCodable design)
+        issues.append("AnyCodable uses 'Any' storage which bypasses compile-time type safety")
+
+        // Issue 2: Potential for runtime type validation failures
+        issues.append("Type validation occurs at runtime rather than compile-time, increasing crash risk")
+
+        // Issue 3: Sendable conformance requires @unchecked due to Any storage
+        issues.append("Sendable conformance requires @unchecked annotation due to Any storage")
 
         // Check 1: Verify type constraints are enforced
         let supportedTypes = ["Int", "Double", "String", "Bool"]
@@ -256,11 +312,14 @@ extension AnyCodableSafetyValidator {
         recommendations.append("Verify that AnyCodable maintains thread safety guarantees")
 
         // Check 4: Check for potential type erasure issues
-        recommendations.append("Consider replacing Any storage with enum-based type-safe storage")
+        recommendations.append("Consider replacing Any storage with enum-based type-safe storage for better compile-time safety")
+
+        // Recommendation 5: API consistency
+        recommendations.append("Ensure consistent error handling between SafeAnyCodable and ImprovedAnyCodable")
 
         return ImmutabilityAuditResult(
             component: "AnyCodable",
-            isImmutable: issues.isEmpty,
+            isImmutable: issues.isEmpty, // Will be false since we have real issues
             issues: issues,
             recommendations: recommendations
         )
