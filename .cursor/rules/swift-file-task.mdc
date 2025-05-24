@@ -1,0 +1,7 @@
+---
+description: This rule ensures Swift code quality by running linting and testing commands.
+globs: *.swift
+alwaysApply: false
+---
+Execute `swiftlint lint --fix && swiftlint lint` for lint validation.
+Execute `swift build && swift test` to ensure that the code is working well.
