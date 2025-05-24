@@ -1,3 +1,5 @@
+import Foundation
+
 /// Represents an expression in FE pseudo-language.
 public indirect enum Expression: Equatable, Codable, Sendable {
     // Primary expressions
@@ -48,8 +50,8 @@ extension Literal: Codable {
 
         if let value = dict["integer"]?.value as? Int {
             self = .integer(value)
-        } else if let value = dict["real"]?.value as? Double {
-            self = .real(value)
+        } else if let realValue = dict["real"]?.value {
+            self = .real(try Self.decodeRealValue(realValue, decoder: decoder))
         } else if let value = dict["string"]?.value as? String {
             self = .string(value)
         } else if let value = dict["character"]?.value as? String, let char = value.first {
@@ -58,6 +60,28 @@ extension Literal: Codable {
             self = .boolean(value)
         } else {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid literal value"))
+        }
+    }
+
+    /// Decodes a real (floating-point) value from a generic `Any` type.
+    /// - Parameters:
+    ///   - value: The value to decode, expected to be of type `Double`, `Int`, or `NSNumber`.
+    ///   - decoder: The `Decoder` instance used for decoding, primarily for error context.
+    /// - Returns: A `Double` representation of the input value.
+    /// - Throws: A `DecodingError` if the input value is not a numeric type.
+    private static func decodeRealValue(_ value: Any, decoder: Decoder) throws -> Double {
+        if let doubleValue = value as? Double {
+            return doubleValue
+        } else if let intValue = value as? Int {
+            return Double(intValue)
+        } else if let num = value as? NSNumber {
+            return num.doubleValue
+        } else {
+            let actualType = type(of: value)
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath,
+                debugDescription: "Invalid literal value: expected a numeric type (Double or Int), but found \(actualType)"
+            ))
         }
     }
 }
