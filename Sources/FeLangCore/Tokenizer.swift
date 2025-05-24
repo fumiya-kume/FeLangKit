@@ -9,6 +9,10 @@ public final class Tokenizer {
     private var column: Int = 1
     private var offset: Int = 0
 
+    /// Sentinel value used to represent end-of-input condition
+    /// Using NULL character (U+0000) which is guaranteed to exist and won't appear in normal text
+    private static let endOfInputSentinel = UnicodeScalar(0x0000)! // swiftlint:disable:this force_unwrapping
+
     /// Mapping of keywords to their token types
     private static let keywords: [String: TokenType] = [
         "整数型": .integerType,
@@ -69,7 +73,7 @@ public final class Tokenizer {
 
     /// Advances to the next character and returns the current one
     private func advance() -> UnicodeScalar {
-        guard !isAtEnd else { return UnicodeScalar(0) ?? UnicodeScalar(32) }
+        guard !isAtEnd else { return Self.endOfInputSentinel }
 
         let char = source[current]
         current = source.index(after: current)
@@ -87,14 +91,14 @@ public final class Tokenizer {
 
     /// Peeks at the current character without advancing
     private func peek() -> UnicodeScalar {
-        guard !isAtEnd else { return UnicodeScalar(0) ?? UnicodeScalar(32) }
+        guard !isAtEnd else { return Self.endOfInputSentinel }
         return source[current]
     }
 
     /// Peeks at the next character without advancing
     private func peekNext() -> UnicodeScalar {
         let next = source.index(after: current)
-        guard next < source.endIndex else { return UnicodeScalar(0) ?? UnicodeScalar(32) }
+        guard next < source.endIndex else { return Self.endOfInputSentinel }
         return source[next]
     }
 
@@ -311,6 +315,8 @@ public final class Tokenizer {
     }
 
     /// Scans an identifier or keyword
+    /// Keywords are properly bounded by the identifier scanning logic which ensures
+    /// complete token boundaries are respected for all Unicode characters
     private func scanIdentifier(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) -> Token {
         while !isAtEnd && isIdentifierContinue(peek()) {
             _ = advance()
@@ -323,21 +329,36 @@ public final class Tokenizer {
     }
 
     /// Checks if a character can start an identifier
+    /// Handles Unicode letters, underscore, and CJK characters robustly
     private func isIdentifierStart(_ char: UnicodeScalar) -> Bool {
+        // Handle end-of-input sentinel
+        if char == Self.endOfInputSentinel {
+            return false
+        }
+
         return char.isLetter || char == "_" || isJapaneseCharacter(char)
     }
 
     /// Checks if a character can continue an identifier
+    /// Handles Unicode letters, digits, underscore, and CJK characters robustly
     private func isIdentifierContinue(_ char: UnicodeScalar) -> Bool {
+        // Handle end-of-input sentinel
+        if char == Self.endOfInputSentinel {
+            return false
+        }
+
         return char.isLetter || char.isNumber || char == "_" || isJapaneseCharacter(char)
     }
 
     /// Checks if a character is a Japanese character (Hiragana, Katakana, or Kanji)
+    /// Includes comprehensive Unicode ranges for CJK characters
     private func isJapaneseCharacter(_ char: UnicodeScalar) -> Bool {
         let value = char.value
         return (value >= 0x3040 && value <= 0x309F) ||  // Hiragana
                (value >= 0x30A0 && value <= 0x30FF) ||  // Katakana
-               (value >= 0x4E00 && value <= 0x9FAF)     // CJK Unified Ideographs
+               (value >= 0x4E00 && value <= 0x9FAF) ||  // CJK Unified Ideographs (main block)
+               (value >= 0x3400 && value <= 0x4DBF) ||  // CJK Extension A
+               (value >= 0x20000 && value <= 0x2A6DF)   // CJK Extension B
     }
 }
 

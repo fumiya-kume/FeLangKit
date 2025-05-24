@@ -321,4 +321,135 @@ struct TokenizerTests {
         #expect(tokens[3].lexeme == "3.14")
         #expect(tokens[4].type == .eof)
     }
+
+    // MARK: - Keyword Boundary Tests
+
+    @Test func testKeywordBoundariesWithEnglishKeywords() throws {
+        // Test that keywords are properly bounded and don't match partial identifiers
+        let input = "if ifVar variable_if if_var while whileLoop for forEach"
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        let expectedTypes: [TokenType] = [
+            .ifKeyword,     // "if" - exact keyword
+            .identifier,    // "ifVar" - identifier starting with keyword
+            .identifier,    // "variable_if" - identifier ending with keyword
+            .identifier,    // "if_var" - identifier containing keyword
+            .whileKeyword,  // "while" - exact keyword
+            .identifier,    // "whileLoop" - identifier starting with keyword
+            .forKeyword,    // "for" - exact keyword
+            .identifier,    // "forEach" - identifier starting with keyword
+            .eof
+        ]
+
+        #expect(tokens.count == expectedTypes.count)
+        for (index, expectedType) in expectedTypes.enumerated() {
+            #expect(tokens[index].type == expectedType, "Token \(index): expected \(expectedType), got \(tokens[index].type)")
+        }
+    }
+
+    @Test func testKeywordBoundariesWithJapaneseKeywords() throws {
+        // Test that Japanese keywords are properly bounded
+        let input = "整数型 整数型変数 変数整数型 整数型_var 実数型 実数型データ"
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        let expectedTypes: [TokenType] = [
+            .integerType,   // "整数型" - exact keyword
+            .identifier,    // "整数型変数" - identifier starting with keyword
+            .identifier,    // "変数整数型" - identifier ending with keyword
+            .identifier,    // "整数型_var" - identifier with keyword + underscore
+            .realType,      // "実数型" - exact keyword
+            .identifier,    // "実数型データ" - identifier starting with keyword
+            .eof
+        ]
+
+        #expect(tokens.count == expectedTypes.count)
+        for (index, expectedType) in expectedTypes.enumerated() {
+            #expect(tokens[index].type == expectedType, "Token \(index): expected \(expectedType), got \(tokens[index].type)")
+        }
+    }
+
+    @Test func testKeywordBoundariesWithUnicodeCharacters() throws {
+        // Test keyword boundaries with various Unicode characters
+        let input = "if_test if123 if-var if.method"
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        let expectedTypes: [TokenType] = [
+            .identifier,    // "if_test"
+            .identifier,    // "if123"
+            .ifKeyword,     // "if"
+            .minus,         // "-"
+            .identifier,    // "var"
+            .ifKeyword,     // "if"
+            .dot,           // "."
+            .identifier,    // "method"
+            .eof
+        ]
+
+        #expect(tokens.count == expectedTypes.count)
+        for (index, expectedType) in expectedTypes.enumerated() {
+            #expect(tokens[index].type == expectedType, "Token \(index): expected \(expectedType), got \(tokens[index].type)")
+        }
+    }
+
+    @Test func testUnsupportedCharacterHandling() throws {
+        // Test that unsupported characters (like emojis) are properly rejected
+        let input = "if🚀"
+        let tokenizer = Tokenizer(input: input)
+
+        #expect(throws: TokenizerError.self) {
+            try tokenizer.tokenize()
+        }
+    }
+
+    @Test func testKeywordBoundariesAtEndOfInput() throws {
+        // Test keywords at the end of input (no following characters)
+        let input = "if"
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        #expect(tokens.count == 2) // keyword + eof
+        #expect(tokens[0].type == .ifKeyword)
+        #expect(tokens[0].lexeme == "if")
+        #expect(tokens[1].type == .eof)
+    }
+
+    @Test func testKeywordBoundariesWithWhitespace() throws {
+        // Test keywords properly separated by whitespace
+        let input = "if while\tfor\nreturn"
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        let expectedTypes: [TokenType] = [
+            .ifKeyword,
+            .whileKeyword,
+            .forKeyword,
+            .newline,
+            .returnKeyword,
+            .eof
+        ]
+
+        #expect(tokens.count == expectedTypes.count)
+        for (index, expectedType) in expectedTypes.enumerated() {
+            #expect(tokens[index].type == expectedType)
+        }
+    }
+
+    @Test func testExtendedCJKCharacters() throws {
+        // Test that extended CJK characters are properly handled in identifiers
+        let input = "変数名 𠀀test 㐀identifier"  // Using CJK Extension A and B characters
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        #expect(tokens.count == 4) // three identifiers + eof
+        #expect(tokens[0].type == .identifier)
+        #expect(tokens[0].lexeme == "変数名")
+        #expect(tokens[1].type == .identifier)
+        #expect(tokens[1].lexeme == "𠀀test")
+        #expect(tokens[2].type == .identifier)
+        #expect(tokens[2].lexeme == "㐀identifier")
+        #expect(tokens[3].type == .eof)
+    }
 }
