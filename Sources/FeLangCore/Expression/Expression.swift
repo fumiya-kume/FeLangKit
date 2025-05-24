@@ -51,21 +51,7 @@ extension Literal: Codable {
         if let value = dict["integer"]?.value as? Int {
             self = .integer(value)
         } else if let realValue = dict["real"]?.value {
-            if let doubleValue = realValue as? Double {
-                self = .real(doubleValue)
-            } else if let intValue = realValue as? Int {
-                self = .real(Double(intValue))
-            } else if let num = realValue as? NSNumber {
-                // Use NSNumber to handle other numeric cases
-                self = .real(num.doubleValue)
-            } else {
-                // Handle case where real value exists but is not a valid number
-                let actualType = type(of: realValue)
-                throw DecodingError.dataCorrupted(.init(
-                    codingPath: decoder.codingPath,
-                    debugDescription: "Invalid literal value: expected a numeric type (Double or Int), but found \(actualType)"
-                ))
-            }
+            self = .real(try Self.decodeRealValue(realValue, decoder: decoder))
         } else if let value = dict["string"]?.value as? String {
             self = .string(value)
         } else if let value = dict["character"]?.value as? String, let char = value.first {
@@ -74,6 +60,22 @@ extension Literal: Codable {
             self = .boolean(value)
         } else {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid literal value"))
+        }
+    }
+
+    private static func decodeRealValue(_ value: Any, decoder: Decoder) throws -> Double {
+        if let doubleValue = value as? Double {
+            return doubleValue
+        } else if let intValue = value as? Int {
+            return Double(intValue)
+        } else if let num = value as? NSNumber {
+            return num.doubleValue
+        } else {
+            let actualType = type(of: value)
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath,
+                debugDescription: "Invalid literal value: expected a numeric type (Double or Int), but found \(actualType)"
+            ))
         }
     }
 }
