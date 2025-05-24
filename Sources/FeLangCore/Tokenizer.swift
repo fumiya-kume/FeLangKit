@@ -8,7 +8,7 @@ public final class Tokenizer {
     private var line: Int = 1
     private var column: Int = 1
     private var offset: Int = 0
-    
+
     /// Mapping of keywords to their token types
     private static let keywords: [String: TokenType] = [
         "整数型": .integerType,
@@ -29,7 +29,7 @@ public final class Tokenizer {
         "true": .trueKeyword,
         "false": .falseKeyword
     ]
-    
+
     /// Creates a new tokenizer for the given input.
     /// - Parameter input: The source code to tokenize
     public init(input: String) {
@@ -37,81 +37,81 @@ public final class Tokenizer {
         self.source = input.unicodeScalars
         self.current = source.startIndex
     }
-    
+
     /// Tokenizes the input and returns an array of tokens.
     /// - Returns: An array of tokens representing the input
     /// - Throws: TokenizerError if invalid syntax is encountered
     public func tokenize() throws -> [Token] {
         var tokens: [Token] = []
-        
+
         while !isAtEnd {
             let token = try nextToken()
             if token.type != .whitespace && token.type != .comment {
                 tokens.append(token)
             }
         }
-        
+
         tokens.append(Token(type: .eof, lexeme: "", position: currentPosition()))
         return tokens
     }
-    
+
     // MARK: - Private Methods
-    
+
     /// Returns true if we've reached the end of the input
     private var isAtEnd: Bool {
         return current >= source.endIndex
     }
-    
+
     /// Returns the current position in the source
     private func currentPosition() -> SourcePosition {
         return SourcePosition(line: line, column: column, offset: offset)
     }
-    
+
     /// Advances to the next character and returns the current one
     private func advance() -> UnicodeScalar {
         guard !isAtEnd else { return UnicodeScalar(0)! }
-        
+
         let char = source[current]
         current = source.index(after: current)
         offset += 1
-        
+
         if char == "\n" {
             line += 1
             column = 1
         } else {
             column += 1
         }
-        
+
         return char
     }
-    
+
     /// Peeks at the current character without advancing
     private func peek() -> UnicodeScalar {
         guard !isAtEnd else { return UnicodeScalar(0)! }
         return source[current]
     }
-    
+
     /// Peeks at the next character without advancing
     private func peekNext() -> UnicodeScalar {
         let next = source.index(after: current)
         guard next < source.endIndex else { return UnicodeScalar(0)! }
         return source[next]
     }
-    
+
     /// Checks if the current character matches the expected one
     private func match(_ expected: UnicodeScalar) -> Bool {
         guard !isAtEnd else { return false }
         guard source[current] == expected else { return false }
-        
+
         _ = advance()
         return true
     }
-    
+
     /// Scans the next token from the input
     private func nextToken() throws -> Token {
         let position = currentPosition()
         let char = advance()
-        
+
         switch char {
         case " ", "\t":
             return scanWhitespace(position)
@@ -173,22 +173,22 @@ public final class Tokenizer {
             }
         }
     }
-    
+
     /// Scans whitespace characters
     private func scanWhitespace(_ position: SourcePosition) -> Token {
         while !isAtEnd && (peek() == " " || peek() == "\t") {
             _ = advance()
         }
-        
+
         let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
         return Token(type: .whitespace, lexeme: lexeme, position: position)
     }
-    
+
     /// Scans a newline character
     private func scanNewline(_ position: SourcePosition) -> Token {
         return Token(type: .newline, lexeme: "\n", position: position)
     }
-    
+
     /// Scans either a division operator or a comment
     private func scanSlashOrComment(_ position: SourcePosition) throws -> Token {
         if match("/") {
@@ -201,17 +201,17 @@ public final class Tokenizer {
             return Token(type: .divide, lexeme: "/", position: position)
         }
     }
-    
+
     /// Scans a single-line comment
     private func scanSingleLineComment(_ position: SourcePosition) -> Token {
         while !isAtEnd && peek() != "\n" {
             _ = advance()
         }
-        
+
         let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
         return Token(type: .comment, lexeme: lexeme, position: position)
     }
-    
+
     /// Scans a multi-line comment
     private func scanMultiLineComment(_ position: SourcePosition) throws -> Token {
         while !isAtEnd {
@@ -222,15 +222,15 @@ public final class Tokenizer {
             }
             _ = advance()
         }
-        
+
         if isAtEnd {
             throw TokenizerError.unterminatedComment(position)
         }
-        
+
         let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
         return Token(type: .comment, lexeme: lexeme, position: position)
     }
-    
+
     /// Scans either a minus operator or a negative number
     private func scanMinusOrNumber(_ position: SourcePosition) -> Token {
         if !isAtEnd && peek().isNumber {
@@ -239,9 +239,7 @@ public final class Tokenizer {
             return Token(type: .minus, lexeme: "-", position: position)
         }
     }
-    
 
-    
     /// Scans either a dot or a decimal number
     private func scanDotOrNumber(_ position: SourcePosition) -> Token {
         if !isAtEnd && peek().isNumber {
@@ -250,78 +248,78 @@ public final class Tokenizer {
             return Token(type: .dot, lexeme: ".", position: position)
         }
     }
-    
+
     /// Scans a string or character literal
     private func scanStringOrCharacterLiteral(_ position: SourcePosition) throws -> Token {
         let startIndex = current
-        
+
         while !isAtEnd && peek() != "'" {
             _ = advance()
         }
-        
+
         if isAtEnd {
             throw TokenizerError.unterminatedString(position)
         }
-        
+
         // Consume the closing quote
         _ = advance()
-        
+
         let content = String(source[startIndex..<source.index(before: current)])
         let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
-        
+
         if content.count == 1 {
             return Token(type: .characterLiteral, lexeme: lexeme, position: position)
         } else {
             return Token(type: .stringLiteral, lexeme: lexeme, position: position)
         }
     }
-    
+
     /// Scans a number (integer or real)
     private func scanNumber(_ position: SourcePosition) -> Token {
         while !isAtEnd && peek().isNumber {
             _ = advance()
         }
-        
+
         var isReal = false
-        
+
         // Check for decimal point
         if !isAtEnd && peek() == "." && peekNext().isNumber {
             isReal = true
             _ = advance() // consume '.'
-            
+
             while !isAtEnd && peek().isNumber {
                 _ = advance()
             }
         }
-        
+
         let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
         let tokenType: TokenType = isReal ? .realLiteral : .integerLiteral
-        
+
         return Token(type: tokenType, lexeme: lexeme, position: position)
     }
-    
+
     /// Scans an identifier or keyword
     private func scanIdentifier(_ position: SourcePosition) -> Token {
         while !isAtEnd && isIdentifierContinue(peek()) {
             _ = advance()
         }
-        
+
         let lexeme = String(source[source.index(source.startIndex, offsetBy: position.offset)..<current])
         let tokenType = Self.keywords[lexeme] ?? .identifier
-        
+
         return Token(type: tokenType, lexeme: lexeme, position: position)
     }
-    
+
     /// Checks if a character can start an identifier
     private func isIdentifierStart(_ char: UnicodeScalar) -> Bool {
         return char.isLetter || char == "_" || isJapaneseCharacter(char)
     }
-    
+
     /// Checks if a character can continue an identifier
     private func isIdentifierContinue(_ char: UnicodeScalar) -> Bool {
         return char.isLetter || char.isNumber || char == "_" || isJapaneseCharacter(char)
     }
-    
+
     /// Checks if a character is a Japanese character (Hiragana, Katakana, or Kanji)
     private func isJapaneseCharacter(_ char: UnicodeScalar) -> Bool {
         let value = char.value
@@ -336,9 +334,9 @@ extension UnicodeScalar {
     var isLetter: Bool {
         return CharacterSet.letters.contains(self)
     }
-    
+
     /// Returns true if this scalar represents a number
     var isNumber: Bool {
         return CharacterSet.decimalDigits.contains(self)
     }
-} 
+}

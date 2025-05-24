@@ -4,13 +4,13 @@ import Foundation
 public enum TokenizerError: Error, Equatable, Sendable {
     /// An unexpected character was encountered
     case unexpectedCharacter(UnicodeScalar, SourcePosition)
-    
+
     /// A string literal was not properly terminated
     case unterminatedString(SourcePosition)
-    
+
     /// A comment was not properly terminated
     case unterminatedComment(SourcePosition)
-    
+
     /// A number has an invalid format
     case invalidNumberFormat(String, SourcePosition)
 }
@@ -34,4 +34,4 @@ extension TokenizerError: LocalizedError {
     public var errorDescription: String? {
         return description
     }
-} 
+}

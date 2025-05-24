@@ -2,13 +2,13 @@
 public struct Token: Equatable, Codable, Sendable {
     /// The type of this token
     public let type: TokenType
-    
+
     /// The original text that produced this token
     public let lexeme: String
-    
+
     /// The position of this token in the source code
     public let position: SourcePosition
-    
+
     /// Creates a new token.
     /// - Parameters:
     ///   - type: The type of the token
@@ -31,4 +31,4 @@ extension Token: CustomDebugStringConvertible {
     public var debugDescription: String {
         return "Token(type: .\(type), lexeme: \"\(lexeme)\", position: \(position))"
     }
-} 
+}

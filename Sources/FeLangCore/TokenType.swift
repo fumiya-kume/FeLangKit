@@ -1,7 +1,7 @@
 /// Represents the different types of tokens in FE pseudo-language.
 public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     // MARK: - Keywords
-    
+
     /// Data type keywords
     case integerType = "整数型"
     case realType = "実数型"
@@ -10,47 +10,47 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case booleanType = "論理型"
     case recordType = "レコード"
     case arrayKeyword = "配列"
-    
+
     /// Control flow keywords
     case ifKeyword = "if"
     case whileKeyword = "while"
     case forKeyword = "for"
     case returnKeyword = "return"
     case breakKeyword = "break"
-    
+
     /// Logical keywords
     case andKeyword = "and"
     case orKeyword = "or"
     case notKeyword = "not"
-    
+
     /// Boolean literals
     case trueKeyword = "true"
     case falseKeyword = "false"
-    
+
     // MARK: - Literals
-    
+
     case integerLiteral
     case realLiteral
     case stringLiteral
     case characterLiteral
     case booleanLiteral
-    
+
     // MARK: - Identifiers
-    
+
     case identifier
-    
+
     // MARK: - Operators
-    
+
     /// Arithmetic operators
     case plus = "+"
     case minus = "-"
     case multiply = "*"
     case divide = "/"
     case modulo = "%"
-    
+
     /// Assignment operator
     case assign = "←"
-    
+
     /// Comparison operators
     case equal = "="
     case notEqual = "≠"
@@ -58,9 +58,9 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case greaterEqual = "≧"
     case less = "<"
     case lessEqual = "≦"
-    
+
     // MARK: - Delimiters
-    
+
     case leftParen = "("
     case rightParen = ")"
     case leftBracket = "["
@@ -71,9 +71,9 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case dot = "."
     case semicolon = ";"
     case colon = ":"
-    
+
     // MARK: - Special
-    
+
     case comment
     case whitespace
     case newline
@@ -94,7 +94,7 @@ extension TokenType {
             return false
         }
     }
-    
+
     /// Returns true if this token type represents a literal.
     public var isLiteral: Bool {
         switch self {
@@ -104,7 +104,7 @@ extension TokenType {
             return false
         }
     }
-    
+
     /// Returns true if this token type represents an operator.
     public var isOperator: Bool {
         switch self {
@@ -115,4 +115,4 @@ extension TokenType {
             return false
         }
     }
-} 
+}
