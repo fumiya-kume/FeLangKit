@@ -20,6 +20,12 @@ let package = Package(
             name: "FeLangCore",
             dependencies: [
                 .product(name: "Parsing", package: "swift-parsing")
+            ],
+            exclude: [
+                "Tokenizer/docs",
+                "Expression/docs", 
+                "Parser/docs",
+                "Utilities/docs"
             ]
         ),
         .target(
