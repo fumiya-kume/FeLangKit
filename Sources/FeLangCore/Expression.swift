@@ -3,13 +3,13 @@ public indirect enum Expression: Equatable, Codable, Sendable {
     // Primary expressions
     case literal(Literal)
     case identifier(String)
-    
+
     // Binary expressions
     case binary(BinaryOperator, Expression, Expression)
-    
+
     // Unary expressions
     case unary(UnaryOperator, Expression)
-    
+
     // Postfix expressions
     case arrayAccess(Expression, Expression)
     case functionCall(String, [Expression])
@@ -40,11 +40,11 @@ extension Literal: Codable {
             try container.encode(["boolean": value])
         }
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let dict = try container.decode([String: AnyCodable].self)
-        
+
         if let value = dict["integer"]?.value as? Int {
             self = .integer(value)
         } else if let value = dict["real"]?.value as? Double {
@@ -64,14 +64,14 @@ extension Literal: Codable {
 /// Helper type for decoding heterogeneous values
 private struct AnyCodable: Codable {
     let value: Any
-    
+
     init<T>(_ value: T) {
         self.value = value
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        
+
         if let value = try? container.decode(Int.self) {
             self.value = value
         } else if let value = try? container.decode(Double.self) {
@@ -84,10 +84,10 @@ private struct AnyCodable: Codable {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unsupported type"))
         }
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        
+
         if let value = value as? Int {
             try container.encode(value)
         } else if let value = value as? Double {
@@ -110,7 +110,7 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
     case multiply = "*"
     case divide = "/"
     case modulo = "%"
-    
+
     // Comparison operators
     case equal = "="
     case notEqual = "≠"
@@ -118,11 +118,11 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
     case greaterEqual = "≧"
     case less = "<"
     case lessEqual = "≦"
-    
+
     // Logical operators
     case and = "and"
     case or = "or"
-    
+
     /// Returns the precedence level of this operator.
     /// Higher numbers indicate higher precedence.
     public var precedence: Int {
@@ -139,7 +139,7 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
             return 5
         }
     }
-    
+
     /// Returns true if this operator is left-associative.
     /// All binary operators in FE pseudo-language are left-associative.
     public var isLeftAssociative: Bool {
@@ -152,7 +152,7 @@ public enum UnaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
     case not = "not"
     case plus = "+"
     case minus = "-"
-    
+
     /// Returns the precedence level of this operator.
     /// Unary operators have high precedence (6).
     public var precedence: Int {
@@ -244,4 +244,4 @@ extension Literal {
             return nil
         }
     }
-} 
+}
