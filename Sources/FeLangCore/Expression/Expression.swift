@@ -48,11 +48,16 @@ extension Literal: Codable {
 
         if let value = dict["integer"]?.value as? Int {
             self = .integer(value)
-        } else if let value = dict["real"]?.value as? Double {
-            self = .real(value)
-        } else if let intValue = dict["real"]?.value as? Int {
-            // Handle case where JSON encodes 0.0 as 0 (Int instead of Double)
-            self = .real(Double(intValue))
+        } else if let realValue = dict["real"]?.value {
+            // Extract real value once to avoid redundant lookups
+            if let value = realValue as? Double {
+                self = .real(value)
+            } else if let intValue = realValue as? Int {
+                // Handle case where JSON encodes 0.0 as 0 (Int instead of Double)
+                self = .real(Double(intValue))
+            } else {
+                throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid literal value"))
+            }
         } else if let value = dict["string"]?.value as? String {
             self = .string(value)
         } else if let value = dict["character"]?.value as? String, let char = value.first {
