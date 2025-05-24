@@ -38,7 +38,7 @@ struct KeywordPerformanceTests {
 
         // Hash map should be significantly faster
         let performanceRatio = linearTime / hashMapTime
-        
+
         print("=== Keyword Lookup Performance Results ===")
         print("Hash Map Time: \(String(format: "%.6f", hashMapTime)) seconds")
         print("Linear Search Time: \(String(format: "%.6f", linearTime)) seconds")
@@ -64,10 +64,10 @@ struct KeywordPerformanceTests {
         // Generate a large source file with many keywords
         let sourceLines = generateLargeSourceFile(lineCount: 1000)
         let largeSource = sourceLines.joined(separator: "\n")
-        
+
         // Count expected keyword occurrences
         let expectedKeywordCount = countKeywordOccurrences(in: largeSource)
-        
+
         print("=== Large File Tokenization Performance ===")
         print("Source file size: \(largeSource.count) characters")
         print("Lines: \(sourceLines.count)")
@@ -91,20 +91,20 @@ struct KeywordPerformanceTests {
 
         // Note: Token counts may differ due to different whitespace/newline handling
         // This is expected behavior - focus on keyword performance verification
-        
+
         // Verify keyword detection is working
         let tokenizerKeywords = tokenizerTokens.filter { $0.type.isKeyword }
         let parsingKeywords = parsingTokens.filter { $0.type.isKeyword }
-        
+
         print("Tokenizer keywords found: \(tokenizerKeywords.count)")
         print("ParsingTokenizer keywords found: \(parsingKeywords.count)")
-        
+
         #expect(tokenizerKeywords.count == parsingKeywords.count, "Both tokenizers should find same keyword count")
         #expect(tokenizerKeywords.count >= expectedKeywordCount, "Should find at least expected keyword count")
 
         // Performance should be reasonable for Tokenizer (optimized for speed)
         #expect(tokenizerTime < 1.0, "Tokenizer should process large file in reasonable time")
-        
+
         // ParsingTokenizer may be slower due to different architecture (comment-based design)
         // Focus on keyword detection accuracy rather than absolute speed
         #expect(parsingTime < 10.0, "ParsingTokenizer should complete within reasonable time")
@@ -114,7 +114,7 @@ struct KeywordPerformanceTests {
     func testKeywordBoundaryPerformance() throws {
         // Test performance with keywords that have many potential partial matches
         let problematicInput = generateProblematicKeywordInput()
-        
+
         print("=== Keyword Boundary Performance ===")
         print("Input size: \(problematicInput.count) characters")
 
@@ -128,16 +128,16 @@ struct KeywordPerformanceTests {
 
         // Should handle boundary cases efficiently
         #expect(time < 0.1, "Should handle keyword boundary cases efficiently")
-        
+
         // Verify correct tokenization of boundary cases
         let keywords = tokens.filter { $0.type.isKeyword }
         let identifiers = tokens.filter { $0.type == .identifier }
-        
+
         print("Keywords found: \(keywords.count)")
         print("Identifiers found: \(identifiers.count)")
-        
-        #expect(keywords.count > 0, "Should find some keywords")
-        #expect(identifiers.count > 0, "Should find some identifiers with keyword prefixes/suffixes")
+
+        #expect(!keywords.isEmpty, "Should find some keywords")
+        #expect(!identifiers.isEmpty, "Should find some identifiers with keyword prefixes/suffixes")
     }
 
     // MARK: - Memory Performance Tests
@@ -147,19 +147,19 @@ struct KeywordPerformanceTests {
         // Test that the keyword map doesn't consume excessive memory
         let keywordMap = TokenizerUtilities.keywordMap
         let keywordArray = TokenizerUtilities.keywords
-        
+
         print("=== Memory Usage Analysis ===")
         print("Keyword map entries: \(keywordMap.count)")
         print("Keyword array entries: \(keywordArray.count)")
-        
+
         // Both should have same number of entries
         #expect(keywordMap.count == keywordArray.count, "Map and array should have same keyword count")
-        
+
         // All keywords should be in the map
         for (keyword, expectedType) in keywordArray {
             #expect(keywordMap[keyword] == expectedType, "Map should contain all keywords from array")
         }
-        
+
         // Map should not contain extra entries
         for (keyword, _) in keywordMap {
             let arrayContains = keywordArray.contains { $0.0 == keyword }
@@ -175,13 +175,13 @@ struct KeywordPerformanceTests {
         let identifiers = ["variable", "counter", "result", "data", "value", "index", "temp"]
         let operators = ["←", "+", "-", "*", "/", "=", ">", "<"]
         let delimiters = ["(", ")", "[", "]", "{", "}", ",", ".", ":", ";"]
-        
+
         var lines: [String] = []
-        
+
         for lineNum in 0..<lineCount {
             var line = ""
             let tokensPerLine = Int.random(in: 3...10)
-            
+
             for _ in 0..<tokensPerLine {
                 let tokenType = Int.random(in: 0...3)
                 switch tokenType {
@@ -198,10 +198,10 @@ struct KeywordPerformanceTests {
                 }
                 line += " "
             }
-            
+
             lines.append(line.trimmingCharacters(in: .whitespaces))
         }
-        
+
         return lines
     }
 
@@ -209,15 +209,13 @@ struct KeywordPerformanceTests {
     private func countKeywordOccurrences(in source: String) -> Int {
         let keywordStrings = TokenizerUtilities.keywords.map { $0.0 }
         var count = 0
-        
+
         // Simple approximation - count occurrences as separate words
         let words = source.components(separatedBy: .whitespacesAndNewlines)
-        for word in words {
-            if keywordStrings.contains(word) {
-                count += 1
-            }
+        for word in words where keywordStrings.contains(word) {
+            count += 1
         }
-        
+
         return count
     }
 
@@ -225,28 +223,28 @@ struct KeywordPerformanceTests {
     private func generateProblematicKeywordInput() -> String {
         let keywords = ["if", "while", "for", "return"]
         var problematicTokens: [String] = []
-        
+
         // Add exact keywords
         problematicTokens.append(contentsOf: keywords)
-        
+
         // Add identifiers with keyword prefixes
         for keyword in keywords {
             problematicTokens.append("\(keyword)Variable")
             problematicTokens.append("\(keyword)_test")
             problematicTokens.append("\(keyword)123")
         }
-        
+
         // Add identifiers with keyword suffixes  
         for keyword in keywords {
             problematicTokens.append("my\(keyword.capitalized)")
             problematicTokens.append("test_\(keyword)")
         }
-        
+
         // Add identifiers containing keywords
         for keyword in keywords {
             problematicTokens.append("pre\(keyword)post")
         }
-        
+
         return problematicTokens.joined(separator: " ")
     }
-} 
+}
