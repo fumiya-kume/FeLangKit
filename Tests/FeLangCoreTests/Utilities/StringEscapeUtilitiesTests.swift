@@ -32,19 +32,9 @@ struct StringEscapeUtilitiesTests {
     @Test("Tokenizer Integration - Invalid Escape Sequence")
     func testTokenizerInvalidEscapeSequence() throws {
         // Test that the tokenizer properly detects invalid escape sequences
-        // Create a string with an unfinished escape sequence inside quotes
-        // The raw string content will be "Text\" (backslash at the end with no following character)
-        let invalidInput = "\"Text\\\""
+        // We want to test validation of escape sequences with invalid trailing backslashes
 
-        // Actually, let's create this properly by constructing the input manually
-        // We want a string that contains: "Text\ (with a trailing backslash inside the quotes)
-        // This means the input should be: "Text\\"" where the content is "Text\"
-        // But that's still a valid escape sequence (escaped quote)
-
-        // Let's use a different approach - create actual invalid content
-        // We'll modify our validation to be stricter or test a different scenario
-
-        // For now, let's test that our validation correctly identifies the issue
+        // Let's test that our validation correctly identifies the issue
         let contentWithInvalidEscape = "Text\\"  // Ends with lone backslash
         #expect(StringEscapeUtilities.validateEscapeSequences(contentWithInvalidEscape) == false)
 
