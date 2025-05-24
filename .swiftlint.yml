@@ -6,3 +6,13 @@ opt_in_rules:
   - explicit_self
 included:
   - FeLangCore
+analyzer_rules:
+  - explicit_self
+  - empty_count
+  - empty_string
+  - empty_collection
+  - empty_dictionary
+  - empty_set
+  - empty_array
+  - empty_tuple
+  - empty_enum
