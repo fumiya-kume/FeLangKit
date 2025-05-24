@@ -1,5 +1,5 @@
 ---
-description: 
+description: This rule ensures Swift code quality by running linting and testing commands.
 globs: *.swift
 alwaysApply: false
 ---
