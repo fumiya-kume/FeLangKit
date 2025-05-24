@@ -186,10 +186,10 @@ public enum ThreadSafetyValidators {
                 return String(describing: literal)
             case .identifier(let name):
                 return name
-            case .binary(let op, let left, let right):
-                return "binary_\(op)_\(left)_\(right)"
-            case .unary(let op, let expr):
-                return "unary_\(op)_\(expr)"
+            case .binary(let operation, let left, let right):
+                return "binary_\(operation)_\(left)_\(right)"
+            case .unary(let operation, let expr):
+                return "unary_\(operation)_\(expr)"
             case .arrayAccess(let array, let index):
                 return "arrayAccess_\(array)_\(index)"
             case .fieldAccess(let expr, let field):

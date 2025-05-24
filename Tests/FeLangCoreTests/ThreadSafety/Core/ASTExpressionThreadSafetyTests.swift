@@ -75,9 +75,9 @@ struct ASTExpressionThreadSafetyTests {
             .and, .or
         ]
 
-        for op in binaryOperators {
+        for operation in binaryOperators {
             let binaryExpr = FeLangCore.Expression.binary(
-                op,
+                operation,
                 .literal(.integer(10)),
                 .literal(.integer(5))
             )
@@ -87,14 +87,14 @@ struct ASTExpressionThreadSafetyTests {
                 return binaryExpr
             }
 
-            #expect(result.success, "Binary expression with \(op) should handle 100 concurrent accesses")
-            #expect(result.tasksCompleted == 100, "All tasks should complete for binary operator \(op)")
+            #expect(result.success, "Binary expression with \(operation) should handle 100 concurrent accesses")
+            #expect(result.tasksCompleted == 100, "All tasks should complete for binary operator \(operation)")
 
             // Test consistency
             let isConsistent = await ConcurrencyTestHelpers.validateConcurrentConsistency(level: .medium) {
                 return binaryExpr
             }
-            #expect(isConsistent, "Binary expression with \(op) should be consistent")
+            #expect(isConsistent, "Binary expression with \(operation) should be consistent")
         }
     }
 
@@ -143,15 +143,15 @@ struct ASTExpressionThreadSafetyTests {
             .identifier("value")
         ]
 
-        for op in unaryOperators {
+        for operation in unaryOperators {
             for expr in testExpressions {
-                let unaryExpr = FeLangCore.Expression.unary(op, expr)
+                let unaryExpr = FeLangCore.Expression.unary(operation, expr)
 
                 let result = await ConcurrencyTestHelpers.performConcurrentReadTest(level: .medium) {
                     return unaryExpr
                 }
 
-                #expect(result.success, "Unary expression \(op) with \(expr) should be thread-safe")
+                #expect(result.success, "Unary expression \(operation) with \(expr) should be thread-safe")
 
                 // Test consistency
                 let isConsistent = await ConcurrencyTestHelpers.validateConcurrentConsistency(level: .medium) {
