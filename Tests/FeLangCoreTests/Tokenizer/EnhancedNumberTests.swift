@@ -287,16 +287,16 @@ struct EnhancedNumberTests {
     @Test func testValidUnderscoreSeparation() throws {
         // Test that certain cases with underscores are correctly parsed as separate tokens
         let testCases = [
-            ("12._34", [TokenType.integerLiteral, .dot, .identifier, .eof]),  // Number, dot, identifier
+            ("12._34", [TokenType.integerLiteral, .dot, .identifier, .eof])  // Number, dot, identifier
         ]
 
         for (input, expectedTypes) in testCases {
             let tokenizer = Tokenizer(input: input)
             let tokens = try tokenizer.tokenize()
-            
+
             #expect(tokens.count == expectedTypes.count)
-            for (i, expectedType) in expectedTypes.enumerated() {
-                #expect(tokens[i].type == expectedType, "Token \(i) should be \(expectedType) but was \(tokens[i].type)")
+            for (index, expectedType) in expectedTypes.enumerated() {
+                #expect(tokens[index].type == expectedType, "Token \(index) should be \(expectedType) but was \(tokens[index].type)")
             }
         }
     }
@@ -367,17 +367,17 @@ struct EnhancedNumberTests {
         // Verify specific number formats
         #expect(numberTokens[0].lexeme == "0xFF")
         #expect(numberTokens[0].type == .integerLiteral)
-        
+
         #expect(numberTokens[1].lexeme == "1.23e5")
         #expect(numberTokens[1].type == .realLiteral)
-        
+
         #expect(numberTokens[2].lexeme == "0b1010")
         #expect(numberTokens[2].type == .integerLiteral)
-        
+
         #expect(numberTokens[3].lexeme == "0o777")
         #expect(numberTokens[3].type == .integerLiteral)
-        
+
         #expect(numberTokens[4].lexeme == "1_000_000")
         #expect(numberTokens[4].type == .integerLiteral)
     }
-} 
+}

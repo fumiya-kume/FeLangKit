@@ -273,7 +273,7 @@ public final class Tokenizer {
     private func scanNumber(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) throws -> Token {
         // Get the first character that was already consumed
         let firstChar = source[source.index(before: current)]
-        
+
         // Check for alternative number bases (0x, 0b, 0o)
         if firstChar == "0" && !isAtEnd {
             let nextChar = peek()
@@ -300,7 +300,7 @@ public final class Tokenizer {
             let lexeme = String(source[startIndex..<current])
             throw TokenizerError.invalidNumberFormat(lexeme, position)
         }
-        
+
         guard TokenizerUtilities.isHexDigit(peek()) || peek() == "_" else {
             let lexeme = String(source[startIndex..<current])
             throw TokenizerError.invalidNumberFormat(lexeme, position)
@@ -317,10 +317,10 @@ public final class Tokenizer {
         }
 
         let lexeme = String(source[startIndex..<current])
-        
+
         // Validate the format
         try TokenizerUtilities.validateHexadecimalNumber(lexeme)
-        
+
         return Token(type: .integerLiteral, lexeme: lexeme, position: position)
     }
 
@@ -334,7 +334,7 @@ public final class Tokenizer {
             let lexeme = String(source[startIndex..<current])
             throw TokenizerError.invalidNumberFormat(lexeme, position)
         }
-        
+
         guard TokenizerUtilities.isBinaryDigit(peek()) || peek() == "_" else {
             let lexeme = String(source[startIndex..<current])
             throw TokenizerError.invalidNumberFormat(lexeme, position)
@@ -351,10 +351,10 @@ public final class Tokenizer {
         }
 
         let lexeme = String(source[startIndex..<current])
-        
+
         // Validate the format
         try TokenizerUtilities.validateBinaryNumber(lexeme)
-        
+
         return Token(type: .integerLiteral, lexeme: lexeme, position: position)
     }
 
@@ -368,7 +368,7 @@ public final class Tokenizer {
             let lexeme = String(source[startIndex..<current])
             throw TokenizerError.invalidNumberFormat(lexeme, position)
         }
-        
+
         guard TokenizerUtilities.isOctalDigit(peek()) || peek() == "_" else {
             let lexeme = String(source[startIndex..<current])
             throw TokenizerError.invalidNumberFormat(lexeme, position)
@@ -385,10 +385,10 @@ public final class Tokenizer {
         }
 
         let lexeme = String(source[startIndex..<current])
-        
+
         // Validate the format
         try TokenizerUtilities.validateOctalNumber(lexeme)
-        
+
         return Token(type: .integerLiteral, lexeme: lexeme, position: position)
     }
 
@@ -441,12 +441,12 @@ public final class Tokenizer {
         }
 
         let lexeme = String(source[startIndex..<current])
-        
+
         // Validate underscore placement and scientific notation if present
         if lexeme.contains("_") {
             _ = try TokenizerUtilities.validateAndCleanNumber(lexeme)
         }
-        
+
         if lexeme.lowercased().contains("e") {
             try TokenizerUtilities.validateScientificNotation(lexeme)
         }

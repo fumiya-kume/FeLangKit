@@ -241,13 +241,20 @@ public struct ParsingTokenizer {
         index = input.index(after: index) // consume 'x' or 'X'
 
         // Must have at least one hex digit
-        guard index < input.endIndex && (TokenizerUtilities.isHexDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") else {
+        guard index < input.endIndex,
+              let firstScalar = String(input[index]).unicodeScalars.first,
+              TokenizerUtilities.isHexDigit(firstScalar) || input[index] == "_" else {
             return nil
         }
 
         // Read hex digits and underscores
-        while index < input.endIndex && (TokenizerUtilities.isHexDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") {
-            index = input.index(after: index)
+        while index < input.endIndex {
+            if let scalar = String(input[index]).unicodeScalars.first,
+               TokenizerUtilities.isHexDigit(scalar) || input[index] == "_" {
+                index = input.index(after: index)
+            } else {
+                break
+            }
         }
 
         let lexeme = String(input[start..<index])
@@ -259,13 +266,20 @@ public struct ParsingTokenizer {
         index = input.index(after: index) // consume 'b' or 'B'
 
         // Must have at least one binary digit
-        guard index < input.endIndex && (TokenizerUtilities.isBinaryDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") else {
+        guard index < input.endIndex,
+              let firstScalar = String(input[index]).unicodeScalars.first,
+              TokenizerUtilities.isBinaryDigit(firstScalar) || input[index] == "_" else {
             return nil
         }
 
         // Read binary digits and underscores
-        while index < input.endIndex && (TokenizerUtilities.isBinaryDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") {
-            index = input.index(after: index)
+        while index < input.endIndex {
+            if let scalar = String(input[index]).unicodeScalars.first,
+               TokenizerUtilities.isBinaryDigit(scalar) || input[index] == "_" {
+                index = input.index(after: index)
+            } else {
+                break
+            }
         }
 
         let lexeme = String(input[start..<index])
@@ -277,13 +291,20 @@ public struct ParsingTokenizer {
         index = input.index(after: index) // consume 'o' or 'O'
 
         // Must have at least one octal digit
-        guard index < input.endIndex && (TokenizerUtilities.isOctalDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") else {
+        guard index < input.endIndex,
+              let firstScalar = String(input[index]).unicodeScalars.first,
+              TokenizerUtilities.isOctalDigit(firstScalar) || input[index] == "_" else {
             return nil
         }
 
         // Read octal digits and underscores
-        while index < input.endIndex && (TokenizerUtilities.isOctalDigit(String(input[index]).unicodeScalars.first!) || input[index] == "_") {
-            index = input.index(after: index)
+        while index < input.endIndex {
+            if let scalar = String(input[index]).unicodeScalars.first,
+               TokenizerUtilities.isOctalDigit(scalar) || input[index] == "_" {
+                index = input.index(after: index)
+            } else {
+                break
+            }
         }
 
         let lexeme = String(input[start..<index])
