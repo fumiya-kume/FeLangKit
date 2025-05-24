@@ -64,22 +64,22 @@ public struct StatementParser {
     }
 
     /// Parses a single statement from the token stream.
-    private func parseStatement(_ parser: inout TokenStream) throws -> Statement {
+    private func parseStatement(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> Statement {
         guard let token = parser.peek() else {
             throw StatementParsingError.unexpectedEndOfInput
         }
 
         switch token.type {
         case .ifKeyword:
-            return .ifStatement(try parseIfStatement(&parser))
+            return .ifStatement(try parseIfStatement(&parser, nestingDepth: nestingDepth))
         case .whileKeyword:
-            return .whileStatement(try parseWhileStatement(&parser))
+            return .whileStatement(try parseWhileStatement(&parser, nestingDepth: nestingDepth))
         case .forKeyword:
-            return .forStatement(try parseForStatement(&parser))
+            return .forStatement(try parseForStatement(&parser, nestingDepth: nestingDepth))
         case .functionKeyword:
-            return .functionDeclaration(try parseFunctionDeclaration(&parser))
+            return .functionDeclaration(try parseFunctionDeclaration(&parser, nestingDepth: nestingDepth))
         case .procedureKeyword:
-            return .procedureDeclaration(try parseProcedureDeclaration(&parser))
+            return .procedureDeclaration(try parseProcedureDeclaration(&parser, nestingDepth: nestingDepth))
         case .returnKeyword:
             return .returnStatement(try parseReturnStatement(&parser))
         case .breakKeyword:
@@ -98,13 +98,13 @@ public struct StatementParser {
     // MARK: - Control Flow Parsing
 
     /// Parses an IF statement (if-then-endif, if-then-else-endif, if-then-elif-else-endif).
-    private func parseIfStatement(_ parser: inout TokenStream) throws -> IfStatement {
+    private func parseIfStatement(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> IfStatement {
         try expectToken(&parser, .ifKeyword) // consume 'if'
 
         let condition = try parseExpression(&parser)
         try expectToken(&parser, .thenKeyword) // consume 'then'
 
-        let thenBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .endifKeyword])
+        let thenBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .endifKeyword], nestingDepth: nestingDepth)
 
         var elseIfs: [IfStatement.ElseIf] = []
         var elseBody: [Statement]?
@@ -114,14 +114,14 @@ public struct StatementParser {
             parser.advance() // consume 'elif'
             let elifCondition = try parseExpression(&parser)
             try expectToken(&parser, .thenKeyword) // consume 'then'
-            let elifBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .endifKeyword])
+            let elifBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .endifKeyword], nestingDepth: nestingDepth)
             elseIfs.append(IfStatement.ElseIf(condition: elifCondition, body: elifBody))
         }
 
         // Handle optional ELSE clause
         if parser.peek()?.type == .elseKeyword {
             parser.advance() // consume 'else'
-            elseBody = try parseBlock(&parser, until: [.endifKeyword])
+            elseBody = try parseBlock(&parser, until: [.endifKeyword], nestingDepth: nestingDepth)
         }
 
         try expectToken(&parser, .endifKeyword) // consume 'endif'
@@ -130,13 +130,13 @@ public struct StatementParser {
     }
 
     /// Parses a WHILE statement (while-do-endwhile).
-    private func parseWhileStatement(_ parser: inout TokenStream) throws -> WhileStatement {
+    private func parseWhileStatement(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> WhileStatement {
         try expectToken(&parser, .whileKeyword) // consume 'while'
 
         let condition = try parseExpression(&parser)
         try expectToken(&parser, .doKeyword) // consume 'do'
 
-        let body = try parseBlock(&parser, until: [.endwhileKeyword])
+        let body = try parseBlock(&parser, until: [.endwhileKeyword], nestingDepth: nestingDepth)
 
         try expectToken(&parser, .endwhileKeyword) // consume 'endwhile'
 
@@ -144,7 +144,7 @@ public struct StatementParser {
     }
 
     /// Parses a FOR statement (range-based or forEach).
-    private func parseForStatement(_ parser: inout TokenStream) throws -> ForStatement {
+    private func parseForStatement(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> ForStatement {
         try expectToken(&parser, .forKeyword) // consume 'for'
 
         guard let varToken = parser.advance(), varToken.type == .identifier else {
@@ -267,7 +267,7 @@ public struct StatementParser {
     // MARK: - Function/Procedure Parsing
 
     /// Parses a function declaration.
-    private func parseFunctionDeclaration(_ parser: inout TokenStream) throws -> FunctionDeclaration {
+    private func parseFunctionDeclaration(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> FunctionDeclaration {
         try expectToken(&parser, .functionKeyword) // consume 'function'
 
         guard let nameToken = parser.advance(), nameToken.type == .identifier else {
@@ -295,7 +295,7 @@ public struct StatementParser {
     }
 
     /// Parses a procedure declaration.
-    private func parseProcedureDeclaration(_ parser: inout TokenStream) throws -> ProcedureDeclaration {
+    private func parseProcedureDeclaration(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> ProcedureDeclaration {
         try expectToken(&parser, .procedureKeyword) // consume 'procedure'
 
         guard let nameToken = parser.advance(), nameToken.type == .identifier else {
@@ -331,7 +331,12 @@ public struct StatementParser {
     // MARK: - Helper Parsing Methods
 
     /// Parses a block of statements until one of the end tokens is encountered.
-    private func parseBlock(_ parser: inout TokenStream, until endTokens: [TokenType]) throws -> [Statement] {
+    private func parseBlock(_ parser: inout TokenStream, until endTokens: [TokenType], nestingDepth: Int = 0) throws -> [Statement] {
+        // Check nesting depth for security
+        guard nestingDepth < 100 else {
+            throw StatementParsingError.nestingTooDeep
+        }
+
         var statements: [Statement] = []
 
         while let token = parser.peek(), !endTokens.contains(token.type) && token.type != .eof {
@@ -341,7 +346,7 @@ public struct StatementParser {
                 continue
             }
 
-            let statement = try parseStatement(&parser)
+            let statement = try parseStatement(&parser, nestingDepth: nestingDepth + 1)
             statements.append(statement)
         }
 
@@ -382,21 +387,61 @@ public struct StatementParser {
         return Parameter(name: name, type: type)
     }
 
-    /// Parses a data type.
+    /// Parses a data type with full support for basic types, arrays, and records.
+    /// Supports both English and Japanese keywords for internationalization.
     private func parseDataType(_ parser: inout TokenStream) throws -> DataType {
         guard let typeToken = parser.advance() else {
             throw StatementParsingError.unexpectedEndOfInput
         }
 
+        // Handle basic types first
         if let basicType = DataType(tokenType: typeToken.type) {
             return basicType
         }
 
-        // Handle array types properly
+        // Handle identifier-based type names (for extended type support)
+        if typeToken.type == .identifier {
+            let typeName = typeToken.lexeme.lowercased()
+
+            // Support multiple variants of basic types
+            switch typeName {
+            case "integer", "int", "整数型", "整数":
+                return .integer
+            case "real", "double", "float", "実数型", "実数":
+                return .real
+            case "string", "str", "文字列型", "文字列":
+                return .string
+            case "character", "char", "文字型", "文字":
+                return .character
+            case "boolean", "bool", "論理型", "論理", "ブール":
+                return .boolean
+            case "array", "配列型", "配列":
+                // Handle array type with element specification
+                if parser.peek()?.lexeme == "of" || parser.peek()?.lexeme == "の" {
+                    parser.advance() // consume "of" or "の"
+                    let elementType = try parseDataType(&parser)
+                    return .array(elementType)
+                } else {
+                    // Default to integer array for backwards compatibility
+                    return .array(.integer)
+                }
+            case "record", "レコード型", "レコード":
+                // Handle record type with name
+                guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+                    throw StatementParsingError.expectedIdentifier
+                }
+                return .record(nameToken.lexeme)
+            default:
+                // Treat unknown identifiers as custom record types
+                return .record(typeToken.lexeme)
+            }
+        }
+
+        // Handle array types using array keyword
         if typeToken.type == .arrayType {
             // Expect "of" keyword followed by element type
-            if parser.peek()?.lexeme == "of" {
-                parser.advance() // consume "of"
+            if parser.peek()?.lexeme == "of" || parser.peek()?.lexeme == "の" {
+                parser.advance() // consume "of" or "の"
                 let elementType = try parseDataType(&parser)
                 return .array(elementType)
             } else {
@@ -405,7 +450,7 @@ public struct StatementParser {
             }
         }
 
-        // Handle record types properly  
+        // Handle record types using record keyword
         if typeToken.type == .recordType {
             // Expect record name
             guard let nameToken = parser.advance(), nameToken.type == .identifier else {
@@ -464,11 +509,16 @@ public struct StatementParser {
         return leftExpr
     }
 
-    /// Parses a unary expression.
-    private func parseUnaryExpression(_ parser: inout TokenStream) throws -> Expression {
+    /// Parses a unary expression with stack overflow protection.
+    private func parseUnaryExpression(_ parser: inout TokenStream, depth: Int = 0) throws -> Expression {
+        // Prevent stack overflow from deeply nested unary expressions
+        guard depth < 50 else {
+            throw StatementParsingError.nestingTooDeep
+        }
+
         // Try to parse unary operators
         if let op = tryParseUnaryOperator(&parser) {
-            let expr = try parseUnaryExpression(&parser)
+            let expr = try parseUnaryExpression(&parser, depth: depth + 1)
             return Expression.unary(op, expr)
         }
 
@@ -661,6 +711,11 @@ public enum StatementParsingError: Error, Equatable {
     case inputTooLarge
     case nestingTooDeep
     case identifierTooLong(String)
+    case expressionTooComplex
+    case invalidArrayDimension
+    case invalidFunctionArity(String, expected: Int, actual: Int)
+    case undeclaredVariable(String)
+    case cyclicDependency([String])
 }
 
 extension StatementParsingError: LocalizedError {
@@ -686,6 +741,16 @@ extension StatementParsingError: LocalizedError {
             return "Nesting depth too deep, maximum allowed is 100 levels"
         case .identifierTooLong(let name):
             return "Identifier '\(name.prefix(20))...' is too long, maximum length is 255 characters"
+        case .expressionTooComplex:
+            return "Expression is too complex for safe evaluation"
+        case .invalidArrayDimension:
+            return "Invalid array dimension specification"
+        case .invalidFunctionArity(let function, let expected, let actual):
+            return "Function '\(function)' expects \(expected) arguments but received \(actual)"
+        case .undeclaredVariable(let name):
+            return "Undeclared variable '\(name)'"
+        case .cyclicDependency(let cycle):
+            return "Cyclic dependency detected: \(cycle.joined(separator: " -> "))"
         }
     }
 }
