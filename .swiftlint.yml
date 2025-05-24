@@ -1,18 +1,39 @@
-disabled_rules:
-  - trailing_whitespace
-  - line_length
-opt_in_rules:
-  - empty_count
-  - explicit_self
+# .swiftlint.yml
+
+# Lint対象
 included:
-  - FeLangCore
+  - Sources
+  - Tests
+
+# 除外対象（今は不要だが将来のために明示）
+excluded:
+  - .build
+  - .git
+  - DerivedData
+
+# オプトインルール（明示的に有効化しないと動かないルール）
+opt_in_rules:
+  - explicit_self
+  - force_unwrapping
+  - empty_count
+  - closure_end_indentation
+
+# アナライザー専用ルール
 analyzer_rules:
   - explicit_self
-  - empty_count
-  - empty_string
-  - empty_collection
-  - empty_dictionary
-  - empty_set
-  - empty_array
-  - empty_tuple
-  - empty_enum
+
+# 無効化したいルール（お好みで調整）
+disabled_rules:
+  - file_length
+  - function_body_length
+  - type_body_length
+  - line_length
+  - todo  # TODOコメントを許容するなら
+
+# カスタムルール（必要に応じて追加）
+custom_rules:
+  no_force_cast:
+    name: "No Force Cast"
+    regex: 'as!'
+    message: "Avoid using force casts (as!)"
+    severity: warning
