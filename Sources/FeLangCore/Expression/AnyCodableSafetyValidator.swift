@@ -19,10 +19,7 @@ public enum AnyCodableSafetyValidator {
     /// Creates a type-safe AnyCodable instance
     /// Throws an error if the value type is not supported
     public static func createSafeAnyCodable<T>(_ value: T) throws -> SafeAnyCodable {
-        guard validateValueType(value) else {
-            throw AnyCodableSafetyError.unsupportedType(String(describing: type(of: value)))
-        }
-        return SafeAnyCodable(value)
+        return try SafeAnyCodable(value)
     }
 
     /// Validates that decoded JSON data only contains supported types
@@ -82,9 +79,11 @@ public struct SafeAnyCodable: Codable, @unchecked Sendable {
     private let value: Any // Value is validated to only contain Sendable types
 
     /// Creates a SafeAnyCodable with validated type constraints
-    init<T>(_ value: T) {
-        precondition(AnyCodableSafetyValidator.validateValueType(value),
-                    "Only specific value types are allowed for immutable storage")
+    /// Throws AnyCodableSafetyError.unsupportedType if the value type is not supported
+    init<T>(_ value: T) throws {
+        guard AnyCodableSafetyValidator.validateValueType(value) else {
+            throw AnyCodableSafetyError.unsupportedType(String(describing: type(of: value)))
+        }
         self.value = value
     }
 

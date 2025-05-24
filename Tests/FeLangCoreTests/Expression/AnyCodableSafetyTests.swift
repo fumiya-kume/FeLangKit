@@ -463,21 +463,59 @@ struct AnyCodableSafetyTests {
     @Test("Type Validation Error Handling")
     func testTypeValidationErrorHandling() throws {
         let safeAnyCodable = try AnyCodableSafetyValidator.createSafeAnyCodable(42)
-
+        
         // Test successful type retrieval
         let intValue: Int = try safeAnyCodable.getValue()
         #expect(intValue == 42)
-
+        
         // Test type mismatch throws error
         #expect(throws: AnyCodableSafetyError.self) {
             let _: String = try safeAnyCodable.getValue()
         }
-
+        
         // Test optional variant doesn't throw
         let optionalString: String? = safeAnyCodable.getValueOptional()
         #expect(optionalString == nil)
-
+        
         let optionalInt: Int? = safeAnyCodable.getValueOptional()
         #expect(optionalInt == 42)
+    }
+
+    @Test("Graceful Error Handling vs Runtime Crashes")
+    func testGracefulErrorHandlingVsRuntimeCrashes() throws {
+        // Demonstrate that unsupported types are handled gracefully with throwing
+        // instead of causing runtime crashes with precondition failures
+        
+        // These should all throw proper errors instead of crashing
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.createSafeAnyCodable([1, 2, 3])
+        }
+        
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.createSafeAnyCodable(["key": "value"])
+        }
+        
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.createSafeAnyCodable(NSObject())
+        }
+        
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.createSafeAnyCodable(Character("X"))
+        }
+        
+        // Verify the error messages are descriptive
+        do {
+            _ = try AnyCodableSafetyValidator.createSafeAnyCodable([1, 2, 3])
+            #expect(Bool(false), "Should have thrown an error")
+        } catch let error as AnyCodableSafetyError {
+            #expect(error.localizedDescription.contains("Array"))
+        }
+        
+        do {
+            _ = try AnyCodableSafetyValidator.createSafeAnyCodable(Character("X"))
+            #expect(Bool(false), "Should have thrown an error")
+        } catch let error as AnyCodableSafetyError {
+            #expect(error.localizedDescription.contains("Character"))
+        }
     }
 }
