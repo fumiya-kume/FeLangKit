@@ -16,9 +16,9 @@ struct AnyCodableSafetyTests {
         #expect(AnyCodableSafetyValidator.validateValueType(3.14))
         #expect(AnyCodableSafetyValidator.validateValueType("test"))
         #expect(AnyCodableSafetyValidator.validateValueType(true))
-        #expect(AnyCodableSafetyValidator.validateValueType(Character("A")))
 
         // Test unsupported types - these should all return false
+        #expect(!AnyCodableSafetyValidator.validateValueType(Character("A"))) // Character not JSON-encodable
         #expect(!AnyCodableSafetyValidator.validateValueType([1, 2, 3])) // Array
         #expect(!AnyCodableSafetyValidator.validateValueType(["key": "value"])) // Dictionary
         #expect(!AnyCodableSafetyValidator.validateValueType(NSObject())) // Reference type
@@ -137,6 +137,27 @@ struct AnyCodableSafetyTests {
 
         #expect(throws: AnyCodableSafetyError.self) {
             _ = try decoder.decode(SafeAnyCodable.self, from: emptyData)
+        }
+    }
+
+    @Test("Character and Other Unsupported Types")
+    func testUnsupportedTypes() throws {
+        // Character should be rejected as it's not natively JSON-encodable
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.createSafeAnyCodable(Character("X"))
+        }
+
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try ImprovedAnyCodable(Character("Y"))
+        }
+
+        // Other unsupported types
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.createSafeAnyCodable([1, 2, 3])
+        }
+
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try ImprovedAnyCodable(Date())
         }
     }
 

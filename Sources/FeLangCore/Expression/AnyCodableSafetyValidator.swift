@@ -11,8 +11,6 @@ public enum AnyCodableSafetyValidator {
         switch value {
         case is Int, is Double, is String, is Bool:
             return true
-        case is Character:
-            return true
         default:
             return false
         }
@@ -248,7 +246,7 @@ extension AnyCodableSafetyValidator {
         var recommendations: [String] = []
 
         // Check 1: Verify type constraints are enforced
-        let supportedTypes = ["Int", "Double", "String", "Bool", "Character"]
+        let supportedTypes = ["Int", "Double", "String", "Bool"]
         recommendations.append("AnyCodable should only support these types: \(supportedTypes.joined(separator: ", "))")
 
         // Check 2: Verify no reference types can be stored
