@@ -506,6 +506,7 @@ public struct TokenizerBenchmark: Sendable {
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
 
+        // Capture task port to avoid concurrency issues
         let taskPort = mach_task_self_
         let result = withUnsafeMutablePointer(to: &info) {
             $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
@@ -859,6 +860,7 @@ public struct MeasurementSession {
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
 
+        // Capture task port to avoid concurrency issues
         let taskPort = mach_task_self_
         let result = withUnsafeMutablePointer(to: &info) {
             $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
