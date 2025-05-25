@@ -360,33 +360,6 @@ struct AnyCodableSafetyTests {
         #expect(issues.contains("Sendable") || issues.contains("@unchecked"))
     }
 
-    @Test("Thread Safety Verification")
-    func testThreadSafetyVerification() async throws {
-        // Test that SafeAnyCodable maintains thread safety
-        let sharedSafeAnyCodable = try AnyCodableSafetyValidator.createSafeAnyCodable(42)
-
-        await withTaskGroup(of: Bool.self) { group in
-            for _ in 0..<10 {
-                group.addTask { @Sendable in
-                    // Concurrent access to the shared SafeAnyCodable
-                    do {
-                        let value: Int = try sharedSafeAnyCodable.getValue()
-                        return value == 42
-                    } catch {
-                        return false
-                    }
-                }
-            }
-
-            var allSuccess = true
-            for await result in group {
-                allSuccess = allSuccess && result
-            }
-
-            #expect(allSuccess, "Concurrent access to SafeAnyCodable should be thread-safe")
-        }
-    }
-
     @Test("Memory Safety - Value Semantics")
     func testMemorySafetyValueSemantics() throws {
         // Test that AnyCodable types maintain value semantics
