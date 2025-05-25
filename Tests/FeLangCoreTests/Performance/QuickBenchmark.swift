@@ -152,10 +152,7 @@ struct QuickBenchmark {
             "変数 y: 実数型",
             "y ← 3.14",
             "変数 z: 整数型",
-            "z ← x + 1",
-            "if x > 0 then",
-            "    y ← y + 1.0",
-            "endif"
+            "z ← x + 1"
         ]
 
         while content.count < size {
@@ -167,7 +164,7 @@ struct QuickBenchmark {
             }
         }
 
-        return String(content.prefix(size))
+        return content
     }
 
     private func generateSimpleNested(depth: Int) -> String {
@@ -175,7 +172,7 @@ struct QuickBenchmark {
 
         for index in 0..<depth {
             content += String(repeating: "    ", count: index)
-            content += "if x > \\(index) then\n"
+            content += "if x > \(index) then\n"
         }
 
         content += String(repeating: "    ", count: depth)

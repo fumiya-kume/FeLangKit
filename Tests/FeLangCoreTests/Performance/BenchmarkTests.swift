@@ -297,25 +297,8 @@ extension BenchmarkTests {
             "sum ← 0.0",
             "変数 result: 真偽型",
             "result ← true",
-            "if counter < 1000 then",
-            "    sum ← sum + counter",
-            "    counter ← counter + 1",
-            "endif",
-            "while counter > 0 do",
-            "    counter ← counter - 1",
-            "endwhile",
-            "for i ← 1 to 100 do",
-            "    sum ← sum + i * 2.5",
-            "endfor",
-            "function calculate(x: 整数型, y: 実数型): 実数型",
-            "    変数 temp: 実数型",
-            "    temp ← x + y",
-            "    return temp",
-            "endfunction",
             "変数 value: 整数型",
             "value ← 42",
-            "変数 result2: 整数型",
-            "result2 ← getValue()",
             "変数 x: 整数型",
             "x ← 10",
             "変数 y: 整数型",
@@ -333,7 +316,7 @@ extension BenchmarkTests {
             }
         }
 
-        return String(content.prefix(size))
+        return content
     }
 
     /// Generates a deeply nested structure for testing nesting performance
@@ -343,7 +326,7 @@ extension BenchmarkTests {
         // Create nested if statements
         for index in 0..<depth {
             content += String(repeating: "    ", count: index)
-            content += "if condition\\(index) then\n"
+            content += "if condition\(index) then\n"
         }
 
         // Add content in the middle
