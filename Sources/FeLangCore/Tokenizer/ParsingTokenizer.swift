@@ -3,7 +3,7 @@ import Foundation
 /// A tokenizer for FE pseudo-language with a focus on simplicity and correctness.
 /// This implementation prioritizes the same functionality as the original tokenizer
 /// while being easier to extend and maintain.
-public struct ParsingTokenizer {
+public struct ParsingTokenizer: Sendable {
 
     public init() {}
 

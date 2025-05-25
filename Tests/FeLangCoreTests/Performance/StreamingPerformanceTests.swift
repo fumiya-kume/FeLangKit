@@ -7,8 +7,8 @@ struct StreamingPerformanceTests {
     
     @Test("Benchmark suite initialization")
     func testBenchmarkSuiteInitialization() {
-        let benchmark = TokenizerBenchmark()
-        #expect(benchmark != nil, "Should initialize benchmark suite")
+        let _ = TokenizerBenchmark()
+        // TokenizerBenchmark is a struct, so it will always initialize successfully
     }
     
     @Test("Throughput measurement")
@@ -249,7 +249,7 @@ struct StreamingPerformanceTests {
     
     @Test("Performance metrics calculation")
     func testPerformanceMetricsCalculation() {
-        let metrics = PerformanceMetrics()
+        let metrics = FeLangCore.PerformanceMetrics()
         let session = metrics.startMeasurement()
         
         // Simulate some work
@@ -282,7 +282,7 @@ struct StreamingPerformanceTests {
     
     @Test("Stress test execution")
     func testStressTestExecution() async throws {
-        let benchmark = TokenizerBenchmark()
+        let _ = TokenizerBenchmark()
         
         // This is a simplified version of stress testing for unit tests
         let parallelTokenizer = ParallelTokenizer()

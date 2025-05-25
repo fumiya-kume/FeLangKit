@@ -5,13 +5,13 @@ import Foundation
 /// A protocol for tokenizers that support streaming processing of source code
 public protocol StreamingTokenizer: Sendable {
     /// Tokenizes an async sequence of characters, producing an async stream of tokens
-    func tokenize<S: AsyncSequence>(
+    func tokenize<S: AsyncSequence & Sendable>(
         _ input: S
     ) async throws -> AsyncStream<Token> where S.Element == Character
     
     /// Tokenizes a buffer of bytes with specified encoding
     func tokenize(
-        buffer: UnsafeBufferPointer<UInt8>,
+        bytes: Data,
         encoding: String.Encoding
     ) async throws -> AsyncStream<Token>
     

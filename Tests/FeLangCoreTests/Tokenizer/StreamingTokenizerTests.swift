@@ -18,7 +18,7 @@ struct StreamingTokenizerTests {
         #expect(tokens.count > 0, "Should produce tokens")
         #expect(tokens.contains { $0.type == .identifier }, "Should contain identifier tokens")
         #expect(tokens.contains { $0.type == .assign }, "Should contain assignment token")
-        #expect(tokens.contains { $0.type == .number }, "Should contain number token")
+        #expect(tokens.contains { $0.type == .integerLiteral }, "Should contain number token")
     }
     
     @Test("Async sequence tokenization")
@@ -38,7 +38,7 @@ struct StreamingTokenizerTests {
         let tokenTypes = tokens.map(\.type)
         #expect(tokenTypes.contains(.identifier), "Should contain identifier")
         #expect(tokenTypes.contains(.assign), "Should contain assignment")
-        #expect(tokenTypes.contains(.number), "Should contain numbers")
+        #expect(tokenTypes.contains(.integerLiteral), "Should contain numbers")
         #expect(tokenTypes.contains(.plus), "Should contain plus operator")
     }
     
@@ -48,14 +48,19 @@ struct StreamingTokenizerTests {
         let input = "変数 test: 文字列型"
         let data = input.data(using: .utf8)!
         
-        var tokens: [Token] = []
-        try data.withUnsafeBytes { buffer in
+        let tokens = try await withCheckedThrowingContinuation { continuation in
             Task {
-                for try await token in try await parallelTokenizer.tokenize(
-                    buffer: buffer.bindMemory(to: UInt8.self),
-                    encoding: .utf8
-                ) {
-                    tokens.append(token)
+                do {
+                    var tokenList: [Token] = []
+                    for try await token in try await parallelTokenizer.tokenize(
+                        bytes: data,
+                        encoding: .utf8
+                    ) {
+                        tokenList.append(token)
+                    }
+                    continuation.resume(returning: tokenList)
+                } catch {
+                    continuation.resume(throwing: error)
                 }
             }
         }

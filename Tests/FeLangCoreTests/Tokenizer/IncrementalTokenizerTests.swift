@@ -176,7 +176,7 @@ struct IncrementalTokenizerTests {
         #expect(identifiers.contains { $0.lexeme == "y" }, "Should contain new variable")
         
         // Verify that the if statement tokens are still present and properly positioned
-        let ifTokens = result.tokens.filter { $0.type == .if }
+        let ifTokens = result.tokens.filter { $0.type == .ifKeyword }
         #expect(!ifTokens.isEmpty, "Should still contain if tokens")
     }
     

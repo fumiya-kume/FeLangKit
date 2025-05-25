@@ -19,7 +19,7 @@ public actor ParallelTokenizer: StreamingTokenizer {
     
     // MARK: - StreamingTokenizer Implementation
     
-    public func tokenize<S: AsyncSequence>(
+    public func tokenize<S: AsyncSequence & Sendable>(
         _ input: S
     ) async throws -> AsyncStream<Token> where S.Element == Character {
         let bufferManager = BufferManager()
@@ -28,7 +28,7 @@ public actor ParallelTokenizer: StreamingTokenizer {
             lexerState: .initial
         )
         
-        return AsyncStream { continuation in
+        return AsyncStream(Token.self) { continuation in
             Task {
                 do {
                     for try await character in input {
@@ -58,17 +58,18 @@ public actor ParallelTokenizer: StreamingTokenizer {
                     
                     continuation.finish()
                 } catch {
-                    continuation.finish(throwing: error)
+                    // AsyncStream doesn't support throwing errors in the continuation
+                    continuation.finish()
                 }
             }
         }
     }
     
     public func tokenize(
-        buffer: UnsafeBufferPointer<UInt8>,
+        bytes: Data,
         encoding: String.Encoding
     ) async throws -> AsyncStream<Token> {
-        guard let string = String(bytes: buffer, encoding: encoding) else {
+        guard let string = String(data: bytes, encoding: encoding) else {
             throw TokenizerError.invalidEncoding
         }
         
@@ -94,7 +95,7 @@ public actor ParallelTokenizer: StreamingTokenizer {
         
         // For small inputs, use single-threaded processing
         if input.count < effectiveChunkSize * 2 {
-            return AsyncStream { continuation in
+            return AsyncStream(Token.self) { continuation in
                 Task {
                     do {
                         let tokenizer = await pool.borrowTokenizer()
@@ -106,7 +107,8 @@ public actor ParallelTokenizer: StreamingTokenizer {
                         }
                         continuation.finish()
                     } catch {
-                        continuation.finish(throwing: error)
+                        // AsyncStream doesn't support throwing errors in the continuation
+                        continuation.finish()
                     }
                 }
             }
@@ -115,7 +117,7 @@ public actor ParallelTokenizer: StreamingTokenizer {
         // Split into chunks for parallel processing
         let chunks = chunkProcessor.createChunks(from: input)
         
-        return AsyncStream { continuation in
+        return AsyncStream(Token.self) { continuation in
             Task {
                 do {
                     let results = try await coordinator.processChunksInParallel(
@@ -131,7 +133,8 @@ public actor ParallelTokenizer: StreamingTokenizer {
                     }
                     continuation.finish()
                 } catch {
-                    continuation.finish(throwing: error)
+                    // AsyncStream doesn't support throwing errors in the continuation
+                    continuation.finish()
                 }
             }
         }
@@ -196,7 +199,7 @@ public actor ParallelTokenizer: StreamingTokenizer {
 /// Actor that manages a pool of tokenizers for parallel processing
 public actor TokenizerPool {
     private var availableTokenizers: [ParsingTokenizer] = []
-    private var busyTokenizers: Set<ObjectIdentifier> = []
+    private var busyCount: Int = 0
     private let maxSize: Int
     
     public init(size: Int) {
@@ -212,18 +215,18 @@ public actor TokenizerPool {
     public func borrowTokenizer() async -> ParsingTokenizer {
         if availableTokenizers.isEmpty {
             // Create a new tokenizer if pool is exhausted
+            busyCount += 1
             return ParsingTokenizer()
         }
         
         let tokenizer = availableTokenizers.removeLast()
-        busyTokenizers.insert(ObjectIdentifier(tokenizer))
+        busyCount += 1
         return tokenizer
     }
     
     /// Returns a tokenizer to the pool
     public func returnTokenizer(_ tokenizer: ParsingTokenizer) {
-        let id = ObjectIdentifier(tokenizer)
-        busyTokenizers.remove(id)
+        busyCount = max(0, busyCount - 1)
         
         if availableTokenizers.count < maxSize {
             availableTokenizers.append(tokenizer)
@@ -235,7 +238,7 @@ public actor TokenizerPool {
     public func getStatistics() -> PoolStatistics {
         return PoolStatistics(
             available: availableTokenizers.count,
-            busy: busyTokenizers.count,
+            busy: busyCount,
             maxSize: maxSize
         )
     }
@@ -253,7 +256,7 @@ public actor TokenizationCoordinator {
     ) async throws -> [ChunkTokenizationResult] {
         // Process chunks concurrently
         let tasks = chunks.enumerated().map { (index, chunk) in
-            Task<(Int, ChunkTokenizationResult)> {
+            Task<(Int, ChunkTokenizationResult), Error> {
                 let tokenizer = await pool.borrowTokenizer()
                 defer { Task { await pool.returnTokenizer(tokenizer) } }
                 
@@ -442,7 +445,7 @@ extension String {
 }
 
 /// Async sequence wrapper for String characters
-public struct AsyncCharacterSequence: AsyncSequence {
+public struct AsyncCharacterSequence: AsyncSequence, Sendable {
     public typealias Element = Character
     
     private let string: String
@@ -455,7 +458,7 @@ public struct AsyncCharacterSequence: AsyncSequence {
         AsyncIterator(string: string)
     }
     
-    public struct AsyncIterator: AsyncIteratorProtocol {
+    public struct AsyncIterator: AsyncIteratorProtocol, Sendable {
         private var iterator: String.Iterator
         
         init(string: String) {
