@@ -370,12 +370,54 @@ public struct ParsingTokenizer: Sendable {
         while index < input.endIndex && input[index] != quoteChar {
             // Handle escape sequences
             if input[index] == "\\" {
-                // Skip the backslash
+                index = input.index(after: index) // consume backslash
+                
+                guard index < input.endIndex else {
+                    throw TokenizerError.invalidEscapeSequenceWithMessage("Incomplete escape sequence at end of string", position)
+                }
+                
+                let escapedChar = input[index]
+                index = input.index(after: index) // consume escaped character
+                
+                // Handle Unicode escape sequences specially
+                if escapedChar == "u" {
+                    guard index < input.endIndex && input[index] == "{" else {
+                        throw TokenizerError.invalidUnicodeEscape("Expected '{' after \\u", position)
+                    }
+                    index = input.index(after: index) // consume '{'
+                    
+                    // Scan hex digits
+                    var hexDigitCount = 0
+                    while index < input.endIndex && input[index] != "}" && hexDigitCount < 8 {
+                        guard let scalar = String(input[index]).unicodeScalars.first,
+                              TokenizerUtilities.isHexDigit(scalar) else {
+                            throw TokenizerError.invalidUnicodeEscape("Invalid hex digit in Unicode escape", position)
+                        }
                 index = input.index(after: index)
-
-                // Skip the escaped character if it exists
-                if index < input.endIndex {
-                    index = input.index(after: index)
+                        hexDigitCount += 1
+                    }
+                    
+                    guard index < input.endIndex else {
+                        throw TokenizerError.invalidUnicodeEscape("Unterminated Unicode escape sequence", position)
+                    }
+                    
+                    guard input[index] == "}" else {
+                        throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence too long (max 8 hex digits)", position)
+                    }
+                    
+                    guard hexDigitCount > 0 else {
+                        throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence must have at least one hex digit", position)
+                    }
+                    
+                    index = input.index(after: index) // consume '}'
+                } else {
+                    // Validate basic escape sequences
+                    switch escapedChar {
+                    case "n", "t", "r", "\\", "\"", "'":
+                        break // Valid escape sequences
+                    default:
+                        throw TokenizerError.invalidEscapeSequenceWithMessage("Unknown escape sequence \\\\(escapedChar)", position)
+                    }
                 }
             } else {
                 index = input.index(after: index)
@@ -392,14 +434,14 @@ public struct ParsingTokenizer: Sendable {
         let lexeme = String(input[start..<index])
         let content = String(lexeme.dropFirst().dropLast()) // Remove quotes
 
-        // Validate escape sequences during tokenization for early error detection
-        guard StringEscapeUtilities.validateEscapeSequences(content) else {
-            throw TokenizerError.invalidEscapeSequence(position)
-        }
-
-        let tokenType = TokenizerUtilities.stringLiteralTokenType(content: content)
-
+        // Process escape sequences in the content for token type determination
+        do {
+            let processedContent = try StringEscapeUtilities.processEscapeSequences(content)
+            let tokenType = TokenizerUtilities.stringLiteralTokenType(content: processedContent)
         return TokenData(type: tokenType, lexeme: lexeme)
+        } catch let error as StringEscapeUtilities.EscapeSequenceError {
+            throw TokenizerError.invalidEscapeSequenceWithMessage(error.message, position)
+        }
     }
 
     private func parseIdentifier(from input: String, at index: inout String.Index) -> TokenData? {

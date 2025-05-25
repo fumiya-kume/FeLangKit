@@ -247,12 +247,66 @@ public final class Tokenizer {
         return Token(type: .realLiteral, lexeme: lexeme, position: position)
     }
 
-    /// Scans a string or character literal
+    /// Scans a string or character literal with escape sequence support
     private func scanStringOrCharacterLiteral(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) throws -> Token {
         let contentStartIndex = current
 
+        // Scan the content, handling escape sequences
         while !isAtEnd && peek() != "'" {
+            if peek() == "\\" {
+                // Handle escape sequence
+                _ = advance() // consume backslash
+                
+                if isAtEnd {
+                    throw TokenizerError.invalidEscapeSequenceWithMessage("Incomplete escape sequence at end of string", position)
+                }
+                
+                let escapedChar = peek()
+                _ = advance() // consume escaped character
+                
+                // Handle Unicode escape sequences specially
+                if escapedChar == "u" {
+                    if isAtEnd || peek() != "{" {
+                        throw TokenizerError.invalidUnicodeEscape("Expected '{' after \\u", position)
+                    }
+                    _ = advance() // consume '{'
+                    
+                    // Scan hex digits
+                    var hexDigitCount = 0
+                    while !isAtEnd && peek() != "}" && hexDigitCount < 8 {
+                        let char = peek()
+                        if !TokenizerUtilities.isHexDigit(char) {
+                            throw TokenizerError.invalidUnicodeEscape("Invalid hex digit in Unicode escape", position)
+                        }
+                        _ = advance()
+                        hexDigitCount += 1
+                    }
+                    
+                    if isAtEnd {
+                        throw TokenizerError.invalidUnicodeEscape("Unterminated Unicode escape sequence", position)
+                    }
+                    
+                    if peek() != "}" {
+                        throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence too long (max 8 hex digits)", position)
+                    }
+                    
+                    if hexDigitCount == 0 {
+                        throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence must have at least one hex digit", position)
+                    }
+                    
+                    _ = advance() // consume '}'
+                } else {
+                    // Validate basic escape sequences
+                    switch escapedChar {
+                    case "n", "t", "r", "\\", "\"", "'":
+                        break // Valid escape sequences
+                    default:
+                        throw TokenizerError.invalidEscapeSequenceWithMessage("Unknown escape sequence \\\\(escapedChar)", position)
+                    }
+                }
+            } else {
             _ = advance()
+            }
         }
 
         if isAtEnd {
@@ -264,9 +318,15 @@ public final class Tokenizer {
 
         let content = String(source[contentStartIndex..<source.index(before: current)])
         let lexeme = String(source[startIndex..<current])
-        let tokenType = TokenizerUtilities.stringLiteralTokenType(content: content)
 
+        // Process escape sequences in the content for token type determination
+        do {
+            let processedContent = try StringEscapeUtilities.processEscapeSequences(content)
+            let tokenType = TokenizerUtilities.stringLiteralTokenType(content: processedContent)
         return Token(type: tokenType, lexeme: lexeme, position: position)
+        } catch let error as StringEscapeUtilities.EscapeSequenceError {
+            throw TokenizerError.invalidEscapeSequenceWithMessage(error.message, position)
+        }
     }
 
     /// Scans a number (integer, real, scientific notation, or alternative bases)
