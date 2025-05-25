@@ -115,9 +115,11 @@ public enum TokenizerUtilities {
     /// Checks if a character is whitespace (Character version)
     /// Supports standard ASCII whitespace and Japanese full-width space (U+3000)  
     /// This helper provides consistent whitespace handling across all tokenizers
+    /// For multi-scalar characters, all scalars must be whitespace
     public static func isWhitespace(_ char: Character) -> Bool {
-        guard let scalar = char.unicodeScalars.first else { return false }
-        return isWhitespace(scalar)
+        guard !char.unicodeScalars.isEmpty else { return false }
+        // For multi-scalar characters (like combined marks), all scalars must be whitespace
+        return char.unicodeScalars.allSatisfy(isWhitespace)
     }
 
     // MARK: - Character Classification
@@ -272,7 +274,7 @@ public enum TokenizerUtilities {
 
     /// Determines if a character is a valid hex digit
     public static func isHexDigit(_ char: UnicodeScalar) -> Bool {
-        return char.isNumber ||
+        return (char.value >= 0x30 && char.value <= 0x39) || // 0-9
                (char.value >= 0x41 && char.value <= 0x46) || // A-F
                (char.value >= 0x61 && char.value <= 0x66)    // a-f
     }
@@ -382,7 +384,8 @@ public enum TokenizerUtilities {
         }
 
         for index in expIndex..<expScalars.count {
-            guard expScalars[index].isNumber || expScalars[index] == "_" else {
+            let scalar = expScalars[index]
+            guard (scalar.value >= 0x30 && scalar.value <= 0x39) || scalar == "_" else { // 0-9 or underscore
                 throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: mantissa.count + 2 + index, offset: mantissa.count + 1 + index))
             }
         }
