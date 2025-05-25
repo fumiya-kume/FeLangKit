@@ -264,8 +264,10 @@ struct ThreadSafetyTestSuite {
 
         // Performance overhead should be reasonable for concurrent testing infrastructure
         // Note: Concurrent testing has natural overhead from task creation and synchronization
-        // A 1000000% threshold accounts for the overhead of the testing framework itself
-        #expect(performanceMetrics.overheadPercentage < 1000000.0,
+        // Baseline operations are often too fast to measure accurately (microseconds)
+        // while concurrent operations include task scheduling and measurement overhead
+        // Allow up to 50000% overhead to account for testing infrastructure measurement artifacts
+        #expect(performanceMetrics.overheadPercentage < 50000.0,
                "Performance overhead should be reasonable: \(performanceMetrics.overheadPercentage)%")
     }
 
