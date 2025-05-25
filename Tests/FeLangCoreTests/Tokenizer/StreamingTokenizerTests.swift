@@ -129,7 +129,7 @@ struct StreamingTokenizerTests {
 
     @Test("Buffer manager")
     func testBufferManager() async {
-        let bufferManager = BufferManager(capacity: 100)
+        let bufferManager = BufferManager(capacity: 2048)
 
         await bufferManager.append("Hello")
         let content1 = await bufferManager.getContent()
@@ -142,8 +142,8 @@ struct StreamingTokenizerTests {
         let hasMinimum = await bufferManager.hasMinimumContent()
         #expect(!hasMinimum, "Should not have minimum content yet")
 
-        // Add enough content to exceed minimum
-        await bufferManager.append(String(repeating: "x", count: 1020))
+        // Add enough content to exceed minimum (1024 threshold)
+        await bufferManager.append(String(repeating: "x", count: 1025))
         let hasMinimumNow = await bufferManager.hasMinimumContent()
         #expect(hasMinimumNow, "Should have minimum content now")
     }
