@@ -60,15 +60,15 @@ public struct UnicodeNormalizer {
     /// Updates internal statistics that can be retrieved with getStats()
     public mutating func normalize(_ input: String) -> String {
         let originalLength = input.count
-        
+
         // Count changes that will be made during normalization
         let nfcChanges = countNFCChanges(input)
         let fullwidthChanges = countFullwidthChanges(input)
         let japaneseChanges = countJapaneseChanges(input)
-        
+
         // Perform the actual normalization
         let result = Self.normalizeForFE(input)
-        
+
         // Update statistics
         stats = NormalizationStats(
             originalLength: originalLength,
@@ -77,7 +77,7 @@ public struct UnicodeNormalizer {
             fullwidthConversions: fullwidthChanges,
             japaneseNormalizations: japaneseChanges
         )
-        
+
         return result
     }
 
@@ -163,13 +163,13 @@ public struct UnicodeNormalizer {
     }
 
     // MARK: - Statistics Counting Methods
-    
+
     /// Counts how many characters need NFC normalization
     private func countNFCChanges(_ input: String) -> Int {
         let normalized = input.precomposedStringWithCanonicalMapping
         return input == normalized ? 0 : 1 // Simple flag: 0 or 1 based on whether changes occurred
     }
-    
+
     /// Counts how many full-width characters need conversion
     private func countFullwidthChanges(_ input: String) -> Int {
         return input.unicodeScalars.filter { scalar in
@@ -177,7 +177,7 @@ public struct UnicodeNormalizer {
             return scalar.value >= 0xFF01 && scalar.value <= 0xFF5E
         }.count
     }
-    
+
     /// Counts how many Japanese character variants need normalization
     private func countJapaneseChanges(_ input: String) -> Int {
         let variants = ["〜", "−", "－", "―", "ゔ"]
@@ -315,7 +315,7 @@ extension String {
         let normalizer = UnicodeNormalizer()
         return normalizer.normalizeJapanese(self)
     }
-    
+
     /// Normalizes text and returns both result and statistics
     /// Usage: let (normalized, stats) = text.normalizedForFEWithStats()
     public func normalizedForFEWithStats() -> (String, UnicodeNormalizer.NormalizationStats) {

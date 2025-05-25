@@ -360,8 +360,6 @@ struct AnyCodableSafetyTests {
         #expect(issues.contains("Sendable") || issues.contains("@unchecked"))
     }
 
-
-
     @Test("Memory Safety - Value Semantics")
     func testMemorySafetyValueSemantics() throws {
         // Test that AnyCodable types maintain value semantics

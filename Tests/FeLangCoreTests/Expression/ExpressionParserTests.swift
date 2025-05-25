@@ -414,8 +414,6 @@ struct ExpressionParserTests {
         #expect(expr == expected)
     }
 
-
-
     // MARK: - Real-world Examples
 
     @Test func testRealWorldExample1() throws {

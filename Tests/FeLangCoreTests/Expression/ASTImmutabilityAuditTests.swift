@@ -195,8 +195,6 @@ struct ASTImmutabilityAuditTests {
 
     // MARK: - Child Issue: Sendable Conformance Verification
 
-
-
     @Test("Sendable Equality Consistency")
     func testSendableEqualityConsistency() throws {
         let expression = ASTExpression.literal(.string("test"))
@@ -377,8 +375,6 @@ struct ASTImmutabilityAuditTests {
             }
         }
     }
-
-
 
     // MARK: - Comprehensive Round-Trip Serialization Tests
 

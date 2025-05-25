@@ -271,8 +271,6 @@ struct EnhancedErrorHandlingTests {
         }
     }
 
-
-
     // MARK: - Backward Compatibility Tests
 
     @Test("Backward Compatibility: Legacy Method Throws")
