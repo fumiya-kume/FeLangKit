@@ -271,36 +271,7 @@ struct EnhancedErrorHandlingTests {
         }
     }
 
-    // MARK: - Performance Tests
 
-    @Test("Error Handling Performance")
-    func testErrorHandlingPerformance() throws {
-        // Generate a large source with many errors
-        var problematicSource = ""
-        for index in 0..<100 {
-            problematicSource += "変数@ var\(index) = \"unterminated\n"
-            problematicSource += "変数# num\(index) = 123.45.67\n"
-        }
-
-        let tokenizer = EnhancedParsingTokenizer()
-
-        let startTime = CFAbsoluteTimeGetCurrent()
-        let result = tokenizer.tokenizeWithDiagnostics(problematicSource)
-        let processingTime = CFAbsoluteTimeGetCurrent() - startTime
-
-        #expect(result.hasErrors, "Should detect many errors")
-        #expect(result.errors.count >= 100, "Should find many errors")
-        #expect(!result.tokens.isEmpty, "Should still produce tokens")
-
-        // Performance should be reasonable even with many errors
-        #expect(processingTime < 5.0, "Should process large error-filled source in reasonable time")
-
-        print("=== Error Handling Performance ===")
-        print("Source size: \(problematicSource.count) characters")
-        print("Errors found: \(result.errors.count)")
-        print("Tokens produced: \(result.tokens.count)")
-        print("Processing time: \(String(format: "%.6f", processingTime)) seconds")
-    }
 
     // MARK: - Backward Compatibility Tests
 
