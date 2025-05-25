@@ -372,7 +372,11 @@ public struct EnhancedParsingTokenizer {
         } else if lexeme.contains("x") || lexeme.contains("X") {
             // Invalid hexadecimal
             let invalidChars = lexeme.filter { char in
-                return !char.isNumber && !(char >= "a" && char <= "f") && !(char >= "A" && char <= "F") && char != "x" && char != "X" && char != "0"
+                let isValidDigit = char.isNumber
+                let isValidLowerHex = (char >= "a" && char <= "f")
+                let isValidUpperHex = (char >= "A" && char <= "F")
+                let isHexPrefix = (char == "x" || char == "X" || char == "0")
+                return !(isValidDigit || isValidLowerHex || isValidUpperHex || isHexPrefix)
             }
             if !invalidChars.isEmpty {
                 errorCollector.addError(
