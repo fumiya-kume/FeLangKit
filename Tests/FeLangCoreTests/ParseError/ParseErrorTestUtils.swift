@@ -7,10 +7,14 @@ import Testing
 /// golden file test cases with proper error handling and regression detection.
 public struct ParseErrorTestUtils {
 
-    // MARK: - Constants
+        // MARK: - Constants
 
     private static let goldenFilesPath = "Tests/FeLangCoreTests/ParseError/GoldenFiles"
     private static let testCasesPath = "Tests/FeLangCoreTests/ParseError/TestCases"
+
+    // Golden file format constants
+    private static let testCaseHeaderPrefix = "=== Test Case:"
+    private static let testCaseHeaderSuffix = " ==="
 
     // MARK: - Golden File Management
 
@@ -120,16 +124,16 @@ public struct ParseErrorTestUtils {
     ) throws -> GoldenTestCase? {
         guard startIndex < lines.count else { return nil }
 
-        let headerLine = lines[startIndex].trimmingCharacters(in: .whitespaces)
+                let headerLine = lines[startIndex].trimmingCharacters(in: .whitespaces)
 
         // Look for test case header: === Test Case: name ===
-        guard headerLine.hasPrefix("=== Test Case:") && headerLine.hasSuffix("===") else {
+        guard headerLine.hasPrefix(testCaseHeaderPrefix) && headerLine.hasSuffix(testCaseHeaderSuffix) else {
             startIndex += 1
             return nil
         }
 
-        let nameStartIndex = headerLine.index(headerLine.startIndex, offsetBy: 14) // "=== Test Case:".count
-        let nameEndIndex = headerLine.index(headerLine.endIndex, offsetBy: -4) // " ===".count
+        let nameStartIndex = headerLine.index(headerLine.startIndex, offsetBy: testCaseHeaderPrefix.count)
+        let nameEndIndex = headerLine.index(headerLine.endIndex, offsetBy: -testCaseHeaderSuffix.count)
         let name = String(headerLine[nameStartIndex..<nameEndIndex]).trimmingCharacters(in: .whitespaces)
 
         startIndex += 1
@@ -162,7 +166,7 @@ public struct ParseErrorTestUtils {
         var expectedError = ""
         while startIndex < lines.count {
             let line = lines[startIndex]
-            if line.trimmingCharacters(in: .whitespaces).hasPrefix("=== Test Case:") {
+            if line.trimmingCharacters(in: .whitespaces).hasPrefix(testCaseHeaderPrefix) {
                 break
             }
             if line.trimmingCharacters(in: .whitespaces).isEmpty && expectedError.isEmpty {
@@ -207,7 +211,7 @@ public struct ParseErrorTestUtils {
         content += "# This file contains expected error messages for regression testing\n\n"
 
         for testCase in testCases {
-            content += "=== Test Case: \(testCase.name) ===\n"
+            content += "\(testCaseHeaderPrefix) \(testCase.name)\(testCaseHeaderSuffix)\n"
             content += "Input:\n"
             content += testCase.input + "\n"
             content += "Expected Error:\n"
@@ -307,7 +311,7 @@ public struct ParseErrorTestUtils {
                 let initialContent = "# \(category.description)\n" +
                                    "# This file will contain expected error messages for regression testing\n" +
                                    "# Add test cases in the format:\n" +
-                                   "# === Test Case: test_name ===\n" +
+                                   "# \(testCaseHeaderPrefix) test_name\(testCaseHeaderSuffix)\n" +
                                    "# Input:\n" +
                                    "# [your test input here]\n" +
                                    "# Expected Error:\n" +

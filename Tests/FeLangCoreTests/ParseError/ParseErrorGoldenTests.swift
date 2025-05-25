@@ -281,7 +281,7 @@ struct ParseErrorGoldenTests {
         let currentTestCases = try ParseErrorTestUtils.loadAllGoldenFiles()
 
         // Initialize syntax errors with common parsing failures
-        if currentTestCases[.syntaxErrors]?.isEmpty != false {
+        if currentTestCases[.syntaxErrors]?.isEmpty ?? true {
             let syntaxTestCases = [
                 ParseErrorTestUtils.GoldenTestCase(
                     name: "incomplete_assignment",
@@ -307,7 +307,7 @@ struct ParseErrorGoldenTests {
         }
 
         // Initialize tokenizer errors with lexical analysis failures
-        if currentTestCases[.tokenizerErrors]?.isEmpty != false {
+        if currentTestCases[.tokenizerErrors]?.isEmpty ?? true {
             let tokenizerTestCases = [
                 ParseErrorTestUtils.GoldenTestCase(
                     name: "unterminated_string",
@@ -321,7 +321,7 @@ struct ParseErrorGoldenTests {
         }
 
         // Initialize edge cases with boundary and unusual scenarios
-        if currentTestCases[.edgeCases]?.isEmpty != false {
+        if currentTestCases[.edgeCases]?.isEmpty ?? true {
             let edgeCaseTestCases = [
                 ParseErrorTestUtils.GoldenTestCase(
                     name: "invalid_keyword",
