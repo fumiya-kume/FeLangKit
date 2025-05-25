@@ -1,0 +1,36 @@
+# Syntax Errors - Invalid language constructs
+# Generated on 2025-05-25 20:37:05 +0000
+# This file contains expected error messages for regression testing
+
+=== Test Case: incomplete_assignment ===
+Input:
+variable x ←
+Expected Error:
+StatementParseError: Expected primary expression
+  at line 0, column 0
+  Found: ''
+  (Source context unavailable)
+
+=== Test Case: missing_colon_in_declaration ===
+Input:
+variable x integer ← 5
+Expected Error:
+StatementParseError: Unexpected token 'x'
+  at line 1, column 10
+  Expected: eof
+  Source context:
+  1: variable x integer ← 5
+              ^
+
+=== Test Case: missing_then_keyword ===
+Input:
+if x > 5
+writeLine(x)
+Expected Error:
+StatementParseError: Unexpected token 'writeLine'
+  at line 2, column 1
+  Expected: eof
+  Source context:
+  2: writeLine(x)
+     ^
+

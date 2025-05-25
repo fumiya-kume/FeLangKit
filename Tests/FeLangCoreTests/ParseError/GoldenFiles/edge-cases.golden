@@ -1,0 +1,15 @@
+# Edge Cases - Boundary and unusual input scenarios
+# Generated on 2025-05-25 20:37:05 +0000
+# This file contains expected error messages for regression testing
+
+=== Test Case: invalid_keyword ===
+Input:
+invalidkeyword x
+Expected Error:
+StatementParseError: Unexpected token 'x'
+  at line 1, column 16
+  Expected: eof
+  Source context:
+  1: invalidkeyword x
+                    ^
+

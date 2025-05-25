@@ -1,0 +1,9 @@
+# Semantic Errors - Type mismatches and scope issues
+# This file will contain expected error messages for regression testing
+# Add test cases in the format:
+# === Test Case: test_name ===
+# Input:
+# [your test input here]
+# Expected Error:
+# [expected error message here]
+
