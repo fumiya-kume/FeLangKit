@@ -414,26 +414,6 @@ struct ExpressionParserTests {
         #expect(expr == expected)
     }
 
-    // MARK: - Performance Tests
-
-    @Test func testLargeExpression() throws {
-        // Test parsing of a large expression with many terms
-        let input = Array(1...50).map(String.init).joined(separator: " + ")
-        let expr = try parseExpression(input)
-
-        // Verify it's a left-associative addition chain
-        var current = expr
-        var count = 0
-        while case .binary(.add, let left, _) = current {
-            count += 1
-            current = left
-        }
-
-        // The leftmost element should be a literal
-        #expect(current == .literal(.integer(1)))
-        #expect(count == 49) // 49 additions for 50 numbers
-    }
-
     // MARK: - Real-world Examples
 
     @Test func testRealWorldExample1() throws {

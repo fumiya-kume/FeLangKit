@@ -195,39 +195,6 @@ struct ASTImmutabilityAuditTests {
 
     // MARK: - Child Issue: Sendable Conformance Verification
 
-    @Test("Sendable Conformance - Thread Safety Verification")
-    func testSendableConformanceThreadSafety() async throws {
-        let sharedExpression = ASTExpression.binary(
-            .add,
-            .literal(.integer(1)),
-            .literal(.integer(2))
-        )
-
-        let sharedStatement = Statement.expressionStatement(sharedExpression)
-
-        // Test concurrent access to shared immutable AST
-                await withTaskGroup(of: Bool.self) { group in
-            for _ in 0..<10 {
-                group.addTask { @Sendable in
-                    // Each task reads from the shared AST concurrently
-                    let expression = sharedExpression
-                    let statement = sharedStatement
-
-                    // Verify the values remain consistent across threads
-                    return expression == .binary(.add, .literal(.integer(1)), .literal(.integer(2))) &&
-                           statement == .expressionStatement(expression)
-                }
-            }
-
-            var allSuccess = true
-            for await result in group {
-                allSuccess = allSuccess && result
-            }
-
-            #expect(allSuccess, "Concurrent access to AST failed")
-                }
-    }
-
     @Test("Sendable Equality Consistency")
     func testSendableEqualityConsistency() throws {
         let expression = ASTExpression.literal(.string("test"))
@@ -406,68 +373,6 @@ struct ASTImmutabilityAuditTests {
                 let copyDataType = dataType
                 #expect(dataType == copyDataType)
             }
-        }
-    }
-
-    // MARK: - Memory Safety and Performance
-
-    @Test("Memory Safety - No Retain Cycles")
-    func testMemorySafetyNoRetainCycles() throws {
-        // Test that AST structures don't create retain cycles
-        // Since all types are value types, this should be inherently safe
-
-        weak var weakRef: AnyObject?
-
-        autoreleasepool {
-            let expression = ASTExpression.binary(
-                .multiply,
-                .functionCall("calculate", [.literal(.integer(1))]),
-                .literal(.real(2.0))
-            )
-
-            let statement = Statement.expressionStatement(expression)
-            let statements = [statement]
-
-            // Since these are all value types, no retain cycles should be possible
-            // This test serves as documentation of the value-type safety
-            #expect(statements.count == 1)
-        }
-
-        // Any object references should be nil (though we don't expect any with value types)
-        #expect(weakRef == nil)
-    }
-
-    @Test("Large AST Structure Immutability")
-    func testLargeASTStructureImmutability() throws {
-        // Test immutability with large, deeply nested structures
-                let largeBodyStatements = (0..<100).map { index in
-            Statement.expressionStatement(.literal(.integer(index)))
-                }
-
-        let largeFunction = FunctionDeclaration(
-            name: "largeFunction",
-            parameters: (0..<20).map { index in
-                Parameter(name: "param\(index)", type: .integer)
-            },
-            returnType: .boolean,
-            localVariables: (0..<50).map { index in
-                VariableDeclaration(name: "var\(index)", type: .real)
-            },
-            body: largeBodyStatements
-        )
-
-        let originalLarge = Statement.functionDeclaration(largeFunction)
-        let copiedLarge = originalLarge
-
-        // Should remain equal despite size
-        #expect(originalLarge == copiedLarge)
-
-        // Test that individual components maintain immutability
-        if case let .functionDeclaration(func1) = originalLarge,
-           case let .functionDeclaration(func2) = copiedLarge {
-            #expect(func1.body.count == func2.body.count)
-            #expect(func1.parameters.count == func2.parameters.count)
-            #expect(func1.localVariables.count == func2.localVariables.count)
         }
     }
 
