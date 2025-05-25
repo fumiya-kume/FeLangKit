@@ -13,6 +13,8 @@ public struct IncrementalTokenizer: Sendable {
     }
 
     /// Updates tokens in a specific range with new text
+    /// NOTE: Current implementation uses full re-tokenization for correctness
+    /// TODO: Implement true incremental tokenization algorithm
     public func updateTokens(
         in range: Range<String.Index>,
         with newText: String,
@@ -22,50 +24,37 @@ public struct IncrementalTokenizer: Sendable {
         // Construct new text with the replacement
         let newFullText = originalText.replacingCharacters(in: range, with: newText)
 
-        // Find affected token range
-        let affectedRange = findAffectedTokenRange(
-            range: range,
-            in: previousTokens,
-            originalText: originalText
+        // For now, use full re-tokenization to ensure correctness
+        // This provides the correct interface while we develop the incremental algorithm
+        let allTokens = try baseTokenizer.tokenize(newFullText)
+
+        // Calculate affected range for metrics
+        let startOffset = originalText.distance(from: originalText.startIndex, to: range.lowerBound)
+        let endOffset = originalText.distance(from: originalText.startIndex, to: range.upperBound)
+
+        let affectedRange = AffectedRange(
+            startTokenIndex: 0,
+            endTokenIndex: previousTokens.count,
+            startOffset: startOffset,
+            endOffset: endOffset
         )
 
-        // Determine minimal reparse region
-        let reparseRegion = calculateReparseRegion(
-            affectedRange: affectedRange,
-            newText: newText,
-            originalText: originalText,
-            range: range
-        )
-
-        // Extract text to reparse
-        let textToReparse = String(newFullText[reparseRegion.textRange])
-
-        // Tokenize only the affected region
-        let newTokens = try baseTokenizer.tokenize(textToReparse)
-
-        // Adjust positions of new tokens
-        let adjustedTokens = adjustTokenPositions(
-            tokens: newTokens,
-            baseOffset: reparseRegion.baseOffset,
-            baseLine: reparseRegion.baseLine,
-            baseColumn: reparseRegion.baseColumn
-        )
-
-        // Merge with unchanged tokens
-        let mergedTokens = mergeTokens(
-            previousTokens: previousTokens,
-            newTokens: adjustedTokens,
-            affectedRange: affectedRange
+        // Create a dummy reparse region that covers the changed area
+        let reparseRegion = ReparseRegion(
+            textRange: range,
+            baseOffset: startOffset,
+            baseLine: 1,
+            baseColumn: 1
         )
 
         return TokenizeResult(
-            tokens: mergedTokens,
+            tokens: allTokens,
             affectedRange: affectedRange,
             reparseRegion: reparseRegion,
             metrics: createMetrics(
                 originalCount: previousTokens.count,
-                newCount: mergedTokens.count,
-                reparsedLength: textToReparse.count
+                newCount: allTokens.count,
+                reparsedLength: newFullText.count
             )
         )
     }
