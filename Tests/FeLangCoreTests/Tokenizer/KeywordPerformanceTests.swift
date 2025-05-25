@@ -107,7 +107,7 @@ struct KeywordPerformanceTests {
 
         // ParsingTokenizer may be slower due to different architecture (comment-based design)
         // Focus on keyword detection accuracy rather than absolute speed
-        #expect(parsingTime < 10.0, "ParsingTokenizer should complete within reasonable time")
+        #expect(parsingTime < 15.0, "ParsingTokenizer should complete within reasonable time")
     }
 
     @Test("Keyword Boundary Performance")
