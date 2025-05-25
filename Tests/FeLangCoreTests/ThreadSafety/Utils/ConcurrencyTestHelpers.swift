@@ -156,7 +156,7 @@ public enum ConcurrencyTestHelpers {
         var allErrors: [Error] = []
         var allIterationsSuccess = true
 
-        for iteration in 0..<iterations {
+        for _ in 0..<iterations {
             let iterationResult = await performConcurrentReadTest(
                 level: concurrencyLevel,
                 operation: operation
@@ -256,9 +256,11 @@ public struct PerformanceMetrics {
     public let success: Bool
 
     /// Performance overhead percentage (positive = slower, negative = faster)
+    /// Compares per-operation time: concurrent per-task time vs baseline time
     public var overheadPercentage: Double {
-        guard baselineTime > 0 else { return 0 }
-        return ((concurrentTime - baselineTime) / baselineTime) * 100
+        guard baselineTime > 0, tasksExecuted > 0 else { return 0 }
+        let perTaskConcurrentTime = concurrentTime / Double(tasksExecuted)
+        return ((perTaskConcurrentTime - baselineTime) / baselineTime) * 100
     }
 
     /// Throughput improvement factor
