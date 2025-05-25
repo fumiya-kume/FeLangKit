@@ -106,27 +106,66 @@ public enum TokenizerUtilities {
     // MARK: - Character Classification
 
     /// Checks if a character can start an identifier
-    /// Handles Unicode letters, underscore, and CJK characters robustly
+    /// Handles Unicode letters, underscore, and extended character sets robustly
+    /// Uses enhanced Unicode character classification for comprehensive support
     public static func isIdentifierStart(_ char: Character) -> Bool {
-        return char.isLetter || char == "_" || isJapaneseCharacter(char)
+        guard let scalar = char.unicodeScalars.first else { return false }
+        return isIdentifierStart(scalar)
     }
 
     /// Checks if a character can start an identifier (UnicodeScalar version)
-    /// Handles Unicode letters, underscore, and CJK characters robustly
+    /// Handles Unicode letters, underscore, and extended character sets robustly
+    /// Uses enhanced Unicode character classification for comprehensive support
     public static func isIdentifierStart(_ scalar: UnicodeScalar) -> Bool {
-        return scalar.isLetter || scalar == "_" || isJapaneseCharacter(scalar)
+        // Basic identifier start characters
+        if scalar == "_" {
+            return true
+        }
+        
+        // Use enhanced character classification
+        let classification = UnicodeNormalizer.classifyCharacter(scalar)
+        switch classification {
+        case .letter:
+            return true
+        case .other(subcategory: .privateUse):
+            // Allow private use area for custom symbols
+            return true
+        default:
+            return false
+        }
     }
 
     /// Checks if a character can continue an identifier
-    /// Handles Unicode letters, digits, underscore, and CJK characters robustly
+    /// Handles Unicode letters, digits, underscore, and extended character sets robustly  
+    /// Uses enhanced Unicode character classification for comprehensive support
     public static func isIdentifierContinue(_ char: Character) -> Bool {
-        return char.isLetter || char.isNumber || char == "_" || isJapaneseCharacter(char)
+        guard let scalar = char.unicodeScalars.first else { return false }
+        return isIdentifierContinue(scalar)
     }
 
     /// Checks if a character can continue an identifier (UnicodeScalar version)
-    /// Handles Unicode letters, digits, underscore, and CJK characters robustly
+    /// Handles Unicode letters, digits, underscore, and extended character sets robustly
+    /// Uses enhanced Unicode character classification for comprehensive support
     public static func isIdentifierContinue(_ scalar: UnicodeScalar) -> Bool {
-        return scalar.isLetter || scalar.isNumber || scalar == "_" || isJapaneseCharacter(scalar)
+        // Basic identifier continuation characters
+        if scalar == "_" {
+            return true
+        }
+        
+        // Use enhanced character classification
+        let classification = UnicodeNormalizer.classifyCharacter(scalar)
+        switch classification {
+        case .letter, .number:
+            return true
+        case .mark(subcategory: .nonspacingMark):
+            // Allow combining marks in identifiers
+            return true
+        case .other(subcategory: .privateUse):
+            // Allow private use area for custom symbols
+            return true
+        default:
+            return false
+        }
     }
 
     /// Checks if a character is a Japanese character (Hiragana, Katakana, or Kanji)
@@ -414,5 +453,30 @@ extension UnicodeScalar {
     /// Returns true if this scalar represents a number
     var isNumber: Bool {
         return CharacterSet.decimalDigits.contains(self)
+    }
+
+    /// Returns true if this scalar represents punctuation
+    var isPunctuation: Bool {
+        return CharacterSet.punctuationCharacters.contains(self)
+    }
+
+    /// Returns true if this scalar represents a symbol
+    var isSymbol: Bool {
+        return CharacterSet.symbols.contains(self)
+    }
+
+    /// Returns true if this scalar represents whitespace
+    var isWhitespace: Bool {
+        return CharacterSet.whitespacesAndNewlines.contains(self)
+    }
+
+    /// Returns true if this scalar is uppercase
+    var isUppercase: Bool {
+        return CharacterSet.uppercaseLetters.contains(self)
+    }
+
+    /// Returns true if this scalar is lowercase
+    var isLowercase: Bool {
+        return CharacterSet.lowercaseLetters.contains(self)
     }
 }

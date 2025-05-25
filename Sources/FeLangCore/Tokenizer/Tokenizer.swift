@@ -19,8 +19,10 @@ public final class Tokenizer {
     /// Creates a new tokenizer for the given input.
     /// - Parameter input: The source code to tokenize
     public init(input: String) {
-        self.input = input
-        self.source = input.unicodeScalars
+        // Apply Unicode normalization for consistent character representation
+        let normalizedInput = UnicodeNormalizer.normalizeForFE(input)
+        self.input = normalizedInput
+        self.source = normalizedInput.unicodeScalars
         self.current = source.startIndex
     }
 
@@ -102,6 +104,8 @@ public final class Tokenizer {
         switch char {
         case " ", "\t":
             return scanWhitespace(position, startIndex: startIndex)
+        case "\u{3000}": // Full-width space
+            return scanWhitespace(position, startIndex: startIndex)
         case "\n":
             return scanNewline(position)
         case "/":
@@ -163,7 +167,7 @@ public final class Tokenizer {
 
     /// Scans whitespace characters
     private func scanWhitespace(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) -> Token {
-        while !isAtEnd && (peek() == " " || peek() == "\t") {
+        while !isAtEnd && (peek() == " " || peek() == "\t" || peek() == "\u{3000}") {
             _ = advance()
         }
 
