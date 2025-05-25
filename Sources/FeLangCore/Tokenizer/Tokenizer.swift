@@ -102,7 +102,7 @@ public final class Tokenizer {
         let char = advance()
 
         switch char {
-        case let c where isWhitespace(c):
+        case let character where isWhitespace(character):
             return scanWhitespace(position, startIndex: startIndex)
         case "\n":
             return scanNewline(position)
