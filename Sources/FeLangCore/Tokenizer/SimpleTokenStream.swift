@@ -2,8 +2,16 @@ import Foundation
 
 // MARK: - TokenStream Protocol (from GitHub Issue #9)
 
-/// A protocol for tokenizers that support streaming processing of source code
-/// with pull-based token generation and backpressure support
+/// Protocol defining streaming tokenization interface as specified in GitHub Issue #9
+/// 
+/// ## EOF Token Contract
+/// All implementations MUST follow this contract:
+/// 1. When reaching end of input, return a Token with type .eof
+/// 2. After returning EOF, subsequent calls to nextToken() should return nil OR another EOF token
+/// 3. NEVER return nil without first returning an EOF token
+/// 4. The EOF token marks the definitive end of the token stream
+/// 
+/// This contract ensures proper termination detection and prevents infinite loops in consumers.
 public protocol TokenStreamProtocol: Sendable {
     /// Returns the next token from the stream, or nil if at end
     mutating func nextToken() throws -> Token?

@@ -226,40 +226,138 @@ struct TokenStreamTests {
         var tokenizer = SimpleStreamingTokenizer(source: source)
 
         var tokens: [Token] = []
-        var tokenCount = 0
 
-        // Should not crash and should produce some tokens
-        while let token = try tokenizer.nextToken(), tokenCount < 10 {
-            tokens.append(token)
-            tokenCount += 1
-            if token.type == .eof {
+        // Use proper EOF token validation instead of hard iteration limit
+        var safetyCounter = 0
+        let maxSafetyLimit = 1000 // Only as absolute safety net, not primary termination logic
+
+        while safetyCounter < maxSafetyLimit {
+            if let token = try tokenizer.nextToken() {
+                tokens.append(token)
+                safetyCounter += 1
+
+                // Proper termination: check for EOF token
+                if token.type == .eof {
+                    break
+                }
+            } else {
+                // nextToken() returned nil - this should not happen in a well-behaved tokenizer
+                // A proper tokenizer should always return an EOF token before returning nil
+                #expect(Bool(false), "Tokenizer returned nil instead of EOF token - this indicates improper termination")
                 break
             }
         }
 
+        // Assert proper termination behavior
+        #expect(safetyCounter < maxSafetyLimit, "Tokenizer hit safety limit - likely infinite loop or missing EOF")
         #expect(!tokens.isEmpty, "Should produce some tokens even with invalid characters")
-        #expect(tokens.last?.type == .eof, "Should eventually reach EOF")
+        #expect(tokens.last?.type == .eof, "Tokenizer must always terminate with EOF token")
+    }
+
+    @Test("Tokenizer EOF termination validation")
+    func testTokenizerEOFTermination() throws {
+        let testCases = [
+            "",                                    // Empty input
+            "   \n\t  ",                          // Whitespace only
+            "identifier",                         // Simple identifier
+            "/* unterminated comment",            // Edge case: unterminated comment
+            "\"unterminated string",              // Edge case: unterminated string
+            "123.456.789",                        // Edge case: malformed number
+            "valid + @ invalid"                  // Mixed valid/invalid characters
+        ]
+
+        for (index, testCase) in testCases.enumerated() {
+            var tokenizer: any TokenStreamProtocol = SimpleStreamingTokenizer(source: testCase)
+            var tokens: [Token] = []
+            var foundEOF = false
+
+            // Strict validation: no safety counter needed if tokenizer is well-behaved
+            var iterationCount = 0
+            let emergencyLimit = 500 // Emergency brake only
+
+            while iterationCount < emergencyLimit {
+                if let token = try tokenizer.nextToken() {
+                    tokens.append(token)
+                    iterationCount += 1
+
+                    if token.type == .eof {
+                        foundEOF = true
+                        break
+                    }
+                } else {
+                    #expect(Bool(false), "Test case \(index): Tokenizer returned nil without EOF token")
+                    break
+                }
+            }
+
+            // Validate proper termination for each test case
+            #expect(foundEOF, "Test case \(index) ('\(testCase)'): Must terminate with EOF token")
+            #expect(iterationCount < emergencyLimit, "Test case \(index): Hit emergency limit - possible infinite loop")
+            #expect(!tokens.isEmpty, "Test case \(index): Should produce at least EOF token")
+            #expect(tokens.last?.type == .eof, "Test case \(index): Last token must be EOF")
+
+            // Additional validation: EOF should be the terminal token
+            let eofIndices = tokens.enumerated().compactMap { $0.element.type == .eof ? $0.offset : nil }
+            #expect(eofIndices.count == 1, "Test case \(index): Should have exactly one EOF token")
+            #expect(eofIndices.first == tokens.count - 1, "Test case \(index): EOF must be the last token")
+        }
     }
 
     @Test("Memory efficiency with large buffer")
     func testMemoryEfficiencyWithLargeBuffer() throws {
         // Create a large input to test memory efficiency
         let largeSource = String(repeating: "x ", count: 5000) // 10k characters
-        var tokenizer = SimpleStreamingTokenizer(source: largeSource, bufferSize: 1024)
+        var tokenizer: any TokenStreamProtocol = SimpleStreamingTokenizer(source: largeSource, bufferSize: 1024)
 
-        var tokenCount = 0
-        while let token = try tokenizer.nextToken() {
-            if token.type == .eof {
-                break
-            }
-            tokenCount += 1
+        let tokens = try validateTokenizerTermination(tokenizer: &tokenizer, testName: "large buffer")
 
-            // Stop after reasonable number to avoid infinite loops in tests
-            if tokenCount > 10000 {
+        // Should process all x tokens plus EOF
+        // Each "x " produces one identifier token, so 5000 tokens plus EOF = 5001
+        #expect(tokens.count == 5001, "Should process all 5000 identifier tokens plus EOF")
+        #expect(tokens.last?.type == .eof, "Last token should be EOF")
+
+        // Verify the tokens are correct
+        let identifierTokens = tokens.filter { $0.type == TokenType.identifier }
+        #expect(identifierTokens.count == 5000, "Should have exactly 5000 identifier tokens")
+        #expect(identifierTokens.allSatisfy { $0.lexeme == "x" }, "All identifiers should be 'x'")
+    }
+
+    // MARK: - Utility Functions
+
+    /// Validates that a tokenizer properly terminates with EOF and doesn't have infinite loops
+    /// - Parameters:
+    ///   - tokenizer: The tokenizer to validate
+    ///   - testName: Name for error reporting
+    ///   - emergencyLimit: Maximum iterations before considering it an infinite loop
+    /// - Returns: All tokens including the terminal EOF token
+    /// - Throws: Tokenization errors
+    private func validateTokenizerTermination(
+        tokenizer: inout any TokenStreamProtocol,
+        testName: String,
+        emergencyLimit: Int = 10000
+    ) throws -> [Token] {
+        var tokens: [Token] = []
+        var iterationCount = 0
+
+        while iterationCount < emergencyLimit {
+            if let token = try tokenizer.nextToken() {
+                tokens.append(token)
+                iterationCount += 1
+
+                if token.type == .eof {
+                    break
+                }
+            } else {
+                #expect(Bool(false), "\(testName): Tokenizer returned nil without EOF token")
                 break
             }
         }
 
-        #expect(tokenCount == 5000, "Should process all tokens from large input")
+        // Validate proper termination
+        #expect(iterationCount < emergencyLimit, "\(testName): Hit emergency limit - possible infinite loop")
+        #expect(!tokens.isEmpty, "\(testName): Should produce at least EOF token")
+        #expect(tokens.last?.type == .eof, "\(testName): Must terminate with EOF token")
+
+        return tokens
     }
 }

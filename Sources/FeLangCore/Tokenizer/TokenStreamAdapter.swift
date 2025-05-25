@@ -12,13 +12,41 @@ public struct TokenStreamAdapter {
     /// - Throws: Any errors from the token stream
     public static func collectTokens(from tokenStream: inout any TokenStreamProtocol) throws -> [Token] {
         var tokens: [Token] = []
+        var iterationCount = 0
+        let emergencyLimit = 100_000 // Emergency safety limit to prevent infinite loops
 
-        while let token = try tokenStream.nextToken() {
-            tokens.append(token)
-            if token.type == .eof {
+        while iterationCount < emergencyLimit {
+            if let token = try tokenStream.nextToken() {
+                tokens.append(token)
+                iterationCount += 1
+
+                // Proper termination: check for EOF token
+                if token.type == .eof {
+                    // Validate that this is indeed the final token
+                    let nextToken = try tokenStream.nextToken()
+                    assert(nextToken == nil || nextToken?.type == .eof,
+                           "Tokenizer returned tokens after EOF - this violates the protocol contract")
+                    break
+                }
+            } else {
+                // nextToken() returned nil without an EOF token
+                // This indicates improper tokenizer implementation
+                assertionFailure("Tokenizer returned nil without EOF token - this violates the protocol contract")
+
+                // Add an EOF token to maintain consistency
+                let position = tokens.last?.position ?? SourcePosition(line: 1, column: 1, offset: 0)
+                tokens.append(Token(type: .eof, lexeme: "", position: position))
                 break
             }
         }
+
+        // Assert proper behavior
+        assert(iterationCount < emergencyLimit,
+               "Tokenizer hit emergency limit - likely infinite loop or missing EOF token")
+        assert(!tokens.isEmpty,
+               "Tokenizer should produce at least one token (EOF)")
+        assert(tokens.last?.type == .eof,
+               "Tokenizer must always terminate with EOF token")
 
         return tokens
     }
