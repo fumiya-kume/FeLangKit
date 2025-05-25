@@ -164,6 +164,9 @@ struct UnicodeNormalizationTests {
         let normalized = normalizer.normalize(testText)
         let stats = normalizer.getStats()
 
+        #expect(normalized.contains("~"), "Should normalize wave dash")
+        #expect(normalized.contains("-"), "Should normalize minus sign")
+        #expect(normalized.contains("ヴ"), "Should normalize ゔ to ヴ")
         #expect(stats.japaneseNormalizations == 3, "Should count 3 Japanese normalizations: 〜, −, ゔ")
         #expect(stats.fullwidthConversions == 1, "Should count 1 full-width conversion: ！")
         #expect(stats.originalLength > 0, "Should track original length")
@@ -512,6 +515,7 @@ struct UnicodeNormalizationTests {
         let lenientResult = lenientNormalizer.normalize(homoglyphText)
         let lenientStats = lenientNormalizer.getStats()
         
+        #expect(lenientResult == homoglyphText, "Should not convert homoglyphs when detection is disabled")
         #expect(lenientStats.homoglyphsDetected == 0, "Should not detect homoglyphs when disabled")
         #expect(!lenientStats.hasSecurityConcerns, "Should not flag security concerns when disabled")
     }
