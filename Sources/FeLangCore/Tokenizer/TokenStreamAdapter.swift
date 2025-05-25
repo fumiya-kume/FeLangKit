@@ -186,15 +186,11 @@ public struct MappedTokenSequence<T>: Sequence {
             self.transform = transform
         }
 
-        public mutating func next() -> T? {
-            do {
-                if let token = try source.nextToken() {
-                    return try transform(token)
-                }
-                return nil
-            } catch {
-                return nil
+        public mutating func next() throws -> T? {
+            if let token = try source.nextToken() {
+                return try transform(token)
             }
+            return nil
         }
     }
 }
