@@ -404,9 +404,11 @@ struct ASTExpressionThreadSafetyTests {
             #expect(performanceMetrics.success, "Performance measurement should succeed for \(expr)")
 
             // Performance overhead should be reasonable for immutable value types
-            // Account for concurrent testing framework overhead - allow very high tolerance
-            // due to known performance characteristics of current tokenizer bottleneck
-            #expect(performanceMetrics.overheadPercentage < 5000000.0,
+            // Per-operation overhead includes significant concurrent testing framework costs
+            // Baseline operations are often too fast to measure accurately (microseconds)
+            // while concurrent operations include task scheduling, synchronization, and measurement overhead
+            // Allow up to 50000% overhead to account for these measurement artifacts in testing infrastructure
+            #expect(performanceMetrics.overheadPercentage < 50000.0,
                    "Performance overhead should be reasonable for \(expr): \(performanceMetrics.overheadPercentage)%")
         }
     }
