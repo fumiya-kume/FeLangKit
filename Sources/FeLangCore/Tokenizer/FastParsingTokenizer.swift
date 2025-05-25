@@ -302,21 +302,21 @@ public struct FastParsingTokenizer {
         while stringIndex < input.endIndex && input[stringIndex] != quoteChar {
             if input[stringIndex] == "\\" {
                 stringIndex = input.index(after: stringIndex) // consume backslash
-                
+
                 guard stringIndex < input.endIndex else {
                     throw TokenizerError.invalidEscapeSequenceWithMessage("Incomplete escape sequence at end of string", position)
                 }
-                
+
                 let escapedChar = input[stringIndex]
                 stringIndex = input.index(after: stringIndex) // consume escaped character
-                
+
                 // Handle Unicode escape sequences specially
                 if escapedChar == "u" {
                     guard stringIndex < input.endIndex && input[stringIndex] == "{" else {
                         throw TokenizerError.invalidUnicodeEscape("Expected '{' after \\u", position)
                     }
                     stringIndex = input.index(after: stringIndex) // consume '{'
-                    
+
                     // Scan hex digits
                     var hexDigitCount = 0
                     while stringIndex < input.endIndex && input[stringIndex] != "}" && hexDigitCount < 8 {
@@ -327,19 +327,19 @@ public struct FastParsingTokenizer {
                         stringIndex = input.index(after: stringIndex)
                         hexDigitCount += 1
                     }
-                    
+
                     guard stringIndex < input.endIndex else {
                         throw TokenizerError.invalidUnicodeEscape("Unterminated Unicode escape sequence", position)
                     }
-                    
+
                     guard input[stringIndex] == "}" else {
                         throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence too long (max 8 hex digits)", position)
                     }
-                    
+
                     guard hexDigitCount > 0 else {
                         throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence must have at least one hex digit", position)
                     }
-                    
+
                     stringIndex = input.index(after: stringIndex) // consume '}'
                 } else {
                     // Validate basic escape sequences

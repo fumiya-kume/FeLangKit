@@ -20,11 +20,11 @@ struct StringEscapeUtilitiesTests {
         #expect(try StringEscapeUtilities.processEscapeSequences("\\u{41}") == "A")
         #expect(try StringEscapeUtilities.processEscapeSequences("\\u{1F600}") == "😀")
         #expect(try StringEscapeUtilities.processEscapeSequences("Hello \\u{1F44B} World") == "Hello 👋 World")
-        
+
         // Different hex case
         #expect(try StringEscapeUtilities.processEscapeSequences("\\u{41}") == "A")
         #expect(try StringEscapeUtilities.processEscapeSequences("\\u{41}") == "A")
-        
+
         // Various lengths
         #expect(try StringEscapeUtilities.processEscapeSequences("\\u{A}") == "\n") // Single digit
         #expect(try StringEscapeUtilities.processEscapeSequences("\\u{20}") == " ") // Two digits
@@ -37,27 +37,27 @@ struct StringEscapeUtilitiesTests {
         #expect(throws: StringEscapeUtilities.EscapeSequenceError.self) {
             try StringEscapeUtilities.processEscapeSequences("\\u41")
         }
-        
+
         // Missing closing brace
         #expect(throws: StringEscapeUtilities.EscapeSequenceError.self) {
             try StringEscapeUtilities.processEscapeSequences("\\u{41")
         }
-        
+
         // Empty hex string
         #expect(throws: StringEscapeUtilities.EscapeSequenceError.self) {
             try StringEscapeUtilities.processEscapeSequences("\\u{}")
         }
-        
+
         // Invalid hex characters
         #expect(throws: StringEscapeUtilities.EscapeSequenceError.self) {
             try StringEscapeUtilities.processEscapeSequences("\\u{XYZ}")
         }
-        
+
         // Too many hex digits
         #expect(throws: StringEscapeUtilities.EscapeSequenceError.self) {
             try StringEscapeUtilities.processEscapeSequences("\\u{123456789}")
         }
-        
+
         // Invalid Unicode code point
         #expect(throws: StringEscapeUtilities.EscapeSequenceError.self) {
             try StringEscapeUtilities.processEscapeSequences("\\u{110000}")
@@ -70,7 +70,7 @@ struct StringEscapeUtilitiesTests {
         #expect(throws: StringEscapeUtilities.EscapeSequenceError.self) {
             try StringEscapeUtilities.processEscapeSequences("\\x")
         }
-        
+
         // Incomplete escape at end
         #expect(throws: StringEscapeUtilities.EscapeSequenceError.self) {
             try StringEscapeUtilities.processEscapeSequences("Hello\\")
@@ -99,13 +99,13 @@ struct StringEscapeUtilitiesTests {
         // Valid sequences should return empty array
         let validErrors = StringEscapeUtilities.validateEscapeSequencesWithDetails("Hello\\nWorld")
         #expect(validErrors.isEmpty)
-        
+
         // Invalid sequences should return error details
         let invalidErrors = StringEscapeUtilities.validateEscapeSequencesWithDetails("Hello\\")
         #expect(invalidErrors.count == 1)
         #expect(invalidErrors[0].position == 5)
         #expect(invalidErrors[0].error.contains("Incomplete escape sequence"))
-        
+
         // Multiple errors
         let multipleErrors = StringEscapeUtilities.validateEscapeSequencesWithDetails("\\x\\y\\")
         #expect(multipleErrors.count == 3)
@@ -181,13 +181,13 @@ struct StringEscapeUtilitiesTests {
     func testEdgeCases() throws {
         // Empty string
         #expect(try StringEscapeUtilities.processEscapeSequences("") == "")
-        
+
         // Only escape sequences
         #expect(try StringEscapeUtilities.processEscapeSequences("\\n\\t\\r") == "\n\t\r")
-        
+
         // Consecutive escape sequences
         #expect(try StringEscapeUtilities.processEscapeSequences("\\n\\n") == "\n\n")
-        
+
         // Unicode at boundaries
         #expect(try StringEscapeUtilities.processEscapeSequences("\\u{41}") == "A")
         #expect(try StringEscapeUtilities.processEscapeSequences("\\u{41}B") == "AB")
@@ -205,20 +205,20 @@ struct StringEscapeUtilitiesTests {
             ("'Quote\\\"Mark'", .stringLiteral, "Quote escape sequence"),
             ("'Back\\\\slash'", .stringLiteral, "Backslash escape")
         ]
-        
+
         for testCase in successCases {
             // Test tokenization
             let tokenizer = Tokenizer(input: testCase.input)
             let tokens = try tokenizer.tokenize()
-            
+
             #expect(tokens.count >= 1, "Should have at least one token for: \(testCase.description)")
             #expect(tokens[0].type == testCase.expectedType, "Expected \(testCase.expectedType) for: \(testCase.description)")
-            
+
             // Test literal creation
             let literal = Literal(token: tokens[0])
             #expect(literal != nil, "Should be able to create literal from token for: \(testCase.description)")
         }
-        
+
         // Test cases that should fail during tokenization
         let errorCases: [(input: String, description: String)] = [
             ("'\\x'", "Invalid escape character"),
@@ -227,10 +227,10 @@ struct StringEscapeUtilitiesTests {
             ("'\\u{}'", "Empty Unicode escape"),
             ("'\\u{123456789}'", "Unicode escape too long")
         ]
-        
+
         for testCase in errorCases {
             let tokenizer = Tokenizer(input: testCase.input)
-            
+
             #expect(throws: TokenizerError.self) {
                 try tokenizer.tokenize()
             }

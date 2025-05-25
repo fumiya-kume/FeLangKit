@@ -19,8 +19,10 @@ public final class Tokenizer {
     /// Creates a new tokenizer for the given input.
     /// - Parameter input: The source code to tokenize
     public init(input: String) {
-        self.input = input
-        self.source = input.unicodeScalars
+        // Apply Unicode normalization for consistent character representation
+        let normalizedInput = UnicodeNormalizer.normalizeForFE(input)
+        self.input = normalizedInput
+        self.source = normalizedInput.unicodeScalars
         self.current = source.startIndex
     }
 
@@ -100,7 +102,7 @@ public final class Tokenizer {
         let char = advance()
 
         switch char {
-        case " ", "\t":
+        case let character where isWhitespace(character):
             return scanWhitespace(position, startIndex: startIndex)
         case "\n":
             return scanNewline(position)
@@ -163,7 +165,7 @@ public final class Tokenizer {
 
     /// Scans whitespace characters
     private func scanWhitespace(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) -> Token {
-        while !isAtEnd && (peek() == " " || peek() == "\t") {
+        while !isAtEnd && isWhitespace(peek()) {
             _ = advance()
         }
 
@@ -256,21 +258,21 @@ public final class Tokenizer {
             if peek() == "\\" {
                 // Handle escape sequence
                 _ = advance() // consume backslash
-                
+
                 if isAtEnd {
                     throw TokenizerError.invalidEscapeSequenceWithMessage("Incomplete escape sequence at end of string", position)
                 }
-                
+
                 let escapedChar = peek()
                 _ = advance() // consume escaped character
-                
+
                 // Handle Unicode escape sequences specially
                 if escapedChar == "u" {
                     if isAtEnd || peek() != "{" {
                         throw TokenizerError.invalidUnicodeEscape("Expected '{' after \\u", position)
                     }
                     _ = advance() // consume '{'
-                    
+
                     // Scan hex digits
                     var hexDigitCount = 0
                     while !isAtEnd && peek() != "}" && hexDigitCount < 8 {
@@ -281,19 +283,19 @@ public final class Tokenizer {
                         _ = advance()
                         hexDigitCount += 1
                     }
-                    
+
                     if isAtEnd {
                         throw TokenizerError.invalidUnicodeEscape("Unterminated Unicode escape sequence", position)
                     }
-                    
+
                     if peek() != "}" {
                         throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence too long (max 8 hex digits)", position)
                     }
-                    
+
                     if hexDigitCount == 0 {
                         throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence must have at least one hex digit", position)
                     }
-                    
+
                     _ = advance() // consume '}'
                 } else {
                     // Validate basic escape sequences
@@ -318,7 +320,7 @@ public final class Tokenizer {
 
         let content = String(source[contentStartIndex..<source.index(before: current)])
         let lexeme = String(source[startIndex..<current])
-        
+
         // Process escape sequences in the content for token type determination
         do {
             let processedContent = try StringEscapeUtilities.processEscapeSequences(content)
@@ -525,7 +527,7 @@ public final class Tokenizer {
         return Token(type: tokenType, lexeme: lexeme, position: position)
     }
 
-        /// Checks if a character can start an identifier
+    /// Checks if a character can start an identifier
     /// Handles Unicode letters, underscore, and CJK characters robustly
     private func isIdentifierStart(_ char: UnicodeScalar) -> Bool {
         // Handle end-of-input sentinel
@@ -545,5 +547,13 @@ public final class Tokenizer {
         }
 
         return TokenizerUtilities.isIdentifierContinue(char)
+    }
+
+    // MARK: - Helper Methods
+
+    /// Checks if a character is whitespace (including full-width space)
+    /// Uses the shared TokenizerUtilities helper for consistent whitespace handling
+    private func isWhitespace(_ char: UnicodeScalar) -> Bool {
+        return TokenizerUtilities.isWhitespace(char)
     }
 }

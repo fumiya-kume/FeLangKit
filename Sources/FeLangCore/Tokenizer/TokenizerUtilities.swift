@@ -103,30 +103,94 @@ public enum TokenizerUtilities {
         (":", .colon)
     ]
 
+    // MARK: - Whitespace Utilities
+
+    /// Checks if a character is whitespace (including full-width space)
+    /// Supports standard ASCII whitespace and Japanese full-width space (U+3000)
+    /// This helper provides consistent whitespace handling across all tokenizers
+    public static func isWhitespace(_ char: UnicodeScalar) -> Bool {
+        return char == " " || char == "\t" || char == "\u{3000}"
+    }
+
+    /// Checks if a character is whitespace (Character version)
+    /// Supports standard ASCII whitespace and Japanese full-width space (U+3000)  
+    /// This helper provides consistent whitespace handling across all tokenizers
+    /// For multi-scalar characters, all scalars must be whitespace
+    public static func isWhitespace(_ char: Character) -> Bool {
+        guard !char.unicodeScalars.isEmpty else { return false }
+        // For multi-scalar characters (like combined marks), all scalars must be whitespace
+        return char.unicodeScalars.allSatisfy(isWhitespace)
+    }
+
     // MARK: - Character Classification
 
     /// Checks if a character can start an identifier
-    /// Handles Unicode letters, underscore, and CJK characters robustly
+    /// Handles Unicode letters, underscore, and extended character sets robustly
+    /// Uses enhanced Unicode character classification for comprehensive support
     public static func isIdentifierStart(_ char: Character) -> Bool {
-        return char.isLetter || char == "_" || isJapaneseCharacter(char)
+        guard let scalar = char.unicodeScalars.first else { return false }
+        return isIdentifierStart(scalar)
     }
 
     /// Checks if a character can start an identifier (UnicodeScalar version)
-    /// Handles Unicode letters, underscore, and CJK characters robustly
+    /// Handles Unicode letters, underscore, and extended character sets robustly
+    /// Uses enhanced Unicode character classification for comprehensive support
     public static func isIdentifierStart(_ scalar: UnicodeScalar) -> Bool {
-        return scalar.isLetter || scalar == "_" || isJapaneseCharacter(scalar)
+        // Basic identifier start characters
+        if scalar == "_" {
+            return true
+        }
+
+        // Use enhanced character classification
+        let classification = UnicodeNormalizer.classifyCharacter(scalar)
+        switch classification {
+        case .letter:
+            return true
+        case .other(subcategory: .privateUse):
+            // Allow Private Use Area (U+E000–U+F8FF) for custom domain-specific symbols.
+            // This enables FeLang to support specialized characters in specific contexts,
+            // such as mathematical notation, proprietary symbols, or legacy character sets
+            // while maintaining compatibility with Unicode standards.
+            return true
+        default:
+            return false
+        }
     }
 
     /// Checks if a character can continue an identifier
-    /// Handles Unicode letters, digits, underscore, and CJK characters robustly
+    /// Handles Unicode letters, digits, underscore, and extended character sets robustly  
+    /// Uses enhanced Unicode character classification for comprehensive support
     public static func isIdentifierContinue(_ char: Character) -> Bool {
-        return char.isLetter || char.isNumber || char == "_" || isJapaneseCharacter(char)
+        guard let scalar = char.unicodeScalars.first else { return false }
+        return isIdentifierContinue(scalar)
     }
 
     /// Checks if a character can continue an identifier (UnicodeScalar version)
-    /// Handles Unicode letters, digits, underscore, and CJK characters robustly
+    /// Handles Unicode letters, digits, underscore, and extended character sets robustly
+    /// Uses enhanced Unicode character classification for comprehensive support
     public static func isIdentifierContinue(_ scalar: UnicodeScalar) -> Bool {
-        return scalar.isLetter || scalar.isNumber || scalar == "_" || isJapaneseCharacter(scalar)
+        // Basic identifier continuation characters
+        if scalar == "_" {
+            return true
+        }
+
+        // Use enhanced character classification
+        let classification = UnicodeNormalizer.classifyCharacter(scalar)
+        switch classification {
+        case .letter, .number:
+            return true
+        case .mark(subcategory: .nonspacingMark):
+            // Allow combining marks in identifiers
+            return true
+        case .other(subcategory: .privateUse):
+            // Allow Private Use Area (U+E000–U+F8FF) for custom domain-specific symbols.
+            // This enables FeLang to support specialized characters in specific contexts,
+            // such as mathematical notation, proprietary symbols, or legacy character sets
+            // while maintaining compatibility with Unicode standards.
+            return true
+        default:
+            return false
+        }
     }
 
     /// Checks if a character is a Japanese character (Hiragana, Katakana, or Kanji)
@@ -210,7 +274,7 @@ public enum TokenizerUtilities {
 
     /// Determines if a character is a valid hex digit
     public static func isHexDigit(_ char: UnicodeScalar) -> Bool {
-        return char.isNumber ||
+        return (char.value >= 0x30 && char.value <= 0x39) || // 0-9
                (char.value >= 0x41 && char.value <= 0x46) || // A-F
                (char.value >= 0x61 && char.value <= 0x66)    // a-f
     }
@@ -320,7 +384,8 @@ public enum TokenizerUtilities {
         }
 
         for index in expIndex..<expScalars.count {
-            guard expScalars[index].isNumber || expScalars[index] == "_" else {
+            let scalar = expScalars[index]
+            guard (scalar.value >= 0x30 && scalar.value <= 0x39) || scalar == "_" else { // 0-9 or underscore
                 throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: mantissa.count + 2 + index, offset: mantissa.count + 1 + index))
             }
         }
@@ -414,5 +479,30 @@ extension UnicodeScalar {
     /// Returns true if this scalar represents a number
     var isNumber: Bool {
         return CharacterSet.decimalDigits.contains(self)
+    }
+
+    /// Returns true if this scalar represents punctuation
+    var isPunctuation: Bool {
+        return CharacterSet.punctuationCharacters.contains(self)
+    }
+
+    /// Returns true if this scalar represents a symbol
+    var isSymbol: Bool {
+        return CharacterSet.symbols.contains(self)
+    }
+
+    /// Returns true if this scalar represents whitespace
+    var isWhitespace: Bool {
+        return CharacterSet.whitespacesAndNewlines.contains(self)
+    }
+
+    /// Returns true if this scalar is uppercase
+    var isUppercase: Bool {
+        return CharacterSet.uppercaseLetters.contains(self)
+    }
+
+    /// Returns true if this scalar is lowercase
+    var isLowercase: Bool {
+        return CharacterSet.lowercaseLetters.contains(self)
     }
 }
