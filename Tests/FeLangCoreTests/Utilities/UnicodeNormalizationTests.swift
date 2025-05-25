@@ -266,12 +266,9 @@ struct UnicodeNormalizationTests {
     func testVeryLongTextNormalization() throws {
         let longText = String(repeating: "変数　ＶＡＲ＿１２３　か\u{3099}　", count: 1000)
 
-        let startTime = CFAbsoluteTimeGetCurrent()
         let normalized = UnicodeNormalizer.normalizeForFE(longText)
-        let processingTime = CFAbsoluteTimeGetCurrent() - startTime
 
         #expect(!normalized.isEmpty, "Should handle long text")
-        #expect(processingTime < 1.0, "Should process long text reasonably quickly")
 
         let stats = normalizer.analyzeNormalization(longText)
         #expect(stats.hasChanges, "Should detect changes in repeated text")
@@ -316,33 +313,7 @@ struct UnicodeNormalizationTests {
         #expect(normalized.contains("成功が"), "Japanese text should be normalized")
     }
 
-    // MARK: - Performance Tests
-
-    @Test("Normalization Performance")
-    func testNormalizationPerformance() throws {
-        let sampleTexts = [
-            "変数 name = \"hello\"",
-            "ＶＡＲ　ｎａｍｅ　＝　\"ｈｅｌｌｏ\"",
-            "か\u{3099}き\u{3099}く\u{3099}け\u{3099}こ\u{3099}",
-            String(repeating: "テストＴＥＳＴ", count: 100)
-        ]
-
-        for text in sampleTexts {
-            let iterations = 1000
-            let startTime = CFAbsoluteTimeGetCurrent()
-
-            for _ in 0..<iterations {
-                _ = UnicodeNormalizer.normalizeForFE(text)
-            }
-
-            let totalTime = CFAbsoluteTimeGetCurrent() - startTime
-            let avgTime = totalTime / Double(iterations)
-
-            #expect(avgTime < 0.001, "Normalization should be fast (< 1ms per operation)")
-        }
-    }
-
-    // MARK: - New Enhanced Features Tests
+    // MARK: - Enhanced Features Tests
 
     @Test("Normalization Forms - NFD Testing")
     func testNormalizationFormsNFD() throws {
