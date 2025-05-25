@@ -171,6 +171,26 @@ public struct EnhancedTokenizerError: Error, Equatable, Sendable {
                 severity: .error,
                 context: "Underscores in numbers must be between digits"
             )
+
+        case .invalidEscapeSequenceWithMessage(let message, let pos):
+            self.init(
+                type: .invalidEscapeSequence(message),
+                range: SourceRange(at: pos),
+                message: "Invalid escape sequence: \(message)",
+                suggestions: ["Use valid escape sequences like \\n, \\t, \\\\", "Check escape sequence syntax"],
+                severity: .error,
+                context: "Escape sequences must follow valid patterns"
+            )
+
+        case .invalidUnicodeEscape(let details, let pos):
+            self.init(
+                type: .invalidEscapeSequence(details),
+                range: SourceRange(at: pos),
+                message: "Invalid Unicode escape sequence: \(details)",
+                suggestions: ["Use format \\u{XXXX} where XXXX is 1-8 hex digits", "Check Unicode code point validity"],
+                severity: .error,
+                context: "Unicode escape sequences must be in the format \\u{hexadecimal}"
+            )
         }
     }
 

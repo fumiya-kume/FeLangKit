@@ -255,14 +255,24 @@ extension Literal {
         case .stringLiteral:
             // Remove the surrounding quotes and process escape sequences
             let rawContent = String(token.lexeme.dropFirst().dropLast())
-            let content = StringEscapeUtilities.processEscapeSequences(rawContent)
-            self = .string(content)
+            do {
+                let content = try StringEscapeUtilities.processEscapeSequences(rawContent)
+                self = .string(content)
+            } catch {
+                // If escape sequence processing fails, return nil
+                return nil
+            }
         case .characterLiteral:
             // Remove the surrounding quotes, process escape sequences, and get the character
             let rawContent = token.lexeme.dropFirst().dropLast()
-            let content = StringEscapeUtilities.processEscapeSequences(String(rawContent))
-            guard let character = content.first else { return nil }
-            self = .character(character)
+            do {
+                let content = try StringEscapeUtilities.processEscapeSequences(String(rawContent))
+                guard let character = content.first else { return nil }
+                self = .character(character)
+            } catch {
+                // If escape sequence processing fails, return nil
+                return nil
+            }
         case .trueKeyword:
             self = .boolean(true)
         case .falseKeyword:
