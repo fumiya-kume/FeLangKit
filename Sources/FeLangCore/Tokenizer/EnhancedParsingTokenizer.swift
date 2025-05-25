@@ -2,22 +2,24 @@ import Foundation
 
 /// Enhanced parsing tokenizer with error recovery and multi-error collection
 public struct EnhancedParsingTokenizer {
-
+    
     public init() {}
 
     /// Tokenize input with comprehensive error handling and recovery
     public func tokenizeWithDiagnostics(_ input: String) -> TokenizerResult {
+        // Normalize input before tokenization
+        let normalizedInput = UnicodeNormalizer.normalizeForFE(input)
         let errorCollector = ErrorCollector()
         var tokens: [Token] = []
-        var index = input.startIndex
+        var index = normalizedInput.startIndex
         let startIndex = index
 
-        while index < input.endIndex {
-            let position = TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
+        while index < normalizedInput.endIndex {
+            let position = TokenizerUtilities.sourcePosition(from: normalizedInput, startIndex: startIndex, currentIndex: index)
 
             // Skip whitespace and newlines
-            if input[index].isWhitespace {
-                index = input.index(after: index)
+            if normalizedInput[index].isWhitespace {
+                index = normalizedInput.index(after: index)
                 continue
             }
 
@@ -25,7 +27,7 @@ public struct EnhancedParsingTokenizer {
             let beforeIndex = index
 
             if let token = parseNextTokenWithRecovery(
-                from: input,
+                from: normalizedInput,
                 at: &index,
                 startIndex: startIndex,
                 errorCollector: errorCollector
@@ -38,8 +40,8 @@ public struct EnhancedParsingTokenizer {
                 tokens.append(tokenWithPosition)
             } else {
                 // No token parsed - handle as unexpected character
-                if index < input.endIndex {
-                    let char = input[index]
+                if index < normalizedInput.endIndex {
+                    let char = normalizedInput[index]
                     if let scalar = char.unicodeScalars.first {
                         // Check if it's a potentially problematic character
                         if shouldReportAsError(char) {
@@ -53,15 +55,15 @@ public struct EnhancedParsingTokenizer {
                             )
                         }
                     }
-                    index = input.index(after: index)
+                    index = normalizedInput.index(after: index)
                 }
             }
 
             // Safety check to prevent infinite loops
             if index == beforeIndex {
                 // Force advance if we're stuck
-                if index < input.endIndex {
-                    index = input.index(after: index)
+                if index < normalizedInput.endIndex {
+                    index = normalizedInput.index(after: index)
                 }
             }
 
@@ -72,7 +74,7 @@ public struct EnhancedParsingTokenizer {
         }
 
         // Add EOF token
-        let finalPosition = TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
+        let finalPosition = TokenizerUtilities.sourcePosition(from: normalizedInput, startIndex: startIndex, currentIndex: index)
         tokens.append(Token(type: .eof, lexeme: "", position: finalPosition))
 
         return errorCollector.createResult(with: tokens)
