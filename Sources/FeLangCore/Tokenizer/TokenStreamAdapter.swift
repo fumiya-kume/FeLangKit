@@ -165,6 +165,9 @@ public struct FilteredTokenStream: TokenStreamProtocol {
 
 /// A sequence that transforms tokens from a TokenStream
 public struct MappedTokenSequence<T>: Sequence {
+    public typealias Element = T
+    public typealias Iterator = MappedTokenSequence<T>.TokenIterator
+
     private var source: any TokenStreamProtocol
     private let transform: (Token) throws -> T
 
@@ -173,11 +176,13 @@ public struct MappedTokenSequence<T>: Sequence {
         self.transform = transform
     }
 
-    public func makeIterator() -> Iterator {
-        return Iterator(source: source, transform: transform)
+    public func makeIterator() -> TokenIterator {
+        return TokenIterator(source: source, transform: transform)
     }
 
-    public struct Iterator: IteratorProtocol {
+    public struct TokenIterator: IteratorProtocol {
+        public typealias Element = T
+
         private var source: any TokenStreamProtocol
         private let transform: (Token) throws -> T
 
@@ -186,11 +191,17 @@ public struct MappedTokenSequence<T>: Sequence {
             self.transform = transform
         }
 
-        public mutating func next() throws -> T? {
-            if let token = try source.nextToken() {
-                return try transform(token)
+        public mutating func next() -> T? {
+            do {
+                if let token = try source.nextToken() {
+                    return try transform(token)
+                }
+                return nil
+            } catch {
+                // In case of error, we'll return nil to conform to IteratorProtocol
+                // In a production system, you might want to log the error
+                return nil
             }
-            return nil
         }
     }
 }
