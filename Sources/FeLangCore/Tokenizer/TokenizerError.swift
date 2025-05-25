@@ -14,6 +14,12 @@ public enum TokenizerError: Error, Equatable, Sendable {
     /// An invalid escape sequence was found in a string literal
     case invalidEscapeSequence(SourcePosition)
 
+    /// An invalid escape sequence was found with detailed message
+    case invalidEscapeSequenceWithMessage(String, SourcePosition)
+
+    /// An invalid Unicode escape sequence was found
+    case invalidUnicodeEscape(String, SourcePosition)
+
     /// An invalid number format was encountered
     case invalidNumberFormat(String, SourcePosition)
 
@@ -35,6 +41,10 @@ extension TokenizerError: CustomStringConvertible {
             return "Unterminated comment at line \(pos.line), column \(pos.column)"
         case .invalidEscapeSequence(let pos):
             return "Invalid escape sequence in string literal at line \(pos.line), column \(pos.column)"
+        case .invalidEscapeSequenceWithMessage(let message, let pos):
+            return "Invalid escape sequence in string literal at line \(pos.line), column \(pos.column): \(message)"
+        case .invalidUnicodeEscape(let details, let pos):
+            return "Invalid Unicode escape sequence in string literal at line \(pos.line), column \(pos.column): \(details)"
         case .invalidNumberFormat(let format, let pos):
             return "Invalid number format '\(format)' at line \(pos.line), column \(pos.column)"
         case .invalidDigitForBase(let digit, let base, let pos):

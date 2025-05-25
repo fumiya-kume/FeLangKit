@@ -298,12 +298,57 @@ public struct FastParsingTokenizer {
         let position = sourcePosition(from: input, startIndex: startIndex, currentIndex: stringIndex)
         stringIndex = input.index(after: stringIndex) // Skip opening quote
 
-        // Read until closing quote
+        // Read until closing quote, handling escape sequences
         while stringIndex < input.endIndex && input[stringIndex] != quoteChar {
             if input[stringIndex] == "\\" {
-                stringIndex = input.index(after: stringIndex) // Skip backslash
-                if stringIndex < input.endIndex {
-                    stringIndex = input.index(after: stringIndex) // Skip escaped character
+                stringIndex = input.index(after: stringIndex) // consume backslash
+                
+                guard stringIndex < input.endIndex else {
+                    throw TokenizerError.invalidEscapeSequenceWithMessage("Incomplete escape sequence at end of string", position)
+                }
+                
+                let escapedChar = input[stringIndex]
+                stringIndex = input.index(after: stringIndex) // consume escaped character
+                
+                // Handle Unicode escape sequences specially
+                if escapedChar == "u" {
+                    guard stringIndex < input.endIndex && input[stringIndex] == "{" else {
+                        throw TokenizerError.invalidUnicodeEscape("Expected '{' after \\u", position)
+                    }
+                    stringIndex = input.index(after: stringIndex) // consume '{'
+                    
+                    // Scan hex digits
+                    var hexDigitCount = 0
+                    while stringIndex < input.endIndex && input[stringIndex] != "}" && hexDigitCount < 8 {
+                        guard let scalar = String(input[stringIndex]).unicodeScalars.first,
+                              TokenizerUtilities.isHexDigit(scalar) else {
+                            throw TokenizerError.invalidUnicodeEscape("Invalid hex digit in Unicode escape", position)
+                        }
+                        stringIndex = input.index(after: stringIndex)
+                        hexDigitCount += 1
+                    }
+                    
+                    guard stringIndex < input.endIndex else {
+                        throw TokenizerError.invalidUnicodeEscape("Unterminated Unicode escape sequence", position)
+                    }
+                    
+                    guard input[stringIndex] == "}" else {
+                        throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence too long (max 8 hex digits)", position)
+                    }
+                    
+                    guard hexDigitCount > 0 else {
+                        throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence must have at least one hex digit", position)
+                    }
+                    
+                    stringIndex = input.index(after: stringIndex) // consume '}'
+                } else {
+                    // Validate basic escape sequences
+                    switch escapedChar {
+                    case "n", "t", "r", "\\", "\"", "'":
+                        break // Valid escape sequences
+                    default:
+                        throw TokenizerError.invalidEscapeSequenceWithMessage("Unknown escape sequence \\\\(escapedChar)", position)
+                    }
                 }
             } else {
                 stringIndex = input.index(after: stringIndex)
@@ -320,13 +365,14 @@ public struct FastParsingTokenizer {
         let lexeme = String(input[start..<stringIndex])
         let content = String(lexeme.dropFirst().dropLast())
 
-        // Validate escape sequences
-        guard StringEscapeUtilities.validateEscapeSequences(content) else {
-            throw TokenizerError.invalidEscapeSequence(position)
+        // Process escape sequences in the content for token type determination
+        do {
+            let processedContent = try StringEscapeUtilities.processEscapeSequences(content)
+            let tokenType = TokenizerUtilities.stringLiteralTokenType(content: processedContent)
+            return TokenData(type: tokenType, lexeme: lexeme)
+        } catch let error as StringEscapeUtilities.EscapeSequenceError {
+            throw TokenizerError.invalidEscapeSequenceWithMessage(error.message, position)
         }
-
-        let tokenType = content.count == 1 ? TokenType.characterLiteral : TokenType.stringLiteral
-        return TokenData(type: tokenType, lexeme: lexeme)
     }
 
     private func parseASCIIOperatorFast(from utf8: [UInt8], bytePosition: inout Int) -> TokenData? {
