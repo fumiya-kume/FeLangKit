@@ -102,9 +102,7 @@ public final class Tokenizer {
         let char = advance()
 
         switch char {
-        case " ", "\t":
-            return scanWhitespace(position, startIndex: startIndex)
-        case "\u{3000}": // Full-width space
+        case let c where isWhitespace(c):
             return scanWhitespace(position, startIndex: startIndex)
         case "\n":
             return scanNewline(position)
@@ -167,7 +165,7 @@ public final class Tokenizer {
 
     /// Scans whitespace characters
     private func scanWhitespace(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) -> Token {
-        while !isAtEnd && (peek() == " " || peek() == "\t" || peek() == "\u{3000}") {
+        while !isAtEnd && isWhitespace(peek()) {
             _ = advance()
         }
 
@@ -529,7 +527,7 @@ public final class Tokenizer {
         return Token(type: tokenType, lexeme: lexeme, position: position)
     }
 
-        /// Checks if a character can start an identifier
+    /// Checks if a character can start an identifier
     /// Handles Unicode letters, underscore, and CJK characters robustly
     private func isIdentifierStart(_ char: UnicodeScalar) -> Bool {
         // Handle end-of-input sentinel
@@ -549,5 +547,13 @@ public final class Tokenizer {
         }
 
         return TokenizerUtilities.isIdentifierContinue(char)
+    }
+
+    // MARK: - Helper Methods
+
+    /// Checks if a character is whitespace (including full-width space)
+    /// Uses the shared TokenizerUtilities helper for consistent whitespace handling
+    private func isWhitespace(_ char: UnicodeScalar) -> Bool {
+        return TokenizerUtilities.isWhitespace(char)
     }
 }

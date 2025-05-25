@@ -103,6 +103,23 @@ public enum TokenizerUtilities {
         (":", .colon)
     ]
 
+    // MARK: - Whitespace Utilities
+
+    /// Checks if a character is whitespace (including full-width space)
+    /// Supports standard ASCII whitespace and Japanese full-width space (U+3000)
+    /// This helper provides consistent whitespace handling across all tokenizers
+    public static func isWhitespace(_ char: UnicodeScalar) -> Bool {
+        return char == " " || char == "\t" || char == "\u{3000}"
+    }
+
+    /// Checks if a character is whitespace (Character version)
+    /// Supports standard ASCII whitespace and Japanese full-width space (U+3000)  
+    /// This helper provides consistent whitespace handling across all tokenizers
+    public static func isWhitespace(_ char: Character) -> Bool {
+        guard let scalar = char.unicodeScalars.first else { return false }
+        return isWhitespace(scalar)
+    }
+
     // MARK: - Character Classification
 
     /// Checks if a character can start an identifier
@@ -128,7 +145,10 @@ public enum TokenizerUtilities {
         case .letter:
             return true
         case .other(subcategory: .privateUse):
-            // Allow private use area for custom symbols
+            // Allow Private Use Area (U+E000–U+F8FF) for custom domain-specific symbols.
+            // This enables FeLang to support specialized characters in specific contexts,
+            // such as mathematical notation, proprietary symbols, or legacy character sets
+            // while maintaining compatibility with Unicode standards.
             return true
         default:
             return false
@@ -161,7 +181,10 @@ public enum TokenizerUtilities {
             // Allow combining marks in identifiers
             return true
         case .other(subcategory: .privateUse):
-            // Allow private use area for custom symbols
+            // Allow Private Use Area (U+E000–U+F8FF) for custom domain-specific symbols.
+            // This enables FeLang to support specialized characters in specific contexts,
+            // such as mathematical notation, proprietary symbols, or legacy character sets
+            // while maintaining compatibility with Unicode standards.
             return true
         default:
             return false
