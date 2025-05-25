@@ -309,7 +309,7 @@ public enum TokenizerUtilities {
 
         // Validate exponent (can start with + or - followed by digits)
         var expIndex = 0
-        var expScalars = Array(exponent.unicodeScalars)
+        let expScalars = Array(exponent.unicodeScalars)
 
         if !expScalars.isEmpty && (expScalars[0] == "+" || expScalars[0] == "-") {
             expIndex = 1

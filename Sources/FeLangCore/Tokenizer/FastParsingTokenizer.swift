@@ -29,7 +29,7 @@ public struct FastParsingTokenizer {
 
             let position = sourcePosition(from: input, startIndex: startIndex, currentIndex: stringIndex)
             let beforePosition = bytePosition
-            let beforeStringIndex = stringIndex
+            _ = stringIndex
 
             if let token = try parseNextTokenFast(from: input, utf8: utf8Array, bytePosition: &bytePosition, stringIndex: &stringIndex, startIndex: startIndex) {
                 let tokenWithPosition = Token(

@@ -399,11 +399,8 @@ public final class Tokenizer {
             _ = advance()
         }
 
-        var hasDecimal = false
-
         // Check for decimal point
         if !isAtEnd && peek() == "." && peekNext().isNumber {
-            hasDecimal = true
             _ = advance() // consume '.'
 
             // Scan fractional part
@@ -414,7 +411,6 @@ public final class Tokenizer {
 
         // Check for scientific notation
         if !isAtEnd && (peek() == "e" || peek() == "E") {
-            hasDecimal = true // Scientific notation is always real
             _ = advance() // consume 'e' or 'E'
 
             // Optional sign

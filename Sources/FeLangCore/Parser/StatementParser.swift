@@ -39,13 +39,13 @@ public struct StatementParser {
         while let token = parser.peek(), token.type != .eof {
             // Skip whitespace
             if token.type == .whitespace {
-                parser.advance()
+                _ = parser.advance()
                 continue
             }
 
             // Skip standalone newlines (they serve as statement separators)
             if token.type == .newline {
-                parser.advance()
+                _ = parser.advance()
                 continue
             }
 
@@ -93,7 +93,7 @@ public struct StatementParser {
         case .returnKeyword:
             return .returnStatement(try parseReturnStatement(&parser))
         case .breakKeyword:
-            parser.advance() // consume 'break'
+            _ = parser.advance() // consume 'break'
             return .breakStatement
         case .identifier:
             // Could be assignment or expression statement
@@ -121,7 +121,7 @@ public struct StatementParser {
 
         // Handle ELIF clauses
         while parser.peek()?.type == .elifKeyword {
-            parser.advance() // consume 'elif'
+            _ = parser.advance() // consume 'elif'
             let elifCondition = try parseExpression(&parser)
             try expectToken(&parser, .thenKeyword) // consume 'then'
             let elifBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .endifKeyword], nestingDepth: nestingDepth)
@@ -130,7 +130,7 @@ public struct StatementParser {
 
         // Handle optional ELSE clause
         if parser.peek()?.type == .elseKeyword {
-            parser.advance() // consume 'else'
+            _ = parser.advance() // consume 'else'
             elseBody = try parseBlock(&parser, until: [.endifKeyword], nestingDepth: nestingDepth)
         }
 
@@ -165,7 +165,7 @@ public struct StatementParser {
         // Check if it's a range-based FOR (variable ← start to end) or forEach (variable in iterable)
         if parser.peek()?.type == .assign {
             // Range-based FOR: for i ← 1 to 10 step 1 do
-            parser.advance() // consume '←'
+            _ = parser.advance() // consume '←'
 
             let start = try parseExpression(&parser)
             try expectToken(&parser, .toKeyword) // consume 'to'
@@ -174,7 +174,7 @@ public struct StatementParser {
             // Optional step clause
             var step: Expression?
             if parser.peek()?.type == .stepKeyword {
-                parser.advance() // consume 'step'
+                _ = parser.advance() // consume 'step'
                 step = try parseExpression(&parser)
             }
 
@@ -186,7 +186,7 @@ public struct StatementParser {
             return .range(rangeFor)
         } else if parser.peek()?.type == .inKeyword {
             // ForEach: for item in array do
-            parser.advance() // consume 'in'
+            _ = parser.advance() // consume 'in'
 
             let iterable = try parseExpression(&parser)
             try expectToken(&parser, .doKeyword) // consume 'do'
@@ -256,7 +256,7 @@ public struct StatementParser {
         // Check if it's array element assignment
         if parser.peek()?.type == .leftBracket {
             // Array element assignment: array[index] ← expression
-            parser.advance() // consume '['
+            _ = parser.advance() // consume '['
             let indexExpr = try parseExpression(&parser)
             try expectToken(&parser, .rightBracket) // consume ']'
             try expectToken(&parser, .assign) // consume '←'
@@ -266,7 +266,7 @@ public struct StatementParser {
             return .arrayElement(arrayAccess, valueExpr)
         } else if parser.peek()?.type == .assign {
             // Variable assignment: variable ← expression
-            parser.advance() // consume '←'
+            _ = parser.advance() // consume '←'
             let valueExpr = try parseExpression(&parser)
             return .variable(identifier, valueExpr)
         } else {
@@ -311,7 +311,7 @@ public struct StatementParser {
         // Parse initial value (optional for variables, required for constants)
         var initialValue: Expression?
         if parser.peek()?.type == .assign {
-            parser.advance() // consume '←'
+            _ = parser.advance() // consume '←'
             initialValue = try parseExpression(&parser)
         } else if requiresInitialValue {
             throw StatementParsingError.expectedToken(.assign)
@@ -369,7 +369,7 @@ public struct StatementParser {
         // Optional return type
         var returnType: DataType?
         if parser.peek()?.type == .colon {
-            parser.advance() // consume ':'
+            _ = parser.advance() // consume ':'
             returnType = try parseDataType(&parser)
         }
 
@@ -429,7 +429,7 @@ public struct StatementParser {
         while let token = parser.peek(), !endTokens.contains(token.type) && token.type != .eof {
             // Skip newlines and whitespace
             if token.type == .newline || token.type == .whitespace {
-                parser.advance()
+                _ = parser.advance()
                 continue
             }
 
@@ -454,7 +454,7 @@ public struct StatementParser {
 
         // Parse remaining parameters
         while parser.peek()?.type == .comma {
-            parser.advance() // consume ','
+            _ = parser.advance() // consume ','
             parameters.append(try parseParameter(&parser))
         }
 
@@ -517,7 +517,7 @@ public struct StatementParser {
             case "array", "配列型", "配列":
                 // Handle array type with element specification: "array of integer" or "配列 の 整数"
                 if parser.peek()?.lexeme == "of" || parser.peek()?.lexeme == "の" {
-                    parser.advance() // consume "of" or "の"
+                    _ = parser.advance() // consume "of" or "の"
                     let elementType = try parseDataType(&parser)
                     return .array(elementType)
                 } else {
@@ -543,7 +543,7 @@ public struct StatementParser {
         if typeToken.type == .arrayType {
             // Expect "of" keyword followed by element type
             if parser.peek()?.lexeme == "of" || parser.peek()?.lexeme == "の" {
-                parser.advance() // consume "of" or "の"
+                _ = parser.advance() // consume "of" or "の"
                 let elementType = try parseDataType(&parser)
                 return .array(elementType)
             } else {
@@ -566,7 +566,7 @@ public struct StatementParser {
 
     /// Parses function/procedure body with local variable declarations.
     private func parseFunctionBody(_ parser: inout TokenStream, endToken: TokenType) throws -> ([VariableDeclaration], [Statement]) {
-        var localVariables: [VariableDeclaration] = []
+        let localVariables: [VariableDeclaration] = []
         var statements: [Statement] = []
 
         // Parse local variable declarations (simplified for now)
@@ -576,7 +576,7 @@ public struct StatementParser {
         while let token = parser.peek(), token.type != endToken && token.type != .eof {
             // Skip newlines and whitespace
             if token.type == .newline || token.type == .whitespace {
-                parser.advance()
+                _ = parser.advance()
                 continue
             }
 

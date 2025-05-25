@@ -56,10 +56,10 @@ public enum AnyCodableSafetyValidator {
     /// For immutability purposes, nested arrays and dictionaries are rejected entirely
     private static func validateJSONValue(_ value: Any) throws {
         switch value {
-        case let dictionary as [String: Any]:
+        case _ as [String: Any]:
             // Nested dictionaries are not supported for immutability
             throw AnyCodableSafetyError.unsupportedType("nested dictionary")
-        case let array as [Any]:
+        case _ as [Any]:
             // Arrays are not supported for immutability 
             throw AnyCodableSafetyError.unsupportedType("array")
         case is NSNull:

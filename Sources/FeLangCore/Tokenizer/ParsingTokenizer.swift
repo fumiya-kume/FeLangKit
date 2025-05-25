@@ -3,7 +3,7 @@ import Foundation
 /// A tokenizer for FE pseudo-language with a focus on simplicity and correctness.
 /// This implementation prioritizes the same functionality as the original tokenizer
 /// while being easier to extend and maintain.
-public struct ParsingTokenizer {
+public struct ParsingTokenizer: Sendable {
 
     public init() {}
 
@@ -317,14 +317,11 @@ public struct ParsingTokenizer {
             index = input.index(after: index)
         }
 
-        var hasDecimal = false
-
         // Check for decimal point
         if index < input.endIndex && input[index] == "." {
             // Look ahead for more digits
             let nextIndex = input.index(after: index)
             if nextIndex < input.endIndex && input[nextIndex].isNumber {
-                hasDecimal = true
                 index = nextIndex
 
                 // Read fractional part (including underscores)
@@ -336,7 +333,6 @@ public struct ParsingTokenizer {
 
         // Check for scientific notation
         if index < input.endIndex && (input[index] == "e" || input[index] == "E") {
-            hasDecimal = true // Scientific notation is always real
             index = input.index(after: index) // consume 'e' or 'E'
 
             // Optional sign
