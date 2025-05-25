@@ -78,13 +78,13 @@ public struct ExpressionParser {
         while true {
             if parser.peek()?.type == .leftBracket {
                 // Array access: expr[index]
-                parser.advance() // consume '['
+                _ = parser.advance() // consume '['
                 let indexExpr = try parseExpression(&parser)
                 try expectToken(&parser, .rightBracket)
                 expr = Expression.arrayAccess(expr, indexExpr)
             } else if parser.peek()?.type == .dot {
                 // Field access: expr.field
-                parser.advance() // consume '.'
+                _ = parser.advance() // consume '.'
                 guard let fieldToken = parser.advance(), fieldToken.type == .identifier else {
                     throw ParsingError.expectedIdentifier
                 }
@@ -92,7 +92,7 @@ public struct ExpressionParser {
             } else if parser.peek()?.type == .leftParen,
                       case .identifier(let name) = expr {
                 // Function call: identifier(args...)
-                parser.advance() // consume '('
+                _ = parser.advance() // consume '('
                 let args = try parseArgumentList(&parser)
                 try expectToken(&parser, .rightParen)
                 expr = Expression.functionCall(name, args)
@@ -141,7 +141,7 @@ public struct ExpressionParser {
             return nil
         }
 
-        parser.advance() // consume the operator
+        _ = parser.advance() // consume the operator
         return op
     }
 
@@ -152,7 +152,7 @@ public struct ExpressionParser {
             return nil
         }
 
-        parser.advance() // consume the operator
+        _ = parser.advance() // consume the operator
         return op
     }
 
@@ -181,7 +181,7 @@ public struct ExpressionParser {
 
         // Parse remaining arguments
         while parser.peek()?.type == .comma {
-            parser.advance() // consume ','
+            _ = parser.advance() // consume ','
             arguments.append(try parseExpression(&parser))
         }
 
