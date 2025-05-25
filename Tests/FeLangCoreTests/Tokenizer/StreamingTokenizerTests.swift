@@ -257,13 +257,14 @@ struct StreamingTokenizerTests {
         let parallelTokenizer = ParallelTokenizer()
         let emptyInput = ""
 
-        var tokenCount = 0
-        for try await _ in try await parallelTokenizer.tokenizeInParallel(emptyInput) {
-            tokenCount += 1
+        var tokens: [Token] = []
+        for try await token in try await parallelTokenizer.tokenizeInParallel(emptyInput) {
+            tokens.append(token)
         }
 
-        // Should produce at least EOF token
-        #expect(tokenCount >= 0, "Should handle empty input gracefully")
+        // Should produce exactly one EOF token
+        #expect(tokens.count == 1, "Should produce exactly one token for empty input")
+        #expect(tokens.first?.type == .eof, "The single token should be an EOF token")
     }
 
     @Test("Unicode handling in streaming")
