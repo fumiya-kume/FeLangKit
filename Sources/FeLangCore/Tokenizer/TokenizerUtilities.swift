@@ -121,7 +121,7 @@ public enum TokenizerUtilities {
         if scalar == "_" {
             return true
         }
-        
+
         // Use enhanced character classification
         let classification = UnicodeNormalizer.classifyCharacter(scalar)
         switch classification {
@@ -151,7 +151,7 @@ public enum TokenizerUtilities {
         if scalar == "_" {
             return true
         }
-        
+
         // Use enhanced character classification
         let classification = UnicodeNormalizer.classifyCharacter(scalar)
         switch classification {

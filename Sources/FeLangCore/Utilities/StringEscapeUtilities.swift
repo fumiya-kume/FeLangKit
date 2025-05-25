@@ -9,7 +9,7 @@ public enum StringEscapeUtilities {
     public struct EscapeSequenceError: Error, Equatable {
         public let message: String
         public let position: Int?
-        
+
         public init(message: String, position: Int? = nil) {
             self.message = message
             self.position = position
@@ -70,16 +70,16 @@ public enum StringEscapeUtilities {
             let position = content.distance(from: content.startIndex, to: index)
             throw EscapeSequenceError(message: "Expected backslash at position", position: position)
         }
-        
+
         let nextIndex = content.index(after: index)
         guard nextIndex < content.endIndex else {
             let position = content.distance(from: content.startIndex, to: index)
             throw EscapeSequenceError(message: "Incomplete escape sequence at end of string", position: position)
         }
-        
+
         let escapedChar = content[nextIndex]
         let afterEscapeIndex = content.index(after: nextIndex)
-        
+
         switch escapedChar {
         case "n":
             return ("\n", afterEscapeIndex)
@@ -109,7 +109,7 @@ public enum StringEscapeUtilities {
     /// - Throws: EscapeSequenceError if the Unicode escape sequence is invalid
     public static func processUnicodeEscape(_ content: String, at index: String.Index) throws -> (Character, String.Index) {
         let position = content.distance(from: content.startIndex, to: index)
-        
+
         // We expect: \u{XXXX}
         // index points to '\'
         // nextIndex points to 'u'
@@ -117,45 +117,45 @@ public enum StringEscapeUtilities {
         guard nextIndex < content.endIndex && content[nextIndex] == "u" else {
             throw EscapeSequenceError(message: "Expected 'u' after backslash in Unicode escape", position: position)
         }
-        
+
         let braceStartIndex = content.index(after: nextIndex)
         guard braceStartIndex < content.endIndex && content[braceStartIndex] == "{" else {
             throw EscapeSequenceError(message: "Expected '{' after \\u in Unicode escape", position: position)
         }
-        
+
         // Find the closing brace
         let hexStartIndex = content.index(after: braceStartIndex)
         var hexEndIndex = hexStartIndex
-        
+
         while hexEndIndex < content.endIndex && content[hexEndIndex] != "}" {
             hexEndIndex = content.index(after: hexEndIndex)
         }
-        
+
         guard hexEndIndex < content.endIndex else {
             throw EscapeSequenceError(message: "Unterminated Unicode escape sequence", position: position)
         }
-        
+
         let hexString = String(content[hexStartIndex..<hexEndIndex])
-        
+
         // Validate hex string length (1-8 characters)
         guard !hexString.isEmpty && hexString.count <= 8 else {
             throw EscapeSequenceError(message: "Unicode escape sequence must have 1-8 hex digits", position: position)
         }
-        
+
         // Validate all characters are hex digits
         guard hexString.allSatisfy({ $0.isHexDigit }) else {
             throw EscapeSequenceError(message: "Invalid hex characters in Unicode escape sequence", position: position)
         }
-        
+
         // Convert to Unicode scalar
         guard let value = UInt32(hexString, radix: 16),
               let scalar = UnicodeScalar(value) else {
             throw EscapeSequenceError(message: "Invalid Unicode code point: \\u{\\(hexString)}", position: position)
         }
-        
+
         let character = Character(scalar)
         let afterBraceIndex = content.index(after: hexEndIndex)
-        
+
         return (character, afterBraceIndex)
     }
 

@@ -347,11 +347,11 @@ struct UnicodeNormalizationTests {
     @Test("Normalization Forms - NFD Testing")
     func testNormalizationFormsNFD() throws {
         var normalizer = UnicodeNormalizer()
-        
+
         // Test NFD (decomposition) - use explicit composed character
         let composedText = "caf\u{00E9}"  // é as single composed character (U+00E9)
         let result = normalizer.normalize(composedText, form: .nfd)
-        
+
         // NFD should decompose é into e + combining acute
         // Note: grapheme cluster count stays the same, but Unicode scalar count increases
         #expect(result.unicodeScalars.count > composedText.unicodeScalars.count, "NFD should decompose characters")
@@ -361,22 +361,22 @@ struct UnicodeNormalizationTests {
     @Test("Normalization Forms - NFKC Testing")
     func testNormalizationFormsNFKC() throws {
         var normalizer = UnicodeNormalizer()
-        
+
         // Test NFKC with compatibility characters
         let compatText = "ﬁle"  // fi ligature
         let result = normalizer.normalize(compatText, form: .nfkc)
-        
+
         #expect(result == "file", "NFKC should decompose compatibility characters")
     }
 
     @Test("Normalization Forms - NFKD Testing")
     func testNormalizationFormsNFKD() throws {
         var normalizer = UnicodeNormalizer()
-        
+
         // Test NFKD with compatibility and decomposition
         let compatText = "café" // with compatibility characters
         let result = normalizer.normalize(compatText, form: .nfkd)
-        
+
         // Should apply both compatibility and canonical decomposition
         #expect(result.count >= compatText.count, "NFKD should decompose compatibility and canonical")
     }
@@ -423,11 +423,11 @@ struct UnicodeNormalizationTests {
     @Test("Mathematical Symbol Normalization")
     func testMathematicalSymbolNormalization() throws {
         var normalizer = UnicodeNormalizer()
-        
+
         let mathText = "π × α ÷ β ≈ ∞"
         let result = normalizer.normalize(mathText)
         let stats = normalizer.getStats()
-        
+
         #expect(result.contains("pi"), "π should be normalized to pi")
         #expect(result.contains("*"), "× should be normalized to *")
         #expect(result.contains("alpha"), "α should be normalized to alpha")
@@ -441,12 +441,12 @@ struct UnicodeNormalizationTests {
     @Test("Emoji Normalization")
     func testEmojiNormalization() throws {
         var normalizer = UnicodeNormalizer()
-        
+
         // Test emoji with variation selectors
         let emojiText = "😀\u{FE0F}👋\u{FE0E}"
         let result = normalizer.normalize(emojiText)
         let stats = normalizer.getStats()
-        
+
         #expect(!result.contains("\u{FE0F}"), "Should remove emoji variation selector")
         #expect(!result.contains("\u{FE0E}"), "Should remove text variation selector")
         #expect(stats.emojiNormalizations > 0, "Should count emoji normalizations")
@@ -455,12 +455,12 @@ struct UnicodeNormalizationTests {
     @Test("Security - Homoglyph Detection")
     func testSecurityHomoglyphDetection() throws {
         var normalizer = UnicodeNormalizer()
-        
+
         // Test Cyrillic homoglyphs
         let homoglyphText = "асе"  // Cyrillic a, c, e that look like Latin
         let result = normalizer.normalize(homoglyphText)
         let stats = normalizer.getStats()
-        
+
         #expect(result == "ace", "Should convert Cyrillic homoglyphs to Latin")
         #expect(stats.homoglyphsDetected > 0, "Should detect homoglyphs")
         #expect(stats.hasSecurityConcerns, "Should flag security concerns")
@@ -469,12 +469,12 @@ struct UnicodeNormalizationTests {
     @Test("Security - Bidirectional Text Protection")
     func testSecurityBidirectionalTextProtection() throws {
         var normalizer = UnicodeNormalizer()
-        
+
         // Test bidirectional override characters
         let bidiText = "normal\u{202E}dangerous\u{202C}text"
         let result = normalizer.normalize(bidiText)
         let stats = normalizer.getStats()
-        
+
         #expect(!result.contains("\u{202E}"), "Should remove RLO override")
         #expect(!result.contains("\u{202C}"), "Should remove PDF character")
         #expect(result == "normaldangeroustext", "Should remove all bidi formatting")
@@ -491,17 +491,17 @@ struct UnicodeNormalizationTests {
             maxNormalizedLength: 10,
             detectBidiReordering: true
         )
-        
+
         var normalizer = UnicodeNormalizer(securityConfig: strictConfig)
-        
+
         // Test length limit protection
         let longText = String(repeating: "a", count: 20)
         let result = normalizer.normalize(longText)
         let stats = normalizer.getStats()
-        
+
         #expect(result == longText, "Should return original when over length limit")
         #expect(stats.securityIssuesFound > 0, "Should flag security issue")
-        
+
         // Test with disabled features
         let lenientConfig = UnicodeNormalizer.SecurityConfig(
             enableHomoglyphDetection: false,
@@ -509,12 +509,12 @@ struct UnicodeNormalizationTests {
             maxNormalizedLength: 100000,
             detectBidiReordering: false
         )
-        
+
         var lenientNormalizer = UnicodeNormalizer(securityConfig: lenientConfig)
         let homoglyphText = "асе"  // Cyrillic homoglyphs
         let lenientResult = lenientNormalizer.normalize(homoglyphText)
         let lenientStats = lenientNormalizer.getStats()
-        
+
         #expect(lenientResult == homoglyphText, "Should not convert homoglyphs when detection is disabled")
         #expect(lenientStats.homoglyphsDetected == 0, "Should not detect homoglyphs when disabled")
         #expect(!lenientStats.hasSecurityConcerns, "Should not flag security concerns when disabled")
@@ -525,7 +525,7 @@ struct UnicodeNormalizationTests {
         // Test with CJK Extension B characters
         let cjkText = "𠀀𠀁𠀂"  // CJK Extension B characters
         let normalized = UnicodeNormalizer.normalizeForFE(cjkText)
-        
+
         #expect(normalized == cjkText, "CJK Extension B characters should be preserved")
     }
 
@@ -534,19 +534,19 @@ struct UnicodeNormalizationTests {
         // Test with Private Use Area characters
         let privateUseText = "\u{E000}\u{E001}\u{E002}"
         let normalized = UnicodeNormalizer.normalizeForFE(privateUseText)
-        
+
         #expect(normalized == privateUseText, "Private Use Area characters should be preserved")
     }
 
     @Test("Comprehensive Mixed Content Analysis")
     func testComprehensiveMixedContentAnalysis() throws {
         var normalizer = UnicodeNormalizer()
-        
+
         // Complex text with multiple types of normalization needed
         let complexText = "Ｈｅｌｌｏ　π×α＝β！😀\u{FE0F}асе\u{202E}test"
         let result = normalizer.normalize(complexText)
         let stats = normalizer.getStats()
-        
+
         // Verify all types of normalization occurred
         #expect(stats.fullwidthConversions > 0, "Should have full-width conversions")
         #expect(stats.mathSymbolNormalizations > 0, "Should have math symbol normalizations")
@@ -554,7 +554,7 @@ struct UnicodeNormalizationTests {
         #expect(stats.homoglyphsDetected > 0, "Should detect homoglyphs")
         #expect(stats.bidiReorderings > 0, "Should detect bidi issues")
         #expect(stats.hasSecurityConcerns, "Should flag multiple security concerns")
-        
+
         // Verify the result contains expected normalizations
         #expect(result.contains("Hello"), "Should normalize full-width characters")
         #expect(result.contains("pi"), "Should normalize π")
@@ -567,10 +567,10 @@ struct UnicodeNormalizationTests {
     @Test("Normalization Analysis Enhanced")
     func testNormalizationAnalysisEnhanced() throws {
         let normalizer = UnicodeNormalizer()
-        
+
         let testText = "Ａπ😀\u{FE0F}асе\u{202E}"
         let analysis = normalizer.analyzeNormalization(testText)
-        
+
         #expect(analysis.hasChanges, "Should detect changes")
         #expect(analysis.fullwidthCharactersConverted > 0, "Should count full-width characters")
         #expect(analysis.mathSymbolsNormalized > 0, "Should count math symbols")
@@ -578,7 +578,7 @@ struct UnicodeNormalizationTests {
         #expect(analysis.homoglyphsDetected > 0, "Should count homoglyphs")
         #expect(analysis.bidiIssuesFound > 0, "Should count bidi issues")
         #expect(analysis.hasSecurityConcerns, "Should flag security concerns")
-        
+
         let summary = analysis.summary
         #expect(summary.contains("full-width"), "Summary should mention full-width conversions")
         #expect(summary.contains("math symbol"), "Summary should mention math symbols")
@@ -591,23 +591,23 @@ struct UnicodeNormalizationTests {
     func testStringExtensionMethodsEnhanced() throws {
         // Use text with decomposable characters for NFC/NFD comparison
         let testTextWithAccent = "caf\u{00E9}"  // é as composed character
-        
+
         // Test individual normalization methods - compare at Unicode scalar level
         #expect(testTextWithAccent.normalizedNFC.unicodeScalars.count != testTextWithAccent.normalizedNFD.unicodeScalars.count, "NFC and NFD should have different scalar counts")
         #expect(testTextWithAccent.normalizedNFD.unicodeScalars.contains(UnicodeScalar(0x0301)!), "NFD should contain combining marks")
-        
+
         let testText = "Ｈｅｌｌｏ π"
         #expect(testText.normalizedNFKC.contains("Hello"), "NFKC should normalize full-width")
         #expect(testText.normalizedNFKD.contains("Hello"), "NFKD should normalize full-width")
         #expect(testText.normalizedFullwidth.contains("Hello"), "Should normalize full-width only")
         #expect(testText.normalizedMathSymbols.contains("pi"), "Should normalize math symbols")
-        
+
         // Test with different forms and security configs
         let (normalized, stats) = testText.normalizedForFEWithStats(
             form: .nfkc,
             securityConfig: UnicodeNormalizer.SecurityConfig()
         )
-        
+
         #expect(normalized.contains("Hello"), "Should normalize with specified form")
         #expect(stats.fullwidthConversions > 0, "Should track statistics")
     }
@@ -617,14 +617,14 @@ struct UnicodeNormalizationTests {
         // Test that the main Tokenizer now uses enhanced Unicode normalization
         let complexInput = "変数　ＶＡＲ　＝　π　×　２"
         let tokenizer = Tokenizer(input: complexInput)
-        
+
         let tokens = try tokenizer.tokenize()
-        
+
         // Verify that tokens are properly normalized
         let identifierTokens = tokens.filter { $0.type == .identifier }
         let varToken = identifierTokens.first { $0.lexeme == "VAR" }
         #expect(varToken != nil, "Should find normalized VAR identifier")
-        
+
         // The π should be normalized to "pi" and tokenized as identifier
         let piToken = identifierTokens.first { $0.lexeme == "pi" }
         #expect(piToken != nil, "Should find normalized pi identifier")

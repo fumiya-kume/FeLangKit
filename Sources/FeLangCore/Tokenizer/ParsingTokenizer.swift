@@ -371,21 +371,21 @@ public struct ParsingTokenizer: Sendable {
             // Handle escape sequences
             if input[index] == "\\" {
                 index = input.index(after: index) // consume backslash
-                
+
                 guard index < input.endIndex else {
                     throw TokenizerError.invalidEscapeSequenceWithMessage("Incomplete escape sequence at end of string", position)
                 }
-                
+
                 let escapedChar = input[index]
                 index = input.index(after: index) // consume escaped character
-                
+
                 // Handle Unicode escape sequences specially
                 if escapedChar == "u" {
                     guard index < input.endIndex && input[index] == "{" else {
                         throw TokenizerError.invalidUnicodeEscape("Expected '{' after \\u", position)
                     }
                     index = input.index(after: index) // consume '{'
-                    
+
                     // Scan hex digits
                     var hexDigitCount = 0
                     while index < input.endIndex && input[index] != "}" && hexDigitCount < 8 {
@@ -396,19 +396,19 @@ public struct ParsingTokenizer: Sendable {
                         index = input.index(after: index)
                         hexDigitCount += 1
                     }
-                    
+
                     guard index < input.endIndex else {
                         throw TokenizerError.invalidUnicodeEscape("Unterminated Unicode escape sequence", position)
                     }
-                    
+
                     guard input[index] == "}" else {
                         throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence too long (max 8 hex digits)", position)
                     }
-                    
+
                     guard hexDigitCount > 0 else {
                         throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence must have at least one hex digit", position)
                     }
-                    
+
                     index = input.index(after: index) // consume '}'
                 } else {
                     // Validate basic escape sequences

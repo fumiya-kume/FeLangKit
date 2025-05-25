@@ -35,7 +35,7 @@ public struct UnicodeNormalizer {
     /// Based on Unicode General Categories for detailed character analysis
     public enum UnicodeCharacterClass {
         case letter(subcategory: LetterSubcategory)
-        case mark(subcategory: MarkSubcategory) 
+        case mark(subcategory: MarkSubcategory)
         case number(subcategory: NumberSubcategory)
         case punctuation(subcategory: PunctuationSubcategory)
         case symbol(subcategory: SymbolSubcategory)
@@ -110,16 +110,16 @@ public struct UnicodeNormalizer {
     public struct SecurityConfig {
         /// Enable homoglyph detection and mitigation
         public let enableHomoglyphDetection: Bool
-        
+
         /// Enable normalization attack prevention
         public let preventNormalizationAttacks: Bool
-        
+
         /// Maximum allowed string length after normalization
         public let maxNormalizedLength: Int
-        
+
         /// Enable bidirectional text reordering detection
         public let detectBidiReordering: Bool
-        
+
         public init(
             enableHomoglyphDetection: Bool = true,
             preventNormalizationAttacks: Bool = true,
@@ -238,8 +238,8 @@ public struct UnicodeNormalizer {
     /// Applies comprehensive Unicode normalization with optional security configuration
     /// For automatic statistics tracking, use the instance method normalize() instead
     public static func normalizeForFE(
-        _ input: String, 
-        form: NormalizationForm = .nfc, 
+        _ input: String,
+        form: NormalizationForm = .nfc,
         securityConfig: SecurityConfig = SecurityConfig()
     ) -> String {
         // Step 1: Apply specified Unicode normalization form
@@ -334,13 +334,13 @@ public struct UnicodeNormalizer {
         // Normalize variation selectors for consistent emoji display
         // Text variation selector (U+FE0E) -> remove for programming context
         result = result.replacingOccurrences(of: "\u{FE0E}", with: "")
-        
+
         // Emoji variation selector (U+FE0F) -> standardize
         result = result.replacingOccurrences(of: "\u{FE0F}", with: "")
 
         // Normalize zero-width joiner sequences for consistent handling
         // Keep ZWJ sequences but normalize common variants
-        
+
         return result
     }
 
@@ -358,7 +358,7 @@ public struct UnicodeNormalizer {
             ("∏", "product"),
             ("∆", "delta"),
             ("Ω", "omega"),
-            
+
             // Mathematical operators that might be confused
             ("×", "*"),       // Multiplication sign to asterisk
             ("÷", "/"),       // Division sign to slash
@@ -414,7 +414,7 @@ public struct UnicodeNormalizer {
             ("С", "C"),  // Cyrillic capital C -> Latin C
             ("Т", "T"),  // Cyrillic capital T -> Latin T
             ("Х", "X"),  // Cyrillic capital X -> Latin X
-            
+
             // Greek -> Latin (common in mathematical contexts)
             ("Α", "A"),  // Greek capital alpha -> Latin A
             ("Β", "B"),  // Greek capital beta -> Latin B
@@ -429,7 +429,7 @@ public struct UnicodeNormalizer {
             ("Ρ", "P"),  // Greek capital rho -> Latin P
             ("Τ", "T"),  // Greek capital tau -> Latin T
             ("Υ", "Y"),  // Greek capital upsilon -> Latin Y
-            ("Χ", "X"),  // Greek capital chi -> Latin X
+            ("Χ", "X")  // Greek capital chi -> Latin X
         ]
 
         for (original, replacement) in homoglyphReplacements {
@@ -473,7 +473,7 @@ public struct UnicodeNormalizer {
 
         // Special case: Greek letters commonly used as mathematical symbols
         // These are technically letters but should be classified as math symbols in programming contexts
-        if (value >= 0x0370 && value <= 0x03FF) {   // Greek and Coptic range
+        if value >= 0x0370 && value <= 0x03FF {   // Greek and Coptic range
             return .symbol(subcategory: .mathSymbol)
         }
 
@@ -507,7 +507,7 @@ public struct UnicodeNormalizer {
                 return .symbol(subcategory: .mathSymbol)
             }
             // Currency symbols
-            else if (value >= 0x20A0 && value <= 0x20CF) {
+            else if value >= 0x20A0 && value <= 0x20CF {
                 return .symbol(subcategory: .currencySymbol)
             }
             // Other symbols (including emoji)
@@ -603,7 +603,7 @@ public struct UnicodeNormalizer {
         if !securityConfig.enableHomoglyphDetection {
             return 0
         }
-        
+
         let homoglyphChars = ["а", "е", "о", "р", "с", "х", "А", "В", "Е", "К", "М", "Н", "О", "Р", "С", "Т", "Х",
                              "Α", "Β", "Ε", "Ζ", "Η", "Ι", "Κ", "Μ", "Ν", "Ο", "Ρ", "Τ", "Υ", "Χ"]
         return homoglyphChars.reduce(0) { count, char in
@@ -774,8 +774,6 @@ public struct UnicodeNormalizer {
         }
     }
 }
-
-
 
 // MARK: - String Extension
 

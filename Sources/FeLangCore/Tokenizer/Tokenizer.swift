@@ -260,21 +260,21 @@ public final class Tokenizer {
             if peek() == "\\" {
                 // Handle escape sequence
                 _ = advance() // consume backslash
-                
+
                 if isAtEnd {
                     throw TokenizerError.invalidEscapeSequenceWithMessage("Incomplete escape sequence at end of string", position)
                 }
-                
+
                 let escapedChar = peek()
                 _ = advance() // consume escaped character
-                
+
                 // Handle Unicode escape sequences specially
                 if escapedChar == "u" {
                     if isAtEnd || peek() != "{" {
                         throw TokenizerError.invalidUnicodeEscape("Expected '{' after \\u", position)
                     }
                     _ = advance() // consume '{'
-                    
+
                     // Scan hex digits
                     var hexDigitCount = 0
                     while !isAtEnd && peek() != "}" && hexDigitCount < 8 {
@@ -285,19 +285,19 @@ public final class Tokenizer {
                         _ = advance()
                         hexDigitCount += 1
                     }
-                    
+
                     if isAtEnd {
                         throw TokenizerError.invalidUnicodeEscape("Unterminated Unicode escape sequence", position)
                     }
-                    
+
                     if peek() != "}" {
                         throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence too long (max 8 hex digits)", position)
                     }
-                    
+
                     if hexDigitCount == 0 {
                         throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence must have at least one hex digit", position)
                     }
-                    
+
                     _ = advance() // consume '}'
                 } else {
                     // Validate basic escape sequences
@@ -322,7 +322,7 @@ public final class Tokenizer {
 
         let content = String(source[contentStartIndex..<source.index(before: current)])
         let lexeme = String(source[startIndex..<current])
-        
+
         // Process escape sequences in the content for token type determination
         do {
             let processedContent = try StringEscapeUtilities.processEscapeSequences(content)
