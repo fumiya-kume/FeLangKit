@@ -3,6 +3,29 @@ import Foundation
 /// Unicode normalizer for FE language processing
 /// Implements comprehensive Unicode normalization for Japanese text processing
 /// including NFC normalization, full-width to half-width conversion, and combining character handling
+///
+/// ## Usage
+///
+/// ### Quick normalization (no statistics):
+/// ```swift
+/// let normalized = UnicodeNormalizer.normalizeForFE(text)
+/// // or
+/// let normalized = text.normalizedForFE
+/// ```
+///
+/// ### Normalization with automatic statistics tracking:
+/// ```swift
+/// var normalizer = UnicodeNormalizer()
+/// let normalized = normalizer.normalize(text)
+/// let stats = normalizer.getStats()
+/// print("Applied \(stats.fullwidthConversions) full-width conversions")
+/// ```
+///
+/// ### One-shot normalization with statistics:
+/// ```swift
+/// let (normalized, stats) = text.normalizedForFEWithStats()
+/// print("Compression ratio: \(stats.compressionRatio)")
+/// ```
 public struct UnicodeNormalizer {
 
     // MARK: - Statistics
@@ -32,8 +55,35 @@ public struct UnicodeNormalizer {
 
     // MARK: - Main Normalization Methods
 
-    /// Normalizes text for FE language processing
+    /// Instance method that normalizes text and tracks statistics
     /// Applies NFC normalization, full-width to half-width conversion, and Japanese character normalization
+    /// Updates internal statistics that can be retrieved with getStats()
+    public mutating func normalize(_ input: String) -> String {
+        let originalLength = input.count
+        
+        // Count changes that will be made during normalization
+        let nfcChanges = countNFCChanges(input)
+        let fullwidthChanges = countFullwidthChanges(input)
+        let japaneseChanges = countJapaneseChanges(input)
+        
+        // Perform the actual normalization
+        let result = Self.normalizeForFE(input)
+        
+        // Update statistics
+        stats = NormalizationStats(
+            originalLength: originalLength,
+            normalizedLength: result.count,
+            nfcNormalizations: nfcChanges,
+            fullwidthConversions: fullwidthChanges,
+            japaneseNormalizations: japaneseChanges
+        )
+        
+        return result
+    }
+
+    /// Static convenience method for simple normalization without statistics tracking
+    /// Applies NFC normalization, full-width to half-width conversion, and Japanese character normalization
+    /// For automatic statistics tracking, use the instance method normalize() instead
     public static func normalizeForFE(_ input: String) -> String {
         // Step 1: NFC normalization for consistent character representation
         let nfcNormalized = input.precomposedStringWithCanonicalMapping
@@ -99,7 +149,8 @@ public struct UnicodeNormalizer {
         result = result.replacingOccurrences(of: "ゔ", with: "ヴ") // U+3094 -> U+30F4
 
         // Normalize wave dash variants (commonly confused in Japanese text)  
-        result = result.replacingOccurrences(of: "〜", with: "～") // U+301C -> U+FF5E
+        // Convert directly to half-width tilde to avoid double-counting in statistics
+        result = result.replacingOccurrences(of: "〜", with: "~") // U+301C -> U+007E (half-width)
 
         // Normalize minus sign variants  
         result = result.replacingOccurrences(of: "−", with: "-") // U+2212 -> U+002D
@@ -109,6 +160,30 @@ public struct UnicodeNormalizer {
         result = result.replacingOccurrences(of: "―", with: "—") // U+2015 -> U+2014 (em dash)
 
         return result
+    }
+
+    // MARK: - Statistics Counting Methods
+    
+    /// Counts how many characters need NFC normalization
+    private func countNFCChanges(_ input: String) -> Int {
+        let normalized = input.precomposedStringWithCanonicalMapping
+        return input == normalized ? 0 : 1 // Simple flag: 0 or 1 based on whether changes occurred
+    }
+    
+    /// Counts how many full-width characters need conversion
+    private func countFullwidthChanges(_ input: String) -> Int {
+        return input.unicodeScalars.filter { scalar in
+            // Full-width ASCII range: U+FF01 to U+FF5E
+            return scalar.value >= 0xFF01 && scalar.value <= 0xFF5E
+        }.count
+    }
+    
+    /// Counts how many Japanese character variants need normalization
+    private func countJapaneseChanges(_ input: String) -> Int {
+        let variants = ["〜", "−", "－", "―", "ゔ"]
+        return variants.reduce(0) { count, char in
+            count + input.components(separatedBy: char).count - 1
+        }
     }
 
     // MARK: - Individual Normalization Steps
@@ -217,7 +292,8 @@ public struct UnicodeNormalizer {
 // MARK: - String Extension
 
 extension String {
-    /// Convenience method for FE language normalization
+    /// Convenience method for FE language normalization (static method, no statistics tracking)
+    /// For statistics tracking, use UnicodeNormalizer instance method instead
     public var normalizedForFE: String {
         return UnicodeNormalizer.normalizeForFE(self)
     }
@@ -238,5 +314,13 @@ extension String {
     public var normalizedJapanese: String {
         let normalizer = UnicodeNormalizer()
         return normalizer.normalizeJapanese(self)
+    }
+    
+    /// Normalizes text and returns both result and statistics
+    /// Usage: let (normalized, stats) = text.normalizedForFEWithStats()
+    public func normalizedForFEWithStats() -> (String, UnicodeNormalizer.NormalizationStats) {
+        var normalizer = UnicodeNormalizer()
+        let result = normalizer.normalize(self)
+        return (result, normalizer.getStats())
     }
 }

@@ -135,6 +135,103 @@ struct UnicodeNormalizationTests {
         #expect(stats.originalLength == stats.normalizedLength, "Lengths should be equal")
     }
 
+    // MARK: - Instance-based Statistics Tracking Tests
+
+    @Test("Instance Statistics Tracking - Full-width Characters")
+    func testInstanceStatisticsTrackingFullwidth() throws {
+        var normalizer = UnicodeNormalizer()
+        let testText = "ＡＢＣＤ１２３４"
+        
+        let normalized = normalizer.normalize(testText)
+        let stats = normalizer.getStats()
+        
+        #expect(normalized == "ABCD1234", "Should normalize full-width characters")
+        #expect(stats.originalLength == 8, "Should track original length")
+        #expect(stats.normalizedLength == 8, "Should track normalized length")
+        #expect(stats.fullwidthConversions == 8, "Should count 8 full-width conversions")
+        #expect(stats.nfcNormalizations == 0, "Should count 0 NFC changes for this input")
+        #expect(stats.japaneseNormalizations == 0, "Should count 0 Japanese normalizations")
+    }
+
+    @Test("Instance Statistics Tracking - Japanese Characters")
+    func testInstanceStatisticsTrackingJapanese() throws {
+        var normalizer = UnicodeNormalizer()
+        let testText = "こんにちは〜世界！−ゔ"
+        
+        let normalized = normalizer.normalize(testText)
+        let stats = normalizer.getStats()
+        
+        #expect(stats.japaneseNormalizations == 3, "Should count 3 Japanese normalizations: 〜, −, ゔ")
+        #expect(stats.fullwidthConversions == 1, "Should count 1 full-width conversion: ！")
+        #expect(stats.originalLength > 0, "Should track original length")
+        #expect(stats.normalizedLength > 0, "Should track normalized length")
+    }
+
+    @Test("Instance Statistics Tracking - Mixed Content")
+    func testInstanceStatisticsTrackingMixed() throws {
+        var normalizer = UnicodeNormalizer()
+        let testText = "ＮＡＭＥが〜１２３"
+        
+        let normalized = normalizer.normalize(testText)
+        let stats = normalizer.getStats()
+        
+        #expect(normalized == "NAMEが~123", "Should properly normalize mixed content")
+        #expect(stats.fullwidthConversions == 7, "Should count NAME123 conversions")
+        #expect(stats.japaneseNormalizations == 1, "Should count wave dash normalization")
+        #expect(stats.compressionRatio == 1.0, "Length should remain the same")
+    }
+
+    @Test("Statistics Reset Functionality")
+    func testStatisticsResetFunctionality() throws {
+        var normalizer = UnicodeNormalizer()
+        
+        // First normalization
+        _ = normalizer.normalize("ＡＢＣＤ")
+        let firstStats = normalizer.getStats()
+        #expect(firstStats.fullwidthConversions == 4, "Should track first normalization")
+        
+        // Reset and normalize again
+        normalizer.resetStats()
+        _ = normalizer.normalize("１２３")
+        let secondStats = normalizer.getStats()
+        
+        #expect(secondStats.fullwidthConversions == 3, "Should track only second normalization after reset")
+        #expect(secondStats.originalLength == 3, "Should reset original length")
+    }
+
+    @Test("String Extension with Statistics")
+    func testStringExtensionWithStatistics() throws {
+        let testText = "ＨＥＬＬＯが〜"
+        let (normalized, stats) = testText.normalizedForFEWithStats()
+        
+        #expect(normalized == "HELLOが~", "Should normalize correctly")
+        #expect(stats.fullwidthConversions == 5, "Should count HELLO conversions")
+        #expect(stats.japaneseNormalizations == 1, "Should count wave dash")
+        #expect(stats.originalLength == 7, "Should track original length")
+        #expect(stats.normalizedLength == 7, "Should track normalized length")
+    }
+
+    @Test("Statistics Accuracy - Complex Example")
+    func testStatisticsAccuracyComplexExample() throws {
+        var normalizer = UnicodeNormalizer()
+        let complexText = "変数　ＮＡＭＥが　＝　\"ＨＥＬＬＯ〜！\"−１２３"
+        
+        let normalized = normalizer.normalize(complexText)
+        let stats = normalizer.getStats()
+        
+        // Count expected changes:
+        // Full-width: NAME + = + HELLO + ! + 123 = 4 + 1 + 5 + 1 + 3 = 14
+        // Japanese: 〜 + − = 2
+        #expect(stats.fullwidthConversions == 14, "Should count all full-width conversions accurately")
+        #expect(stats.japaneseNormalizations == 2, "Should count Japanese normalizations accurately")
+        
+        // Verify the actual result
+        #expect(normalized.contains("NAME"), "Should convert NAME")
+        #expect(normalized.contains("HELLO"), "Should convert HELLO")
+        #expect(normalized.contains("~"), "Should convert wave dash")
+        #expect(normalized.contains("-"), "Should convert minus")
+    }
+
     // MARK: - Edge Cases and Error Handling
 
     @Test("Empty String Normalization")
