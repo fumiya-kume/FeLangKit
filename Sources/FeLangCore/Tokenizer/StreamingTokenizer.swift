@@ -130,7 +130,6 @@ public struct ChunkProcessor: Sendable {
     /// Splits input into overlapping chunks for safe processing
     public func createChunks(from input: String) -> [ChunkInfo] {
         var chunks: [ChunkInfo] = []
-        let totalLength = input.count
         var startIndex = input.startIndex
         var globalOffset = 0
 

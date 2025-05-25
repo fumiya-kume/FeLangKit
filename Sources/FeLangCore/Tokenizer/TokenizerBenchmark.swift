@@ -138,7 +138,7 @@ public struct TokenizerBenchmark: Sendable {
 
             // Measure full re-tokenization for comparison
             let fullStartTime = CFAbsoluteTimeGetCurrent()
-            let fullTokens = try tokenizer.tokenize(currentContent)
+            _ = try tokenizer.tokenize(currentContent)
             let fullDuration = CFAbsoluteTimeGetCurrent() - fullStartTime
 
             // Validate correctness
@@ -502,7 +502,7 @@ public struct TokenizerBenchmark: Sendable {
         }
     }
 
-    private func getCurrentMemoryUsage() -> Int {
+    nonisolated private func getCurrentMemoryUsage() -> Int {
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
 
@@ -854,7 +854,7 @@ public struct MeasurementSession {
         )
     }
 
-    private static func getCurrentMemoryUsage() -> Int {
+    nonisolated private static func getCurrentMemoryUsage() -> Int {
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
 
