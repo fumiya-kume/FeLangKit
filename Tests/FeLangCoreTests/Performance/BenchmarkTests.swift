@@ -1,6 +1,7 @@
 import Testing
 @testable import FeLangCore
 import Foundation
+@preconcurrency import Darwin
 
 /// Comprehensive performance benchmarking suite for FeLangKit
 /// Implements Phase 1 of the performance optimization plan from Issue #26

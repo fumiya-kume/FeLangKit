@@ -1,6 +1,7 @@
 import Testing
 @testable import FeLangCore
 import Foundation
+@preconcurrency import Darwin
 
 /// Performance profiler for identifying bottlenecks in FeLangKit components
 /// Implements detailed timing analysis for optimization target identification
@@ -145,9 +146,7 @@ struct PerformanceProfiler {
         // Profile individual token types by counting and timing
         let startTime = CFAbsoluteTimeGetCurrent()
 
-        let tokenizer = ParsingTokenizer()
         var index = input.startIndex
-        let startIndex = index
         var tokenCounts: [String: Int] = [:]
         var tokenTimes: [String: TimeInterval] = [:]
 
@@ -193,7 +192,6 @@ struct PerformanceProfiler {
         let startTime = CFAbsoluteTimeGetCurrent()
 
         // Count different statement types for profiling
-        var statementCounts: [String: Int] = [:]
         var index = 0
 
         while index < tokens.count {
@@ -206,7 +204,6 @@ struct PerformanceProfiler {
             let stmtStartTime = CFAbsoluteTimeGetCurrent()
 
             let statementType = classifyStatement(token)
-            statementCounts[statementType, default: 0] += 1
 
             // Skip to next statement (simplified)
             index += 1
