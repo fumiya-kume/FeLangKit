@@ -2,7 +2,7 @@ import Foundation
 
 /// Enhanced parsing tokenizer with error recovery and multi-error collection
 public struct EnhancedParsingTokenizer {
-    
+
     public init() {}
 
     /// Tokenize input with comprehensive error handling and recovery

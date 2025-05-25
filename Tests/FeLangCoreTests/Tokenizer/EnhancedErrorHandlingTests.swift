@@ -21,10 +21,10 @@ struct EnhancedErrorHandlingTests {
         #expect(!result.tokens.isEmpty, "Should still produce some tokens despite errors")
 
         // Check specific error types
-                let unexpectedCharErrors = result.errors.filter { 
+                let unexpectedCharErrors = result.errors.filter {
             if case .unexpectedCharacter = $0.type { return true }
             return false
-        }
+                }
         #expect(unexpectedCharErrors.count >= 2, "Should find multiple unexpected character errors")
 
         // Verify errors contain correct suggestions

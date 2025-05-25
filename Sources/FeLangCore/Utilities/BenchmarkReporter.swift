@@ -11,9 +11,9 @@ public typealias TokenizerBenchmarkResult = BenchmarkFramework.TokenizerBenchmar
 /// Generates reports from benchmark results in various formats
 /// Supports CI/CD integration with JSON, CSV, and Markdown outputs
 public struct BenchmarkReporter {
-    
+
     public init() {}
-    
+
     /// Generates a comprehensive report in the specified format
     /// - Parameters:
     ///   - result: Benchmark suite result to report
@@ -31,7 +31,7 @@ public struct BenchmarkReporter {
             return generateConsoleReport(from: result)
         }
     }
-    
+
     /// Generates a comparison report between two benchmark results
     /// - Parameters:
     ///   - baseline: Baseline benchmark result
@@ -54,7 +54,7 @@ public struct BenchmarkReporter {
             return generateConsoleComparisonReport(baseline: baseline, current: current)
         }
     }
-    
+
     /// Checks for performance regressions based on thresholds
     /// - Parameters:
     ///   - baseline: Baseline performance
@@ -68,16 +68,16 @@ public struct BenchmarkReporter {
     ) -> RegressionAnalysis {
         var regressions: [RegressionIssue] = []
         var improvements: [PerformanceImprovement] = []
-        
+
         for (baselineCase, currentCase) in zip(baseline.testCases, current.testCases) {
             guard baselineCase.name == currentCase.name else { continue }
-            
-            let speedRatio = currentCase.benchmarkResult.averageTokensPerSecond / 
+
+            let speedRatio = currentCase.benchmarkResult.averageTokensPerSecond /
                            baselineCase.benchmarkResult.averageTokensPerSecond
-            
-            let _ = currentCase.benchmarkResult.averageProcessingTime /
+
+            _ = currentCase.benchmarkResult.averageProcessingTime /
                           baselineCase.benchmarkResult.averageProcessingTime
-            
+
             if speedRatio < (1.0 - thresholds.speedRegressionThreshold) {
                 regressions.append(RegressionIssue(
                     testCase: currentCase.name,
@@ -98,11 +98,11 @@ public struct BenchmarkReporter {
                     description: "Performance improvement: \(String(format: "%.1f", (speedRatio - 1.0) * 100))% faster"
                 ))
             }
-            
+
             // Check memory usage
             let memoryRatio = Double(currentCase.benchmarkResult.averageMemoryUsage) /
                             Double(baselineCase.benchmarkResult.averageMemoryUsage)
-            
+
             if memoryRatio > (1.0 + thresholds.memoryRegressionThreshold) {
                 regressions.append(RegressionIssue(
                     testCase: currentCase.name,
@@ -115,7 +115,7 @@ public struct BenchmarkReporter {
                 ))
             }
         }
-        
+
         return RegressionAnalysis(
             timestamp: Date(),
             baseline: baseline,
@@ -130,19 +130,19 @@ public struct BenchmarkReporter {
 // MARK: - Private Report Generation Methods
 
 private extension BenchmarkReporter {
-    
+
     func generateJSONReport(from result: BenchmarkSuiteResult) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        
+
         let report = JSONReport(
             timestamp: result.timestamp,
             environment: result.environment,
             summary: JSONSummary(from: result.summary),
             testCases: result.testCases.map { JSONTestCase(from: $0) }
         )
-        
+
         do {
             let data = try encoder.encode(report)
             return String(data: data, encoding: .utf8) ?? ""
@@ -150,10 +150,10 @@ private extension BenchmarkReporter {
             return "Error generating JSON report: \(error)"
         }
     }
-    
+
     func generateCSVReport(from result: BenchmarkSuiteResult) -> String {
         var csv = "Test Case,Source Size,Iterations,Avg Tokens/Sec,Avg Processing Time,Avg Memory,Min Time,Max Time,Std Dev\n"
-        
+
         for testCase in result.testCases {
             let stats = testCase.benchmarkResult.statistics
             csv += "\"\(testCase.name)\","
@@ -166,21 +166,21 @@ private extension BenchmarkReporter {
             csv += "\(String(format: "%.6f", stats.max)),"
             csv += "\(String(format: "%.6f", stats.standardDeviation))\n"
         }
-        
+
         return csv
     }
-    
+
     func generateMarkdownReport(from result: BenchmarkSuiteResult) -> String {
         var markdown = "# Benchmark Report\n\n"
-        
+
         // Environment information
         markdown += "## Environment\n\n"
         markdown += "- **Device**: \(result.environment.device)\n"
-        markdown += "- **OS**: \(result.environment.os)\n"
+        markdown += "- **OS**: \(result.environment.operatingSystem)\n"
         markdown += "- **Swift Version**: \(result.environment.swiftVersion)\n"
         markdown += "- **Optimization**: \(result.environment.optimizationLevel)\n"
         markdown += "- **Timestamp**: \(DateFormatter.iso8601.string(from: result.timestamp))\n\n"
-        
+
         // Summary
         let summary = result.summary
         markdown += "## Summary\n\n"
@@ -188,12 +188,12 @@ private extension BenchmarkReporter {
         markdown += "- **Total Iterations**: \(summary.totalIterations)\n"
         markdown += "- **Average Tokens/Sec**: \(String(format: "%.2f", summary.averageTokensPerSecond))\n"
         markdown += "- **Test Cases Run**: \(summary.testCasesRun)\n\n"
-        
+
         // Detailed results
         markdown += "## Detailed Results\n\n"
         markdown += "| Test Case | Source Size | Iterations | Avg Tokens/Sec | Avg Memory | Min Time | Max Time | Std Dev |\n"
         markdown += "|-----------|-------------|------------|----------------|------------|----------|----------|----------|\n"
-        
+
         for testCase in result.testCases {
             let stats = testCase.benchmarkResult.statistics
             markdown += "| \(testCase.name) "
@@ -205,22 +205,22 @@ private extension BenchmarkReporter {
             markdown += "| \(String(format: "%.6f", stats.max))s "
             markdown += "| \(String(format: "%.6f", stats.standardDeviation)) |\n"
         }
-        
+
         return markdown
     }
-    
+
     func generateConsoleReport(from result: BenchmarkSuiteResult) -> String {
         var output = "╔══════════════════════════════════════════════════════════════════╗\n"
         output += "║                           BENCHMARK REPORT                      ║\n"
         output += "╚══════════════════════════════════════════════════════════════════╝\n\n"
-        
+
         // Environment
         output += "Environment:\n"
         output += "  Device: \(result.environment.device)\n"
-        output += "  OS: \(result.environment.os)\n"
+        output += "  OS: \(result.environment.operatingSystem)\n"
         output += "  Swift: \(result.environment.swiftVersion) (\(result.environment.optimizationLevel))\n"
         output += "  Time: \(DateFormatter.console.string(from: result.timestamp))\n\n"
-        
+
         // Summary
         let summary = result.summary
         output += "Summary:\n"
@@ -228,7 +228,7 @@ private extension BenchmarkReporter {
         output += "  Iterations: \(summary.totalIterations)\n"
         output += "  Avg tokens/sec: \(String(format: "%.2f", summary.averageTokensPerSecond))\n"
         output += "  Test cases: \(summary.testCasesRun)\n\n"
-        
+
         // Test cases
         output += "Test Cases:\n"
         for testCase in result.testCases {
@@ -237,17 +237,17 @@ private extension BenchmarkReporter {
             output += "    Memory: \(testCase.benchmarkResult.averageMemoryUsage) bytes\n"
             output += "    Consistency: σ = \(String(format: "%.6f", testCase.benchmarkResult.statistics.standardDeviation))\n"
         }
-        
+
         return output
     }
-    
+
     func generateJSONComparisonReport(baseline: BenchmarkSuiteResult, current: BenchmarkSuiteResult) -> String {
         let analysis = analyzeRegressions(baseline: baseline, current: current)
-        
+
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        
+
         do {
             let data = try encoder.encode(analysis)
             return String(data: data, encoding: .utf8) ?? ""
@@ -255,16 +255,16 @@ private extension BenchmarkReporter {
             return "Error generating JSON comparison report: \(error)"
         }
     }
-    
+
     func generateCSVComparisonReport(baseline: BenchmarkSuiteResult, current: BenchmarkSuiteResult) -> String {
         var csv = "Test Case,Baseline Tokens/Sec,Current Tokens/Sec,Change %,Baseline Memory,Current Memory,Memory Change %\n"
-        
+
         for (baselineCase, currentCase) in zip(baseline.testCases, current.testCases) {
             guard baselineCase.name == currentCase.name else { continue }
-            
+
             let speedChange = (currentCase.benchmarkResult.averageTokensPerSecond / baselineCase.benchmarkResult.averageTokensPerSecond - 1.0) * 100
             let memoryChange = (Double(currentCase.benchmarkResult.averageMemoryUsage) / Double(baselineCase.benchmarkResult.averageMemoryUsage) - 1.0) * 100
-            
+
             csv += "\"\(currentCase.name)\","
             csv += "\(String(format: "%.2f", baselineCase.benchmarkResult.averageTokensPerSecond)),"
             csv += "\(String(format: "%.2f", currentCase.benchmarkResult.averageTokensPerSecond)),"
@@ -273,19 +273,19 @@ private extension BenchmarkReporter {
             csv += "\(currentCase.benchmarkResult.averageMemoryUsage),"
             csv += "\(String(format: "%.2f", memoryChange))\n"
         }
-        
+
         return csv
     }
-    
+
     func generateMarkdownComparisonReport(baseline: BenchmarkSuiteResult, current: BenchmarkSuiteResult) -> String {
         let analysis = analyzeRegressions(baseline: baseline, current: current)
-        
+
         var markdown = "# Benchmark Comparison Report\n\n"
-        
+
         // Status
         let statusEmoji = analysis.overallStatus == .passed ? "✅" : (analysis.overallStatus == .failed ? "❌" : "⚠️")
         markdown += "**Status**: \(statusEmoji) \(analysis.overallStatus.rawValue.capitalized)\n\n"
-        
+
         // Summary
         markdown += "## Summary\n\n"
         if !analysis.regressions.isEmpty {
@@ -295,7 +295,7 @@ private extension BenchmarkReporter {
             markdown += "**🚀 Improvements Found**: \(analysis.improvements.count)\n"
         }
         markdown += "\n"
-        
+
         // Regressions
         if !analysis.regressions.isEmpty {
             markdown += "## Regressions\n\n"
@@ -305,7 +305,7 @@ private extension BenchmarkReporter {
             }
             markdown += "\n"
         }
-        
+
         // Improvements
         if !analysis.improvements.isEmpty {
             markdown += "## Improvements\n\n"
@@ -314,42 +314,42 @@ private extension BenchmarkReporter {
             }
             markdown += "\n"
         }
-        
+
         // Detailed comparison
         markdown += "## Detailed Comparison\n\n"
         markdown += "| Test Case | Baseline Tokens/Sec | Current Tokens/Sec | Change | Memory Change |\n"
         markdown += "|-----------|---------------------|-------------------|---------|---------------|\n"
-        
+
         for (baselineCase, currentCase) in zip(baseline.testCases, current.testCases) {
             guard baselineCase.name == currentCase.name else { continue }
-            
+
             let speedChange = (currentCase.benchmarkResult.averageTokensPerSecond / baselineCase.benchmarkResult.averageTokensPerSecond - 1.0) * 100
             let memoryChange = (Double(currentCase.benchmarkResult.averageMemoryUsage) / Double(baselineCase.benchmarkResult.averageMemoryUsage) - 1.0) * 100
-            
+
             let speedEmoji = speedChange > 0 ? "🟢" : (speedChange < -5 ? "🔴" : "")
             let memoryEmoji = memoryChange > 10 ? "🔴" : (memoryChange < -5 ? "🟢" : "")
-            
+
             markdown += "| \(currentCase.name) "
             markdown += "| \(String(format: "%.2f", baselineCase.benchmarkResult.averageTokensPerSecond)) "
             markdown += "| \(String(format: "%.2f", currentCase.benchmarkResult.averageTokensPerSecond)) "
             markdown += "| \(speedEmoji)\(String(format: "%+.1f", speedChange))% "
             markdown += "| \(memoryEmoji)\(String(format: "%+.1f", memoryChange))% |\n"
         }
-        
+
         return markdown
     }
-    
+
     func generateConsoleComparisonReport(baseline: BenchmarkSuiteResult, current: BenchmarkSuiteResult) -> String {
         let analysis = analyzeRegressions(baseline: baseline, current: current)
-        
+
         var output = "╔══════════════════════════════════════════════════════════════════╗\n"
         output += "║                       COMPARISON REPORT                          ║\n"
         output += "╚══════════════════════════════════════════════════════════════════╝\n\n"
-        
+
         // Status
         let statusSymbol = analysis.overallStatus == .passed ? "✓" : (analysis.overallStatus == .failed ? "✗" : "⚠")
         output += "Status: \(statusSymbol) \(analysis.overallStatus.rawValue.uppercased())\n\n"
-        
+
         // Issues summary
         if !analysis.regressions.isEmpty {
             output += "Regressions: \(analysis.regressions.count)\n"
@@ -358,14 +358,14 @@ private extension BenchmarkReporter {
                 output += "  \(symbol) \(regression.testCase): \(regression.description)\n"
             }
         }
-        
+
         if !analysis.improvements.isEmpty {
             output += "\nImprovements: \(analysis.improvements.count)\n"
             for improvement in analysis.improvements {
                 output += "  ✓ \(improvement.testCase): \(improvement.description)\n"
             }
         }
-        
+
         return output
     }
 }
@@ -384,14 +384,14 @@ public struct RegressionThresholds: Sendable {
     public let memoryRegressionThreshold: Double     // e.g., 0.10 for 10% more memory
     public let criticalRegressionThreshold: Double   // e.g., 0.20 for 20% regression = critical
     public let improvementThreshold: Double          // e.g., 0.05 for 5% improvement
-    
+
     public static let `default` = RegressionThresholds(
         speedRegressionThreshold: 0.05,
         memoryRegressionThreshold: 0.10,
         criticalRegressionThreshold: 0.20,
         improvementThreshold: 0.05
     )
-    
+
     public init(speedRegressionThreshold: Double, memoryRegressionThreshold: Double, criticalRegressionThreshold: Double, improvementThreshold: Double) {
         self.speedRegressionThreshold = speedRegressionThreshold
         self.memoryRegressionThreshold = memoryRegressionThreshold
@@ -458,7 +458,7 @@ private struct JSONSummary: Codable {
     let totalIterations: Int
     let averageTokensPerSecond: Double
     let testCasesRun: Int
-    
+
     init(from summary: SuiteSummary) {
         self.totalExecutionTime = summary.totalExecutionTime
         self.totalIterations = summary.totalIterations
@@ -475,7 +475,7 @@ private struct JSONTestCase: Codable {
     let averageProcessingTime: Double
     let averageMemoryUsage: UInt64
     let statistics: JSONStatistics
-    
+
     init(from testCase: TestCaseResult) {
         self.name = testCase.name
         self.sourceSize = testCase.sourceSize
@@ -492,7 +492,7 @@ private struct JSONStatistics: Codable {
     let max: Double
     let median: Double
     let standardDeviation: Double
-    
+
     init(from stats: BenchmarkStatistics) {
         self.min = stats.min
         self.max = stats.max
@@ -510,7 +510,7 @@ private extension DateFormatter {
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
     }()
-    
+
     static let console: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -525,14 +525,14 @@ extension BenchmarkSuiteResult: Codable {
     enum CodingKeys: String, CodingKey {
         case timestamp, testCases, environment
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(timestamp, forKey: .timestamp)
         try container.encode(testCases, forKey: .testCases)
         try container.encode(environment, forKey: .environment)
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         timestamp = try container.decode(Date.self, forKey: .timestamp)
