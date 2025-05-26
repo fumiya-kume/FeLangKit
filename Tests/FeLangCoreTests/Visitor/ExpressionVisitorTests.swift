@@ -11,7 +11,8 @@ struct ExpressionVisitorTests {
     // MARK: - Basic Functionality Tests
     
     @Test func testExpressionVisitorBasicFunctionality() {
-        let visitor = ExpressionVisitor<String>(
+        var visitor: ExpressionVisitor<String>!
+        visitor = ExpressionVisitor<String>(
             visitLiteral: { literal in "Literal(\(literal))" },
             visitIdentifier: { name in "Id(\(name))" },
             visitBinary: { op, left, right in "Binary(\(op.rawValue), \(visitor.visit(left)), \(visitor.visit(right)))" },
@@ -52,7 +53,8 @@ struct ExpressionVisitorTests {
     
     @Test func testExpressionVisitorWithDifferentResultTypes() {
         // Test with Int result type
-        let countingVisitor = ExpressionVisitor<Int>(
+        var countingVisitor: ExpressionVisitor<Int>!
+        countingVisitor = ExpressionVisitor<Int>(
             visitLiteral: { _ in 1 },
             visitIdentifier: { _ in 1 },
             visitBinary: { _, left, right in countingVisitor.visit(left) + countingVisitor.visit(right) + 1 },
@@ -66,7 +68,8 @@ struct ExpressionVisitorTests {
         #expect(countingVisitor.visit(expr) == 3) // 1 (literal) + 1 (identifier) + 1 (binary) = 3
         
         // Test with Bool result type
-        let hasIdentifierVisitor = ExpressionVisitor<Bool>(
+        var hasIdentifierVisitor: ExpressionVisitor<Bool>!
+        hasIdentifierVisitor = ExpressionVisitor<Bool>(
             visitLiteral: { _ in false },
             visitIdentifier: { _ in true },
             visitBinary: { _, left, right in hasIdentifierVisitor.visit(left) || hasIdentifierVisitor.visit(right) },
@@ -174,7 +177,8 @@ struct ExpressionVisitorTests {
     }
     
     @Test func testCustomResultType() {
-        let analyzer = ExpressionVisitor<ExpressionInfo>(
+        var analyzer: ExpressionVisitor<ExpressionInfo>!
+        analyzer = ExpressionVisitor<ExpressionInfo>(
             visitLiteral: { _ in ExpressionInfo(type: "literal", nodeCount: 1, identifiers: []) },
             visitIdentifier: { name in ExpressionInfo(type: "identifier", nodeCount: 1, identifiers: [name]) },
             visitBinary: { _, left, right in
@@ -282,7 +286,8 @@ struct ExpressionVisitorTests {
         }
         
         // Visitor implementation
-        let visitor = ExpressionVisitor<String>(
+        var visitor: ExpressionVisitor<String>!
+        visitor = ExpressionVisitor<String>(
             visitLiteral: { literal in "Literal(\(literal))" },
             visitIdentifier: { name in "Id(\(name))" },
             visitBinary: { op, left, right in "Binary(\(op.rawValue), \(visitor.visit(left)), \(visitor.visit(right)))" },

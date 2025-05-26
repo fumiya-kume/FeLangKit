@@ -302,7 +302,8 @@ final class VisitableTests: XCTestCase {
         let block = Statement.block([assignmentStmt])
         
         // Create visitors
-        let expressionVisitor = ExpressionVisitor<String>(
+        var expressionVisitor: ExpressionVisitor<String>!
+        expressionVisitor = ExpressionVisitor<String>(
             visitLiteral: { literal in "\(literal)" },
             visitIdentifier: { name in name },
             visitBinary: { op, left, right in "(\(expressionVisitor.visit(left)) \(op.rawValue) \(expressionVisitor.visit(right)))" },
@@ -312,7 +313,8 @@ final class VisitableTests: XCTestCase {
             visitFunctionCall: { name, args in "\(name)(\(args.map { expressionVisitor.visit($0) }.joined(separator: ", ")))" }
         )
         
-        let statementVisitor = StatementVisitor<String>(
+        var statementVisitor: StatementVisitor<String>!
+        statementVisitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if-statement" },
             visitWhileStatement: { _ in "while-statement" },
             visitForStatement: { _ in "for-statement" },
@@ -346,7 +348,8 @@ final class VisitableTests: XCTestCase {
             Expression.binary(.add, .literal(.integer(i)), .literal(.integer(i + 1)))
         }
         
-        let visitor = ExpressionVisitor<Int>(
+        var visitor: ExpressionVisitor<Int>!
+        visitor = ExpressionVisitor<Int>(
             visitLiteral: { _ in 1 },
             visitIdentifier: { _ in 1 },
             visitBinary: { _, left, right in visitor.visit(left) + visitor.visit(right) + 1 },
