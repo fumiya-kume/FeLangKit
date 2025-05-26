@@ -442,4 +442,77 @@ extension SymbolTable {
 
         return result
     }
+    
+    // MARK: - Error Recovery Support
+    
+    /// Find similar symbol names for error recovery and suggestions.
+    /// Uses Levenshtein distance to find names that are similar to the target.
+    /// - Parameters:
+    ///   - target: The target name to find similar names for
+    ///   - limit: Maximum number of suggestions to return
+    /// - Returns: Array of similar symbol names
+    public func findSimilarNames(to target: String, limit: Int = 3) -> [String] {
+        guard !target.isEmpty else { return [] }
+        
+        lock.lock()
+        defer { lock.unlock() }
+        
+        var candidates: [(name: String, distance: Int)] = []
+        
+        // Check all scopes for similar names
+        for scope in scopes {
+            for (name, _) in scope {
+                let distance = levenshteinDistance(target, name)
+                // Only consider names that are reasonably similar
+                if distance <= max(1, target.count / 2) && distance < target.count {
+                    candidates.append((name: name, distance: distance))
+                }
+            }
+        }
+        
+        // Sort by similarity (lower distance = more similar) and take the best matches
+        candidates.sort { $0.distance < $1.distance }
+        
+        // Remove duplicates and limit results
+        var seen = Set<String>()
+        var result: [String] = []
+        
+        for candidate in candidates {
+            if !seen.contains(candidate.name) && result.count < limit {
+                seen.insert(candidate.name)
+                result.append(candidate.name)
+            }
+        }
+        
+        return result
+    }
+    
+    /// Calculate Levenshtein distance between two strings.
+    /// Used for finding similar symbol names for error suggestions.
+    private func levenshteinDistance(_ s1: String, _ s2: String) -> Int {
+        let a = Array(s1)
+        let b = Array(s2)
+        
+        var dp = Array(repeating: Array(repeating: 0, count: b.count + 1), count: a.count + 1)
+        
+        for i in 0...a.count {
+            dp[i][0] = i
+        }
+        
+        for j in 0...b.count {
+            dp[0][j] = j
+        }
+        
+        for i in 1...a.count {
+            for j in 1...b.count {
+                if a[i-1] == b[j-1] {
+                    dp[i][j] = dp[i-1][j-1]
+                } else {
+                    dp[i][j] = 1 + min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+                }
+            }
+        }
+        
+        return dp[a.count][b.count]
+    }
 }

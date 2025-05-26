@@ -97,11 +97,11 @@ public struct ErrorFormatter {
 
     // MARK: - Public Interface
 
-    /// Formats any parsing-related error into a standardized string representation.
-    /// This method handles both ExpressionParser errors and StatementParser errors,
-    /// ensuring consistent formatting across all parse error scenarios.
+    /// Formats any parsing-related or semantic error into a standardized string representation.
+    /// This method handles ExpressionParser errors, StatementParser errors, and SemanticErrors,
+    /// ensuring consistent formatting across all error scenarios.
     ///
-    /// - Parameter error: The error to format (ParsingError or StatementParsingError)
+    /// - Parameter error: The error to format (ParsingError, StatementParsingError, or SemanticError)
     /// - Returns: A formatted error string suitable for golden file comparison
     public static func format(_ error: Error) -> String {
         switch error {
@@ -109,8 +109,10 @@ public struct ErrorFormatter {
             return formatCommonPattern(parsingError.commonPattern, prefix: "ParseError")
         case let statementError as StatementParsingError:
             return formatCommonPattern(statementError.commonPattern, prefix: "StatementParseError")
+        case let semanticError as SemanticError:
+            return formatCommonPattern(semanticError.commonPattern, prefix: "SemanticError")
         default:
-            return "UnknownParseError: \(error.localizedDescription)"
+            return "UnknownError: \(error.localizedDescription)"
         }
     }
 
@@ -312,6 +314,232 @@ extension StatementParsingError {
         case .cyclicDependency(let variables):
             let varList = variables.joined(separator: " -> ")
             return .simple(message: "Cyclic dependency detected", detail: "Dependency chain: \(varList)")
+        }
+    }
+}
+
+// MARK: - Semantic Error Support
+
+extension ErrorFormatter {
+    /// Formats a semantic error with detailed context information.
+    /// Includes error type, position information, and type details where applicable.
+    ///
+    /// - Parameters:
+    ///   - error: The semantic error to format
+    ///   - symbolTable: Optional symbol table for additional context
+    /// - Returns: A comprehensive error message with context
+    public static func formatSemanticError(_ error: SemanticError, symbolTable: SymbolTable? = nil) -> String {
+        let basicFormat = format(error)
+        
+        // Add symbol table context if available and relevant
+        if let symbolTable = symbolTable {
+            let contextInfo = extractSemanticContext(from: error, symbolTable: symbolTable)
+            if !contextInfo.isEmpty {
+                return basicFormat + "\n" + contextInfo
+            }
+        }
+        
+        return basicFormat
+    }
+    
+    private static func extractSemanticContext(from error: SemanticError, symbolTable: SymbolTable) -> String {
+        switch error {
+        case .undeclaredVariable(let name, _):
+            // Find similar variable names for suggestions
+            let suggestions = symbolTable.findSimilarNames(to: name, limit: 3)
+            if !suggestions.isEmpty {
+                let suggestionList = suggestions.joined(separator: ", ")
+                return "  Did you mean: \(suggestionList)?"
+            }
+            
+        case .undeclaredFunction(let name, _):
+            // Find similar function names for suggestions
+            let suggestions = symbolTable.findSimilarNames(to: name, limit: 3)
+            if !suggestions.isEmpty {
+                let suggestionList = suggestions.joined(separator: ", ")
+                return "  Did you mean: \(suggestionList)?"
+            }
+            
+        case .typeMismatch(let expected, let actual, _):
+            // Provide conversion suggestions for compatible types
+            if expected == .real && actual == .integer {
+                return "  Note: Integer values are automatically converted to real"
+            } else if expected == .integer && actual == .real {
+                return "  Note: Use explicit conversion to convert real to integer"
+            }
+            
+        default:
+            break
+        }
+        
+        return ""
+    }
+}
+
+extension SemanticError {
+    /// Converts the semantic error to a common pattern for unified formatting.
+    var commonPattern: CommonErrorPattern {
+        switch self {
+        case .typeMismatch(let expected, let actual, let pos):
+            return .complex(message: "Type mismatch", details: [
+                ("Expected", "\(expected)"),
+                ("Found", "\(actual)"),
+                ("Position", ErrorFormatter.formatPosition(pos))
+            ])
+            
+        case .incompatibleTypes(let t1, let t2, let op, let pos):
+            return .complex(message: "Incompatible types for operation", details: [
+                ("Operation", "'\(op)'"),
+                ("Left type", "\(t1)"),
+                ("Right type", "\(t2)"),
+                ("Position", ErrorFormatter.formatPosition(pos))
+            ])
+            
+        case .unknownType(let name, let pos):
+            return .complex(message: "Unknown type", details: [
+                ("Type name", "'\(name)'"),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Type must be declared before use")
+            ])
+            
+        case .invalidTypeConversion(let from, let to, let pos):
+            return .complex(message: "Invalid type conversion", details: [
+                ("From", "\(from)"),
+                ("To", "\(to)"),
+                ("Position", ErrorFormatter.formatPosition(pos))
+            ])
+            
+        case .undeclaredVariable(let name, let pos):
+            return .complex(message: "Undeclared variable", details: [
+                ("Variable", "'\(name)'"),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Variable must be declared before use")
+            ])
+            
+        case .variableAlreadyDeclared(let name, let pos):
+            return .complex(message: "Variable already declared", details: [
+                ("Variable", "'\(name)'"),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Each variable can only be declared once in the same scope")
+            ])
+            
+        case .variableNotInitialized(let name, let pos):
+            return .complex(message: "Variable used before initialization", details: [
+                ("Variable", "'\(name)'"),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Variables must be initialized before use")
+            ])
+            
+        case .constantReassignment(let name, let pos):
+            return .complex(message: "Cannot reassign constant", details: [
+                ("Constant", "'\(name)'"),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Constants cannot be modified after declaration")
+            ])
+            
+        case .invalidAssignmentTarget(let pos):
+            return .simple(message: "Invalid assignment target", detail: "at \(ErrorFormatter.formatPosition(pos))\n  Note: Can only assign to variables, not expressions")
+            
+        case .undeclaredFunction(let name, let pos):
+            return .complex(message: "Undeclared function", details: [
+                ("Function", "'\(name)'"),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Function must be declared before use")
+            ])
+            
+        case .functionAlreadyDeclared(let name, let pos):
+            return .complex(message: "Function already declared", details: [
+                ("Function", "'\(name)'"),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Each function can only be declared once")
+            ])
+            
+        case .incorrectArgumentCount(let function, let expected, let actual, let pos):
+            return .complex(message: "Incorrect argument count", details: [
+                ("Function", "'\(function)'"),
+                ("Expected", "\(expected) arguments"),
+                ("Found", "\(actual) arguments"),
+                ("Position", ErrorFormatter.formatPosition(pos))
+            ])
+            
+        case .argumentTypeMismatch(let function, let paramIndex, let expected, let actual, let pos):
+            return .complex(message: "Argument type mismatch", details: [
+                ("Function", "'\(function)'"),
+                ("Parameter", "#\(paramIndex + 1)"),
+                ("Expected", "\(expected)"),
+                ("Found", "\(actual)"),
+                ("Position", ErrorFormatter.formatPosition(pos))
+            ])
+            
+        case .missingReturnStatement(let function, let pos):
+            return .complex(message: "Missing return statement", details: [
+                ("Function", "'\(function)'"),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Functions with return type must return a value")
+            ])
+            
+        case .returnTypeMismatch(let function, let expected, let actual, let pos):
+            return .complex(message: "Return type mismatch", details: [
+                ("Function", "'\(function)'"),
+                ("Expected", "\(expected)"),
+                ("Found", "\(actual)"),
+                ("Position", ErrorFormatter.formatPosition(pos))
+            ])
+            
+        case .voidFunctionReturnsValue(let function, let pos):
+            return .complex(message: "Void function returns value", details: [
+                ("Function", "'\(function)'"),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Procedures (void functions) cannot return values")
+            ])
+            
+        case .unreachableCode(let pos):
+            return .simple(message: "Unreachable code", detail: "at \(ErrorFormatter.formatPosition(pos))\n  Note: Code after return statements is never executed")
+            
+        case .breakOutsideLoop(let pos):
+            return .simple(message: "Break statement outside loop", detail: "at \(ErrorFormatter.formatPosition(pos))\n  Note: Break can only be used inside loops")
+            
+        case .returnOutsideFunction(let pos):
+            return .simple(message: "Return statement outside function", detail: "at \(ErrorFormatter.formatPosition(pos))\n  Note: Return can only be used inside functions")
+            
+        case .invalidArrayAccess(let pos):
+            return .simple(message: "Invalid array access", detail: "at \(ErrorFormatter.formatPosition(pos))\n  Note: Array access requires valid array expression and index")
+            
+        case .arrayIndexTypeMismatch(let expected, let actual, let pos):
+            return .complex(message: "Array index type mismatch", details: [
+                ("Expected", "\(expected)"),
+                ("Found", "\(actual)"),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Array indices must be integers")
+            ])
+            
+        case .invalidArrayDimension(let pos):
+            return .simple(message: "Invalid array dimension", detail: "at \(ErrorFormatter.formatPosition(pos))\n  Note: Array dimensions must be positive integers")
+            
+        case .undeclaredField(let fieldName, let recordType, let pos):
+            return .complex(message: "Undeclared field", details: [
+                ("Field", "'\(fieldName)'"),
+                ("Record type", "'\(recordType)'"),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Field does not exist in this record type")
+            ])
+            
+        case .invalidFieldAccess(let pos):
+            return .simple(message: "Invalid field access", detail: "at \(ErrorFormatter.formatPosition(pos))\n  Note: Field access requires a record expression")
+            
+        case .cyclicDependency(let variables, let pos):
+            let varList = variables.joined(separator: " -> ")
+            return .complex(message: "Cyclic dependency detected", details: [
+                ("Dependency chain", varList),
+                ("Position", ErrorFormatter.formatPosition(pos)),
+                ("Note", "Variables cannot depend on themselves")
+            ])
+            
+        case .analysisDepthExceeded(let pos):
+            return .simple(message: "Analysis depth exceeded", detail: "at \(ErrorFormatter.formatPosition(pos))\n  Note: Expression or type structure too complex")
+            
+        case .tooManyErrors(let count):
+            return .simple(message: "Too many semantic errors", detail: "Analysis stopped after \(count) errors\n  Note: Fix some errors and try again")
         }
     }
 }

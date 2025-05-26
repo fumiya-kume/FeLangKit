@@ -1,9 +1,129 @@
 # Semantic Errors - Type mismatches and scope issues
-# This file will contain expected error messages for regression testing
-# Add test cases in the format:
-# === Test Case: test_name ===
-# Input:
-# [your test input here]
-# Expected Error:
-# [expected error message here]
+# This file contains expected error messages for regression testing
+
+=== Test Case: undeclared_variable ===
+Input:
+var x: integer;
+begin
+  y := 5;
+end.
+Expected Error:
+SemanticError: Undeclared variable
+  Variable: 'y'
+  Position: line 3, column 3
+  Note: Variable must be declared before use
+
+=== Test Case: type_mismatch_assignment ===
+Input:
+var x: integer;
+begin
+  x := "hello";
+end.
+Expected Error:
+SemanticError: Type mismatch
+  Expected: integer
+  Found: string
+  Position: line 3, column 3
+
+=== Test Case: variable_already_declared ===
+Input:
+var x: integer;
+var x: string;
+begin
+end.
+Expected Error:
+SemanticError: Variable already declared
+  Variable: 'x'
+  Position: line 2, column 5
+  Note: Each variable can only be declared once in the same scope
+
+=== Test Case: function_not_declared ===
+Input:
+begin
+  result := calculateSum(1, 2);
+end.
+Expected Error:
+SemanticError: Undeclared function
+  Function: 'calculateSum'
+  Position: line 2, column 13
+  Note: Function must be declared before use
+
+=== Test Case: incorrect_argument_count ===
+Input:
+function add(a: integer, b: integer): integer;
+begin
+  return a + b;
+end;
+begin
+  result := add(1, 2, 3);
+end.
+Expected Error:
+SemanticError: Incorrect argument count
+  Function: 'add'
+  Expected: 2 arguments
+  Found: 3 arguments
+  Position: line 6, column 13
+
+=== Test Case: argument_type_mismatch ===
+Input:
+function greet(name: string);
+begin
+  write(name);
+end;
+begin
+  greet(42);
+end.
+Expected Error:
+SemanticError: Argument type mismatch
+  Function: 'greet'
+  Parameter: #1
+  Expected: string
+  Found: integer
+  Position: line 6, column 3
+
+=== Test Case: return_type_mismatch ===
+Input:
+function getValue(): integer;
+begin
+  return "hello";
+end;
+Expected Error:
+SemanticError: Return type mismatch
+  Function: 'getValue'
+  Expected: integer
+  Found: string
+  Position: line 3, column 3
+
+=== Test Case: array_index_type_mismatch ===
+Input:
+var arr: array[1..10] of integer;
+begin
+  arr["hello"] := 5;
+end.
+Expected Error:
+SemanticError: Array index type mismatch
+  Expected: integer
+  Found: string
+  Position: line 3, column 3
+  Note: Array indices must be integers
+
+=== Test Case: break_outside_loop ===
+Input:
+begin
+  break;
+end.
+Expected Error:
+SemanticError: Break statement outside loop
+  Position: line 2, column 3
+  Note: Break can only be used inside loops
+
+=== Test Case: return_outside_function ===
+Input:
+begin
+  return 5;
+end.
+Expected Error:
+SemanticError: Return statement outside function
+  Position: line 2, column 3
+  Note: Return can only be used inside functions
 
