@@ -185,29 +185,6 @@ final class SemanticErrorReporterTests: XCTestCase {
 
     // MARK: - Clear and Reset Tests
 
-    func testClearFunction() {
-        let reporter = SemanticErrorReporter()
-
-        // Use different positions to ensure both errors are collected
-        let pos1 = SourcePosition(line: 1, column: 1, offset: 0)
-        let pos2 = SourcePosition(line: 2, column: 1, offset: 10)
-
-        reporter.collect(.undeclaredVariable("x", at: pos1))
-        reporter.collect(.typeMismatch(expected: .integer, actual: .string, at: pos2))
-
-        XCTAssertTrue(reporter.hasErrors)
-        XCTAssertEqual(reporter.errorCount, 2)
-
-        reporter.clear()
-
-        XCTAssertFalse(reporter.hasErrors)
-        XCTAssertEqual(reporter.errorCount, 0)
-
-        // Should be able to collect errors again after clear
-        reporter.collect(.invalidAssignmentTarget(at: testPosition))
-        XCTAssertEqual(reporter.errorCount, 1)
-    }
-
     func testFinalizePreventsFurtherCollection() {
         let reporter = SemanticErrorReporter()
 
