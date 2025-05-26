@@ -1,0 +1,142 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+FeLangKit is a Swift toolkit for the **FE pseudo-language** providing complete parsing and analysis capabilities. The project implements a 3-stage parsing pipeline: Tokenizer → Expression → Parser, with shared utilities and comprehensive testing.
+
+## Development Commands
+
+### Building and Testing
+```bash
+# Build the project
+swift build
+
+# Build in release mode  
+swift build --configuration release
+
+# Run all tests (132 tests, ~0.007s execution)
+swift test
+
+# Run tests with code coverage
+swift test --enable-code-coverage
+
+# Run specific test suites
+swift test --filter "TokenizerTests"
+swift test --filter "ExpressionParserTests" 
+swift test --filter "StatementParserTests"
+
+# Run individual tests
+swift test --filter testComplexArithmeticExpression
+```
+
+### Code Quality
+```bash
+# Run SwiftLint
+swiftlint lint
+
+# Auto-fix lint issues
+swiftlint lint --fix
+
+# Quiet mode for CI
+swiftlint lint --quiet --reporter github-actions-logging
+```
+
+### Package Management
+```bash
+# Resolve dependencies
+swift package resolve
+
+# Update dependencies
+swift package update
+```
+
+## Architecture
+
+### Parsing Pipeline
+The codebase implements a clear 3-stage parsing pipeline:
+
+```
+Tokenizer → Expression → Parser
+    ↓          ↓         ↓
+    └── Utilities ←──────┘
+```
+
+**Stage 1 - Tokenizer**: Text → Tokens
+- Multiple implementations: `Tokenizer` (full-featured), `ParsingTokenizer` (lightweight)
+- Shared parsing strategies (recent refactoring eliminated ~300 lines of duplication)
+- Multi-language support (English/Japanese keywords)
+- Comprehensive error handling with position tracking
+
+**Stage 2 - Expression**: Tokens → Expression ASTs  
+- Recursive descent parser with operator precedence
+- Security limits (max nesting depth)
+- Function calls, field access, array access support
+
+**Stage 3 - Parser**: Tokens → Statement ASTs
+- Complete language construct support (if/else, while, for, functions)
+- Proper delegation to ExpressionParser
+- Control flow and declaration handling
+
+**Utilities**: Shared functionality across all modules
+- String escape sequence processing
+- Unicode normalization
+
+### Module Structure (FeLangCore)
+- **Tokenizer/** (7 files) - Foundation tokenization with multiple implementations
+- **Expression/** (2 files) - Expression parsing with precedence handling  
+- **Parser/** (2 files) - Statement parsing and AST construction
+- **Utilities/** (2 files) - Shared string processing utilities
+
+### Dependencies
+- **Swift 6.0** with **macOS 13+** minimum
+- **swift-parsing** (0.5.0+) for parser combinators
+- **SwiftLint** for code quality
+
+## Testing Strategy
+
+Tests mirror the source structure with 132 tests organized by module:
+
+- **TokenizerTests** (4 files, ~95 tests) - Core tokenization, consistency, edge cases
+- **ExpressionParserTests** (~20 tests) - Expression parsing, precedence, complex expressions  
+- **StatementParserTests** (~24 tests) - Statement parsing, control flow, declarations
+- **UtilitiesTests** (~5 tests) - String escape processing
+
+### Test Categories
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: Module interaction validation
+- **Security Tests**: Nesting limits and input validation
+- **Performance Tests**: Efficiency validation
+
+### Running Specific Tests
+Use `--filter` with module names or specific test function names. Tests execute in ~0.007 seconds total.
+
+## Development Patterns
+
+### Code Style
+- Follow SwiftLint configuration (120-char lines, explicit documentation)
+- Use descriptive naming: clear types, action-oriented functions
+- Comprehensive error handling with position tracking
+- Security-first: validate inputs and implement nesting depth limits
+
+### Architecture Principles
+- **Unidirectional dependencies** prevent circular references
+- **Modular design** with clear separation of concerns
+- **Performance optimization** through shared strategies and O(1) lookups
+- **Multi-language support** built into tokenization layer
+
+### Recent Refactoring
+The codebase recently completed Phase 1-4 of a major refactoring plan:
+- Extracted shared parsing strategies to eliminate duplication
+- Maintained all 325 tests with zero regressions
+- Follow established patterns when making changes
+
+## CI/CD Workflow
+
+GitHub Actions pipeline runs on macOS-15:
+1. **Lint**: SwiftLint with caching
+2. **Build**: Matrix builds (debug/release) with artifact upload  
+3. **Test**: Unit tests with code coverage reporting
+
+The CI caches dependencies (.build, .swiftpm) and tools for performance.
