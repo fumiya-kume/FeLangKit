@@ -242,6 +242,26 @@ public final class SymbolTable: @unchecked Sendable {
         return .success(())
     }
 
+    /// Declare a symbol in the current scope.
+    public func declare(_ symbol: Symbol) -> Result<Void, SemanticError> {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard var currentScope = scopes[currentScopeId] else {
+            return .failure(.undeclaredVariable(symbol.name, at: symbol.position))
+        }
+
+        // Check if symbol already exists in current scope
+        if currentScope.symbols[symbol.name] != nil {
+            return .failure(.variableAlreadyDeclared(symbol.name, at: symbol.position))
+        }
+
+        currentScope.addSymbol(symbol)
+        scopes[currentScopeId] = currentScope
+
+        return .success(())
+    }
+
     /// Look up a symbol by name, searching through scope hierarchy.
     public func lookup(_ name: String) -> Symbol? {
         lock.lock()
