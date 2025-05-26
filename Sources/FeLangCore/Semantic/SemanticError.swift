@@ -345,6 +345,8 @@ public final class SemanticErrorReporter: @unchecked Sendable {
         collectedErrors.append(error)
         
         // Add threshold error if we've reached the limit
+        // Note: Upon reaching the maximum error count, a special threshold error is appended
+        // to signal the limit, even though this makes the total error count exceed config.maxErrorCount
         if collectedErrors.count == config.maxErrorCount {
             let thresholdError = SemanticError.tooManyErrors(count: config.maxErrorCount)
             if !collectedErrors.contains(thresholdError) {
@@ -481,7 +483,10 @@ public final class SemanticErrorReporter: @unchecked Sendable {
              .analysisDepthExceeded(let pos):
             return pos
         case .tooManyErrors:
-            return SourcePosition(line: 0, column: 0, offset: 0) // Special position for threshold errors
+            // The .tooManyErrors case returns a fixed SourcePosition (line: 0, column: 0, offset: 0)
+            // as an intentional marker for threshold errors that don't correspond to a specific
+            // location in the source code, but rather indicate a system limit has been reached
+            return SourcePosition(line: 0, column: 0, offset: 0)
         }
     }
     
