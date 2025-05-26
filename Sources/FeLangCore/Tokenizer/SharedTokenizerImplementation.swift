@@ -172,7 +172,11 @@ public enum SharedTokenizerImplementation {
     /// Enhanced number parsing with improved error detection and validation.
     /// Detects multiple decimal points, invalid formats, and provides detailed error context.
     public static func parseNumberWithValidation(from input: String, at index: inout String.Index) -> Result<TokenData, TokenizerError> {
-        guard index < input.endIndex && (input[index].isNumber || input[index] == ".") else {
+        guard index < input.endIndex else {
+            return .failure(.unexpectedCharacter(UnicodeScalar(0)!, SourcePosition(line: 1, column: 1, offset: 0)))
+        }
+
+        guard input[index].isNumber || input[index] == "." else {
             return .failure(.unexpectedCharacter(UnicodeScalar(input[index].unicodeScalars.first?.value ?? 0) ?? UnicodeScalar(0)!, SourcePosition(line: 1, column: 1, offset: 0)))
         }
 
