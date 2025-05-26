@@ -69,10 +69,30 @@ public final class SemanticErrorReporter: @unchecked Sendable {
 
     /// Collect multiple semantic errors.
     public func collect(_ errors: [SemanticError]) {
+        lock.lock()
+        defer { lock.unlock() }
+        
         for error in errors {
-            collect(error)
-            if isFull {
-                break
+            guard !isFinalized else { return }
+            guard collectedErrors.count < config.maxErrorCount else { 
+                // Add tooManyErrors marker if not already added
+                if !collectedErrors.contains(where: { 
+                    if case .tooManyErrors = $0 { return true }
+                    return false
+                }) {
+                    collectedErrors.append(.tooManyErrors(count: config.maxErrorCount))
+                }
+                break 
+            }
+
+            if config.enableDeduplication && isDuplicate(error) {
+                continue
+            }
+
+            collectedErrors.append(error)
+
+            if config.enableDeduplication {
+                recordErrorPosition(error)
             }
         }
     }
@@ -142,66 +162,39 @@ public final class SemanticErrorReporter: @unchecked Sendable {
 
     /// Generate a unique key for an error based on its type and position.
     private func errorKey(for error: SemanticError) -> String {
-        return generateErrorKey(for: error)
-    }
-
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
-    private func generateErrorKey(for error: SemanticError) -> String {
+        // Simple approach: use error type + position line/column/offset
+        let errorType = String(describing: error).components(separatedBy: "(").first ?? "unknown"
+        
         switch error {
-        case .typeMismatch(let expected, let actual, let position):
-            return "typeMismatch:\(expected):\(actual):\(position)"
-        case .incompatibleTypes(let type1, let type2, let operation, let position):
-            return "incompatibleTypes:\(type1):\(type2):\(operation):\(position)"
-        case .unknownType(let name, let position):
-            return "unknownType:\(name):\(position)"
-        case .invalidTypeConversion(let from, let target, let position):
-            return "invalidTypeConversion:\(from):\(target):\(position)"
-        case .undeclaredVariable(let name, let position):
-            return "undeclaredVariable:\(name):\(position)"
-        case .variableAlreadyDeclared(let name, let position):
-            return "variableAlreadyDeclared:\(name):\(position)"
-        case .variableNotInitialized(let name, let position):
-            return "variableNotInitialized:\(name):\(position)"
-        case .constantReassignment(let name, let position):
-            return "constantReassignment:\(name):\(position)"
-        case .invalidAssignmentTarget(let position):
-            return "invalidAssignmentTarget:\(position)"
-        case .undeclaredFunction(let name, let position):
-            return "undeclaredFunction:\(name):\(position)"
-        case .functionAlreadyDeclared(let name, let position):
-            return "functionAlreadyDeclared:\(name):\(position)"
-        case .incorrectArgumentCount(let function, let expected, let actual, let position):
-            return "incorrectArgumentCount:\(function):\(expected):\(actual):\(position)"
-        case .argumentTypeMismatch(let function, let paramIndex, let expected, let actual, let position):
-            return "argumentTypeMismatch:\(function):\(paramIndex):\(expected):\(actual):\(position)"
-        case .missingReturnStatement(let function, let position):
-            return "missingReturnStatement:\(function):\(position)"
-        case .returnTypeMismatch(let function, let expected, let actual, let position):
-            return "returnTypeMismatch:\(function):\(expected):\(actual):\(position)"
-        case .voidFunctionReturnsValue(let function, let position):
-            return "voidFunctionReturnsValue:\(function):\(position)"
-        case .unreachableCode(let position):
-            return "unreachableCode:\(position)"
-        case .breakOutsideLoop(let position):
-            return "breakOutsideLoop:\(position)"
-        case .returnOutsideFunction(let position):
-            return "returnOutsideFunction:\(position)"
-        case .invalidArrayAccess(let position):
-            return "invalidArrayAccess:\(position)"
-        case .arrayIndexTypeMismatch(let expected, let actual, let position):
-            return "arrayIndexTypeMismatch:\(expected):\(actual):\(position)"
-        case .invalidArrayDimension(let position):
-            return "invalidArrayDimension:\(position)"
-        case .undeclaredField(let fieldName, let recordType, let position):
-            return "undeclaredField:\(fieldName):\(recordType):\(position)"
-        case .invalidFieldAccess(let position):
-            return "invalidFieldAccess:\(position)"
-        case .cyclicDependency(let deps, let position):
-            return "cyclicDependency:\(deps.joined(separator: ",")):\(position)"
-        case .analysisDepthExceeded(let position):
-            return "analysisDepthExceeded:\(position)"
+        case .typeMismatch(_, _, let position),
+             .incompatibleTypes(_, _, _, let position),
+             .unknownType(_, let position),
+             .invalidTypeConversion(_, _, let position),
+             .undeclaredVariable(_, let position),
+             .variableAlreadyDeclared(_, let position),
+             .variableNotInitialized(_, let position),
+             .constantReassignment(_, let position),
+             .invalidAssignmentTarget(let position),
+             .undeclaredFunction(_, let position),
+             .functionAlreadyDeclared(_, let position),
+             .incorrectArgumentCount(_, _, _, let position),
+             .argumentTypeMismatch(_, _, _, _, let position),
+             .missingReturnStatement(_, let position),
+             .returnTypeMismatch(_, _, _, let position),
+             .voidFunctionReturnsValue(_, let position),
+             .unreachableCode(let position),
+             .breakOutsideLoop(let position),
+             .returnOutsideFunction(let position),
+             .invalidArrayAccess(let position),
+             .arrayIndexTypeMismatch(_, _, let position),
+             .invalidArrayDimension(let position),
+             .undeclaredField(_, _, let position),
+             .invalidFieldAccess(let position),
+             .cyclicDependency(_, let position),
+             .analysisDepthExceeded(let position):
+            return "\(errorType)_\(position.line)_\(position.column)_\(position.offset)"
         case .tooManyErrors(let count):
-            return "tooManyErrors:\(count)"
+            return "tooManyErrors_\(count)"
         }
     }
 
