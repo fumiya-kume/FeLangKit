@@ -5,15 +5,30 @@ import Foundation
 /// 
 /// This parser integrates the existing StatementParser and ExpressionParser
 /// with the ParsingTokenizer to provide a complete parsing solution.
+/// It also supports optional semantic analysis for type checking and validation.
 public struct Parser {
     private let tokenizer: ParsingTokenizer
     private let statementParser: StatementParser
     private let expressionParser: ExpressionParser
+    
+    /// Configuration for parsing and semantic analysis
+    public struct Options {
+        /// Whether to perform semantic analysis after parsing
+        public var performSemanticAnalysis: Bool = false
+        
+        /// Options for semantic analysis when enabled
+        public var semanticAnalysisOptions: SemanticAnalyzer.AnalysisOptions = SemanticAnalyzer.AnalysisOptions()
+        
+        public init() {}
+    }
+    
+    private let options: Options
 
-    public init() {
+    public init(options: Options = Options()) {
         self.tokenizer = ParsingTokenizer()
         self.statementParser = StatementParser()
         self.expressionParser = ExpressionParser()
+        self.options = options
     }
 
     /// Parses FE pseudo-language source code into an array of statements.
@@ -118,6 +133,94 @@ public struct Parser {
 
         return errors
     }
+    
+    /// Represents the result of parsing with optional semantic analysis
+    public struct ParseResult {
+        /// The parsed AST statements
+        public let statements: [Statement]
+        
+        /// Semantic analysis result (only present if semantic analysis was performed)
+        public let semanticAnalysis: SemanticAnalysisResult?
+        
+        /// Whether the parsing was successful (syntax and optionally semantics)
+        public var isSuccessful: Bool {
+            return semanticAnalysis?.isSuccessful ?? true
+        }
+        
+        /// All errors from parsing and semantic analysis
+        public var allErrors: [Error] {
+            var errors: [Error] = []
+            if let semanticResult = semanticAnalysis {
+                errors.append(contentsOf: semanticResult.errors)
+            }
+            return errors
+        }
+        
+        public init(statements: [Statement], semanticAnalysis: SemanticAnalysisResult? = nil) {
+            self.statements = statements
+            self.semanticAnalysis = semanticAnalysis
+        }
+    }
+    
+    /// Parses source code with optional semantic analysis.
+    ///
+    /// - Parameter sourceCode: The source code string to parse
+    /// - Returns: ParseResult containing AST and optional semantic analysis
+    /// - Throws: ParseError if syntax parsing fails
+    ///
+    /// Example:
+    /// ```swift
+    /// var options = Parser.Options()
+    /// options.performSemanticAnalysis = true
+    /// let parser = Parser(options: options)
+    /// let result = try parser.parseWithAnalysis("variable x: integer ← 42")
+    /// if !result.isSuccessful {
+    ///     print("Semantic errors: \(result.semanticAnalysis?.errors ?? [])")
+    /// }
+    /// ```
+    public func parseWithAnalysis(_ sourceCode: String) throws -> ParseResult {
+        // First perform syntax parsing
+        let statements = try parse(sourceCode)
+        
+        // Perform semantic analysis if enabled
+        var semanticResult: SemanticAnalysisResult? = nil
+        if options.performSemanticAnalysis {
+            let analyzer = SemanticAnalyzer(options: options.semanticAnalysisOptions)
+            semanticResult = analyzer.analyze(statements: statements)
+        }
+        
+        return ParseResult(statements: statements, semanticAnalysis: semanticResult)
+    }
+    
+    /// Parses and validates source code with both syntax and semantic checking.
+    ///
+    /// - Parameter sourceCode: The source code to validate
+    /// - Returns: true if the code is both syntactically and semantically valid
+    public func validateWithSemantics(_ sourceCode: String) -> Bool {
+        do {
+            let result = try parseWithAnalysis(sourceCode)
+            return result.isSuccessful
+        } catch {
+            return false
+        }
+    }
+    
+    /// Collects all parsing and semantic errors from source code.
+    ///
+    /// - Parameter sourceCode: The source code to analyze
+    /// - Returns: Array of all errors found during parsing and semantic analysis
+    public func collectAllErrors(_ sourceCode: String) -> [Error] {
+        var allErrors: [Error] = []
+        
+        do {
+            let result = try parseWithAnalysis(sourceCode)
+            allErrors.append(contentsOf: result.allErrors)
+        } catch let parseError {
+            allErrors.append(parseError)
+        }
+        
+        return allErrors
+    }
 }
 
 // MARK: - Parser Configuration
@@ -144,6 +247,7 @@ extension Parser {
         self.tokenizer = ParsingTokenizer()
         self.statementParser = StatementParser()
         self.expressionParser = ExpressionParser()
+        self.options = Options()
     }
 }
 
