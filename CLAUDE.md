@@ -8,6 +8,18 @@ FeLangKit is a Swift toolkit for the **FE pseudo-language** providing complete p
 
 ## Development Commands
 
+### Prerequisites
+```bash
+# Install SwiftLint via Homebrew
+brew install swiftlint
+```
+
+### Verification Command Sequence
+After making changes, run this command sequence to ensure everything is working correctly:
+```bash
+swiftlint lint --fix && swiftlint lint && swift build && swift test
+```
+
 ### Building and Testing
 ```bash
 # Build the project
