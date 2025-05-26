@@ -325,32 +325,32 @@ public final class SemanticErrorReporter: @unchecked Sendable {
     /// Collect a single semantic error.
     /// - Parameter error: The semantic error to collect.
     public func collect(_ error: SemanticError) {
-        lock.lock()
-        defer { lock.unlock() }
+        self.lock.lock()
+        defer { self.lock.unlock() }
         
         // Check if we've already reached the error threshold
-        guard collectedErrors.count < config.maxErrorCount else {
+        guard self.collectedErrors.count < self.config.maxErrorCount else {
             return
         }
         
         // Handle deduplication if enabled
-        if config.enableDeduplication {
-            let position = extractPosition(from: error)
-            if errorPositions.contains(position) {
+        if self.config.enableDeduplication {
+            let position = self.extractPosition(from: error)
+            if self.errorPositions.contains(position) {
                 return // Skip duplicate error at same position
             }
-            errorPositions.insert(position)
+            self.errorPositions.insert(position)
         }
         
-        collectedErrors.append(error)
+        self.collectedErrors.append(error)
         
         // Add threshold error if we've reached the limit
         // Note: Upon reaching the maximum error count, a special threshold error is appended
         // to signal the limit, even though this makes the total error count exceed config.maxErrorCount
-        if collectedErrors.count == config.maxErrorCount {
-            let thresholdError = SemanticError.tooManyErrors(count: config.maxErrorCount)
-            if !collectedErrors.contains(thresholdError) {
-                collectedErrors.append(thresholdError)
+        if self.collectedErrors.count == self.config.maxErrorCount {
+            let thresholdError = SemanticError.tooManyErrors(count: self.config.maxErrorCount)
+            if !self.collectedErrors.contains(thresholdError) {
+                self.collectedErrors.append(thresholdError)
             }
         }
     }
@@ -359,26 +359,26 @@ public final class SemanticErrorReporter: @unchecked Sendable {
     /// - Parameter errors: The semantic errors to collect.
     public func collect(_ errors: [SemanticError]) {
         for error in errors {
-            collect(error)
+            self.collect(error)
         }
     }
     
     /// Collect a semantic warning.
     /// - Parameter warning: The semantic warning to collect.
     public func collect(_ warning: SemanticWarning) {
-        lock.lock()
-        defer { lock.unlock() }
+        self.lock.lock()
+        defer { self.lock.unlock() }
         
-        collectedWarnings.append(warning)
+        self.collectedWarnings.append(warning)
     }
     
     /// Collect multiple semantic warnings.
     /// - Parameter warnings: The semantic warnings to collect.
     public func collect(_ warnings: [SemanticWarning]) {
-        lock.lock()
-        defer { lock.unlock() }
+        self.lock.lock()
+        defer { self.lock.unlock() }
         
-        collectedWarnings.append(contentsOf: warnings)
+        self.collectedWarnings.append(contentsOf: warnings)
     }
     
     // MARK: - Reporting
@@ -387,67 +387,67 @@ public final class SemanticErrorReporter: @unchecked Sendable {
     /// - Parameter symbolTable: The symbol table from semantic analysis.
     /// - Returns: A comprehensive semantic analysis result.
     public func finalize(with symbolTable: SymbolTable) -> SemanticAnalysisResult {
-        lock.lock()
-        defer { lock.unlock() }
+        self.lock.lock()
+        defer { self.lock.unlock() }
         
-        let processedErrors = config.enableErrorCorrelation ? 
-            correlateErrors(collectedErrors) : collectedErrors
+        let processedErrors = self.config.enableErrorCorrelation ? 
+            self.correlateErrors(self.collectedErrors) : self.collectedErrors
         
         let isSuccessful = processedErrors.isEmpty
         
         return SemanticAnalysisResult(
             isSuccessful: isSuccessful,
             errors: processedErrors,
-            warnings: collectedWarnings,
+            warnings: self.collectedWarnings,
             symbolTable: symbolTable
         )
     }
     
     /// Clear all collected errors and warnings.
     public func clear() {
-        lock.lock()
-        defer { lock.unlock() }
+        self.lock.lock()
+        defer { self.lock.unlock() }
         
-        collectedErrors.removeAll()
-        collectedWarnings.removeAll()
-        errorPositions.removeAll()
+        self.collectedErrors.removeAll()
+        self.collectedWarnings.removeAll()
+        self.errorPositions.removeAll()
     }
     
     // MARK: - Status Properties
     
     /// The current number of collected errors.
     public var errorCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return collectedErrors.count
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.collectedErrors.count
     }
     
     /// Whether any errors have been collected.
     public var hasErrors: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return !collectedErrors.isEmpty
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return !self.collectedErrors.isEmpty
     }
     
     /// Whether the error threshold has been reached.
     public var isFull: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return collectedErrors.count >= config.maxErrorCount
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.collectedErrors.count >= self.config.maxErrorCount
     }
     
     /// The current number of collected warnings.
     public var warningCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return collectedWarnings.count
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.collectedWarnings.count
     }
     
     /// Whether any warnings have been collected.
     public var hasWarnings: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return !collectedWarnings.isEmpty
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return !self.collectedWarnings.isEmpty
     }
     
     // MARK: - Private Methods
