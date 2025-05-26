@@ -72,67 +72,82 @@ public struct VisitorModule {
     
     // MARK: - Collection Visitors
     
-    /// Creates a visitor that collects all identifiers from an expression tree.
-    public static func identifierCollector() -> ExpressionVisitor<[String]> {
-        return ExpressionVisitor<[String]>(
+    /// Cached identifier collector to avoid recursive instantiation.
+    private static let cachedIdentifierCollector: ExpressionVisitor<[String]> = {
+        var visitor: ExpressionVisitor<[String]>!
+        visitor = ExpressionVisitor<[String]>(
             visitLiteral: { _ in [] },
             visitIdentifier: { name in [name] },
             visitBinary: { _, left, right in
-                let leftIds = VisitorModule.identifierCollector().visit(left)
-                let rightIds = VisitorModule.identifierCollector().visit(right)
+                let leftIds = visitor.visit(left)
+                let rightIds = visitor.visit(right)
                 return leftIds + rightIds
             },
             visitUnary: { _, expr in
-                return VisitorModule.identifierCollector().visit(expr)
+                return visitor.visit(expr)
             },
             visitArrayAccess: { array, index in
-                let arrayIds = VisitorModule.identifierCollector().visit(array)
-                let indexIds = VisitorModule.identifierCollector().visit(index)
+                let arrayIds = visitor.visit(array)
+                let indexIds = visitor.visit(index)
                 return arrayIds + indexIds
             },
             visitFieldAccess: { object, _ in
-                return VisitorModule.identifierCollector().visit(object)
+                return visitor.visit(object)
             },
             visitFunctionCall: { _, args in
-                return args.flatMap { VisitorModule.identifierCollector().visit($0) }
+                return args.flatMap { visitor.visit($0) }
             }
         )
+        return visitor
+    }()
+    
+    /// Creates a visitor that collects all identifiers from an expression tree.
+    public static func identifierCollector() -> ExpressionVisitor<[String]> {
+        return cachedIdentifierCollector
     }
     
-    /// Creates a visitor that collects all function names from an expression tree.
-    public static func functionNameCollector() -> ExpressionVisitor<[String]> {
-        return ExpressionVisitor<[String]>(
+    /// Cached function name collector to avoid recursive instantiation.
+    private static let cachedFunctionNameCollector: ExpressionVisitor<[String]> = {
+        var visitor: ExpressionVisitor<[String]>!
+        visitor = ExpressionVisitor<[String]>(
             visitLiteral: { _ in [] },
             visitIdentifier: { _ in [] },
             visitBinary: { _, left, right in
-                let leftFuncs = VisitorModule.functionNameCollector().visit(left)
-                let rightFuncs = VisitorModule.functionNameCollector().visit(right)
+                let leftFuncs = visitor.visit(left)
+                let rightFuncs = visitor.visit(right)
                 return leftFuncs + rightFuncs
             },
             visitUnary: { _, expr in
-                return VisitorModule.functionNameCollector().visit(expr)
+                return visitor.visit(expr)
             },
             visitArrayAccess: { array, index in
-                let arrayFuncs = VisitorModule.functionNameCollector().visit(array)
-                let indexFuncs = VisitorModule.functionNameCollector().visit(index)
+                let arrayFuncs = visitor.visit(array)
+                let indexFuncs = visitor.visit(index)
                 return arrayFuncs + indexFuncs
             },
             visitFieldAccess: { object, _ in
-                return VisitorModule.functionNameCollector().visit(object)
+                return visitor.visit(object)
             },
             visitFunctionCall: { name, args in
                 let funcNames = [name]
-                let argFuncs = args.flatMap { VisitorModule.functionNameCollector().visit($0) }
+                let argFuncs = args.flatMap { visitor.visit($0) }
                 return funcNames + argFuncs
             }
         )
+        return visitor
+    }()
+    
+    /// Creates a visitor that collects all function names from an expression tree.
+    public static func functionNameCollector() -> ExpressionVisitor<[String]> {
+        return cachedFunctionNameCollector
     }
     
     // MARK: - Validation Visitors
     
-    /// Creates a visitor that validates Expression trees for common issues.
-    public static func expressionValidator() -> ExpressionVisitor<[String]> {
-        return ExpressionVisitor<[String]>(
+    /// Cached expression validator to avoid recursive instantiation.
+    private static let cachedExpressionValidator: ExpressionVisitor<[String]> = {
+        var visitor: ExpressionVisitor<[String]>!
+        visitor = ExpressionVisitor<[String]>(
             visitLiteral: { _ in [] },
             visitIdentifier: { name in
                 // Check for empty identifier names
@@ -142,8 +157,8 @@ public struct VisitorModule {
                 var issues: [String] = []
                 
                 // Recursively validate children
-                issues += VisitorModule.expressionValidator().visit(left)
-                issues += VisitorModule.expressionValidator().visit(right)
+                issues += visitor.visit(left)
+                issues += visitor.visit(right)
                 
                 // Check for division by zero literal
                 if op == .divide, case .literal(.integer(0)) = right {
@@ -156,17 +171,17 @@ public struct VisitorModule {
                 return issues
             },
             visitUnary: { _, expr in
-                return VisitorModule.expressionValidator().visit(expr)
+                return visitor.visit(expr)
             },
             visitArrayAccess: { array, index in
                 var issues: [String] = []
-                issues += VisitorModule.expressionValidator().visit(array)
-                issues += VisitorModule.expressionValidator().visit(index)
+                issues += visitor.visit(array)
+                issues += visitor.visit(index)
                 return issues
             },
             visitFieldAccess: { object, field in
                 var issues: [String] = []
-                issues += VisitorModule.expressionValidator().visit(object)
+                issues += visitor.visit(object)
                 
                 // Check for empty field names
                 if field.isEmpty {
@@ -185,12 +200,18 @@ public struct VisitorModule {
                 
                 // Recursively validate arguments
                 for arg in args {
-                    issues += VisitorModule.expressionValidator().visit(arg)
+                    issues += visitor.visit(arg)
                 }
                 
                 return issues
             }
         )
+        return visitor
+    }()
+    
+    /// Creates a visitor that validates Expression trees for common issues.
+    public static func expressionValidator() -> ExpressionVisitor<[String]> {
+        return cachedExpressionValidator
     }
     
     // MARK: - Transformation Utilities

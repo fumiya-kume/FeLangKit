@@ -114,43 +114,45 @@ extension ExpressionVisitor {
     
     /// Creates a visitor that counts the number of nodes of a specific type.
     public static func counter<T>(for nodeType: T.Type, matching predicate: @escaping @Sendable (Expression) -> Bool) -> ExpressionVisitor<Int> {
-        return ExpressionVisitor<Int>(
+        var visitor: ExpressionVisitor<Int>!
+        visitor = ExpressionVisitor<Int>(
             visitLiteral: { _ in predicate(.literal($0)) ? 1 : 0 },
             visitIdentifier: { name in predicate(.identifier(name)) ? 1 : 0 },
             visitBinary: { op, left, right in
                 let expr = Expression.binary(op, left, right)
                 let selfCount = predicate(expr) ? 1 : 0
-                let leftCount = ExpressionVisitor.counter(for: nodeType, matching: predicate).visit(left)
-                let rightCount = ExpressionVisitor.counter(for: nodeType, matching: predicate).visit(right)
+                let leftCount = visitor.visit(left)
+                let rightCount = visitor.visit(right)
                 return selfCount + leftCount + rightCount
             },
             visitUnary: { op, expr in
                 let unaryExpr = Expression.unary(op, expr)
                 let selfCount = predicate(unaryExpr) ? 1 : 0
-                let exprCount = ExpressionVisitor.counter(for: nodeType, matching: predicate).visit(expr)
+                let exprCount = visitor.visit(expr)
                 return selfCount + exprCount
             },
             visitArrayAccess: { array, index in
                 let expr = Expression.arrayAccess(array, index)
                 let selfCount = predicate(expr) ? 1 : 0
-                let arrayCount = ExpressionVisitor.counter(for: nodeType, matching: predicate).visit(array)
-                let indexCount = ExpressionVisitor.counter(for: nodeType, matching: predicate).visit(index)
+                let arrayCount = visitor.visit(array)
+                let indexCount = visitor.visit(index)
                 return selfCount + arrayCount + indexCount
             },
             visitFieldAccess: { object, field in
                 let expr = Expression.fieldAccess(object, field)
                 let selfCount = predicate(expr) ? 1 : 0
-                let objectCount = ExpressionVisitor.counter(for: nodeType, matching: predicate).visit(object)
+                let objectCount = visitor.visit(object)
                 return selfCount + objectCount
             },
             visitFunctionCall: { name, args in
                 let expr = Expression.functionCall(name, args)
                 let selfCount = predicate(expr) ? 1 : 0
                 let argsCount = args.reduce(0) { sum, arg in
-                    sum + ExpressionVisitor.counter(for: nodeType, matching: predicate).visit(arg)
+                    sum + visitor.visit(arg)
                 }
                 return selfCount + argsCount
             }
         )
+        return visitor
     }
 }
