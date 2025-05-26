@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(gh pr view:*)",
+      "Bash(swiftlint lint:*)",
+      "Bash(swift build)",
+      "Bash(swift test)"
     ],
     "deny": []
   }
