@@ -442,4 +442,111 @@ extension SymbolTable {
 
         return result
     }
+
+    /// Returns all symbols from all scopes.
+    /// - Returns: Array of all symbols in the symbol table
+    public func getAllSymbols() -> [Symbol] {
+        lock.lock()
+        defer { lock.unlock() }
+        
+        var allSymbols: [Symbol] = []
+        for scope in scopes.values {
+            allSymbols.append(contentsOf: scope.symbols.values)
+        }
+        return allSymbols
+    }
+}
+
+// MARK: - Error Formatting Support
+
+extension SymbolTable {
+    
+    /// Finds symbol names similar to the given name for error suggestions.
+    /// - Parameters:
+    ///   - name: The target name to find similar names for
+    ///   - type: Optional symbol kind to filter by
+    /// - Returns: Array of similar symbol names sorted by similarity
+    public func findSimilarNames(to name: String, type: SymbolKind? = nil) -> [String] {
+        let allNames: [String]
+        
+        if let symbolType = type {
+            allNames = getAllSymbols().filter { $0.kind == symbolType }.map { $0.name }
+        } else {
+            allNames = getAllSymbols().map { $0.name }
+        }
+        
+        // Calculate Levenshtein distance for similarity
+        let similarities = allNames.map { symbolName in
+            (symbolName, levenshteinDistance(name, symbolName))
+        }
+        
+        // Filter and sort by similarity (distance <= 2 for reasonable suggestions)
+        return similarities
+            .filter { $0.1 <= 2 && $0.1 > 0 }
+            .sorted { $0.1 < $1.1 }
+            .map { $0.0 }
+    }
+    
+    /// Suggests type conversion methods for incompatible types.
+    /// - Parameters:
+    ///   - from: Source type
+    ///   - to: Target type
+    /// - Returns: Optional conversion suggestion string
+    public func suggestTypeConversion(from: FeType, to: FeType) -> String? {
+        switch (from, to) {
+        case (.integer, .real):
+            return "Integer will be automatically converted to real"
+        case (.real, .integer):
+            return "Use explicit casting: int(value)"
+        case (.integer, .string):
+            return "Use string interpolation: \"\\(value)\""
+        case (.real, .string):
+            return "Use string interpolation: \"\\(value)\""
+        case (.boolean, .string):
+            return "Use string interpolation: \"\\(value)\""
+        case (.character, .string):
+            return "Character will be automatically converted to string"
+        default:
+            return nil
+        }
+    }
+    
+    /// Calculates the Levenshtein distance between two strings.
+    /// - Parameters:
+    ///   - s1: First string
+    ///   - s2: Second string
+    /// - Returns: Edit distance between the strings
+    private func levenshteinDistance(_ s1: String, _ s2: String) -> Int {
+        let s1Array = Array(s1)
+        let s2Array = Array(s2)
+        let s1Count = s1Array.count
+        let s2Count = s2Array.count
+        
+        if s1Count == 0 { return s2Count }
+        if s2Count == 0 { return s1Count }
+        
+        var matrix = Array(repeating: Array(repeating: 0, count: s2Count + 1), count: s1Count + 1)
+        
+        // Initialize first row and column
+        for i in 0...s1Count {
+            matrix[i][0] = i
+        }
+        for j in 0...s2Count {
+            matrix[0][j] = j
+        }
+        
+        // Fill the matrix
+        for i in 1...s1Count {
+            for j in 1...s2Count {
+                let cost = s1Array[i - 1] == s2Array[j - 1] ? 0 : 1
+                matrix[i][j] = min(
+                    matrix[i - 1][j] + 1,      // deletion
+                    matrix[i][j - 1] + 1,      // insertion
+                    matrix[i - 1][j - 1] + cost // substitution
+                )
+            }
+        }
+        
+        return matrix[s1Count][s2Count]
+    }
 }

@@ -1,5 +1,5 @@
 /// Represents a position in source code with line, column, and offset information.
-public struct SourcePosition: Equatable, Codable, Sendable {
+public struct SourcePosition: Equatable, Hashable, Codable, Sendable {
     /// The line number (1-indexed)
     public let line: Int
 
@@ -18,6 +18,14 @@ public struct SourcePosition: Equatable, Codable, Sendable {
         self.line = line
         self.column = column
         self.offset = offset
+    }
+    
+    /// Creates a new source position with line and column only (offset defaults to 0).
+    /// - Parameters:
+    ///   - line: The line number (1-indexed)
+    ///   - column: The column number (1-indexed)
+    public init(line: Int, column: Int) {
+        self.init(line: line, column: column, offset: 0)
     }
 }
 

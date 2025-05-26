@@ -1,0 +1,26 @@
+=== Test Case: Undeclared Variable ===
+INPUT:
+undeclaredVariable|myVar|3|7
+
+EXPECTED:
+SemanticError: Undeclared variable 'myVar'
+  at line 3, column 7
+  Suggestion: Declare the variable before using it
+
+=== Test Case: Variable Already Declared ===
+INPUT:
+variableAlreadyDeclared|counter|5|12
+
+EXPECTED:
+SemanticError: Variable 'counter' already declared
+  at line 5, column 12
+  Suggestion: Use a different name or remove the duplicate declaration
+
+=== Test Case: Constant Reassignment ===
+INPUT:
+constantReassignment|PI|7|3
+
+EXPECTED:
+SemanticError: Cannot reassign constant 'PI'
+  at line 7, column 3
+  Suggestion: Use a variable instead of a constant

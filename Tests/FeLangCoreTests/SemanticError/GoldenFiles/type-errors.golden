@@ -1,0 +1,29 @@
+=== Test Case: Basic Type Mismatch ===
+INPUT:
+typeMismatch|integer|string|1|5
+
+EXPECTED:
+SemanticError: Type mismatch
+  at line 1, column 5
+  Expected type: integer
+  Actual type: string
+
+=== Test Case: Incompatible Types in Assignment ===
+INPUT:
+incompatibleTypes|integer|string|assignment|2|10
+
+EXPECTED:
+SemanticError: Incompatible types for operation 'assignment'
+  at line 2, column 10
+  Left type: integer
+  Right type: string
+
+=== Test Case: Invalid Type Conversion ===
+INPUT:
+invalidTypeConversion|real|boolean|3|8
+
+EXPECTED:
+SemanticError: Invalid type conversion
+  at line 3, column 8
+  From: real
+  To: boolean
