@@ -372,7 +372,11 @@ public struct EnhancedParsingTokenizer {
         } else if lexeme.contains("x") || lexeme.contains("X") {
             // Invalid hexadecimal
             let invalidChars = lexeme.filter { char in
-                return !char.isNumber && !(char >= "a" && char <= "f") && !(char >= "A" && char <= "F") && char != "x" && char != "X" && char != "0"
+                let isValidDigit = char.isNumber
+                let isValidLowerHex = (char >= "a" && char <= "f")
+                let isValidUpperHex = (char >= "A" && char <= "F")
+                let isHexPrefix = (char == "x" || char == "X" || char == "0")
+                return !(isValidDigit || isValidLowerHex || isValidUpperHex || isHexPrefix)
             }
             if !invalidChars.isEmpty {
                 errorCollector.addError(
@@ -510,136 +514,48 @@ public struct EnhancedParsingTokenizer {
     // MARK: - Reuse existing parsing methods
 
     private func parseKeywordOrIdentifier(from input: String, at index: inout String.Index) -> TokenData? {
-        guard index < input.endIndex && TokenizerUtilities.isIdentifierStart(input[index]) else { return nil }
-
-        let start = index
-        index = input.index(after: index)
-
-        while index < input.endIndex && TokenizerUtilities.isIdentifierContinue(input[index]) {
-            index = input.index(after: index)
-        }
-
-        let lexeme = String(input[start..<index])
-
-        // Check if it's a keyword first
-        if let tokenType = TokenizerUtilities.keywordMap[lexeme] {
-            return TokenData(type: tokenType, lexeme: lexeme)
-        }
-
-        // Otherwise it's an identifier
-        return TokenData(type: .identifier, lexeme: lexeme)
+        // Use shared implementation for consistent behavior across all tokenizers
+        guard let sharedTokenData = SharedTokenizerImplementation.parseKeywordOrIdentifier(from: input, at: &index) else { return nil }
+        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
     }
 
     private func parseKeyword(from input: String, at index: inout String.Index) -> TokenData? {
-        guard index < input.endIndex && TokenizerUtilities.isIdentifierStart(input[index]) else { return nil }
-
-        let start = index
-        index = input.index(after: index)
-
-        while index < input.endIndex && TokenizerUtilities.isIdentifierContinue(input[index]) {
-            index = input.index(after: index)
-        }
-
-        let lexeme = String(input[start..<index])
-
-        if let tokenType = TokenizerUtilities.keywordMap[lexeme] {
-            return TokenData(type: tokenType, lexeme: lexeme)
-        }
-
-        // Reset index and return nil if not a keyword
-        index = start
-        return nil
+        // Use shared implementation for consistent behavior across all tokenizers
+        guard let sharedTokenData = SharedTokenizerImplementation.parseKeyword(from: input, at: &index) else { return nil }
+        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
     }
 
     private func parseOperator(from input: String, at index: inout String.Index) -> TokenData? {
-        for (operatorString, tokenType) in TokenizerUtilities.operators where TokenizerUtilities.matchString(operatorString, in: input, at: index) {
-            index = input.index(index, offsetBy: operatorString.count)
-            return TokenData(type: tokenType, lexeme: operatorString)
-        }
-        return nil
+        // Use shared implementation for consistent behavior across all tokenizers
+        guard let sharedTokenData = SharedTokenizerImplementation.parseOperator(from: input, at: &index) else { return nil }
+        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
     }
 
     private func parseDelimiter(from input: String, at index: inout String.Index) -> TokenData? {
-        for (delimiter, tokenType) in TokenizerUtilities.delimiters where TokenizerUtilities.matchString(delimiter, in: input, at: index) {
-            index = input.index(index, offsetBy: delimiter.count)
-            return TokenData(type: tokenType, lexeme: delimiter)
-        }
-        return nil
+        // Use shared implementation for consistent behavior across all tokenizers
+        guard let sharedTokenData = SharedTokenizerImplementation.parseDelimiter(from: input, at: &index) else { return nil }
+        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
     }
 
     private func parseNumber(from input: String, at index: inout String.Index) -> TokenData? {
-        // Enhanced number parsing with better error detection
-        guard index < input.endIndex && (input[index].isNumber || input[index] == ".") else { return nil }
+        // Use shared implementation for consistent behavior and enhanced error detection
+        let originalIndex = index
+        let result = SharedTokenizerImplementation.parseNumberWithValidation(from: input, at: &index)
 
-        let start = index
-        var hasDecimal = false
-        var decimalCount = 0
-
-        // Handle leading decimal point
-        if input[index] == "." {
-            let nextIndex = input.index(after: index)
-            guard nextIndex < input.endIndex && input[nextIndex].isNumber else { return nil }
-            hasDecimal = true
-            decimalCount = 1
-            index = nextIndex
+        switch result {
+        case .success(let sharedTokenData):
+            return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
+        case .failure:
+            // Reset index for error recovery handling
+            index = originalIndex
+            return nil
         }
-
-        // Parse integer part
-        while index < input.endIndex && input[index].isNumber {
-            index = input.index(after: index)
-        }
-
-        // Handle decimal point
-        while !hasDecimal && index < input.endIndex && input[index] == "." {
-            decimalCount += 1
-            let nextIndex = input.index(after: index)
-            if nextIndex < input.endIndex && input[nextIndex].isNumber {
-                hasDecimal = true
-                index = nextIndex
-
-                // Parse fractional part
-                while index < input.endIndex && input[index].isNumber {
-                    index = input.index(after: index)
-                }
-                break
-            } else {
-                // This is not a valid decimal point for this number
-                break
-            }
-        }
-
-        // Check for additional invalid decimal points (like 123.45.67)
-        if decimalCount > 1 || (hasDecimal && index < input.endIndex && input[index] == ".") {
-            // Continue parsing to get the full invalid number
-            while index < input.endIndex && (input[index].isNumber || input[index] == ".") {
-                index = input.index(after: index)
-            }
-            // This will be handled as an invalid number format
-        }
-
-        let lexeme = String(input[start..<index])
-
-        // Check for invalid number format (multiple decimal points)
-        if decimalCount > 1 || lexeme.filter({ $0 == "." }).count > 1 {
-            return nil // Invalid format, will be handled by caller
-        }
-
-        let tokenType = TokenizerUtilities.numberTokenType(hasDecimal: hasDecimal)
-        return TokenData(type: tokenType, lexeme: lexeme)
     }
 
     private func parseIdentifier(from input: String, at index: inout String.Index) -> TokenData? {
-        guard index < input.endIndex && TokenizerUtilities.isIdentifierStart(input[index]) else { return nil }
-
-        let start = index
-        index = input.index(after: index)
-
-        while index < input.endIndex && TokenizerUtilities.isIdentifierContinue(input[index]) {
-            index = input.index(after: index)
-        }
-
-        let lexeme = String(input[start..<index])
-        return TokenData(type: .identifier, lexeme: lexeme)
+        // Use shared implementation for consistent behavior across all tokenizers
+        guard let sharedTokenData = SharedTokenizerImplementation.parseIdentifier(from: input, at: &index) else { return nil }
+        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
     }
 }
 

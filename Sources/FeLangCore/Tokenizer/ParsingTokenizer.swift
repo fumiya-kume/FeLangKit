@@ -149,212 +149,31 @@ public struct ParsingTokenizer: Sendable {
     }
 
     private func parseKeyword(from input: String, at index: inout String.Index) -> TokenData? {
-        // First, extract the potential identifier/keyword
-        guard index < input.endIndex && TokenizerUtilities.isIdentifierStart(input[index]) else { return nil }
-
-        let start = index
-        index = input.index(after: index)
-
-        // Read remaining identifier characters
-        while index < input.endIndex && TokenizerUtilities.isIdentifierContinue(input[index]) {
-            index = input.index(after: index)
-        }
-
-        let lexeme = String(input[start..<index])
-
-        // Use O(1) lookup to check if it's a keyword
-        if let tokenType = TokenizerUtilities.keywordMap[lexeme] {
-            return TokenData(type: tokenType, lexeme: lexeme)
-        }
-
-        // Not a keyword, reset index and return nil so parseIdentifier can handle it
-        index = start
-        return nil
+        // Use shared implementation for consistent behavior across all tokenizers
+        guard let sharedTokenData = SharedTokenizerImplementation.parseKeyword(from: input, at: &index) else { return nil }
+        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
     }
 
     private func parseOperator(from input: String, at index: inout String.Index) -> TokenData? {
-        for (operatorString, tokenType) in TokenizerUtilities.operators where TokenizerUtilities.matchString(operatorString, in: input, at: index) {
-            index = input.index(index, offsetBy: operatorString.count)
-            return TokenData(type: tokenType, lexeme: operatorString)
-        }
-
-        return nil
+        // Use shared implementation for consistent behavior across all tokenizers
+        guard let sharedTokenData = SharedTokenizerImplementation.parseOperator(from: input, at: &index) else { return nil }
+        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
     }
 
     private func parseDelimiter(from input: String, at index: inout String.Index) -> TokenData? {
-        for (delimiter, tokenType) in TokenizerUtilities.delimiters where TokenizerUtilities.matchString(delimiter, in: input, at: index) {
-            index = input.index(index, offsetBy: delimiter.count)
-            return TokenData(type: tokenType, lexeme: delimiter)
-        }
-
-        return nil
+        // Use shared implementation for consistent behavior across all tokenizers
+        guard let sharedTokenData = SharedTokenizerImplementation.parseDelimiter(from: input, at: &index) else { return nil }
+        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
     }
 
     private func parseNumber(from input: String, at index: inout String.Index) -> TokenData? {
-        let start = index
-
-        // Check for leading dot decimal (e.g., .5, .25)
-        if index < input.endIndex && input[index] == "." {
-            let nextIndex = input.index(after: index)
-            if nextIndex < input.endIndex && input[nextIndex].isNumber {
-                index = nextIndex
-
-                // Read fractional part (including underscores)
-                while index < input.endIndex && (input[index].isNumber || input[index] == "_") {
-                    index = input.index(after: index)
-                }
-
-                let lexeme = String(input[start..<index])
-                return TokenData(type: .realLiteral, lexeme: lexeme)
-            } else {
-                return nil // Just a dot, not a number
-            }
-        }
-
-        // Only parse positive numbers - minus will be handled as an operator
-        // Must have at least one digit
-        guard index < input.endIndex && input[index].isNumber else {
-            return nil
-        }
-
-        // Check for alternative number bases (0x, 0b, 0o)
-        if input[index] == "0" {
-            let nextIndex = input.index(after: index)
-            if nextIndex < input.endIndex {
-                let nextChar = input[nextIndex]
-                if nextChar == "x" || nextChar == "X" {
-                    return parseHexadecimalNumber(from: input, at: &index, start: start)
-                } else if nextChar == "b" || nextChar == "B" {
-                    return parseBinaryNumber(from: input, at: &index, start: start)
-                } else if nextChar == "o" || nextChar == "O" {
-                    return parseOctalNumber(from: input, at: &index, start: start)
-                }
-            }
-        }
-
-        // Parse regular decimal number (including scientific notation and underscores)
-        return parseDecimalNumber(from: input, at: &index, start: start)
+        // Use shared implementation for consistent behavior across all tokenizers
+        guard let sharedTokenData = SharedTokenizerImplementation.parseNumber(from: input, at: &index) else { return nil }
+        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
     }
 
-    private func parseHexadecimalNumber(from input: String, at index: inout String.Index, start: String.Index) -> TokenData? {
-        index = input.index(after: index) // consume '0'
-        index = input.index(after: index) // consume 'x' or 'X'
-
-        // Must have at least one hex digit
-        guard index < input.endIndex,
-              let firstScalar = String(input[index]).unicodeScalars.first,
-              TokenizerUtilities.isHexDigit(firstScalar) || input[index] == "_" else {
-            return nil
-        }
-
-        // Read hex digits and underscores
-        while index < input.endIndex {
-            if let scalar = String(input[index]).unicodeScalars.first,
-               TokenizerUtilities.isHexDigit(scalar) || input[index] == "_" {
-                index = input.index(after: index)
-            } else {
-                break
-            }
-        }
-
-        let lexeme = String(input[start..<index])
-        return TokenData(type: .integerLiteral, lexeme: lexeme)
-    }
-
-    private func parseBinaryNumber(from input: String, at index: inout String.Index, start: String.Index) -> TokenData? {
-        index = input.index(after: index) // consume '0'
-        index = input.index(after: index) // consume 'b' or 'B'
-
-        // Must have at least one binary digit
-        guard index < input.endIndex,
-              let firstScalar = String(input[index]).unicodeScalars.first,
-              TokenizerUtilities.isBinaryDigit(firstScalar) || input[index] == "_" else {
-            return nil
-        }
-
-        // Read binary digits and underscores
-        while index < input.endIndex {
-            if let scalar = String(input[index]).unicodeScalars.first,
-               TokenizerUtilities.isBinaryDigit(scalar) || input[index] == "_" {
-                index = input.index(after: index)
-            } else {
-                break
-            }
-        }
-
-        let lexeme = String(input[start..<index])
-        return TokenData(type: .integerLiteral, lexeme: lexeme)
-    }
-
-    private func parseOctalNumber(from input: String, at index: inout String.Index, start: String.Index) -> TokenData? {
-        index = input.index(after: index) // consume '0'
-        index = input.index(after: index) // consume 'o' or 'O'
-
-        // Must have at least one octal digit
-        guard index < input.endIndex,
-              let firstScalar = String(input[index]).unicodeScalars.first,
-              TokenizerUtilities.isOctalDigit(firstScalar) || input[index] == "_" else {
-            return nil
-        }
-
-        // Read octal digits and underscores
-        while index < input.endIndex {
-            if let scalar = String(input[index]).unicodeScalars.first,
-               TokenizerUtilities.isOctalDigit(scalar) || input[index] == "_" {
-                index = input.index(after: index)
-            } else {
-                break
-            }
-        }
-
-        let lexeme = String(input[start..<index])
-        return TokenData(type: .integerLiteral, lexeme: lexeme)
-    }
-
-    private func parseDecimalNumber(from input: String, at index: inout String.Index, start: String.Index) -> TokenData? {
-        // Read integer part (including underscores)
-        while index < input.endIndex && (input[index].isNumber || input[index] == "_") {
-            index = input.index(after: index)
-        }
-
-        // Check for decimal point
-        if index < input.endIndex && input[index] == "." {
-            // Look ahead for more digits
-            let nextIndex = input.index(after: index)
-            if nextIndex < input.endIndex && input[nextIndex].isNumber {
-                index = nextIndex
-
-                // Read fractional part (including underscores)
-                while index < input.endIndex && (input[index].isNumber || input[index] == "_") {
-                    index = input.index(after: index)
-                }
-            }
-        }
-
-        // Check for scientific notation
-        if index < input.endIndex && (input[index] == "e" || input[index] == "E") {
-            index = input.index(after: index) // consume 'e' or 'E'
-
-            // Optional sign
-            if index < input.endIndex && (input[index] == "+" || input[index] == "-") {
-                index = input.index(after: index)
-            }
-
-            // Must have at least one digit in exponent
-            guard index < input.endIndex && (input[index].isNumber || input[index] == "_") else {
-                return nil // Invalid scientific notation
-            }
-
-            // Read exponent digits (including underscores)
-            while index < input.endIndex && (input[index].isNumber || input[index] == "_") {
-                index = input.index(after: index)
-            }
-        }
-
-        let lexeme = String(input[start..<index])
-        let tokenType = TokenizerUtilities.enhancedNumberTokenType(lexeme: lexeme)
-        return TokenData(type: tokenType, lexeme: lexeme)
-    }
+    // ✅ REMOVED: Individual number parsing methods have been consolidated into SharedTokenizerImplementation
+    // This eliminates ~80 lines of duplicated code while maintaining identical functionality
 
     private func parseString(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenData? {
         guard index < input.endIndex else { return nil }
