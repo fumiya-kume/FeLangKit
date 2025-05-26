@@ -1,5 +1,5 @@
 /// Represents a position in source code with line, column, and offset information.
-public struct SourcePosition: Equatable, Codable, Sendable {
+public struct SourcePosition: Equatable, Codable, Sendable, Hashable {
     /// The line number (1-indexed)
     public let line: Int
 

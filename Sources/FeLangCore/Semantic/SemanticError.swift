@@ -266,3 +266,229 @@ extension SemanticWarning {
         }
     }
 }
+
+// MARK: - SemanticErrorReporting Configuration
+
+/// Configuration for semantic error reporting behavior.
+public struct SemanticErrorReportingConfig: Sendable {
+    /// Maximum number of errors to collect before stopping analysis (default: 100).
+    public let maxErrorCount: Int
+    
+    /// Whether to enable error deduplication (default: true).
+    public let enableDeduplication: Bool
+    
+    /// Whether to enable error correlation for grouping related errors (default: true).
+    public let enableErrorCorrelation: Bool
+    
+    /// Whether to enable verbose output for detailed error information (default: false).
+    public let verboseOutput: Bool
+    
+    /// Creates a new semantic error reporting configuration.
+    public init(
+        maxErrorCount: Int = 100,
+        enableDeduplication: Bool = true,
+        enableErrorCorrelation: Bool = true,
+        verboseOutput: Bool = false
+    ) {
+        self.maxErrorCount = max(1, maxErrorCount) // Ensure at least 1 error can be collected
+        self.enableDeduplication = enableDeduplication
+        self.enableErrorCorrelation = enableErrorCorrelation
+        self.verboseOutput = verboseOutput
+    }
+    
+    /// Default configuration for semantic error reporting.
+    public static let `default` = SemanticErrorReportingConfig()
+}
+
+// MARK: - SemanticErrorReporter
+
+/// Thread-safe error collection and reporting infrastructure for semantic analysis.
+public final class SemanticErrorReporter: @unchecked Sendable {
+    
+    // MARK: - Properties
+    
+    private let config: SemanticErrorReportingConfig
+    private var collectedErrors: [SemanticError] = []
+    private var collectedWarnings: [SemanticWarning] = []
+    private var errorPositions: Set<SourcePosition> = []
+    private let lock = NSLock()
+    
+    // MARK: - Initialization
+    
+    /// Creates a new semantic error reporter with the specified configuration.
+    public init(config: SemanticErrorReportingConfig = .default) {
+        self.config = config
+    }
+    
+    // MARK: - Error Collection
+    
+    /// Collect a single semantic error.
+    /// - Parameter error: The semantic error to collect.
+    public func collect(_ error: SemanticError) {
+        lock.lock()
+        defer { lock.unlock() }
+        
+        // Check if we've already reached the error threshold
+        guard collectedErrors.count < config.maxErrorCount else {
+            return
+        }
+        
+        // Handle deduplication if enabled
+        if config.enableDeduplication {
+            let position = extractPosition(from: error)
+            if errorPositions.contains(position) {
+                return // Skip duplicate error at same position
+            }
+            errorPositions.insert(position)
+        }
+        
+        collectedErrors.append(error)
+        
+        // Add threshold error if we've reached the limit
+        if collectedErrors.count == config.maxErrorCount {
+            let thresholdError = SemanticError.tooManyErrors(count: config.maxErrorCount)
+            if !collectedErrors.contains(thresholdError) {
+                collectedErrors.append(thresholdError)
+            }
+        }
+    }
+    
+    /// Collect multiple semantic errors.
+    /// - Parameter errors: The semantic errors to collect.
+    public func collect(_ errors: [SemanticError]) {
+        for error in errors {
+            collect(error)
+        }
+    }
+    
+    /// Collect a semantic warning.
+    /// - Parameter warning: The semantic warning to collect.
+    public func collect(_ warning: SemanticWarning) {
+        lock.lock()
+        defer { lock.unlock() }
+        
+        collectedWarnings.append(warning)
+    }
+    
+    /// Collect multiple semantic warnings.
+    /// - Parameter warnings: The semantic warnings to collect.
+    public func collect(_ warnings: [SemanticWarning]) {
+        lock.lock()
+        defer { lock.unlock() }
+        
+        collectedWarnings.append(contentsOf: warnings)
+    }
+    
+    // MARK: - Reporting
+    
+    /// Finalize error collection and generate semantic analysis result.
+    /// - Parameter symbolTable: The symbol table from semantic analysis.
+    /// - Returns: A comprehensive semantic analysis result.
+    public func finalize(with symbolTable: SymbolTable) -> SemanticAnalysisResult {
+        lock.lock()
+        defer { lock.unlock() }
+        
+        let processedErrors = config.enableErrorCorrelation ? 
+            correlateErrors(collectedErrors) : collectedErrors
+        
+        let isSuccessful = processedErrors.isEmpty
+        
+        return SemanticAnalysisResult(
+            isSuccessful: isSuccessful,
+            errors: processedErrors,
+            warnings: collectedWarnings,
+            symbolTable: symbolTable
+        )
+    }
+    
+    /// Clear all collected errors and warnings.
+    public func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+        
+        collectedErrors.removeAll()
+        collectedWarnings.removeAll()
+        errorPositions.removeAll()
+    }
+    
+    // MARK: - Status Properties
+    
+    /// The current number of collected errors.
+    public var errorCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return collectedErrors.count
+    }
+    
+    /// Whether any errors have been collected.
+    public var hasErrors: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return !collectedErrors.isEmpty
+    }
+    
+    /// Whether the error threshold has been reached.
+    public var isFull: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return collectedErrors.count >= config.maxErrorCount
+    }
+    
+    /// The current number of collected warnings.
+    public var warningCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return collectedWarnings.count
+    }
+    
+    /// Whether any warnings have been collected.
+    public var hasWarnings: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return !collectedWarnings.isEmpty
+    }
+    
+    // MARK: - Private Methods
+    
+    /// Extract source position from a semantic error for deduplication.
+    private func extractPosition(from error: SemanticError) -> SourcePosition {
+        switch error {
+        case .typeMismatch(_, _, let pos),
+             .incompatibleTypes(_, _, _, let pos),
+             .unknownType(_, let pos),
+             .invalidTypeConversion(_, _, let pos),
+             .undeclaredVariable(_, let pos),
+             .variableAlreadyDeclared(_, let pos),
+             .variableNotInitialized(_, let pos),
+             .constantReassignment(_, let pos),
+             .invalidAssignmentTarget(let pos),
+             .undeclaredFunction(_, let pos),
+             .functionAlreadyDeclared(_, let pos),
+             .incorrectArgumentCount(_, _, _, let pos),
+             .argumentTypeMismatch(_, _, _, _, let pos),
+             .missingReturnStatement(_, let pos),
+             .returnTypeMismatch(_, _, _, let pos),
+             .voidFunctionReturnsValue(_, let pos),
+             .unreachableCode(let pos),
+             .breakOutsideLoop(let pos),
+             .returnOutsideFunction(let pos),
+             .invalidArrayAccess(let pos),
+             .arrayIndexTypeMismatch(_, _, let pos),
+             .invalidArrayDimension(let pos),
+             .undeclaredField(_, _, let pos),
+             .invalidFieldAccess(let pos),
+             .cyclicDependency(_, let pos),
+             .analysisDepthExceeded(let pos):
+            return pos
+        case .tooManyErrors:
+            return SourcePosition(line: 0, column: 0, offset: 0) // Special position for threshold errors
+        }
+    }
+    
+    /// Correlate related errors to group them logically.
+    private func correlateErrors(_ errors: [SemanticError]) -> [SemanticError] {
+        // For now, return errors as-is. Future enhancement could group
+        // related errors like multiple type mismatches in the same expression.
+        return errors
+    }
+}
