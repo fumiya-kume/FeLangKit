@@ -6,10 +6,12 @@ import Parsing
 public struct ParserPrinter {
     private let parser: Parser
     private let prettyPrinter: PrettyPrinter
+    private let validateRoundTrips: Bool
 
-    public init(configuration: PrettyPrinter.Configuration = PrettyPrinter.Configuration()) {
+    public init(configuration: PrettyPrinter.Configuration = PrettyPrinter.Configuration(), validateRoundTrips: Bool = true) {
         self.parser = Parser()
         self.prettyPrinter = PrettyPrinter(configuration: configuration)
+        self.validateRoundTrips = validateRoundTrips
     }
 
     /// Performs round-trip validation: source → AST → source
@@ -25,8 +27,10 @@ public struct ParserPrinter {
         // Print AST back to source
         let regenerated = prettyPrinter.print(ast)
 
-        // Validate round-trip consistency
-        try validateRoundTrip(original: sourceCode, regenerated: regenerated, ast: ast)
+        // Validate round-trip consistency if enabled
+        if validateRoundTrips {
+            try validateRoundTrip(original: sourceCode, regenerated: regenerated, ast: ast)
+        }
 
         return (ast: ast, regenerated: regenerated)
     }
@@ -80,7 +84,7 @@ public struct ParserPrinter {
             .components(separatedBy: .whitespacesAndNewlines)
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-            .lowercased()
+            // Preserve case sensitivity by not lowercasing the source
     }
 
     /// Checks if two normalized source strings are logically equivalent
@@ -164,7 +168,7 @@ public struct ParserPrinterBuilder {
 
     /// Builds the configured parser-printer
     public func build() -> ParserPrinter {
-        return ParserPrinter(configuration: configuration)
+        return ParserPrinter(configuration: configuration, validateRoundTrips: validateRoundTrips)
     }
 }
 
