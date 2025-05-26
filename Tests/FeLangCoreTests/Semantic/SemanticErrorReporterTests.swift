@@ -187,7 +187,7 @@ final class SemanticErrorReporterTests: XCTestCase {
 
     func testClearFunction() {
         let reporter = SemanticErrorReporter()
-        
+
         // Use different positions to ensure both errors are collected
         let pos1 = SourcePosition(line: 1, column: 1, offset: 0)
         let pos2 = SourcePosition(line: 2, column: 1, offset: 10)
@@ -228,23 +228,23 @@ final class SemanticErrorReporterTests: XCTestCase {
         let reporter = SemanticErrorReporter()
         let pos1 = SourcePosition(line: 1, column: 1, offset: 0)
         let pos2 = SourcePosition(line: 2, column: 1, offset: 10)
-        
+
         // Test basic error collection
         XCTAssertFalse(reporter.hasErrors)
         XCTAssertEqual(reporter.errorCount, 0)
-        
+
         reporter.collect(.undeclaredVariable("x", at: pos1))
         XCTAssertTrue(reporter.hasErrors)
         XCTAssertEqual(reporter.errorCount, 1)
-        
+
         reporter.collect(.typeMismatch(expected: .integer, actual: .string, at: pos2))
         XCTAssertEqual(reporter.errorCount, 2)
-        
+
         // Test finalization
         let result = reporter.finalize(with: symbolTable)
         XCTAssertFalse(result.isSuccessful)
         XCTAssertEqual(result.errors.count, 2)
-        
+
         // Test that no more errors can be collected after finalization
         reporter.collect(.invalidAssignmentTarget(at: pos1))
         XCTAssertEqual(reporter.errorCount, 2) // Should remain 2
@@ -290,7 +290,7 @@ final class SemanticErrorReporterTests: XCTestCase {
         let expectation = XCTestExpectation(description: "Concurrent property access")
         let queue = DispatchQueue.global(qos: .userInitiated)
         let group = DispatchGroup()
-        
+
         // Add some initial errors
         for index in 0..<5 {
             let position = SourcePosition(line: index, column: 1, offset: index)
@@ -313,7 +313,7 @@ final class SemanticErrorReporterTests: XCTestCase {
             XCTFail("Concurrent property access test timed out")
             return
         }
-        
+
         expectation.fulfill()
         wait(for: [expectation], timeout: 1.0)
 
@@ -419,7 +419,7 @@ final class SemanticErrorReporterTests: XCTestCase {
         // This is just a sanity check to make sure the test infrastructure works
         XCTAssertTrue(true)
         XCTAssertEqual(1 + 1, 2)
-        
+
         // Test SourcePosition creation
         let pos = SourcePosition(line: 1, column: 2, offset: 3)
         XCTAssertEqual(pos.line, 1)

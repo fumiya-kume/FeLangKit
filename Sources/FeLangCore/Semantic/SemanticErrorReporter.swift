@@ -71,18 +71,18 @@ public final class SemanticErrorReporter: @unchecked Sendable {
     public func collect(_ errors: [SemanticError]) {
         lock.lock()
         defer { lock.unlock() }
-        
+
         for error in errors {
             guard !isFinalized else { return }
-            guard collectedErrors.count < config.maxErrorCount else { 
+            guard collectedErrors.count < config.maxErrorCount else {
                 // Add tooManyErrors marker if not already added
-                if !collectedErrors.contains(where: { 
+                if !collectedErrors.contains(where: {
                     if case .tooManyErrors = $0 { return true }
                     return false
                 }) {
                     collectedErrors.append(.tooManyErrors(count: config.maxErrorCount))
                 }
-                break 
+                break
             }
 
             if config.enableDeduplication && isDuplicate(error) {
@@ -164,7 +164,7 @@ public final class SemanticErrorReporter: @unchecked Sendable {
     private func errorKey(for error: SemanticError) -> String {
         // Simple approach: use error type + position line/column/offset
         let errorType = String(describing: error).components(separatedBy: "(").first ?? "unknown"
-        
+
         switch error {
         case .typeMismatch(_, _, let position),
              .incompatibleTypes(_, _, _, let position),
