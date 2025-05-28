@@ -33,7 +33,8 @@
         "SWIFT_EXEC": "/usr/bin/swift",
         "SOURCEKIT_LSP_EXEC": "/usr/bin/sourcekit-lsp"
     },
-    "postCreateCommand": "apt-get update && apt-get install -y sudo git curl wget vim nano && echo 'Configuring Swift toolchain...' && which swift && swift --version && which sourcekit-lsp && swift package resolve && echo 'Container ready! SwiftLint can be installed with: git clone https://github.com/realm/SwiftLint.git && cd SwiftLint && git checkout 0.57.0 && swift build -c release && cp .build/release/swiftlint /usr/local/bin/'",
+    "postCreateCommand": "apt-get update && apt-get install -y sudo git curl wget vim nano && echo 'Swift toolchain ready:' && swift --version",
+    "postStartCommand": "echo 'Preparing Swift workspace...' && swift package resolve && echo 'FeLangKit development environment ready!'",
     "remoteUser": "root",
     "mounts": []
 }
