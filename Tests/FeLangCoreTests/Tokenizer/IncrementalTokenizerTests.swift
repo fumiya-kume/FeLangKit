@@ -1,6 +1,19 @@
 import Testing
 @testable import FeLangCore
 import Foundation
+#if canImport(CoreFoundation)
+import CoreFoundation
+#endif
+
+// MARK: - Cross-platform time utilities
+
+private func getCurrentTime() -> TimeInterval {
+    #if canImport(CoreFoundation)
+    return CFAbsoluteTimeGetCurrent()
+    #else
+    return Date().timeIntervalSince1970
+    #endif
+}
 
 @Suite("Incremental Tokenizer Tests")
 struct IncrementalTokenizerTests {
@@ -299,20 +312,20 @@ struct IncrementalTokenizerTests {
             largeInsertion += "変数 inserted\(index): 整数型 ← \(index)\n"
         }
 
-        let startTime = CFAbsoluteTimeGetCurrent()
+        let startTime = getCurrentTime()
         let result = try incrementalTokenizer.updateTokens(
             in: insertionRange,
             with: largeInsertion,
             previousTokens: originalTokens,
             originalText: originalText
         )
-        let incrementalDuration = CFAbsoluteTimeGetCurrent() - startTime
+        let incrementalDuration = getCurrentTime() - startTime
 
         // Compare with full tokenization
         let newFullText = originalText.replacingCharacters(in: insertionRange, with: largeInsertion)
-        let fullStartTime = CFAbsoluteTimeGetCurrent()
+        let fullStartTime = getCurrentTime()
         let fullTokens = try baseTokenizer.tokenize(newFullText)
-        let fullDuration = CFAbsoluteTimeGetCurrent() - fullStartTime
+        let fullDuration = getCurrentTime() - fullStartTime
 
         // Validate token count matches (this is the main functionality test)
         #expect(result.tokens.count == fullTokens.count, "Should produce same number of tokens")
@@ -392,23 +405,23 @@ struct IncrementalTokenizerTests {
             let insertionRange = insertionPoint..<insertionPoint
             let newText = " // edit \(index)"
 
-            let startTime = CFAbsoluteTimeGetCurrent()
+            let startTime = getCurrentTime()
             let result = try incrementalTokenizer.updateTokens(
                 in: insertionRange,
                 with: newText,
                 previousTokens: currentTokens,
                 originalText: currentText
             )
-            totalIncrementalTime += CFAbsoluteTimeGetCurrent() - startTime
+            totalIncrementalTime += getCurrentTime() - startTime
 
             currentText = currentText.replacingCharacters(in: insertionRange, with: newText)
             currentTokens = result.tokens
         }
 
         // Compare with full tokenization
-        let fullStartTime = CFAbsoluteTimeGetCurrent()
+        let fullStartTime = getCurrentTime()
         let fullTokens = try baseTokenizer.tokenize(currentText)
-        let fullTime = CFAbsoluteTimeGetCurrent() - fullStartTime
+        let fullTime = getCurrentTime() - fullStartTime
 
         // Since incremental tokenizer now uses full re-tokenization, counts should match exactly
         #expect(currentTokens.count == fullTokens.count, "Token count should match exactly with full re-tokenization")
