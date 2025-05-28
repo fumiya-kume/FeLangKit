@@ -1,19 +1,6 @@
 import Testing
 @testable import FeLangCore
 import Foundation
-#if canImport(CoreFoundation)
-import CoreFoundation
-#endif
-
-// MARK: - Cross-platform time utilities
-
-private func getCurrentTime() -> TimeInterval {
-    #if canImport(CoreFoundation)
-    return CFAbsoluteTimeGetCurrent()
-    #else
-    return Date().timeIntervalSince1970
-    #endif
-}
 
 @Suite("Streaming Tokenizer Tests")
 struct StreamingTokenizerTests {

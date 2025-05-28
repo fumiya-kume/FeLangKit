@@ -15,7 +15,6 @@
             "settings": {
                 "swift.path": "/usr/bin",
                 "swift.executablePath": "/usr/bin/swift",
-                "swift.buildPath": "/usr/bin/swift-build",
                 "swift.runtimePath": "/usr/lib/swift",
                 "swift.sourcekit-lsp.serverPath": "/usr/bin/sourcekit-lsp",
                 "swift.sourcekit-lsp.toolchainPath": "/usr",
@@ -31,10 +30,13 @@
     "forwardPorts": [],
     "containerEnv": {
         "SWIFT_EXEC": "/usr/bin/swift",
-        "SOURCEKIT_LSP_EXEC": "/usr/bin/sourcekit-lsp"
+        "SOURCEKIT_LSP_EXEC": "/usr/bin/sourcekit-lsp",
+        "TMPDIR": "/tmp",
+        "HOME": "/root",
+        "SHELL": "/bin/bash"
     },
-    "postCreateCommand": "apt-get update && apt-get install -y sudo git curl wget vim nano && echo 'Swift toolchain ready:' && swift --version",
-    "postStartCommand": "echo 'FeLangKit development environment ready! Use \"swift package resolve\" and \"swift build\" to work with the project.'",
+    "postCreateCommand": "apt-get update && apt-get install -y sudo git curl wget vim nano build-essential && chmod +x /workspaces/FeLangKit/.devcontainer/*.sh && /workspaces/FeLangKit/.devcontainer/devcontainer-init.sh",
+    "postStartCommand": "echo 'FeLangKit development environment ready!' && cd /workspaces/FeLangKit && swift package resolve --disable-automatic-resolution",
     "remoteUser": "root",
     "mounts": []
 }

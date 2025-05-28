@@ -1,18 +1,4 @@
 import Foundation
-#if canImport(CoreFoundation)
-import CoreFoundation
-#endif
-
-// MARK: - Cross-platform time utilities
-
-/// Cross-platform time function
-private func getCurrentTime() -> TimeInterval {
-    #if canImport(CoreFoundation)
-    return CFAbsoluteTimeGetCurrent()
-    #else
-    return Date().timeIntervalSince1970
-    #endif
-}
 
 // MARK: - TokenStream Adapter
 

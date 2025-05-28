@@ -1,7 +1,35 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(devcontainer build:*)",
+      "Bash(devcontainer read-configuration:*)",
+      "Bash(python3:*)",
+      "Bash(dockerfile-utils:*)",
+      "Bash(git push:*)",
+      "Bash(yamllint:*)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(git commit:*)",
+      "Bash(gh pr review:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(docker:*)",
+      "Bash(timeout 60 docker build:*)",
+      "Bash(devcontainer up:*)",
+      "Bash(ls:*)",
+      "Bash(export:*)",
+      "Bash(ln:*)",
+      "Bash(cat:*)",
+      "Bash(rm:*)",
+      "Bash(swift package:*)",
+      "Bash(chmod:*)",
+      "Bash(swift --version)",
+      "Bash(rg:*)",
+      "Bash(grep:*)",
+      "Bash(gh run list:*)"
     ],
     "deny": []
   }
