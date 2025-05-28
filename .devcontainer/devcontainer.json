@@ -28,8 +28,5 @@
     "forwardPorts": [],
     "postCreateCommand": "apt-get update && apt-get install -y sudo git curl wget vim nano && swift package resolve && echo 'Container ready! SwiftLint can be installed with: git clone https://github.com/realm/SwiftLint.git && cd SwiftLint && git checkout 0.57.0 && swift build -c release && cp .build/release/swiftlint /usr/local/bin/'",
     "remoteUser": "root",
-    "mounts": [
-        "source=${localWorkspaceFolder}/.build,target=${containerWorkspaceFolder}/.build,type=bind,consistency=cached",
-        "source=${localWorkspaceFolder}/.swiftpm,target=${containerWorkspaceFolder}/.swiftpm,type=bind,consistency=cached"
-    ]
+    "mounts": []
 }
