@@ -17,9 +17,10 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install SwiftLint
+# Install SwiftLint - pinned to specific version for reproducibility
 RUN git clone https://github.com/realm/SwiftLint.git /tmp/SwiftLint \
     && cd /tmp/SwiftLint \
+    && git checkout 0.57.0 \
     && swift build --configuration release \
     && cp .build/release/swiftlint /usr/local/bin/ \
     && rm -rf /tmp/SwiftLint
