@@ -34,7 +34,7 @@
         "SOURCEKIT_LSP_EXEC": "/usr/bin/sourcekit-lsp"
     },
     "postCreateCommand": "apt-get update && apt-get install -y sudo git curl wget vim nano && echo 'Swift toolchain ready:' && swift --version",
-    "postStartCommand": "echo 'Preparing Swift workspace...' && swift package resolve && echo 'FeLangKit development environment ready!'",
+    "postStartCommand": "echo 'FeLangKit development environment ready! Use \"swift package resolve\" and \"swift build\" to work with the project.'",
     "remoteUser": "root",
     "mounts": []
 }
