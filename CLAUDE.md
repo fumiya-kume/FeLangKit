@@ -146,9 +146,79 @@ The codebase recently completed Phase 1-4 of a major refactoring plan:
 
 ## CI/CD Workflow
 
-GitHub Actions pipeline runs on macOS-15:
-1. **Lint**: SwiftLint with caching
+GitHub Actions pipeline runs on both macOS-15 and ubuntu-22.04:
+1. **Lint**: SwiftLint with caching (both platforms)
 2. **Build**: Matrix builds (debug/release) with artifact upload  
 3. **Test**: Unit tests with code coverage reporting
 
 The CI caches dependencies (.build, .swiftpm) and tools for performance.
+
+## Development Environment
+
+### VS Code Dev Container
+The project includes a complete VS Code dev container configuration for consistent development environments:
+
+```bash
+# Open in dev container (VS Code)
+# Container includes: Swift 6.0, SwiftLint, development tools
+
+# Manual container verification
+.devcontainer/verify.sh
+
+# Container initialization
+.devcontainer/devcontainer-init.sh
+```
+
+**Features:**
+- Swift 6.0 toolchain with Linux compatibility
+- SwiftLint 0.57.0 (pinned for reproducibility)
+- VS Code extensions: Swift Language Support, LLDB, test adapters
+- Cross-platform timing utilities for Linux/macOS compatibility
+- Automatic package resolution on container startup
+
+## User Preferences (from Cursor Rules)
+
+### Workflow Requirements
+- **Commit Standards**: Use conventional commits with scope: `<scope>: <what>\n\nRefs #<num>` (≤200 LOC/commit)
+- **Quality Gates**: Always run `swiftlint lint --fix && swiftlint lint && swift build && swift test`
+- **Branch Strategy**: Create feature branches for issues: `issue-<num>-<date>`
+- **PR Format**: Title format: "Resolve #<num>: <Issue Title>"
+
+### Code Quality Standards
+- **Linting**: SwiftLint fixes applied automatically before validation
+- **Testing**: All tests must pass before commits
+- **Build**: Clean builds required for all configurations
+- **Documentation**: Maintain clear, concise documentation
+
+### Development Constraints
+- **Minimal Diffs**: Keep commits focused and small (≤200 LOC)
+- **CI Watching**: Monitor CI status with `gh pr checks --watch`
+- **Safety First**: Pause for confirmation on destructive operations
+
+## Recent Work Log
+
+### Dev Container Implementation (Add PR #86)
+**Objective**: Add VS Code dev container support for consistent Swift development environment
+
+**Key Achievements:**
+- ✅ **Dev Container Setup**: Complete .devcontainer configuration with Swift 6.0
+- ✅ **Cross-Platform Compatibility**: Fixed `CFAbsoluteTimeGetCurrent()` Linux issues
+- ✅ **CI Enhancement**: Added Linux runners to GitHub Actions
+- ✅ **Code Quality**: Extracted shared `getCurrentTime()` utility to reduce duplication
+- ✅ **Docker Optimization**: Consolidated apt-get commands, fixed workspace paths
+- ✅ **Resource Management**: Proper golden test files declaration in Package.swift
+
+**Technical Details:**
+- **Container**: Swift 6.0-jammy with SwiftLint 0.57.0, non-root user setup
+- **Cross-Platform**: Conditional compilation for CoreFoundation timing functions
+- **CI Matrix**: Both macOS-15 and ubuntu-22.04 runners with caching
+- **Utilities**: New `CrossPlatformUtilities.swift` module for shared timing code
+
+**Files Modified:**
+- `.devcontainer/`: Complete container configuration (devcontainer.json, Dockerfile, scripts)
+- `Sources/FeLangCore/Utilities/CrossPlatformUtilities.swift`: New shared timing utilities
+- `Package.swift`: Added resources configuration for golden test files
+- `Tests/`: Updated timing code to use shared utilities
+- `.github/workflows/ci.yml`: Extended CI for Linux runners
+
+**Outcome**: Full dev container support with cross-platform CI passing on both macOS and Linux
