@@ -333,15 +333,20 @@ public final class SemanticErrorReporter: @unchecked Sendable {
     }
 
     /// Collect a single semantic error.
+    /// 
+    /// When the error count reaches `maxErrorCount`, a single `tooManyErrors` error is appended
+    /// and all subsequent errors are silently dropped to prevent memory issues during analysis.
     public func collect(_ error: SemanticError) {
         lock.lock()
         defer { lock.unlock() }
 
         guard !isFinalized else { return }
         guard errors.count < config.maxErrorCount else {
+            // Append tooManyErrors marker only once when limit is first reached
             if errors.count == config.maxErrorCount {
                 errors.append(.tooManyErrors(count: config.maxErrorCount))
             }
+            // Silently drop all subsequent errors to prevent memory exhaustion
             return
         }
 
@@ -395,16 +400,21 @@ public final class SemanticErrorReporter: @unchecked Sendable {
 
         isFinalized = true
 
-        // Add unused variable warnings if correlation is enabled
+        // Generate unused symbol warnings when error correlation is enabled
+        // This analyzes the symbol table to find declared but unused variables, functions, etc.
+        // and converts them to semantic warnings for code quality feedback
         if config.enableErrorCorrelation {
             let unusedSymbols = symbolTable.getUnusedSymbols()
             for symbol in unusedSymbols {
                 switch symbol.kind {
                 case .variable, .constant, .parameter:
+                    // Convert unused variables/constants/parameters to warnings
                     warnings.append(.unusedVariable(symbol.name, at: symbol.position))
                 case .function, .procedure:
+                    // Convert unused functions/procedures to warnings
                     warnings.append(.unusedFunction(symbol.name, at: symbol.position))
                 default:
+                    // Skip other symbol types (e.g., types) that don't need unused warnings
                     break
                 }
             }
