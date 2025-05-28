@@ -17,15 +17,7 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install SwiftLint - pinned to specific version for reproducibility
-RUN git clone https://github.com/realm/SwiftLint.git /tmp/SwiftLint \
-    && cd /tmp/SwiftLint \
-    && git checkout 0.57.0 \
-    && swift build --configuration release \
-    && cp .build/release/swiftlint /usr/local/bin/ \
-    && rm -rf /tmp/SwiftLint
-
-# Create a non-root user
+# Create a non-root user first
 ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
@@ -36,6 +28,17 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && apt-get install -y sudo \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
+
+# Install SwiftLint - pinned to specific version for reproducibility
+RUN git clone https://github.com/realm/SwiftLint.git /tmp/SwiftLint \
+    && cd /tmp/SwiftLint \
+    && git checkout 0.57.0 \
+    && swift build --configuration release \
+    && cp .build/release/swiftlint /usr/local/bin/ \
+    && rm -rf /tmp/SwiftLint
+
+# Verify Swift and SwiftLint installation
+RUN swift --version && swiftlint version
 
 # Set up the workspace
 WORKDIR /workspace
@@ -49,6 +52,3 @@ USER $USERNAME
 # Set environment variables for Swift
 ENV PATH="/usr/bin:$PATH"
 ENV SWIFT_PATH="/usr/bin/swift"
-
-# Verify Swift installation
-RUN swift --version && swiftlint version

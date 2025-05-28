@@ -32,17 +32,9 @@
     "remoteUser": "vscode",
     "features": {
         "ghcr.io/devcontainers/features/common-utils:2": {
-            "installZsh": true,
-            "configureZshAsDefaultShell": true,
-            "installOhMyZsh": true,
-            "upgradePackages": true,
             "username": "vscode",
             "userUid": "1000",
             "userGid": "1000"
-        },
-        "ghcr.io/devcontainers/features/git:1": {
-            "ppa": true,
-            "version": "latest"
         }
     },
     "mounts": [
