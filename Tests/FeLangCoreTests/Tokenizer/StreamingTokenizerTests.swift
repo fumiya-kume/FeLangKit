@@ -96,13 +96,13 @@ struct StreamingTokenizerTests {
         }
 
         var tokenCount = 0
-        let startTime = CFAbsoluteTimeGetCurrent()
+        let startTime = getCurrentTime()
 
         for try await _ in try await parallelTokenizer.tokenizeInParallel(largeInput) {
             tokenCount += 1
         }
 
-        let duration = CFAbsoluteTimeGetCurrent() - startTime
+        let duration = getCurrentTime() - startTime
 
         #expect(tokenCount > 500, "Should produce many tokens")
         #expect(duration < 10.0, "Should complete within reasonable time (relaxed)")

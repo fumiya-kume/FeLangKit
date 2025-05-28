@@ -8,11 +8,44 @@ on:
 
 jobs:
   lint:
-    name: SwiftLint
-    runs-on: macos-15
+    name: SwiftLint (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-15, ubuntu-22.04]
+      fail-fast: false
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+
+      - name: Install Swift (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Install dependencies for Swift
+          sudo apt-get update
+          sudo apt-get install -y \
+            binutils \
+            git \
+            gnupg2 \
+            libc6-dev \
+            libcurl4-openssl-dev \
+            libedit2 \
+            libgcc-9-dev \
+            libpython3.8 \
+            libsqlite3-0 \
+            libstdc++-9-dev \
+            libxml2-dev \
+            libz3-dev \
+            pkg-config \
+            tzdata \
+            unzip \
+            zlib1g-dev
+          
+          # Download and install Swift 6.0
+          wget -q https://download.swift.org/swift-6.0-release/ubuntu2204/swift-6.0-RELEASE/swift-6.0-RELEASE-ubuntu22.04.tar.gz
+          tar xzf swift-6.0-RELEASE-ubuntu22.04.tar.gz
+          sudo mv swift-6.0-RELEASE-ubuntu22.04 /opt/swift
+          echo "/opt/swift/usr/bin" >> $GITHUB_PATH
 
       - name: Cache SwiftLint
         uses: actions/cache@v4
@@ -20,25 +53,68 @@ jobs:
           path: /usr/local/bin/swiftlint
           key: swiftlint-${{ runner.os }}
 
-      - name: Install SwiftLint
+      - name: Install SwiftLint (macOS)
+        if: runner.os == 'macOS'
         run: |
           if ! command -v swiftlint &> /dev/null; then
             brew install swiftlint
+          fi
+
+      - name: Install SwiftLint (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          if ! command -v swiftlint &> /dev/null; then
+            # Install SwiftLint from source on Linux
+            git clone https://github.com/realm/SwiftLint.git /tmp/SwiftLint
+            cd /tmp/SwiftLint
+            swift build --configuration release
+            sudo cp .build/release/swiftlint /usr/local/bin/
+            rm -rf /tmp/SwiftLint
           fi
 
       - name: Run SwiftLint
         run: swiftlint lint --quiet --reporter github-actions-logging
 
   build:
-    name: Build (${{ matrix.configuration }})
-    runs-on: macos-15
+    name: Build (${{ matrix.configuration }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [macos-15, ubuntu-22.04]
         configuration: [debug, release]
       fail-fast: false  # Don't cancel other builds if one fails
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+
+      - name: Install Swift (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Install dependencies for Swift
+          sudo apt-get update
+          sudo apt-get install -y \
+            binutils \
+            git \
+            gnupg2 \
+            libc6-dev \
+            libcurl4-openssl-dev \
+            libedit2 \
+            libgcc-9-dev \
+            libpython3.8 \
+            libsqlite3-0 \
+            libstdc++-9-dev \
+            libxml2-dev \
+            libz3-dev \
+            pkg-config \
+            tzdata \
+            unzip \
+            zlib1g-dev
+          
+          # Download and install Swift 6.0
+          wget -q https://download.swift.org/swift-6.0-release/ubuntu2204/swift-6.0-RELEASE/swift-6.0-RELEASE-ubuntu22.04.tar.gz
+          tar xzf swift-6.0-RELEASE-ubuntu22.04.tar.gz
+          sudo mv swift-6.0-RELEASE-ubuntu22.04 /opt/swift
+          echo "/opt/swift/usr/bin" >> $GITHUB_PATH
 
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -46,10 +122,10 @@ jobs:
           path: |
             .build
             .swiftpm
-          key: swiftpm-${{ matrix.configuration }}-${{ runner.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          key: swiftpm-${{ matrix.configuration }}-${{ matrix.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
           restore-keys: |
-            swiftpm-${{ matrix.configuration }}-${{ runner.os }}-
-            swiftpm-${{ runner.os }}-
+            swiftpm-${{ matrix.configuration }}-${{ matrix.os }}-
+            swiftpm-${{ matrix.os }}-
 
       - name: Resolve dependencies
         run: swift package resolve
@@ -60,16 +136,49 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.configuration }}-build
+          name: ${{ matrix.configuration }}-build-${{ matrix.os }}
           path: .build/${{ matrix.configuration }}/
           retention-days: ${{ matrix.configuration == 'release' && 7 || 1 }}
 
   test:
-    name: Unit Tests
-    runs-on: macos-15
+    name: Unit Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-15, ubuntu-22.04]
+      fail-fast: false
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+
+      - name: Install Swift (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Install dependencies for Swift
+          sudo apt-get update
+          sudo apt-get install -y \
+            binutils \
+            git \
+            gnupg2 \
+            libc6-dev \
+            libcurl4-openssl-dev \
+            libedit2 \
+            libgcc-9-dev \
+            libpython3.8 \
+            libsqlite3-0 \
+            libstdc++-9-dev \
+            libxml2-dev \
+            libz3-dev \
+            pkg-config \
+            tzdata \
+            unzip \
+            zlib1g-dev
+          
+          # Download and install Swift 6.0
+          wget -q https://download.swift.org/swift-6.0-release/ubuntu2204/swift-6.0-RELEASE/swift-6.0-RELEASE-ubuntu22.04.tar.gz
+          tar xzf swift-6.0-RELEASE-ubuntu22.04.tar.gz
+          sudo mv swift-6.0-RELEASE-ubuntu22.04 /opt/swift
+          echo "/opt/swift/usr/bin" >> $GITHUB_PATH
 
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -77,10 +186,10 @@ jobs:
           path: |
             .build
             .swiftpm
-          key: swiftpm-debug-${{ runner.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          key: swiftpm-debug-${{ matrix.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
           restore-keys: |
-            swiftpm-debug-${{ runner.os }}-
-            swiftpm-${{ runner.os }}-
+            swiftpm-debug-${{ matrix.os }}-
+            swiftpm-${{ matrix.os }}-
 
       - name: Resolve dependencies
         run: swift package resolve
@@ -91,6 +200,6 @@ jobs:
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: coverage-report-${{ matrix.os }}
           path: .build/debug/codecov/
           retention-days: 7
