@@ -29,7 +29,13 @@
       "Bash(swift --version)",
       "Bash(rg:*)",
       "Bash(grep:*)",
-      "Bash(gh run list:*)"
+      "Bash(gh run list:*)",
+      "Bash(gh pr view:*)",
+      "Bash(swiftlint lint:*)",
+      "Bash(swift build)",
+      "Bash(swift test)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ],
     "deny": []
   }
