@@ -29,16 +29,8 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
-# Install SwiftLint - pinned to specific version for reproducibility
-RUN git clone https://github.com/realm/SwiftLint.git /tmp/SwiftLint \
-    && cd /tmp/SwiftLint \
-    && git checkout 0.57.0 \
-    && swift build --configuration release \
-    && cp .build/release/swiftlint /usr/local/bin/ \
-    && rm -rf /tmp/SwiftLint
-
-# Verify Swift and SwiftLint installation
-RUN swift --version && swiftlint version
+# Verify Swift installation
+RUN swift --version
 
 # Set up the workspace
 WORKDIR /workspace

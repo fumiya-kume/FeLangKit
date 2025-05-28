@@ -29,6 +29,7 @@
     },
     "forwardPorts": [],
     "postCreateCommand": "swift package resolve",
+    "postStartCommand": "echo 'SwiftLint can be installed later with: git clone https://github.com/realm/SwiftLint.git && cd SwiftLint && git checkout 0.57.0 && swift build -c release && sudo cp .build/release/swiftlint /usr/local/bin/'",
     "remoteUser": "vscode",
     "features": {
         "ghcr.io/devcontainers/features/common-utils:2": {
