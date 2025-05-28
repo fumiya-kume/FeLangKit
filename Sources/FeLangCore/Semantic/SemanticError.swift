@@ -266,3 +266,239 @@ extension SemanticWarning {
         }
     }
 }
+
+// MARK: - Semantic Error Reporting Configuration
+
+/// Configuration options for semantic error reporting.
+public struct SemanticErrorReportingConfig: Sendable {
+    /// Maximum number of errors to collect before stopping analysis.
+    public let maxErrorCount: Int
+
+    /// Whether to enable error deduplication at same source positions.
+    public let enableDeduplication: Bool
+
+    /// Whether to enable error correlation analysis.
+    public let enableErrorCorrelation: Bool
+
+    /// Whether to enable verbose output with detailed error information.
+    public let verboseOutput: Bool
+
+    /// Initialize with configuration options.
+    public init(
+        maxErrorCount: Int = 100,
+        enableDeduplication: Bool = true,
+        enableErrorCorrelation: Bool = false,
+        verboseOutput: Bool = false
+    ) {
+        self.maxErrorCount = maxErrorCount
+        self.enableDeduplication = enableDeduplication
+        self.enableErrorCorrelation = enableErrorCorrelation
+        self.verboseOutput = verboseOutput
+    }
+
+    /// Default configuration with standard settings.
+    public static let `default` = SemanticErrorReportingConfig()
+
+    /// Strict configuration with high error limit and all features enabled.
+    public static let strict = SemanticErrorReportingConfig(
+        maxErrorCount: 1000,
+        enableDeduplication: true,
+        enableErrorCorrelation: true,
+        verboseOutput: true
+    )
+
+    /// Fast configuration optimized for performance with minimal features.
+    public static let fast = SemanticErrorReportingConfig(
+        maxErrorCount: 50,
+        enableDeduplication: false,
+        enableErrorCorrelation: false,
+        verboseOutput: false
+    )
+}
+
+// MARK: - Semantic Error Reporter
+
+/// Thread-safe error reporter for collecting semantic analysis errors.
+public final class SemanticErrorReporter: @unchecked Sendable {
+    private let config: SemanticErrorReportingConfig
+    private var errors: [SemanticError] = []
+    private var warnings: [SemanticWarning] = []
+    private var errorPositions: Set<String> = []
+    private let lock = NSLock()
+    private var isFinalized = false
+
+    /// Initialize with configuration.
+    public init(config: SemanticErrorReportingConfig = .default) {
+        self.config = config
+    }
+
+    /// Collect a single semantic error.
+    /// 
+    /// When the error count reaches `maxErrorCount`, a single `tooManyErrors` error is appended
+    /// and all subsequent errors are silently dropped to prevent memory issues during analysis.
+    public func collect(_ error: SemanticError) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard !isFinalized else { return }
+        guard errors.count < config.maxErrorCount else {
+            // Append tooManyErrors marker only once when limit is first reached
+            if errors.count == config.maxErrorCount {
+                errors.append(.tooManyErrors(count: config.maxErrorCount))
+            }
+            // Silently drop all subsequent errors to prevent memory exhaustion
+            return
+        }
+
+        if config.enableDeduplication {
+            let positionKey = extractPositionKey(from: error)
+            if errorPositions.contains(positionKey) {
+                return // Skip duplicate error at same position
+            }
+            errorPositions.insert(positionKey)
+        }
+
+        errors.append(error)
+    }
+
+    /// Collect multiple semantic errors.
+    public func collect(_ errors: [SemanticError]) {
+        for error in errors {
+            collect(error)
+        }
+    }
+
+    /// Collect a semantic warning.
+    public func collect(_ warning: SemanticWarning) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard !isFinalized else { return }
+        warnings.append(warning)
+    }
+
+    /// Collect multiple semantic warnings.
+    public func collect(_ warnings: [SemanticWarning]) {
+        for warning in warnings {
+            collect(warning)
+        }
+    }
+
+    /// Finalize error collection and create analysis result.
+    public func finalize(with symbolTable: SymbolTable) -> SemanticAnalysisResult {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard !isFinalized else {
+            return SemanticAnalysisResult(
+                isSuccessful: false,
+                errors: errors,
+                warnings: warnings,
+                symbolTable: symbolTable
+            )
+        }
+
+        isFinalized = true
+
+        // Generate unused symbol warnings when error correlation is enabled
+        // This analyzes the symbol table to find declared but unused variables, functions, etc.
+        // and converts them to semantic warnings for code quality feedback
+        if config.enableErrorCorrelation {
+            let unusedSymbols = symbolTable.getUnusedSymbols()
+            for symbol in unusedSymbols {
+                switch symbol.kind {
+                case .variable, .constant, .parameter:
+                    // Convert unused variables/constants/parameters to warnings
+                    warnings.append(.unusedVariable(symbol.name, at: symbol.position))
+                case .function, .procedure:
+                    // Convert unused functions/procedures to warnings
+                    warnings.append(.unusedFunction(symbol.name, at: symbol.position))
+                default:
+                    // Skip other symbol types (e.g., types) that don't need unused warnings
+                    break
+                }
+            }
+        }
+
+        let isSuccessful = errors.isEmpty
+
+        return SemanticAnalysisResult(
+            isSuccessful: isSuccessful,
+            errors: errors,
+            warnings: warnings,
+            symbolTable: symbolTable
+        )
+    }
+
+    /// Get current error count.
+    public var errorCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return errors.count
+    }
+
+    /// Get current warning count.
+    public var warningCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return warnings.count
+    }
+
+    /// Check if error limit has been reached.
+    public var hasReachedErrorLimit: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return errors.count >= config.maxErrorCount
+    }
+
+    /// Reset the error reporter for reuse.
+    public func reset() {
+        lock.lock()
+        defer { lock.unlock() }
+
+        errors.removeAll()
+        warnings.removeAll()
+        errorPositions.removeAll()
+        isFinalized = false
+    }
+
+    // MARK: - Private Methods
+
+    private func extractPositionKey(from error: SemanticError) -> String {
+        let position: SourcePosition
+
+        switch error {
+        case .typeMismatch(_, _, let pos),
+             .incompatibleTypes(_, _, _, let pos),
+             .unknownType(_, let pos),
+             .invalidTypeConversion(_, _, let pos),
+             .undeclaredVariable(_, let pos),
+             .variableAlreadyDeclared(_, let pos),
+             .variableNotInitialized(_, let pos),
+             .constantReassignment(_, let pos),
+             .invalidAssignmentTarget(let pos),
+             .undeclaredFunction(_, let pos),
+             .functionAlreadyDeclared(_, let pos),
+             .incorrectArgumentCount(_, _, _, let pos),
+             .argumentTypeMismatch(_, _, _, _, let pos),
+             .missingReturnStatement(_, let pos),
+             .returnTypeMismatch(_, _, _, let pos),
+             .voidFunctionReturnsValue(_, let pos),
+             .unreachableCode(let pos),
+             .breakOutsideLoop(let pos),
+             .returnOutsideFunction(let pos),
+             .invalidArrayAccess(let pos),
+             .arrayIndexTypeMismatch(_, _, let pos),
+             .invalidArrayDimension(let pos),
+             .undeclaredField(_, _, let pos),
+             .invalidFieldAccess(let pos),
+             .cyclicDependency(_, let pos),
+             .analysisDepthExceeded(let pos):
+            position = pos
+        case .tooManyErrors:
+            return "tooManyErrors" // Special key for this error type
+        }
+
+        return "\(position.line):\(position.column)"
+    }
+}
