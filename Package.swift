@@ -25,7 +25,8 @@ let package = Package(
                 "Tokenizer/docs",
                 "Expression/docs", 
                 "Parser/docs",
-                "Utilities/docs"
+                "Utilities/docs",
+                "Visitor/docs"
             ]
         ),
         .target(
