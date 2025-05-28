@@ -258,13 +258,13 @@ public struct TokenStreamMetrics: Sendable {
 public struct MeasuredTokenStream: TokenStreamProtocol {
     private var source: any TokenStreamProtocol
     private var metrics: TokenStreamMetrics
-    private let startTime: CFAbsoluteTime
+    private let startTime: TimeInterval
     private var tokenCounter: Int // Tracks tokens since last metrics update
     private let updateThreshold: Int // Number of tokens to process before updating metrics
 
     public init(source: any TokenStreamProtocol, updateThreshold: Int = 100) {
         self.source = source
-        self.startTime = CFAbsoluteTimeGetCurrent()
+        self.startTime = getCurrentTime()
         self.metrics = TokenStreamMetrics(tokensProcessed: 0, processingTime: 0)
         self.tokenCounter = 0
         self.updateThreshold = updateThreshold
@@ -275,7 +275,7 @@ public struct MeasuredTokenStream: TokenStreamProtocol {
         if token != nil {
             tokenCounter += 1
             if tokenCounter >= updateThreshold {
-                let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+                let elapsed = getCurrentTime() - startTime
                 metrics = TokenStreamMetrics(
                     tokensProcessed: metrics.tokensProcessed + tokenCounter,
                     processingTime: elapsed,
@@ -285,7 +285,7 @@ public struct MeasuredTokenStream: TokenStreamProtocol {
             }
         } else if tokenCounter > 0 {
             // Final update when the stream is exhausted
-            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+            let elapsed = getCurrentTime() - startTime
             metrics = TokenStreamMetrics(
                 tokensProcessed: metrics.tokensProcessed + tokenCounter,
                 processingTime: elapsed,

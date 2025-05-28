@@ -52,6 +52,9 @@ let package = Package(
             name: "FeLangCoreTests",
             dependencies: [
                 "FeLangCore"
+            ],
+            resources: [
+                .copy("ParseError/GoldenFiles")
             ]
         ),
         .testTarget(

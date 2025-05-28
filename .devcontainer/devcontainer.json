@@ -1,0 +1,42 @@
+{
+    "name": "FeLangKit Swift Development",
+    "image": "swift:6.0-jammy",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "sswg.swift-lang",
+                "vadimcn.vscode-lldb",
+                "ms-vscode.test-adapter-converter",
+                "streetsidesoftware.code-spell-checker",
+                "davidanson.vscode-markdownlint",
+                "redhat.vscode-yaml",
+                "ms-vscode.vscode-json"
+            ],
+            "settings": {
+                "swift.path": "/usr/bin",
+                "swift.executablePath": "/usr/bin/swift",
+                "swift.runtimePath": "/usr/lib/swift",
+                "swift.sourcekit-lsp.serverPath": "/usr/bin/sourcekit-lsp",
+                "swift.sourcekit-lsp.toolchainPath": "/usr",
+                "lldb.library": "/usr/lib/liblldb.so",
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "files.watcherExclude": {
+                    "**/.build/**": true,
+                    "**/.swiftpm/**": true
+                }
+            }
+        }
+    },
+    "forwardPorts": [],
+    "containerEnv": {
+        "SWIFT_EXEC": "/usr/bin/swift",
+        "SOURCEKIT_LSP_EXEC": "/usr/bin/sourcekit-lsp",
+        "TMPDIR": "/tmp",
+        "HOME": "/root",
+        "SHELL": "/bin/bash"
+    },
+    "postCreateCommand": "apt-get update && apt-get install -y sudo git curl wget vim nano build-essential && chmod +x /workspaces/FeLangKit/.devcontainer/*.sh && /workspaces/FeLangKit/.devcontainer/devcontainer-init.sh",
+    "postStartCommand": "echo 'FeLangKit development environment ready!' && cd /workspaces/FeLangKit && swift package resolve --disable-automatic-resolution",
+    "remoteUser": "root",
+    "mounts": []
+}
