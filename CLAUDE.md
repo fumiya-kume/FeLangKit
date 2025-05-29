@@ -35,15 +35,6 @@ gh auth login
 - **PR Automation**: Creates PR with proper titles and descriptions
 - **CI Monitoring**: Watches PR checks until completion
 
-### 🧠 Legacy Ultra Think Issue Automation
-For containerized GitHub issue processing with strategic analysis:
-```bash
-# Set Anthropic API key for Claude Code
-export ANTHROPIC_API_KEY="your-api-key"
-
-# Process GitHub issues automatically with Ultra Think analysis
-./scripts/claude-auto-issue.sh https://github.com/owner/repo/issues/123
-```
 
 ### Verification Command Sequence
 After making changes, run this command sequence to ensure everything is working correctly:

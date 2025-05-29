@@ -56,28 +56,28 @@ let statements = try statementParser.parseStatements(from: tokens)
 - **🚀 Performance** - Optimized parsers with security limits and validation
 - **🌐 Internationalization** - Support for both English and Japanese keywords
 
-## 🧠 Ultra Think Issue Automation
+## 🤖 Claude Code Automation
 
-**Intelligent GitHub issue processing with strategic analysis:**
+**Automated GitHub issue processing with intelligent error recovery:**
 
 ```bash
 # Install dependencies
-brew install gh jq
+brew install gh jq swiftlint
 
-# Authenticate and configure
+# Authenticate with GitHub
 gh auth login
-export ANTHROPIC_API_KEY="your-api-key"
 
-# Process issues with deep analysis
-./scripts/claude-auto-issue.sh https://github.com/owner/repo/issues/123
+# Process issues with Claude Code automation
+./claude.sh https://github.com/owner/repo/issues/123
 ```
 
 **Features:**
-- **📊 Complexity Assessment** - Analyzes issue scope and estimates effort
-- **🎯 Codebase Impact** - Identifies affected modules and files
-- **🛡️ Risk Analysis** - Detects potential problems and mitigation strategies
-- **🗺️ Implementation Roadmap** - Creates detailed task breakdown with time estimates
-- **🚀 Parallel Processing** - Handle multiple issues simultaneously in isolated containers
+- **🔄 Parallel Development** - Creates isolated git worktrees for each issue
+- **🤖 Claude Code Integration** - Launches with pre-loaded issue context
+- **🔧 Intelligent Error Recovery** - Automatic retry loop with error fixing
+- **✅ Quality Validation** - SwiftLint, build, and test verification
+- **📋 PR Automation** - Creates pull requests with proper formatting
+- **🎯 CI Monitoring** - Watches GitHub Actions checks until completion
 
 ## 🎯 Use Cases
 
@@ -85,7 +85,7 @@ export ANTHROPIC_API_KEY="your-api-key"
 - **Educational Tools** - Teach parsing concepts and compiler design
 - **Code Analysis** - Analyze and transform FE pseudo-language code
 - **IDE Support** - Build language servers and syntax highlighting
-- **🤖 Automated Development** - Process GitHub issues intelligently with Ultra Think
+- **🤖 Automated Development** - Process GitHub issues intelligently with Claude Code
 
 ## 📋 Requirements
 
