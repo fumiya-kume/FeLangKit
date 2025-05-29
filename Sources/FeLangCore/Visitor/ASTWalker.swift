@@ -102,14 +102,14 @@ public struct ASTWalker: Sendable {
                 }
             },
             visitIdentifier: { identifier in identifier },
-            visitBinary: { op, left, right in
+            visitBinary: { binaryOp, left, right in
                 let leftStr = createExpressionStringifier().visit(left)
                 let rightStr = createExpressionStringifier().visit(right)
-                return "(\(leftStr) \(op.rawValue) \(rightStr))"
+                return "(\(leftStr) \(binaryOp.rawValue) \(rightStr))"
             },
-            visitUnary: { op, operand in
+            visitUnary: { unaryOp, operand in
                 let operandStr = createExpressionStringifier().visit(operand)
-                return "\(op.rawValue) \(operandStr)"
+                return "\(unaryOp.rawValue) \(operandStr)"
             },
             visitArrayAccess: { array, index in
                 let arrayStr = createExpressionStringifier().visit(array)
@@ -397,14 +397,14 @@ public struct ASTWalker: Sendable {
         return ExpressionVisitor<Expression>(
             visitLiteral: { literal in transform(.literal(literal)) },
             visitIdentifier: { identifier in transform(.identifier(identifier)) },
-            visitBinary: { op, left, right in
+            visitBinary: { binaryOp, left, right in
                 let transformedLeft = createExpressionTransformer(transform).visit(left)
                 let transformedRight = createExpressionTransformer(transform).visit(right)
-                return transform(.binary(op, transformedLeft, transformedRight))
+                return transform(.binary(binaryOp, transformedLeft, transformedRight))
             },
-            visitUnary: { op, operand in
+            visitUnary: { unaryOp, operand in
                 let transformedOperand = createExpressionTransformer(transform).visit(operand)
-                return transform(.unary(op, transformedOperand))
+                return transform(.unary(unaryOp, transformedOperand))
             },
             visitArrayAccess: { array, index in
                 let transformedArray = createExpressionTransformer(transform).visit(array)

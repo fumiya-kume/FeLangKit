@@ -349,8 +349,8 @@ final class ASTWalkerTests: XCTestCase {
     func testWalkerPerformance() {
         // Create a deep expression tree
         var expr = Expression.literal(.integer(1))
-        for i in 2...50 { // Reduced from 100 to avoid performance issues
-            expr = .binary(.add, expr, .literal(.integer(i)))
+        for index in 2...50 { // Reduced from 100 to avoid performance issues
+            expr = .binary(.add, expr, .literal(.integer(index)))
         }
 
         let counter = ASTWalker.createExpressionCounter()
@@ -363,8 +363,8 @@ final class ASTWalkerTests: XCTestCase {
     func testStringifierPerformance() {
         // Create a moderately complex expression
         var expr = Expression.literal(.integer(1))
-        for i in 2...20 { // Reduced for performance
-            expr = .binary(.add, expr, .literal(.integer(i)))
+        for index in 2...20 { // Reduced for performance
+            expr = .binary(.add, expr, .literal(.integer(index)))
         }
 
         let stringifier = ASTWalker.createExpressionStringifier()
