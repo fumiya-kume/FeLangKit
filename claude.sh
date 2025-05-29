@@ -357,9 +357,9 @@ EOF
     info "You can reference this file during your Claude Code session"
     echo
     
-    # Launch Claude Code interactively with safety checks bypassed for worktree
-    info "Launching Claude Code with permissions bypass for worktree..."
-    if ! claude --dangerously-skip-permissions; then
+    # Launch Claude Code interactively
+    info "Launching Claude Code (you may need to approve permissions)..."
+    if ! claude; then
         error "Claude Code session failed or was interrupted"
         exit 1
     fi
