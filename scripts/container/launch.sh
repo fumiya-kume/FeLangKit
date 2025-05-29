@@ -28,6 +28,100 @@ success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
+# Data validation and retry function (single retry only)
+validate_and_retry_data_files() {
+    local issue_file="$1"
+    local analysis_file="$2"
+    local retry_attempted=false
+    
+    log "Validating data files..."
+    
+    # Check if files exist and are valid
+    local need_retry=false
+    
+    if [[ ! -f "$issue_file" ]]; then
+        warn "Issue data file not found: $issue_file"
+        need_retry=true
+    elif ! jq empty "$issue_file" 2>/dev/null; then
+        warn "Issue data file contains invalid JSON: $issue_file"
+        need_retry=true
+    fi
+    
+    if [[ ! -f "$analysis_file" ]]; then
+        warn "Analysis data file not found: $analysis_file"
+        need_retry=true
+    elif ! jq empty "$analysis_file" 2>/dev/null; then
+        warn "Analysis data file contains invalid JSON: $analysis_file"
+        need_retry=true
+    fi
+    
+    # If files are valid, return success
+    if [[ "$need_retry" == "false" ]]; then
+        success "Data files validation passed"
+        return 0
+    fi
+    
+    # Attempt single retry
+    log "Data validation failed, attempting single retry..."
+    
+    # Try to extract URL from issue file if it exists but is corrupted
+    local issue_url=""
+    if [[ -f "$issue_file" ]]; then
+        issue_url=$(jq -r '.html_url // empty' "$issue_file" 2>/dev/null || echo "")
+    fi
+    
+    # If we can't get URL from corrupted file, check if it's in filename pattern
+    if [[ -z "$issue_url" && "$issue_file" =~ issue-([0-9]+)\.json ]]; then
+        local issue_number="${BASH_MATCH[1]}"
+        # Try to construct URL from common patterns
+        if [[ -f ".git/config" ]]; then
+            local repo_url
+            repo_url=$(git config --get remote.origin.url 2>/dev/null | sed 's/\.git$//' | sed 's/git@github\.com:/https:\/\/github.com\//')
+            if [[ -n "$repo_url" ]]; then
+                issue_url="$repo_url/issues/$issue_number"
+            fi
+        fi
+    fi
+    
+    # If we have a URL, try to regenerate the files
+    if [[ -n "$issue_url" ]]; then
+        log "Attempting to regenerate data files from URL: $issue_url"
+        
+        # Clean up corrupted files
+        rm -f "$issue_file" "$analysis_file"
+        
+        # Get script directory (relative to this script)
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+        
+        # Retry issue fetch
+        log "Re-fetching issue data..."
+        if "${script_dir}/core/fetch-issue.sh" "$issue_url" "$issue_file"; then
+            log "Issue data re-fetch successful"
+            
+            # Retry analysis generation
+            log "Re-generating analysis data..."
+            if "${script_dir}/core/ultrathink-analysis.sh" "$issue_file" "$analysis_file"; then
+                log "Analysis data re-generation successful"
+                
+                # Final validation
+                if [[ -f "$issue_file" ]] && jq empty "$issue_file" 2>/dev/null && \
+                   [[ -f "$analysis_file" ]] && jq empty "$analysis_file" 2>/dev/null; then
+                    success "Data files successfully regenerated on retry"
+                    return 0
+                fi
+            fi
+        fi
+    fi
+    
+    # Retry failed or no URL available
+    error "Data file validation failed and retry was unsuccessful"
+    error "Please ensure issue data and analysis files are valid JSON:"
+    error "  Issue file: $issue_file"
+    error "  Analysis file: $analysis_file"
+    
+    return 1
+}
+
 warn() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
@@ -69,14 +163,9 @@ validate_inputs() {
             ;;
     esac
     
-    # Check if files exist
-    if [[ ! -f "$issue_data_file" ]]; then
-        error "Issue data file not found: $issue_data_file"
-        return 1
-    fi
-    
-    if [[ ! -f "$analysis_file" ]]; then
-        error "Analysis file not found: $analysis_file"
+    # Validate and retry data files if needed
+    if ! validate_and_retry_data_files "$issue_data_file" "$analysis_file"; then
+        error "Data file validation failed after retry"
         return 1
     fi
     
