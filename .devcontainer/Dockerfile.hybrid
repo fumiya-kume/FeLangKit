@@ -77,8 +77,8 @@ WORKDIR /workspace
 RUN chown -R $USERNAME:$USERNAME /workspace
 
 # Copy Claude agent and workflow scripts
-COPY scripts/claude-agent.py /usr/local/bin/claude-agent.py
-COPY scripts/container-workflow.sh /usr/local/bin/container-workflow.sh
+COPY scripts/experimental/claude-agent.py /usr/local/bin/claude-agent.py
+COPY scripts/container/workflow.sh /usr/local/bin/container-workflow.sh
 
 # Make scripts executable
 RUN chmod +x /usr/local/bin/claude-agent.py /usr/local/bin/container-workflow.sh
