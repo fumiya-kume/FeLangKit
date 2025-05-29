@@ -2,48 +2,75 @@
 
 This directory contains the automated development system for processing GitHub issues with intelligent analysis and containerized execution.
 
-## 📁 Directory Structure
+## 🚀 Quick Start
 
-After cleanup and reorganization:
+### One-Command Issue Processing
+```bash
+# Process any GitHub issue automatically with claude.sh
+./scripts/claude.sh issue https://github.com/owner/repo/issues/123
+```
+
+### Manual Development
+```bash
+# Launch development container
+./scripts/claude.sh dev hybrid my-container
+
+# Test system components
+./scripts/claude.sh test
+
+# Check system status
+./scripts/claude.sh status
+```
+
+## 📁 Directory Structure
 
 ```
 scripts/
-├── core/                           # Essential automation pipeline
-│   ├── claude-auto-issue.sh       # Main orchestration script
-│   ├── fetch-issue.sh             # GitHub issue data extraction
-│   ├── ultrathink-analysis.sh     # 🧠 Strategic analysis engine
-│   └── create-pr.sh               # PR automation
-├── container/                      # Container management
-│   ├── launch.sh                  # Unified container launcher (hybrid/host/isolated)
-│   ├── workflow.sh                # Containerized development workflow
-│   ├── extract-results.sh         # Result extraction and cleanup
-│   └── test-credentials.sh        # Authentication testing
-├── experimental/                   # Work-in-progress features
-│   └── claude-agent.py            # API-based Claude integration
-├── config/                        # Configuration files
-│   └── claude-auto-config.json    # System configuration
-└── docs/                          # Documentation
-    └── README.md                  # This file
+├── claude.sh                      # 🎯 Easy-to-use wrapper for all commands
+├── core/                          # Essential automation pipeline
+│   ├── claude-auto-issue.sh      # Main orchestration script
+│   ├── fetch-issue.sh            # GitHub issue data extraction
+│   ├── ultrathink-analysis.sh    # 🧠 Strategic analysis engine
+│   └── create-pr.sh              # PR automation
+├── container/                     # Container management
+│   ├── launch.sh                 # Unified container launcher (hybrid/host/isolated)
+│   ├── workflow.sh               # Containerized development workflow
+│   ├── extract-results.sh        # Result extraction and cleanup
+│   └── test-credentials.sh       # Authentication testing
+├── experimental/                  # Work-in-progress features
+│   └── claude-agent.py           # API-based Claude integration
+├── config/                       # Configuration files
+│   └── claude-auto-config.json   # System configuration
+└── docs/                         # Documentation
+    └── README.md                 # This file
 ```
 
-## 🚀 Quick Start
+## 🎯 Claude.sh - Unified Interface
 
-### Basic Usage (Automated)
+The `claude.sh` script provides a simple, consistent interface to all automation features:
+
+### Primary Commands
 ```bash
-# Process any GitHub issue automatically
-./scripts/core/claude-auto-issue.sh https://github.com/owner/repo/issues/123
+# Issue processing
+./scripts/claude.sh issue <url>           # Full automated processing
+./scripts/claude.sh fetch <url> <file>    # Fetch issue data only
+./scripts/claude.sh analyze <in> <out>    # Ultra Think analysis only
+
+# Container management  
+./scripts/claude.sh dev <mode> <name>     # Launch development container
+./scripts/claude.sh ps                    # List active containers
+./scripts/claude.sh cleanup <container>   # Clean up container
+
+# System tools
+./scripts/claude.sh test                  # Test authentication/system
+./scripts/claude.sh status                # Show system status
+./scripts/claude.sh config                # Show configuration
 ```
 
-### Container Modes
+### Help System
 ```bash
-# Hybrid isolation (recommended) - shared credentials + isolated workspace
-./scripts/container/launch.sh hybrid issue-data.json analysis.json my-container
-
-# Host mode (legacy) - Claude on host + dev container
-./scripts/container/launch.sh host issue-data.json analysis.json dev-container
-
-# Full isolation (experimental) - API-based Claude in container
-./scripts/container/launch.sh isolated issue-data.json analysis.json iso-container
+./scripts/claude.sh help                  # General help
+./scripts/claude.sh help issue            # Detailed command help
 ```
 
 ## 🧠 Ultra Think Analysis
@@ -74,75 +101,39 @@ The system performs comprehensive pre-implementation analysis:
 ### Host Mode (Legacy)
 - **Host Execution**: Claude Code runs on host machine
 - **Dev Container**: Supporting development environment
-- **Credential Sharing**: Full access to host credentials
 
 ### Isolated Mode (Experimental)
 - **Complete Isolation**: API-based Claude integration
-- **Minimal Host Contact**: Only essential environment variables
 - **Token-based Auth**: GitHub token authentication only
-
-## 📋 Core Components
-
-### 1. Main Orchestrator (`core/claude-auto-issue.sh`)
-Central coordinator managing the entire workflow:
-- URL validation and parsing
-- Component orchestration  
-- Error handling and cleanup
-- Logging and status reporting
-
-### 2. Issue Fetcher (`core/fetch-issue.sh`)
-Extracts GitHub issue data using GitHub CLI:
-- Structured JSON output
-- Metadata extraction (labels, assignees, milestones)
-- Branch name generation
-- PR title formatting
-
-### 3. Ultra Think Analyzer (`core/ultrathink-analysis.sh`)
-Performs strategic analysis before implementation:
-- Complexity scoring and level classification
-- Module impact analysis and file predictions
-- Risk assessment with mitigation strategies
-- Implementation roadmap with time estimates
-
-### 4. Container Launcher (`container/launch.sh`)
-Unified launcher supporting multiple isolation modes:
-- Credential sharing configuration
-- Container lifecycle management
-- Authentication testing
-- Development environment setup
-
-### 5. PR Creator (`core/create-pr.sh`)
-Manages pull request creation:
-- Branch validation
-- Commit verification
-- PR formatting with templates
-- CI/CD monitoring
 
 ## 🔐 Security & Credentials
 
-### What's Shared (Read-Only)
+### Shared Resources (Read-Only)
 - Git configuration (`~/.gitconfig`)
 - SSH keys (`~/.ssh/`)
 - GitHub CLI auth (`~/.config/gh/`)
 - Claude settings (`~/.claude/`)
 - Environment variables (API keys)
 
-### What's Protected
+### Security Features
 - No write access to host credentials
 - Temporary containers with automatic cleanup
 - No credential logging or persistence
 - SSH agent socket forwarding (not key copying)
 
-### Authentication Testing
-```bash
-# Test all credential sharing
-./scripts/container/test-credentials.sh
-
-# Test with specific container
-./scripts/container/test-credentials.sh my-container
-```
-
 ## ⚙️ Configuration
+
+### Prerequisites
+```bash
+# Install dependencies
+brew install gh jq swiftlint
+
+# Authenticate with GitHub
+gh auth login
+
+# Set Anthropic API key
+export ANTHROPIC_API_KEY="your-api-key"
+```
 
 ### System Configuration (`config/claude-auto-config.json`)
 ```json
@@ -164,80 +155,70 @@ Manages pull request creation:
   "quality_gates": {
     "required_commands": [
       "swiftlint lint --fix",
-      "swiftlint lint",
-      "swift build", 
+      "swiftlint lint", 
+      "swift build",
       "swift test"
     ]
   }
 }
 ```
 
-### Environment Variables
-```bash
-export ANTHROPIC_API_KEY="your-api-key"     # Required for Claude integration
-export GITHUB_TOKEN="your-token"            # Optional, uses gh CLI auth by default
-```
-
 ## 🔧 Development Workflows
 
-### Standard Issue Processing
-1. **Issue Selection**: Choose GitHub issue URL
-2. **Ultra Think Analysis**: Strategic analysis and planning
-3. **Container Launch**: Isolated development environment
-4. **Development**: AI-assisted implementation
-5. **Quality Gates**: Tests, linting, build validation
-6. **PR Creation**: Automatic pull request generation
-7. **Monitoring**: CI/CD pipeline tracking
-
-### Manual Development
+### Automated Workflow (Recommended)
 ```bash
-# Fetch issue data
-./scripts/core/fetch-issue.sh <url> issue-data.json
-
-# Run strategic analysis
-./scripts/core/ultrathink-analysis.sh issue-data.json analysis.json
-
-# Launch development container
-./scripts/container/launch.sh hybrid issue-data.json analysis.json dev-container
-
-# Use container for development
-docker exec dev-container swift build
-docker exec dev-container swift test
-docker exec dev-container git status
-
-# Extract results
-./scripts/container/extract-results.sh dev-container ./results
-
-# Create PR
-./scripts/core/create-pr.sh issue-data.json dev-container
+# Single command processes entire issue
+./scripts/claude.sh issue https://github.com/owner/repo/issues/123
 ```
 
-## 🧪 Testing & Validation
+**Pipeline**: Issue fetch → Ultra Think analysis → Container launch → Development → Quality gates → PR creation → CI monitoring
+
+### Manual Workflow
+```bash
+# Step-by-step control
+./scripts/claude.sh fetch <url> issue-data.json
+./scripts/claude.sh analyze issue-data.json analysis.json
+./scripts/claude.sh dev hybrid my-container issue-data.json analysis.json
+./scripts/claude.sh extract my-container ./results
+./scripts/claude.sh pr issue-data.json my-container
+```
+
+### Container Development
+```bash
+# Work inside container
+docker exec my-container swift build
+docker exec my-container swift test
+docker exec my-container git status
+
+# Or enter container interactively
+docker exec -it my-container bash
+```
+
+## 🧪 Testing & Debugging
 
 ### System Testing
 ```bash
-# Test credential sharing
-./scripts/container/test-credentials.sh
+# Comprehensive system test
+./scripts/claude.sh test
 
-# Debug mode
-bash -x ./scripts/core/claude-auto-issue.sh <url>
+# Test specific container
+./scripts/claude.sh test my-container
 
-# Component testing
-./scripts/core/fetch-issue.sh <url> /tmp/test.json
-./scripts/core/ultrathink-analysis.sh /tmp/test.json /tmp/analysis.json
+# Check system status
+./scripts/claude.sh status
 ```
 
-### Container Testing
+### Debugging
 ```bash
-# Enter container for debugging
-docker exec -it <container> bash
+# Verbose execution
+bash -x ./scripts/claude.sh issue <url>
 
 # Check container logs
-docker logs <container>
+./scripts/claude.sh logs my-container
 
-# Test authentication in container
-docker exec <container> gh auth status
-docker exec <container> ssh -T git@github.com
+# Manual container inspection
+docker inspect my-container
+docker exec my-container env
 ```
 
 ## 🏥 Troubleshooting
@@ -249,82 +230,39 @@ docker exec <container> ssh -T git@github.com
 # Start Docker Desktop
 open -a Docker
 
-# Verify Docker
+# Verify
 docker info
 ```
 
-#### GitHub Authentication
+#### Authentication Problems
 ```bash
-# Check host auth
+# GitHub CLI
 gh auth status
 gh auth login
 
-# Test in container
-docker exec <container> gh auth status
-```
-
-#### SSH Issues
-```bash
-# Check SSH agent
-echo $SSH_AUTH_SOCK
-ssh-add -l
-
-# Test GitHub access
+# SSH keys
 ssh -T git@github.com
+ssh-add -l
 ```
 
-#### Permission Problems
+#### Container Issues
 ```bash
-# Fix SSH permissions
-chmod 700 ~/.ssh
-chmod 600 ~/.ssh/id_*
+# Clean up problematic container
+./scripts/claude.sh cleanup my-container
+
+# Check Docker resources
+docker system df
+docker system prune
 ```
 
-### Debug Commands
-```bash
-# Verbose execution
-bash -x ./scripts/core/claude-auto-issue.sh <url>
-
-# Container inspection
-docker inspect <container>
-docker logs <container>
-
-# Manual cleanup
-docker stop <container>
-docker rm <container>
-docker volume rm <container>-workspace
-```
-
-## 📈 Benefits of Reorganized Structure
-
-### Before Cleanup
-- 13 files in flat structure
-- Overlapping functionality (multiple Docker launchers)
-- Inconsistent naming patterns
-- Mixed documentation files
-
-### After Cleanup  
-- Logical categorization (core/container/experimental/config/docs)
-- Unified container launcher with mode selection
-- Consistent naming conventions
-- Consolidated documentation
-- Clear separation of concerns
-
-### Improvements Achieved
-- **Reduced Complexity**: 13 → 10 files with consolidated functionality
-- **Better Organization**: 5 logical categories vs flat structure
-- **Enhanced Maintainability**: Clear ownership and purposes
-- **Improved Usability**: Single entry point for each workflow
-- **Future-Proofing**: Experimental vs stable separation
-
-## 🚀 Scalability Features
+## 🚀 Scalability & Performance
 
 ### Parallel Processing
 ```bash
-# Multiple issues simultaneously
-./scripts/core/claude-auto-issue.sh https://github.com/owner/repo/issues/123 &
-./scripts/core/claude-auto-issue.sh https://github.com/owner/repo/issues/124 &
-./scripts/core/claude-auto-issue.sh https://github.com/owner/repo/issues/125 &
+# Process multiple issues simultaneously
+./scripts/claude.sh issue https://github.com/owner/repo/issues/123 &
+./scripts/claude.sh issue https://github.com/owner/repo/issues/124 &
+./scripts/claude.sh issue https://github.com/owner/repo/issues/125 &
 ```
 
 ### Resource Management
@@ -339,56 +277,37 @@ docker volume rm <container>-workspace
 - **Separate logging** and result tracking
 - **Clean failure recovery** with preserved workspace
 
-## 🎯 Migration Guide
+## 📈 Cleanup Benefits (Ultra Think Implementation)
 
-### For Existing Users
-The reorganization maintains backward compatibility through:
+### Transformation Results
+- **File Count**: 13 → 10 files (-23% reduction)
+- **Structure**: Flat → 5 logical categories
+- **Functionality**: Eliminated duplicate container launchers
+- **Documentation**: Consolidated 2 files → 1 comprehensive guide
 
-1. **Symbolic Links**: Old script paths still work during transition
-2. **Gradual Migration**: New structure can be adopted incrementally
-3. **Documentation**: Clear migration paths provided
-
-### Migration Steps
-1. **Backup current setup**: System creates automatic backup
-2. **Update script calls**: Change paths to new structure
-3. **Test new workflow**: Verify functionality with sample issue
-4. **Remove old scripts**: Clean up deprecated files when ready
-
-### Path Updates
-```bash
-# Old paths
-./scripts/claude-auto-issue.sh → ./scripts/core/claude-auto-issue.sh
-./scripts/launch-claude-docker-hybrid.sh → ./scripts/container/launch.sh hybrid
-
-# New unified launcher
-./scripts/container/launch.sh <mode> <issue-data> <analysis> <container>
-```
-
-## 📚 Additional Resources
-
-- **Ultra Think Analysis Guide**: See analysis output examples and strategic planning
-- **Container Configuration**: Advanced Docker setup and credential management  
-- **Security Best Practices**: Credential sharing and isolation guidelines
-- **Integration Examples**: CI/CD, webhooks, and automation setups
+### Organization Improvements
+- **Clear Ownership**: Each category has specific purpose
+- **Reduced Complexity**: Unified container launcher
+- **Enhanced Maintainability**: Logical separation of concerns
+- **Future-Proofing**: Experimental vs stable separation
 
 ## 🔄 Maintenance
+
+### Health Checks
+```bash
+# System health
+./scripts/claude.sh status
+
+# Dependencies
+gh version && jq --version && docker version
+
+# Container cleanup
+docker system prune
+```
 
 ### Regular Tasks
 - **Weekly**: Update container images, test authentication
 - **Monthly**: Update dependencies, review configurations
 - **As Needed**: Update templates, adjust quality gates
 
-### Health Checks
-```bash
-# System health
-./scripts/container/test-credentials.sh
-
-# Dependencies
-gh version && jq --version && docker version
-
-# Container usage
-docker system df
-docker image ls
-```
-
-This reorganized scripts directory provides a clean, scalable foundation for automated development with clear separation of concerns and improved maintainability.
+This reorganized scripts directory provides a clean, scalable foundation for automated development with `claude.sh` as the primary interface for all operations.
