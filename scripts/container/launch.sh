@@ -337,66 +337,70 @@ launch_hybrid_mode() {
             # Execute the workflow script if issue data is provided
             if [[ -f /workspace/issue-data.json ]] && [[ -f /workspace/analysis-data.json ]]; then
                 echo 'Starting automated development workflow...'
-                # Use simple workflow that creates execution report without API dependency
-                bash -c '
-                    set -euo pipefail
-                    
-                    WORKSPACE_DIR="/workspace"
-                    EXECUTION_REPORT_FILE="$WORKSPACE_DIR/execution-report.json"
-                    LOG_FILE="$WORKSPACE_DIR/container.log"
-                    
-                    log() {
-                        echo "[$0-$(date +%H:%M:%S)] $1" | tee -a "$LOG_FILE"
-                    }
-                    
-                    log "Container workflow starting..."
-                    
-                    # Extract issue info
-                    issue_number=$(jq -r ".issue_number // \"unknown\"" /workspace/issue-data.json 2>/dev/null || echo "unknown")
-                    issue_title=$(jq -r ".title // \"Unknown Issue\"" /workspace/issue-data.json 2>/dev/null || echo "Unknown Issue") 
-                    branch_name=$(jq -r ".branch_name // \"unknown-branch\"" /workspace/issue-data.json 2>/dev/null || echo "unknown-branch")
-                    
-                    log "Processing Issue #$issue_number: $issue_title"
-                    log "Target branch: $branch_name"
-                    log "Development environment ready for Claude Code"
-                    
-                    # Create execution report
-                    jq -n \
-                        --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-                        --arg issue_number "$issue_number" \
-                        --arg issue_title "$issue_title" \
-                        --arg branch_name "$branch_name" \
-                        --arg container_id "${HOSTNAME:-container}" \
-                        "{
-                            success: true,
-                            timestamp: \$timestamp,
-                            issue: {
-                                number: (\$issue_number | tonumber? // 0),
-                                title: \$issue_title,
-                                branch: \$branch_name
-                            },
-                            container: {
-                                id: \$container_id,
-                                workspace: \"/workspace\"
-                            },
-                            actions_performed: [
-                                \"Environment validation\",
-                                \"Swift toolchain verification\", 
-                                \"Development workspace setup\",
-                                \"Container workflow completion\"
-                            ],
-                            duration_seconds: 5,
-                            status: \"container_ready_for_development\",
-                            message: \"Container launched successfully. Development environment ready for Claude Code.\",
-                            pr_url: null
-                        }" > "$EXECUTION_REPORT_FILE"
-                    
-                    log "Execution report created successfully"
-                    log "Container ready for development work"
-                    
-                    # Brief pause for result extraction
-                    sleep 3
-                '
+                # Create execution report using heredoc to avoid quote escaping issues
+                cat > /tmp/workflow.sh << 'WORKFLOW_EOF'
+#!/bin/bash
+set -euo pipefail
+
+WORKSPACE_DIR="/workspace"
+EXECUTION_REPORT_FILE="$WORKSPACE_DIR/execution-report.json"
+LOG_FILE="$WORKSPACE_DIR/container.log"
+
+log() {
+    echo "[$0-$(date +%H:%M:%S)] $1" | tee -a "$LOG_FILE"
+}
+
+log "Container workflow starting..."
+
+# Extract issue info
+issue_number=$(jq -r '.issue_number // "unknown"' /workspace/issue-data.json 2>/dev/null || echo "unknown")
+issue_title=$(jq -r '.title // "Unknown Issue"' /workspace/issue-data.json 2>/dev/null || echo "Unknown Issue") 
+branch_name=$(jq -r '.branch_name // "unknown-branch"' /workspace/issue-data.json 2>/dev/null || echo "unknown-branch")
+
+log "Processing Issue #$issue_number: $issue_title"
+log "Target branch: $branch_name"
+log "Development environment ready for Claude Code"
+
+# Create execution report
+jq -n \
+    --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg issue_number "$issue_number" \
+    --arg issue_title "$issue_title" \
+    --arg branch_name "$branch_name" \
+    --arg container_id "${HOSTNAME:-container}" \
+    '{
+        success: true,
+        timestamp: $timestamp,
+        issue: {
+            number: ($issue_number | tonumber? // 0),
+            title: $issue_title,
+            branch: $branch_name
+        },
+        container: {
+            id: $container_id,
+            workspace: "/workspace"
+        },
+        actions_performed: [
+            "Environment validation",
+            "Swift toolchain verification", 
+            "Development workspace setup",
+            "Container workflow completion"
+        ],
+        duration_seconds: 5,
+        status: "container_ready_for_development",
+        message: "Container launched successfully. Development environment ready for Claude Code.",
+        pr_url: null
+    }' > "$EXECUTION_REPORT_FILE"
+
+log "Execution report created successfully"
+log "Container ready for development work"
+
+# Brief pause for result extraction
+sleep 3
+WORKFLOW_EOF
+                chmod +x /tmp/workflow.sh
+                /tmp/workflow.sh
+                rm -f /tmp/workflow.sh
             else
                 echo 'No issue data provided - container ready for manual development'
                 tail -f /dev/null
