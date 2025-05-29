@@ -127,4 +127,3 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         }
     }
 }
-
