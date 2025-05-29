@@ -649,57 +649,59 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
     # Monitor PR checks
     step "Monitoring CI checks..."
     
-    # Wait a moment for CI to start
-    info "Waiting for CI checks to start..."
-    sleep 5
+    # Monitor for up to 5 minutes, checking every 10 seconds
+    info "Monitoring PR checks for up to 5 minutes (checking every 10 seconds)..."
+    local monitor_time=0
+    local max_monitor_time=300  # 5 minutes
+    local check_interval=10     # 10 seconds
+    local all_checks_passed=false
+    local checks_started=false
     
-    # Check if any checks exist
-    local check_count=$(gh pr checks --json conclusion --jq 'length' 2>/dev/null || echo "0")
-    
-    if [[ "$check_count" -eq 0 ]]; then
-        warn "No CI checks found for this branch"
-        info "This may be normal if:"
-        info "1. No GitHub Actions workflows are configured for this repository"
-        info "2. Workflows don't trigger on this branch"
-        info "3. CI is still starting up (may take a few minutes)"
-        echo
-        
-        read -p "Continue monitoring for CI checks? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            info "Monitoring for up to 2 minutes..."
-            local wait_time=0
-            local max_wait=120
+    while [[ $monitor_time -lt $max_monitor_time ]]; do
+        # Get current check status
+        local check_output
+        if check_output=$(gh pr checks 2>/dev/null); then
+            checks_started=true
             
-            while [[ $wait_time -lt $max_wait ]]; do
-                check_count=$(gh pr checks --json conclusion --jq 'length' 2>/dev/null || echo "0")
-                if [[ "$check_count" -gt 0 ]]; then
-                    success "CI checks detected! Starting monitoring..."
+            # Display current status
+            echo "--- CI Status (${monitor_time}s/${max_monitor_time}s) ---"
+            echo "$check_output"
+            echo
+            
+            # Check if all checks are complete and successful
+            local pending_count=$(echo "$check_output" | grep -c "pending" || echo "0")
+            local fail_count=$(echo "$check_output" | grep -c "fail" || echo "0")
+            
+            if [[ "$pending_count" -eq 0 ]] && [[ "$fail_count" -eq 0 ]]; then
+                local total_checks=$(echo "$check_output" | wc -l)
+                if [[ "$total_checks" -gt 0 ]]; then
+                    all_checks_passed=true
+                    success "All PR checks passed!"
                     break
                 fi
-                sleep 10
-                wait_time=$((wait_time + 10))
-                info "Still waiting for CI... (${wait_time}s/${max_wait}s)"
-            done
-            
-            if [[ "$check_count" -eq 0 ]]; then
-                warn "No CI checks started after waiting ${max_wait} seconds"
-                info "You can manually check later with: gh pr checks"
+            elif [[ "$fail_count" -gt 0 ]]; then
+                error "Some PR checks failed"
+                break
             fi
         else
-            info "Skipping CI monitoring"
+            if [[ "$checks_started" == "false" ]]; then
+                info "Waiting for CI checks to start... (${monitor_time}s/${max_monitor_time}s)"
+            fi
         fi
-    fi
+        
+        sleep $check_interval
+        monitor_time=$((monitor_time + check_interval))
+    done
     
-    # Monitor checks if they exist
-    if [[ "$check_count" -gt 0 ]]; then
-        info "Watching PR checks... (Press Ctrl+C to stop monitoring)"
-        if ! gh pr checks --watch; then
-            warn "PR checks monitoring interrupted or failed"
-            info "You can resume monitoring with: gh pr checks --watch"
-        else
-            success "All PR checks passed!"
-        fi
+    if [[ "$all_checks_passed" == "true" ]]; then
+        success "All CI checks completed successfully!"
+    elif [[ "$checks_started" == "false" ]]; then
+        warn "No CI checks detected after 5 minutes"
+        info "This may be normal if no workflows are configured for this repository"
+        info "You can check manually later with: gh pr checks"
+    elif [[ $monitor_time -ge $max_monitor_time ]]; then
+        warn "CI monitoring timeout reached (5 minutes)"
+        info "Checks may still be running. You can continue monitoring with: gh pr checks --watch"
     fi
 }
 
