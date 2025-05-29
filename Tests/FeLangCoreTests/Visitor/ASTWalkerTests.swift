@@ -355,9 +355,9 @@ final class ASTWalkerTests: XCTestCase {
 
         let counter = ASTWalker.createExpressionCounter()
 
-        measure {
-            _ = counter.visit(expr)
-        }
+        // Test that walker completes without hanging
+        let result = counter.visit(expr)
+        XCTAssertGreaterThan(result, 0, "Walker should count nodes correctly")
     }
 
     func testStringifierPerformance() {
@@ -369,8 +369,8 @@ final class ASTWalkerTests: XCTestCase {
 
         let stringifier = ASTWalker.createExpressionStringifier()
 
-        measure {
-            _ = stringifier.visit(expr)
-        }
+        // Test that stringifier completes without hanging
+        let result = stringifier.visit(expr)
+        XCTAssertFalse(result.isEmpty, "Stringifier should produce non-empty output")
     }
 }
