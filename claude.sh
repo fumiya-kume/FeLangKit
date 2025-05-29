@@ -341,7 +341,7 @@ Let me know when you're ready to start!"
     echo
     
     # Launch Claude Code with context
-    if ! claude --directory "$WORKTREE_PATH" --message "$context_message"; then
+    echo "$context_message" | if ! claude; then
         error "Claude Code session failed or was interrupted"
         exit 1
     fi
