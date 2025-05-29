@@ -58,6 +58,7 @@ ${PURPLE}🐳 Container Management:${NC}
 
 ${PURPLE}🔧 System Tools:${NC}
   ${GREEN}test${NC}                             Test authentication and system
+  ${GREEN}validate <container>${NC}             Validate container workflow completion
   ${GREEN}config${NC}                          Show current configuration
   ${GREEN}status${NC}                          Show system status
   ${GREEN}logs <container>${NC}                 Show container logs
@@ -248,6 +249,70 @@ show_config() {
     fi
 }
 
+# Retry mechanism for data preparation
+retry_data_preparation() {
+    local url="$1"
+    local issue_file="$2"
+    local analysis_file="$3"
+    local retry_attempted=false
+    
+    # Check if files exist and are valid
+    local need_retry=false
+    
+    if [[ ! -f "$issue_file" ]]; then
+        warn "Issue data file not found: $issue_file"
+        need_retry=true
+    elif ! jq empty "$issue_file" 2>/dev/null; then
+        warn "Issue data file contains invalid JSON: $issue_file"
+        need_retry=true
+    fi
+    
+    if [[ ! -f "$analysis_file" ]]; then
+        warn "Analysis data file not found: $analysis_file"
+        need_retry=true
+    elif ! jq empty "$analysis_file" 2>/dev/null; then
+        warn "Analysis data file contains invalid JSON: $analysis_file"
+        need_retry=true
+    fi
+    
+    # Retry data preparation if needed (only once)
+    if [[ "$need_retry" == "true" ]]; then
+        log "Retrying data preparation (single retry attempt)..."
+        
+        # Clean up potentially corrupted files
+        rm -f "$issue_file" "$analysis_file"
+        
+        # Retry issue fetch
+        log "Re-fetching issue data..."
+        if ! "${SCRIPT_DIR}/core/fetch-issue.sh" "$url" "$issue_file"; then
+            error "Failed to fetch issue data on retry"
+            return 1
+        fi
+        
+        # Retry analysis generation
+        log "Re-generating analysis data..."
+        if ! "${SCRIPT_DIR}/core/ultrathink-analysis.sh" "$issue_file" "$analysis_file"; then
+            error "Failed to generate analysis data on retry"
+            return 1
+        fi
+        
+        # Final validation
+        if [[ ! -f "$issue_file" ]] || ! jq empty "$issue_file" 2>/dev/null; then
+            error "Issue data still invalid after retry"
+            return 1
+        fi
+        
+        if [[ ! -f "$analysis_file" ]] || ! jq empty "$analysis_file" 2>/dev/null; then
+            error "Analysis data still invalid after retry"
+            return 1
+        fi
+        
+        success "Data preparation retry completed successfully"
+    fi
+    
+    return 0
+}
+
 list_containers() {
     log "Container Status"
     echo
@@ -365,6 +430,22 @@ main() {
                 exec "${SCRIPT_DIR}/container/test-credentials.sh" "$2"
             else
                 exec "${SCRIPT_DIR}/container/test-credentials.sh"
+            fi
+            ;;
+            
+        validate)
+            if [[ $# -lt 2 ]]; then
+                error "Container name required"
+                echo "Usage: ./scripts/claude.sh validate <container>"
+                exit 1
+            fi
+            validate_dependencies
+            local validator_script="${SCRIPT_DIR}/container/workflow-validator.sh"
+            if [[ -f "$validator_script" ]]; then
+                exec bash "$validator_script" "$2" "${3:-30}"
+            else
+                error "Workflow validator not found: $validator_script"
+                exit 1
             fi
             ;;
             
