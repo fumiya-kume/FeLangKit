@@ -437,9 +437,23 @@ validate_implementation() {
     local validation_errors=""
     local has_errors=false
     
-    # Check if there are any changes
-    if git diff --quiet && git diff --cached --quiet; then
-        warn "No changes detected in worktree"
+    # Check if there are any real changes (excluding gitignored files)
+    local has_changes=false
+    
+    # Test if git add would stage any new changes
+    local staged_before=$(git diff --cached --numstat | wc -l)
+    if git add --dry-run . >/dev/null 2>&1; then
+        git add . >/dev/null 2>&1
+        local staged_after=$(git diff --cached --numstat | wc -l)
+        if [[ $staged_after -gt $staged_before ]]; then
+            has_changes=true
+        fi
+        # Reset to previous state
+        git reset >/dev/null 2>&1
+    fi
+    
+    if [[ "$has_changes" == "false" ]] && git diff --quiet && git diff --cached --quiet; then
+        warn "No trackable changes detected in worktree (only gitignored files present)"
         read -p "Continue anyway? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -514,36 +528,43 @@ push_and_create_pr() {
         info "3. Create a manual commit if changes exist"
         echo
         
-        # Check for unstaged changes
-        if ! git diff --quiet || ! git diff --cached --quiet; then
-            warn "Detected unstaged changes in the worktree"
-            git status --short
-            echo
-            read -p "Create a commit with these changes? (y/N): " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                # Add all changes and create a commit
-                git add .
-                local issue_title=$(jq -r '.title' "$ISSUE_DATA_FILE")
-                git commit -m "feat: implement ${issue_title}
+        # Check for unstaged changes (excluding gitignored files)
+        local has_real_changes=false
+        
+        # Check if there are any changes that would actually be staged
+        if git add --dry-run . >/dev/null 2>&1; then
+            # Test if git add would actually stage anything
+            local staged_count_before=$(git diff --cached --numstat | wc -l)
+            git add . >/dev/null 2>&1
+            local staged_count_after=$(git diff --cached --numstat | wc -l)
+            
+            if [[ $staged_count_after -gt $staged_count_before ]]; then
+                has_real_changes=true
+            fi
+            
+            # Reset staging area to previous state
+            git reset >/dev/null 2>&1
+        fi
+        
+        if [[ "$has_real_changes" == "true" ]]; then
+            log "Detected changes ready for commit"
+            git add .
+            local issue_title=$(jq -r '.title' "$ISSUE_DATA_FILE")
+            git commit -m "feat: implement ${issue_title}
 
 Resolves #${ISSUE_NUMBER}
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
-                
-                # Recheck commits ahead
-                commits_ahead=$(git rev-list --count "master..HEAD" 2>/dev/null || echo "0")
-                if [[ "$commits_ahead" -eq 0 ]]; then
-                    error "Still no commits after adding changes"
-                    exit 1
-                fi
-                success "Commit created successfully"
-            else
-                info "No commit created. You may want to re-launch Claude Code."
+            
+            # Recheck commits ahead
+            commits_ahead=$(git rev-list --count "master..HEAD" 2>/dev/null || echo "0")
+            if [[ "$commits_ahead" -eq 0 ]]; then
+                error "Still no commits after adding changes"
                 exit 1
             fi
+            success "Commit created automatically"
         else
             echo
             read -p "Re-launch Claude Code to complete implementation? (y/N): " -n 1 -r
