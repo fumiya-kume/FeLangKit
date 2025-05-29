@@ -38,7 +38,8 @@
       "Bash(git merge:*)",
       "Bash(git checkout:*)",
       "Bash(mkdir:*)",
-      "Bash(./scripts/container/extract-results.sh:*)"
+      "Bash(./scripts/container/extract-results.sh:*)",
+      "Bash(claude config --help)"
     ],
     "deny": []
   }

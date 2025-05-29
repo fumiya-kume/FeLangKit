@@ -335,12 +335,7 @@ Let me know when you're ready to start!"
     info "Worktree: $WORKTREE_PATH"
     info "Branch: $BRANCH_NAME"
     echo
-    echo "Context for Claude Code:"
-    echo "======================="
-    echo "$context_message"
-    echo
     
-    # Launch Claude Code with context
     # Write context to a temporary file for Claude Code to reference
     local context_file="${WORKTREE_PATH}/.claude-context.md"
     cat > "$context_file" << EOF
@@ -354,16 +349,22 @@ $context_message
 EOF
     
     info "Context saved to: $context_file"
-    info "You can reference this file during your Claude Code session"
     echo
     
-    # Launch Claude Code interactively
-    info "Launching Claude Code..."
+    # Create a temporary input file with the context message
+    local input_file="${WORKTREE_PATH}/.claude-input.txt"
+    echo "$context_message" > "$input_file"
+    
+    # Launch Claude Code with the context as initial input
+    info "Launching Claude Code with issue context..."
     info "Note: You may see a trust prompt - select 'Yes, proceed' to continue"
-    if ! claude; then
+    if ! claude < "$input_file"; then
         error "Claude Code session failed or was interrupted"
         exit 1
     fi
+    
+    # Clean up input file
+    rm -f "$input_file"
     
     success "Claude Code session completed"
 }
