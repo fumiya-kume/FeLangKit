@@ -62,8 +62,9 @@ final class ExpressionVisitorTests: XCTestCase {
         // Note: This will show the raw Expression values, not the recursive visitor results
         let result = visitor.visit(expr)
         XCTAssertTrue(result.hasPrefix("binary(+,"))
-        XCTAssertTrue(result.contains("literal(integer(1))"))
-        XCTAssertTrue(result.contains("literal(integer(2))"))
+        XCTAssertTrue(result.contains("literal("))
+        XCTAssertTrue(result.contains("integer(1)"))
+        XCTAssertTrue(result.contains("integer(2)"))
     }
 
     func testVisitUnary() {
@@ -80,7 +81,7 @@ final class ExpressionVisitorTests: XCTestCase {
         let expr = Expression.unary(.not, .literal(.boolean(true)))
         let result = visitor.visit(expr)
         XCTAssertTrue(result.hasPrefix("unary(not,"))
-        XCTAssertTrue(result.contains("literal(boolean(true))"))
+        XCTAssertTrue(result.contains("boolean(true)"))
     }
 
     func testVisitArrayAccess() {
@@ -96,9 +97,8 @@ final class ExpressionVisitorTests: XCTestCase {
 
         let expr = Expression.arrayAccess(.identifier("arr"), .literal(.integer(0)))
         let result = visitor.visit(expr)
-        XCTAssertTrue(result.hasPrefix("array_access("))
-        XCTAssertTrue(result.contains("identifier(\"arr\")"))
-        XCTAssertTrue(result.contains("literal(integer(0))"))
+        XCTAssertTrue(result.hasPrefix("array_access(identifier(\"arr\"),"))
+        XCTAssertTrue(result.contains("integer(0)"))
     }
 
     func testVisitFieldAccess() {

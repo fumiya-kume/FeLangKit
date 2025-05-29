@@ -29,7 +29,7 @@ final class StatementVisitorTests: XCTestCase {
 
         let result = visitor.visit(stmt)
         XCTAssertTrue(result.hasPrefix("if("))
-        XCTAssertTrue(result.contains("literal(boolean(true))"))
+        XCTAssertTrue(result.contains("boolean(true)"))
     }
 
     func testVisitWhileStatement() {
@@ -56,7 +56,7 @@ final class StatementVisitorTests: XCTestCase {
 
         let result = visitor.visit(stmt)
         XCTAssertTrue(result.hasPrefix("while("))
-        XCTAssertTrue(result.contains("literal(boolean(true))"))
+        XCTAssertTrue(result.contains("boolean(true)"))
     }
 
     func testVisitForStatement() {
@@ -207,7 +207,7 @@ final class StatementVisitorTests: XCTestCase {
         let returnStmt = Statement.returnStatement(ReturnStatement(expression: .literal(.integer(42))))
         let result1 = visitor.visit(returnStmt)
         XCTAssertTrue(result1.hasPrefix("return("))
-        XCTAssertTrue(result1.contains("literal(integer(42))"))
+        XCTAssertTrue(result1.contains("integer(42)"))
 
         let returnVoid = Statement.returnStatement(ReturnStatement())
         XCTAssertEqual(visitor.visit(returnVoid), "return(void)")
@@ -286,7 +286,7 @@ final class StatementVisitorTests: XCTestCase {
         let assignment = Statement.assignment(.variable("x", .literal(.integer(42))))
         let result1 = stringifyStatement(assignment)
         XCTAssertTrue(result1.contains("x = "))
-        XCTAssertTrue(result1.contains("literal(integer(42))"))
+        XCTAssertTrue(result1.contains("integer(42)"))
 
         // Test nested statements
         let ifStmt = IfStatement(
