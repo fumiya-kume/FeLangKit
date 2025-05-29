@@ -385,9 +385,9 @@ echo ""
 
 if [[ -f "$OUTPUT_DIR/execution-report.json" ]]; then
     echo "Execution Status:"
-    local success_status=$(jq -r '.success' "$OUTPUT_DIR/execution-report.json" 2>/dev/null || echo "unknown")
-    local pr_url=$(jq -r '.pr_url' "$OUTPUT_DIR/execution-report.json" 2>/dev/null || echo "none")
-    local duration=$(jq -r '.duration_seconds' "$OUTPUT_DIR/execution-report.json" 2>/dev/null || echo "unknown")
+    success_status=$(jq -r '.success' "$OUTPUT_DIR/execution-report.json" 2>/dev/null || echo "unknown")
+    pr_url=$(jq -r '.pr_url' "$OUTPUT_DIR/execution-report.json" 2>/dev/null || echo "none")
+    duration=$(jq -r '.duration_seconds' "$OUTPUT_DIR/execution-report.json" 2>/dev/null || echo "unknown")
     
     echo "  Success: $success_status"
     echo "  Duration: ${duration}s"
