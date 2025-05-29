@@ -38,8 +38,11 @@
       "Bash(git merge:*)",
       "Bash(git checkout:*)",
       "Bash(mkdir:*)",
-      "Bash(./scripts/container/extract-results.sh:*)"
+      "Bash(./scripts/container/extract-results.sh:*)",
+      "Bash(swift test:*)",
+      "Bash(gh pr:*)"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": false
 }

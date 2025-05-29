@@ -211,22 +211,22 @@ public struct ExpressionTransformer: Sendable {
                 }
 
                 switch (binaryOp, leftLit, rightLit) {
-                case (.add, .integer(let a), .integer(let b)):
-                    return .literal(.integer(a + b))
-                case (.subtract, .integer(let a), .integer(let b)):
-                    return .literal(.integer(a - b))
-                case (.multiply, .integer(let a), .integer(let b)):
-                    return .literal(.integer(a * b))
-                case (.divide, .integer(let a), .integer(let b)) where b != 0:
-                    return .literal(.integer(a / b))
-                case (.add, .real(let a), .real(let b)):
-                    return .literal(.real(a + b))
-                case (.subtract, .real(let a), .real(let b)):
-                    return .literal(.real(a - b))
-                case (.multiply, .real(let a), .real(let b)):
-                    return .literal(.real(a * b))
-                case (.divide, .real(let a), .real(let b)) where b != 0:
-                    return .literal(.real(a / b))
+                case (.add, .integer(let leftValue), .integer(let rightValue)):
+                    return .literal(.integer(leftValue + rightValue))
+                case (.subtract, .integer(let leftValue), .integer(let rightValue)):
+                    return .literal(.integer(leftValue - rightValue))
+                case (.multiply, .integer(let leftValue), .integer(let rightValue)):
+                    return .literal(.integer(leftValue * rightValue))
+                case (.divide, .integer(let leftValue), .integer(let rightValue)) where rightValue != 0:
+                    return .literal(.integer(leftValue / rightValue))
+                case (.add, .real(let leftValue), .real(let rightValue)):
+                    return .literal(.real(leftValue + rightValue))
+                case (.subtract, .real(let leftValue), .real(let rightValue)):
+                    return .literal(.real(leftValue - rightValue))
+                case (.multiply, .real(let leftValue), .real(let rightValue)):
+                    return .literal(.real(leftValue * rightValue))
+                case (.divide, .real(let leftValue), .real(let rightValue)) where rightValue != 0:
+                    return .literal(.real(leftValue / rightValue))
                 default:
                     return .binary(binaryOp, left, right)
                 }
