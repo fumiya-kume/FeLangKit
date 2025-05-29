@@ -1,0 +1,105 @@
+# Hybrid Isolation Dockerfile for Claude Agent
+# Provides containerized development with shared host credentials
+
+FROM swift:6.0-jammy
+
+# Create a non-root user first
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+# Install system packages and tools
+RUN apt-get update && apt-get install -y \
+    # Core development tools
+    git \
+    curl \
+    wget \
+    vim \
+    nano \
+    jq \
+    unzip \
+    # Swift dependencies
+    build-essential \
+    pkg-config \
+    libedit-dev \
+    libxml2-dev \
+    libsqlite3-dev \
+    libncurses5-dev \
+    zlib1g-dev \
+    # Python for Claude API
+    python3 \
+    python3-pip \
+    python3-venv \
+    # System utilities
+    sudo \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    openssh-client \
+    && \
+    # Install GitHub CLI
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y gh && \
+    # Create user
+    groupadd --gid $USER_GID $USERNAME && \
+    useradd --uid $USER_UID --gid $USER_GID -m $USERNAME && \
+    echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME && \
+    chmod 0440 /etc/sudoers.d/$USERNAME && \
+    # Cleanup
+    rm -rf /var/lib/apt/lists/*
+
+# Install SwiftLint (binary release for faster container startup)
+RUN SWIFTLINT_VERSION="0.57.0" && \
+    curl -L "https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/swiftlint_linux.zip" -o /tmp/swiftlint.zip && \
+    unzip /tmp/swiftlint.zip -d /tmp/ && \
+    mv /tmp/swiftlint /usr/local/bin/ && \
+    chmod +x /usr/local/bin/swiftlint && \
+    rm -f /tmp/swiftlint.zip
+
+# Install Python packages for Claude API
+RUN pip3 install --no-cache-dir \
+    anthropic>=0.25.0 \
+    requests>=2.31.0 \
+    click>=8.1.0
+
+# Verify installations
+RUN swift --version && \
+    python3 --version && \
+    gh --version && \
+    swiftlint version && \
+    pip3 show anthropic
+
+# Set up workspace directory
+WORKDIR /workspace
+RUN chown -R $USERNAME:$USERNAME /workspace
+
+# Copy Claude agent and workflow scripts
+COPY scripts/claude-agent.py /usr/local/bin/claude-agent.py
+COPY scripts/container-workflow.sh /usr/local/bin/container-workflow.sh
+
+# Make scripts executable
+RUN chmod +x /usr/local/bin/claude-agent.py /usr/local/bin/container-workflow.sh
+
+# Switch to non-root user
+USER $USERNAME
+
+# Create directories for shared credentials
+RUN mkdir -p /home/$USERNAME/.config && \
+    mkdir -p /home/$USERNAME/.ssh && \
+    mkdir -p /home/$USERNAME/.claude
+
+# Set environment variables
+ENV PATH="/usr/local/bin:$PATH"
+ENV SWIFT_PATH="/usr/bin/swift"
+ENV PYTHONPATH="/usr/local/lib/python3.10/dist-packages"
+
+# Set up Git configuration for SSH and HTTPS
+RUN git config --global init.defaultBranch main && \
+    git config --global pull.rebase false && \
+    git config --global push.default simple
+
+# Default command
+CMD ["bash", "-c", "echo 'Hybrid container ready. Use docker exec to run commands.' && tail -f /dev/null"]
