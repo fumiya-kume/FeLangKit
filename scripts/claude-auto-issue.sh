@@ -105,10 +105,18 @@ main() {
     # Step 2: Ultra Think Analysis
     ANALYSIS_FILE="${SCRIPT_DIR}/.analysis-$(basename "$ISSUE_DATA_FILE" .json).json"
     log "Running Ultra Think Analysis..."
+    log "Analysis will be saved to: $ANALYSIS_FILE"
     if ! "$SCRIPT_DIR/ultrathink-analysis.sh" "$ISSUE_DATA_FILE" "$ANALYSIS_FILE"; then
         error "Failed to complete Ultra Think Analysis"
         exit 1
     fi
+    
+    # Verify analysis file was created
+    if [[ ! -f "$ANALYSIS_FILE" ]]; then
+        error "Ultra Think Analysis completed but output file not found: $ANALYSIS_FILE"
+        exit 1
+    fi
+    log "Ultra Think Analysis file verified: $(du -h "$ANALYSIS_FILE" | cut -f1)"
 
     # Step 3: Launch Claude Code in Docker
     log "Launching Claude Code in Docker container..."

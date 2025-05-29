@@ -30,11 +30,29 @@ if [[ ! -f "$ISSUE_DATA_FILE" ]]; then
     exit 1
 fi
 
-# Check if analysis file exists
+# Check if analysis file exists and is valid JSON
 if [[ ! -f "$ANALYSIS_FILE" ]]; then
     error "Analysis file not found: $ANALYSIS_FILE"
     exit 1
 fi
+
+# Validate that the analysis file contains valid JSON
+if ! jq empty "$ANALYSIS_FILE" 2>/dev/null; then
+    error "Analysis file contains invalid JSON: $ANALYSIS_FILE"
+    log "File contents:"
+    cat "$ANALYSIS_FILE" >&2
+    exit 1
+fi
+
+# Check if analysis file has the expected structure
+if ! jq -e '.metadata.issue_number' "$ANALYSIS_FILE" >/dev/null 2>&1; then
+    error "Analysis file is missing required metadata structure"
+    log "Expected metadata with issue_number, but found:"
+    jq '.metadata' "$ANALYSIS_FILE" 2>/dev/null || echo "No metadata section found"
+    exit 1
+fi
+
+log "Analysis file validation passed"
 
 # Extract issue information
 ISSUE_TITLE=$(jq -r '.title' "$ISSUE_DATA_FILE")
@@ -44,12 +62,34 @@ ISSUE_NUMBER=$(jq -r '.issue_number' "$ISSUE_DATA_FILE")
 OWNER=$(jq -r '.owner' "$ISSUE_DATA_FILE")
 REPO=$(jq -r '.repo' "$ISSUE_DATA_FILE")
 
-# Extract analysis information
-COMPLEXITY_LEVEL=$(jq -r '.complexity_assessment.level' "$ANALYSIS_FILE")
-RISK_LEVEL=$(jq -r '.risk_assessment.overall_risk' "$ANALYSIS_FILE")
-ESTIMATED_TIME=$(jq -r '.implementation_roadmap.total_estimated_time_minutes' "$ANALYSIS_FILE")
-AFFECTED_MODULES=$(jq -r '.codebase_impact.affected_modules | join(", ")' "$ANALYSIS_FILE")
-RECOMMENDED_STRATEGY=$(jq -r '.strategic_analysis.recommended.name' "$ANALYSIS_FILE")
+# Extract analysis information with error handling
+log "Parsing analysis file: $ANALYSIS_FILE"
+if ! COMPLEXITY_LEVEL=$(jq -r '.complexity_assessment.level' "$ANALYSIS_FILE" 2>/dev/null); then
+    error "Failed to extract complexity level from analysis file"
+    COMPLEXITY_LEVEL="unknown"
+fi
+
+if ! RISK_LEVEL=$(jq -r '.risk_assessment.overall_risk' "$ANALYSIS_FILE" 2>/dev/null); then
+    error "Failed to extract risk level from analysis file"
+    RISK_LEVEL="unknown"
+fi
+
+if ! ESTIMATED_TIME=$(jq -r '.implementation_roadmap.total_estimated_time_minutes' "$ANALYSIS_FILE" 2>/dev/null); then
+    error "Failed to extract estimated time from analysis file"
+    ESTIMATED_TIME="unknown"
+fi
+
+if ! AFFECTED_MODULES=$(jq -r '.codebase_impact.affected_modules | join(", ")' "$ANALYSIS_FILE" 2>/dev/null); then
+    error "Failed to extract affected modules from analysis file"
+    AFFECTED_MODULES="unknown"
+fi
+
+if ! RECOMMENDED_STRATEGY=$(jq -r '.strategic_analysis.recommended.name' "$ANALYSIS_FILE" 2>/dev/null); then
+    error "Failed to extract recommended strategy from analysis file"
+    RECOMMENDED_STRATEGY="unknown"
+fi
+
+log "Analysis data extracted successfully"
 
 log "Launching Claude Code for issue #$ISSUE_NUMBER: $ISSUE_TITLE"
 log "Branch: $BRANCH_NAME"
@@ -75,11 +115,30 @@ fi
 # Create the instruction file for Claude in the project directory
 INSTRUCTION_FILE="$PROJECT_ROOT/issue-instructions.md"
 
-# Extract detailed analysis data for instructions
-IMPLEMENTATION_TASKS=$(jq -r '.implementation_roadmap.tasks[] | "- **Phase \(.phase)**: \(.description) (Est: \(.estimated_time))"' "$ANALYSIS_FILE")
-QUALITY_GATES=$(jq -r '.risk_assessment.quality_gates[] | "- \(.)"' "$ANALYSIS_FILE")
-RISKS=$(jq -r '.risk_assessment.identified_risks[] | "- **\(.category | ascii_upcase)**: \(.description)"' "$ANALYSIS_FILE")
-STRATEGIES=$(jq -r '.strategic_analysis.strategies[] | "- **\(.name)** (\(.effort) effort, \(.risk) risk): \(.description)"' "$ANALYSIS_FILE")
+# Extract detailed analysis data for instructions with error handling
+log "Extracting detailed analysis data for instructions"
+
+if ! IMPLEMENTATION_TASKS=$(jq -r '.implementation_roadmap.tasks[] | "- **Phase \(.phase)**: \(.description) (Est: \(.estimated_time))"' "$ANALYSIS_FILE" 2>/dev/null); then
+    error "Failed to extract implementation tasks, using fallback"
+    IMPLEMENTATION_TASKS="- Analysis tasks not available"
+fi
+
+if ! QUALITY_GATES=$(jq -r '.risk_assessment.quality_gates[] | "- \(.)"' "$ANALYSIS_FILE" 2>/dev/null); then
+    error "Failed to extract quality gates, using fallback"
+    QUALITY_GATES="- Run all tests\n- Validate with SwiftLint\n- Ensure build succeeds"
+fi
+
+if ! RISKS=$(jq -r '.risk_assessment.identified_risks[] | "- **\(.category | ascii_upcase)**: \(.description)"' "$ANALYSIS_FILE" 2>/dev/null); then
+    error "Failed to extract risks, using fallback"
+    RISKS="- Standard development risks apply"
+fi
+
+if ! STRATEGIES=$(jq -r '.strategic_analysis.strategies[] | "- **\(.name)** (\(.effort) effort, \(.risk) risk): \(.description)"' "$ANALYSIS_FILE" 2>/dev/null); then
+    error "Failed to extract strategies, using fallback"
+    STRATEGIES="- Follow existing patterns and established practices"
+fi
+
+log "Detailed analysis data extracted"
 
 cat > "$INSTRUCTION_FILE" << EOF
 # 🚀 GitHub Issue with Ultra Think Analysis: $ISSUE_TITLE
