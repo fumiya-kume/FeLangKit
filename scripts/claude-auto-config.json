@@ -1,0 +1,48 @@
+{
+  "docker": {
+    "image_name": "felangkit-dev",
+    "container_timeout": 3600,
+    "auto_cleanup": true,
+    "credential_sharing": {
+      "git_config": true,
+      "ssh_keys": true,
+      "github_cli": true,
+      "ssh_agent": true,
+      "docker_config": true,
+      "aws_credentials": true,
+      "claude_settings": true,
+      "environment_variables": ["GITHUB_TOKEN", "ANTHROPIC_API_KEY", "USER", "HOME", "LANG", "LC_ALL", "TZ"]
+    }
+  },
+  "git": {
+    "base_branch": "master",
+    "branch_prefix": "issue-",
+    "commit_format": "conventional"
+  },
+  "github": {
+    "auto_create_pr": true,
+    "watch_pr_checks": true,
+    "pr_template": {
+      "title_format": "Resolve #{issue_number}: {issue_title}",
+      "body_template": "## Summary\nResolves #{issue_number}\n\nThis PR addresses the issue: {issue_title}\n\n## Changes\n```\n{commit_messages}\n```\n\n## Test Plan\n- [x] All existing tests pass\n- [x] SwiftLint validation passes\n- [x] Code builds successfully\n\n🤖 Generated with Claude Code Automation"
+    }
+  },
+  "quality_gates": {
+    "required_commands": [
+      "swiftlint lint --fix",
+      "swiftlint lint", 
+      "swift build",
+      "swift test"
+    ],
+    "fail_on_error": true
+  },
+  "claude": {
+    "instruction_template": "# GitHub Issue: {issue_title}\n\n## Issue Details\n- **Issue #**: {issue_number}\n- **Repository**: {owner}/{repo}\n- **Branch**: {branch_name}\n\n## Issue Description\n{issue_body}\n\n## Instructions for Claude\n1. Read and understand the issue requirements\n2. Create a new branch: {branch_name}\n3. Implement the necessary changes following the project conventions in CLAUDE.md\n4. Run the quality gates: swiftlint lint --fix && swiftlint lint && swift build && swift test\n5. Commit changes using conventional commit format\n6. Push the branch and create a PR\n\nPlease work on this issue systematically and ensure all tests pass before committing.",
+    "auto_start": true
+  },
+  "logging": {
+    "level": "info",
+    "timestamp": true,
+    "colors": true
+  }
+}
