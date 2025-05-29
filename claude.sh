@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Configuration
-WORKTREE_BASE_DIR="${PROJECT_ROOT}/worktrees"
+WORKTREE_BASE_DIR="${PROJECT_ROOT}"
 ISSUE_DATA_FILE=""
 ANALYSIS_FILE=""
 BRANCH_NAME=""
