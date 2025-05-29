@@ -313,7 +313,7 @@ if docker exec "$CONTAINER_NAME" bash -c "cd /workspace && git diff --name-only 
     log "Extracting modified source files..."
     docker exec "$CONTAINER_NAME" bash -c "cd /workspace && git diff --name-only HEAD" | while read -r file; do
         if [[ -n "$file" ]]; then
-            local output_file="modified-files/$(basename "$file")"
+            output_file="modified-files/$(basename "$file")"
             mkdir -p "$OUTPUT_DIR/modified-files"
             extract_file "/workspace/$file" "$output_file" "Modified File: $file"
         fi
