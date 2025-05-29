@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Configuration
-CONFIG_FILE="${SCRIPT_DIR}/claude-auto-config.json"
+CONFIG_FILE="${SCRIPT_DIR}/../config/claude-auto-config.json"
 ISSUE_DATA_FILE="${SCRIPT_DIR}/.issue-data.json"
 CONTAINER_NAME="claude-auto-${RANDOM}"
 
@@ -103,7 +103,7 @@ main() {
     fi
 
     # Step 2: Ultra Think Analysis
-    ANALYSIS_FILE="${SCRIPT_DIR}/.analysis-$(basename "$ISSUE_DATA_FILE" .json).json"
+    ANALYSIS_FILE="${SCRIPT_DIR}/../.analysis-$(basename "$ISSUE_DATA_FILE" .json).json"
     log "Running Ultra Think Analysis..."
     log "Analysis will be saved to: $ANALYSIS_FILE"
     if ! "$SCRIPT_DIR/ultrathink-analysis.sh" "$ISSUE_DATA_FILE" "$ANALYSIS_FILE"; then
@@ -120,14 +120,14 @@ main() {
 
     # Step 3: Launch Claude Code in Hybrid Container
     log "Launching Claude Code in hybrid isolation container..."
-    if ! "$SCRIPT_DIR/launch-claude-docker-hybrid.sh" "$ISSUE_DATA_FILE" "$ANALYSIS_FILE" "$CONTAINER_NAME"; then
+    if ! "$SCRIPT_DIR/../container/launch.sh" hybrid "$ISSUE_DATA_FILE" "$ANALYSIS_FILE" "$CONTAINER_NAME"; then
         error "Failed to launch Claude Code in hybrid container"
         exit 1
     fi
 
     # Step 4: Extract results and create PR
     log "Extracting results from container..."
-    if ! "$SCRIPT_DIR/extract-container-results.sh" "$CONTAINER_NAME" "$PROJECT_ROOT/container-results"; then
+    if ! "$SCRIPT_DIR/../container/extract-results.sh" "$CONTAINER_NAME" "$PROJECT_ROOT/container-results"; then
         error "Failed to extract container results"
         exit 1
     fi
