@@ -14,8 +14,8 @@ FeLangKit is a Swift toolkit for the **FE pseudo-language** providing complete p
 brew install swiftlint
 ```
 
-### 🧠 Ultra Think Issue Automation
-For automated GitHub issue processing with strategic analysis:
+### 🚀 Claude Code Parallel Development
+For automated GitHub issue processing with parallel Claude Code sessions:
 ```bash
 # Install additional dependencies for automation
 brew install gh jq
@@ -23,6 +23,21 @@ brew install gh jq
 # Authenticate with GitHub
 gh auth login
 
+# Process GitHub issues with Claude Code in isolated worktrees
+./claude.sh https://github.com/owner/repo/issues/123
+```
+
+**Features:**
+- **Git Worktree Integration**: Creates isolated development environments
+- **GitHub Issue Fetching**: Automatically retrieves and parses issue data
+- **Claude Code Integration**: Launches with full issue context
+- **Quality Validation**: Runs SwiftLint, build, and test verification
+- **PR Automation**: Creates PR with proper titles and descriptions
+- **CI Monitoring**: Watches PR checks until completion
+
+### 🧠 Legacy Ultra Think Issue Automation
+For containerized GitHub issue processing with strategic analysis:
+```bash
 # Set Anthropic API key for Claude Code
 export ANTHROPIC_API_KEY="your-api-key"
 
@@ -238,3 +253,7 @@ The project includes a complete VS Code dev container configuration for consiste
 - `.github/workflows/ci.yml`: Extended CI for Linux runners
 
 **Outcome**: Full dev container support with cross-platform CI passing on both macOS and Linux
+
+## Repository Workflow Notes
+
+- master branch can't push directly, you have to create branch before commit. and then you can create PR
