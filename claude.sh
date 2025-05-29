@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Configuration
-WORKTREE_BASE_DIR="${PROJECT_ROOT}/../worktrees"
+WORKTREE_BASE_DIR="${PROJECT_ROOT}/worktrees"
 ISSUE_DATA_FILE=""
 ANALYSIS_FILE=""
 BRANCH_NAME=""
@@ -357,9 +357,10 @@ EOF
     info "You can reference this file during your Claude Code session"
     echo
     
-    # Launch Claude Code interactively without trust prompts
-    info "Launching Claude Code without trust prompts..."
-    if ! claude --dangerously-skip-permissions; then
+    # Launch Claude Code interactively
+    info "Launching Claude Code..."
+    info "Note: You may see a trust prompt - select 'Yes, proceed' to continue"
+    if ! claude; then
         error "Claude Code session failed or was interrupted"
         exit 1
     fi
