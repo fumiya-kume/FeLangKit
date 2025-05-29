@@ -229,16 +229,10 @@ create_worktree() {
     # Check if worktree already exists
     if [[ -d "$WORKTREE_PATH" ]]; then
         warn "Worktree already exists at $WORKTREE_PATH"
-        read -p "Do you want to remove and recreate it? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            log "Removing existing worktree..."
-            git worktree remove "$WORKTREE_PATH" --force || true
-            rm -rf "$WORKTREE_PATH"
-        else
-            error "Cannot proceed with existing worktree"
-            exit 1
-        fi
+        log "Automatically removing existing worktree..."
+        git worktree remove "$WORKTREE_PATH" --force || true
+        rm -rf "$WORKTREE_PATH"
+        success "Existing worktree removed"
     fi
     
     # Fetch latest changes
@@ -690,14 +684,10 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 
 cleanup_worktree() {
     if [[ -n "$WORKTREE_PATH" && -d "$WORKTREE_PATH" ]]; then
-        read -p "Remove worktree $WORKTREE_PATH? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            log "Removing worktree..."
-            cd "$PROJECT_ROOT"
-            git worktree remove "$WORKTREE_PATH" --force
-            success "Worktree removed"
-        fi
+        log "Removing worktree..."
+        cd "$PROJECT_ROOT"
+        git worktree remove "$WORKTREE_PATH" --force
+        success "Worktree removed: $WORKTREE_PATH"
     fi
 }
 
