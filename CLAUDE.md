@@ -250,6 +250,44 @@ The project includes a complete VS Code dev container configuration for consiste
 - **Shell script handles**: Validation, commits, PR creation, CI monitoring, and all git operations
 - **Your role**: Pure implementation work based on GitHub issue requirements
 
+### PR Description Format Requirements
+When creating pull requests (handled automatically by claude.sh), the description must be generated in **JSON format** with the following structure:
+
+```json
+{
+  "summary": "Brief overview of the changes made",
+  "background": {
+    "motivation": "Why this change was needed",
+    "problem_statement": "What issue this solves",
+    "decision_rationale": "Why this approach was chosen over alternatives"
+  },
+  "implementation": {
+    "approach": "High-level implementation strategy",
+    "key_changes": ["List of major changes made"],
+    "files_modified": ["List of modified/created files"],
+    "design_decisions": ["Important design choices and their reasoning"]
+  },
+  "testing": {
+    "test_coverage": "Description of tests added/updated",
+    "validation_steps": ["Steps taken to validate the implementation"],
+    "quality_checks": ["SwiftLint, build, test results"]
+  },
+  "impact": {
+    "breaking_changes": "Any breaking changes (or 'None')",
+    "performance_impact": "Expected performance implications",
+    "future_considerations": "How this enables future work"
+  }
+}
+```
+
+**Key Requirements:**
+- **JSON Format Only**: All PR descriptions must be valid JSON structure
+- **Include Background Context**: Explain the reasoning behind decisions made
+- **Decision Rationale**: Justify why specific approaches were chosen
+- **Implementation Details**: Provide sufficient detail for reviewers to understand changes
+- **Quality Validation**: Document all validation steps performed
+- **Future Impact**: Explain how changes support project evolution
+
 ## Recent Work Log
 
 ### Dev Container Implementation (Add PR #86)
