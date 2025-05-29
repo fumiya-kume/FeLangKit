@@ -511,7 +511,64 @@ push_and_create_pr() {
     local commits_ahead=$(git rev-list --count "master..HEAD" 2>/dev/null || echo "0")
     if [[ "$commits_ahead" -eq 0 ]]; then
         error "No commits to push. Branch is up to date with master."
-        exit 1
+        echo
+        warn "This can happen when Claude Code doesn't create any commits."
+        echo
+        info "Options:"
+        info "1. Check if there are unstaged changes that need to be committed"
+        info "2. Re-launch Claude Code to ensure implementation is completed"
+        info "3. Create a manual commit if changes exist"
+        echo
+        
+        # Check for unstaged changes
+        if ! git diff --quiet || ! git diff --cached --quiet; then
+            warn "Detected unstaged changes in the worktree"
+            git status --short
+            echo
+            read -p "Create a commit with these changes? (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                # Add all changes and create a commit
+                git add .
+                local issue_title=$(jq -r '.title' "$ISSUE_DATA_FILE")
+                git commit -m "feat: implement ${issue_title}
+
+Resolves #${ISSUE_NUMBER}
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+                
+                # Recheck commits ahead
+                commits_ahead=$(git rev-list --count "master..HEAD" 2>/dev/null || echo "0")
+                if [[ "$commits_ahead" -eq 0 ]]; then
+                    error "Still no commits after adding changes"
+                    exit 1
+                fi
+                success "Commit created successfully"
+            else
+                info "No commit created. You may want to re-launch Claude Code."
+                exit 1
+            fi
+        else
+            echo
+            read -p "Re-launch Claude Code to complete implementation? (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                warn "Launching Claude Code again..."
+                launch_claude_code_with_errors
+                
+                # After Claude Code session, recheck for commits
+                commits_ahead=$(git rev-list --count "master..HEAD" 2>/dev/null || echo "0")
+                if [[ "$commits_ahead" -eq 0 ]]; then
+                    error "Still no commits after re-launching Claude Code"
+                    exit 1
+                fi
+            else
+                info "Exiting without creating PR"
+                exit 1
+            fi
+        fi
     fi
     
     info "Branch has $commits_ahead commits ahead of master"
@@ -576,12 +633,58 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
     
     # Monitor PR checks
     step "Monitoring CI checks..."
-    info "Watching PR checks... (Press Ctrl+C to stop monitoring)"
-    if ! gh pr checks --watch; then
-        warn "PR checks monitoring interrupted or failed"
-        info "You can resume monitoring with: gh pr checks --watch"
-    else
-        success "All PR checks passed!"
+    
+    # Wait a moment for CI to start
+    info "Waiting for CI checks to start..."
+    sleep 5
+    
+    # Check if any checks exist
+    local check_count=$(gh pr checks --json conclusion --jq 'length' 2>/dev/null || echo "0")
+    
+    if [[ "$check_count" -eq 0 ]]; then
+        warn "No CI checks found for this branch"
+        info "This may be normal if:"
+        info "1. No GitHub Actions workflows are configured for this repository"
+        info "2. Workflows don't trigger on this branch"
+        info "3. CI is still starting up (may take a few minutes)"
+        echo
+        
+        read -p "Continue monitoring for CI checks? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            info "Monitoring for up to 2 minutes..."
+            local wait_time=0
+            local max_wait=120
+            
+            while [[ $wait_time -lt $max_wait ]]; do
+                check_count=$(gh pr checks --json conclusion --jq 'length' 2>/dev/null || echo "0")
+                if [[ "$check_count" -gt 0 ]]; then
+                    success "CI checks detected! Starting monitoring..."
+                    break
+                fi
+                sleep 10
+                wait_time=$((wait_time + 10))
+                info "Still waiting for CI... (${wait_time}s/${max_wait}s)"
+            done
+            
+            if [[ "$check_count" -eq 0 ]]; then
+                warn "No CI checks started after waiting ${max_wait} seconds"
+                info "You can manually check later with: gh pr checks"
+            fi
+        else
+            info "Skipping CI monitoring"
+        fi
+    fi
+    
+    # Monitor checks if they exist
+    if [[ "$check_count" -gt 0 ]]; then
+        info "Watching PR checks... (Press Ctrl+C to stop monitoring)"
+        if ! gh pr checks --watch; then
+            warn "PR checks monitoring interrupted or failed"
+            info "You can resume monitoring with: gh pr checks --watch"
+        else
+            success "All PR checks passed!"
+        fi
     fi
 }
 
