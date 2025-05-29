@@ -49,6 +49,16 @@ RUN apt-get update && apt-get install -y \
     # Cleanup
     rm -rf /var/lib/apt/lists/*
 
+# Install SwiftLint via git and build from source for cross-platform compatibility
+RUN SWIFTLINT_VERSION="0.57.0" && \
+    git clone https://github.com/realm/SwiftLint.git /tmp/SwiftLint && \
+    cd /tmp/SwiftLint && \
+    git checkout ${SWIFTLINT_VERSION} && \
+    swift build --configuration release --static-swift-stdlib && \
+    cp .build/release/swiftlint /usr/local/bin/ && \
+    chmod +x /usr/local/bin/swiftlint && \
+    cd / && rm -rf /tmp/SwiftLint
+
 # Install Python packages for Claude API
 RUN pip3 install --no-cache-dir \
     anthropic>=0.25.0 \
@@ -66,8 +76,8 @@ WORKDIR /workspace
 RUN chown -R $USERNAME:$USERNAME /workspace
 
 # Copy Claude agent and workflow scripts
-COPY scripts/claude-agent.py /usr/local/bin/claude-agent.py
-COPY scripts/container-workflow.sh /usr/local/bin/container-workflow.sh
+COPY scripts/experimental/claude-agent.py /usr/local/bin/claude-agent.py
+COPY scripts/container/workflow.sh /usr/local/bin/container-workflow.sh
 
 # Make scripts executable
 RUN chmod +x /usr/local/bin/claude-agent.py /usr/local/bin/container-workflow.sh
