@@ -65,3 +65,11 @@ execution-report.json
 
 # Claude worktrees (in repo root)
 issue-*-*/
+
+# Claude temporary files
+.claude-context.md
+.issue-data.json
+.analysis-data.json
+.validation-errors.md
+.claude-input.txt
+.claude-error-input.txt
