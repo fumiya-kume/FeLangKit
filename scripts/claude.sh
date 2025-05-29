@@ -58,6 +58,7 @@ ${PURPLE}🐳 Container Management:${NC}
 
 ${PURPLE}🔧 System Tools:${NC}
   ${GREEN}test${NC}                             Test authentication and system
+  ${GREEN}validate <container>${NC}             Validate container workflow completion
   ${GREEN}config${NC}                          Show current configuration
   ${GREEN}status${NC}                          Show system status
   ${GREEN}logs <container>${NC}                 Show container logs
@@ -365,6 +366,22 @@ main() {
                 exec "${SCRIPT_DIR}/container/test-credentials.sh" "$2"
             else
                 exec "${SCRIPT_DIR}/container/test-credentials.sh"
+            fi
+            ;;
+            
+        validate)
+            if [[ $# -lt 2 ]]; then
+                error "Container name required"
+                echo "Usage: ./scripts/claude.sh validate <container>"
+                exit 1
+            fi
+            validate_dependencies
+            local validator_script="${SCRIPT_DIR}/container/workflow-validator.sh"
+            if [[ -f "$validator_script" ]]; then
+                exec bash "$validator_script" "$2" "${3:-30}"
+            else
+                error "Workflow validator not found: $validator_script"
+                exit 1
             fi
             ;;
             

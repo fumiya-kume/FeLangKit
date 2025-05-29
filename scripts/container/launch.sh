@@ -314,13 +314,94 @@ launch_hybrid_mode() {
             fi
         "
     
-    # Wait for container to be ready
-    sleep 3
+    # Wait for container to be ready and validate
+    log "Waiting for container initialization..."
+    sleep 5
     
-    # Copy issue data and analysis to container
+    # Validate container is accessible
+    local max_attempts=10
+    local attempt=1
+    while [[ $attempt -le $max_attempts ]]; do
+        if docker exec "$container_name" echo "Container ready" &>/dev/null; then
+            success "Container accessibility confirmed"
+            break
+        fi
+        
+        if [[ $attempt -eq $max_attempts ]]; then
+            error "Container failed to become accessible after $max_attempts attempts"
+            return 1
+        fi
+        
+        log "Waiting for container accessibility (attempt $attempt/$max_attempts)..."
+        sleep 2
+        ((attempt++))
+    done
+    
+    # Copy issue data and analysis to container with validation
     log "Copying issue data and analysis to container..."
-    docker cp "$issue_data_file" "$container_name:/workspace/issue-data.json"
-    docker cp "$analysis_file" "$container_name:/workspace/analysis-data.json"
+    
+    if ! docker cp "$issue_data_file" "$container_name:/workspace/issue-data.json"; then
+        error "Failed to copy issue data to container"
+        return 1
+    fi
+    
+    if ! docker cp "$analysis_file" "$container_name:/workspace/analysis-data.json"; then
+        error "Failed to copy analysis data to container"
+        return 1
+    fi
+    
+    # Validate copied files
+    if ! docker exec "$container_name" test -f /workspace/issue-data.json; then
+        error "Issue data file not found in container after copy"
+        return 1
+    fi
+    
+    if ! docker exec "$container_name" test -f /workspace/analysis-data.json; then
+        error "Analysis data file not found in container after copy"
+        return 1
+    fi
+    
+    # Validate JSON integrity
+    if ! docker exec "$container_name" jq empty /workspace/issue-data.json; then
+        error "Issue data JSON is invalid in container"
+        return 1
+    fi
+    
+    if ! docker exec "$container_name" jq empty /workspace/analysis-data.json; then
+        error "Analysis data JSON is invalid in container"
+        return 1
+    fi
+    
+    success "Data files copied and validated successfully"
+    
+    # Wait for workflow completion and validate
+    log "Monitoring workflow completion..."
+    local workflow_timeout=60  # 1 minute timeout for workflow
+    local start_time=$(date +%s)
+    local end_time=$((start_time + workflow_timeout))
+    
+    # Monitor for execution report creation
+    while [[ $(date +%s) -lt $end_time ]]; do
+        if docker exec "$container_name" test -f /workspace/execution-report.json 2>/dev/null; then
+            log "Execution report detected, validating..."
+            if docker exec "$container_name" jq empty /workspace/execution-report.json 2>/dev/null; then
+                success "Workflow completed successfully"
+                break
+            fi
+        fi
+        sleep 2
+    done
+    
+    # Final validation using workflow validator
+    local validator_script="$SCRIPT_DIR/workflow-validator.sh"
+    if [[ -f "$validator_script" ]]; then
+        log "Running comprehensive workflow validation..."
+        if bash "$validator_script" "$container_name" 30; then
+            success "Workflow validation passed"
+        else
+            warn "Workflow validation had issues but container is ready"
+        fi
+    fi
     
     success "Hybrid container launched successfully: $container_name"
     return 0
