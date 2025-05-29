@@ -221,8 +221,22 @@ esac
 
 RECOMMENDED_STRATEGY=${STRATEGIES[0]}
 
+# Build strategies JSON array properly
+if [[ ${#STRATEGIES[@]} -eq 0 ]]; then
+    STRATEGIES_JSON="[]"
+else
+    STRATEGIES_JSON="["
+    for i in "${!STRATEGIES[@]}"; do
+        if [[ $i -gt 0 ]]; then
+            STRATEGIES_JSON="$STRATEGIES_JSON,"
+        fi
+        STRATEGIES_JSON="$STRATEGIES_JSON${STRATEGIES[$i]}"
+    done
+    STRATEGIES_JSON="$STRATEGIES_JSON]"
+fi
+
 # Update analysis with strategic analysis
-jq --argjson strategies "[$(IFS=','; echo "${STRATEGIES[*]}")]" \
+jq --argjson strategies "$STRATEGIES_JSON" \
    --argjson recommended "$RECOMMENDED_STRATEGY" \
    '.strategic_analysis = {
      strategies: $strategies,
@@ -271,8 +285,22 @@ if [[ ${#RISKS[@]} -eq 0 ]]; then
     RISKS+=('{"category": "general", "description": "Standard development risks", "mitigation": "Follow established development practices"}')
 fi
 
+# Build risks JSON array properly
+if [[ ${#RISKS[@]} -eq 0 ]]; then
+    RISKS_JSON="[]"
+else
+    RISKS_JSON="["
+    for i in "${!RISKS[@]}"; do
+        if [[ $i -gt 0 ]]; then
+            RISKS_JSON="$RISKS_JSON,"
+        fi
+        RISKS_JSON="$RISKS_JSON${RISKS[$i]}"
+    done
+    RISKS_JSON="$RISKS_JSON]"
+fi
+
 # Update analysis with risk assessment
-jq --argjson risks "[$(IFS=','; echo "${RISKS[*]}")]" \
+jq --argjson risks "$RISKS_JSON" \
    --arg level "$RISK_LEVEL" \
    '.risk_assessment = {
      overall_risk: $level,
@@ -324,7 +352,14 @@ for MODULE in "${AFFECTED_MODULES[@]}"; do
 done
 
 # Add testing phase
-TASKS+=("{\"id\": $TASK_ID, \"phase\": \"testing\", \"description\": \"Write comprehensive tests for new functionality\", \"estimated_time\": \"30min\", \"dependencies\": [$(seq -s, 2 $((TASK_ID - 1)))]}")
+if [[ $TASK_ID -gt 2 ]]; then
+    # Create dependencies for all implementation tasks (from 2 to TASK_ID-1)
+    IMPL_DEPS=$(seq -s, 2 $((TASK_ID - 1)) | sed 's/,$//')
+    TASKS+=("{\"id\": $TASK_ID, \"phase\": \"testing\", \"description\": \"Write comprehensive tests for new functionality\", \"estimated_time\": \"30min\", \"dependencies\": [$IMPL_DEPS]}")
+else
+    # If no implementation tasks, depend on setup task
+    TASKS+=("{\"id\": $TASK_ID, \"phase\": \"testing\", \"description\": \"Write comprehensive tests for new functionality\", \"estimated_time\": \"30min\", \"dependencies\": [1]}")
+fi
 TASK_ID=$((TASK_ID + 1))
 
 # Add quality assurance
@@ -341,8 +376,22 @@ for TASK in "${TASKS[@]}"; do
     TOTAL_MINUTES=$((TOTAL_MINUTES + TIME))
 done
 
+# Build tasks JSON array properly
+if [[ ${#TASKS[@]} -eq 0 ]]; then
+    TASKS_JSON="[]"
+else
+    TASKS_JSON="["
+    for i in "${!TASKS[@]}"; do
+        if [[ $i -gt 0 ]]; then
+            TASKS_JSON="$TASKS_JSON,"
+        fi
+        TASKS_JSON="$TASKS_JSON${TASKS[$i]}"
+    done
+    TASKS_JSON="$TASKS_JSON]"
+fi
+
 # Update analysis with implementation roadmap
-jq --argjson tasks "[$(IFS=','; echo "${TASKS[*]}")]" \
+jq --argjson tasks "$TASKS_JSON" \
    --argjson total_time "$TOTAL_MINUTES" \
    '.implementation_roadmap = {
      tasks: $tasks,
