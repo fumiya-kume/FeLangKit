@@ -62,6 +62,11 @@ cleanup() {
         rm -f "$ANALYSIS_FILE"
         log "Removed temporary analysis file"
     fi
+    if [[ -n "$WORKTREE_PATH" ]]; then
+        rm -f "${WORKTREE_PATH}/.validation-errors.md"
+        rm -f "${WORKTREE_PATH}/.claude-input.txt"
+        rm -f "${WORKTREE_PATH}/.claude-error-input.txt"
+    fi
 }
 
 trap cleanup EXIT
@@ -369,10 +374,74 @@ EOF
     success "Claude Code session completed"
 }
 
+launch_claude_code_with_errors() {
+    step "Launching Claude Code to fix validation errors..."
+    
+    cd "$WORKTREE_PATH"
+    
+    # Read validation errors
+    local validation_errors=""
+    if [[ -f "${WORKTREE_PATH}/.validation-errors.md" ]]; then
+        validation_errors=$(cat "${WORKTREE_PATH}/.validation-errors.md")
+    fi
+    
+    # Create error context message
+    local error_context_message="The implementation has validation errors that need to be fixed:
+
+$validation_errors
+
+Please fix these issues and ensure:
+1. SwiftLint validation passes (\`swiftlint lint\`)
+2. Code builds successfully (\`swift build\`)
+3. All tests pass (\`swift test\`)
+4. Follow the established architecture patterns
+
+After fixing the issues, I'll run validation again automatically."
+    
+    info "Starting Claude Code session to fix validation errors..."
+    info "Worktree: $WORKTREE_PATH"
+    info "Branch: $BRANCH_NAME"
+    echo
+    
+    # Update context file with error information
+    local context_file="${WORKTREE_PATH}/.claude-context.md"
+    cat >> "$context_file" << EOF
+
+---
+
+# Validation Error Context
+
+$error_context_message
+
+---
+
+*This error context was automatically added by claude.sh after validation failure.*
+EOF
+    
+    # Create a temporary input file with the error context message
+    local input_file="${WORKTREE_PATH}/.claude-error-input.txt"
+    echo "$error_context_message" > "$input_file"
+    
+    # Launch Claude Code with the error context as initial input
+    info "Launching Claude Code with validation error context..."
+    if ! claude < "$input_file"; then
+        error "Claude Code session failed or was interrupted"
+        exit 1
+    fi
+    
+    # Clean up input file
+    rm -f "$input_file"
+    
+    success "Claude Code error-fixing session completed"
+}
+
 validate_implementation() {
     step "Validating implementation..."
     
     cd "$WORKTREE_PATH"
+    
+    local validation_errors=""
+    local has_errors=false
     
     # Check if there are any changes
     if git diff --quiet && git diff --cached --quiet; then
@@ -391,30 +460,46 @@ validate_implementation() {
             warn "SwiftLint auto-fix applied changes"
         fi
         
-        if ! swiftlint lint; then
+        local swiftlint_output
+        if ! swiftlint_output=$(swiftlint lint 2>&1); then
             error "SwiftLint validation failed"
-            return 1
+            validation_errors+="\n## SwiftLint Errors:\n\`\`\`\n$swiftlint_output\n\`\`\`\n"
+            has_errors=true
+        else
+            success "SwiftLint validation passed"
         fi
-        success "SwiftLint validation passed"
     fi
     
     # Build the project
     log "Building project..."
-    if ! swift build; then
+    local build_output
+    if ! build_output=$(swift build 2>&1); then
         error "Build failed"
-        return 1
+        validation_errors+="\n## Build Errors:\n\`\`\`\n$build_output\n\`\`\`\n"
+        has_errors=true
+    else
+        success "Build successful"
     fi
-    success "Build successful"
     
     # Run tests
     log "Running tests..."
-    if ! swift test; then
+    local test_output
+    if ! test_output=$(swift test 2>&1); then
         error "Tests failed"
+        validation_errors+="\n## Test Errors:\n\`\`\`\n$test_output\n\`\`\`\n"
+        has_errors=true
+    else
+        success "All tests passed"
+    fi
+    
+    if [[ "$has_errors" == "true" ]]; then
+        # Store validation errors for retry
+        echo "$validation_errors" > "${WORKTREE_PATH}/.validation-errors.md"
         return 1
     fi
-    success "All tests passed"
     
     success "Implementation validation completed"
+    return 0
 }
 
 push_and_create_pr() {
@@ -587,22 +672,63 @@ main() {
     generate_analysis
     launch_claude_code
     
-    # Post-implementation workflow
-    if validate_implementation; then
-        push_and_create_pr
-        success "Workflow completed successfully!"
-        echo
-        info "Next steps:"
-        info "1. Monitor PR: gh pr view --web"
-        info "2. Check CI: gh pr checks"
-        info "3. Merge when ready: gh pr merge"
-        echo
-        cleanup_worktree
-    else
-        error "Implementation validation failed"
-        info "Fix issues and rerun validation manually in: $WORKTREE_PATH"
-        exit 1
-    fi
+    # Post-implementation workflow with retry loop
+    local max_retries=3
+    local retry_count=0
+    
+    while [[ $retry_count -lt $max_retries ]]; do
+        if validate_implementation; then
+            # Validation successful - proceed with PR creation
+            push_and_create_pr
+            success "Workflow completed successfully!"
+            echo
+            info "Next steps:"
+            info "1. Monitor PR: gh pr view --web"
+            info "2. Check CI: gh pr checks"
+            info "3. Merge when ready: gh pr merge"
+            echo
+            cleanup_worktree
+            return 0
+        else
+            # Validation failed
+            retry_count=$((retry_count + 1))
+            error "Implementation validation failed (attempt $retry_count/$max_retries)"
+            
+            if [[ $retry_count -lt $max_retries ]]; then
+                echo
+                warn "Launching Claude Code to fix validation errors..."
+                info "Remaining attempts: $((max_retries - retry_count))"
+                echo
+                
+                # Launch Claude Code with error context
+                launch_claude_code_with_errors
+                
+                # Continue to next iteration for validation retry
+                continue
+            else
+                # Max retries reached
+                echo
+                error "Maximum retry attempts ($max_retries) reached"
+                error "Implementation validation still failing"
+                echo
+                info "Manual intervention required in: $WORKTREE_PATH"
+                info "You can:"
+                info "1. Fix issues manually and run: swiftlint lint && swift build && swift test"
+                info "2. Continue with PR creation anyway (if appropriate)"
+                info "3. Remove worktree: git worktree remove $WORKTREE_PATH --force"
+                echo
+                
+                read -p "Continue with PR creation anyway? (y/N): " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    warn "Proceeding with PR creation despite validation failures"
+                    push_and_create_pr
+                else
+                    exit 1
+                fi
+            fi
+        fi
+    done
 }
 
 main "$@"
