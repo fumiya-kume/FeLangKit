@@ -18,33 +18,43 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Cache Swift toolchain (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: /opt/swift
+          key: swift-6.0-ubuntu-22.04-toolchain
+          restore-keys: swift-6.0-ubuntu-22.04-
+
       - name: Install Swift (Linux)
         if: runner.os == 'Linux'
         run: |
-          # Install dependencies for Swift
-          sudo apt-get update
-          sudo apt-get install -y \
-            binutils \
-            git \
-            gnupg2 \
-            libc6-dev \
-            libcurl4-openssl-dev \
-            libedit2 \
-            libgcc-9-dev \
-            libpython3.8 \
-            libsqlite3-0 \
-            libstdc++-9-dev \
-            libxml2-dev \
-            libz3-dev \
-            pkg-config \
-            tzdata \
-            unzip \
-            zlib1g-dev
-          
-          # Download and install Swift 6.0
-          wget -q https://download.swift.org/swift-6.0-release/ubuntu2204/swift-6.0-RELEASE/swift-6.0-RELEASE-ubuntu22.04.tar.gz
-          tar xzf swift-6.0-RELEASE-ubuntu22.04.tar.gz
-          sudo mv swift-6.0-RELEASE-ubuntu22.04 /opt/swift
+          if [ ! -d "/opt/swift" ]; then
+            # Install dependencies for Swift
+            sudo apt-get update
+            sudo apt-get install -y \
+              binutils \
+              git \
+              gnupg2 \
+              libc6-dev \
+              libcurl4-openssl-dev \
+              libedit2 \
+              libgcc-9-dev \
+              libpython3.8 \
+              libsqlite3-0 \
+              libstdc++-9-dev \
+              libxml2-dev \
+              libz3-dev \
+              pkg-config \
+              tzdata \
+              unzip \
+              zlib1g-dev
+            
+            # Download and install Swift 6.0
+            wget -q https://download.swift.org/swift-6.0-release/ubuntu2204/swift-6.0-RELEASE/swift-6.0-RELEASE-ubuntu22.04.tar.gz
+            tar xzf swift-6.0-RELEASE-ubuntu22.04.tar.gz
+            sudo mv swift-6.0-RELEASE-ubuntu22.04 /opt/swift
+          fi
           echo "/opt/swift/usr/bin" >> $GITHUB_PATH
 
       - name: Cache SwiftLint
@@ -87,33 +97,43 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Cache Swift toolchain (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: /opt/swift
+          key: swift-6.0-ubuntu-22.04-toolchain
+          restore-keys: swift-6.0-ubuntu-22.04-
+
       - name: Install Swift (Linux)
         if: runner.os == 'Linux'
         run: |
-          # Install dependencies for Swift
-          sudo apt-get update
-          sudo apt-get install -y \
-            binutils \
-            git \
-            gnupg2 \
-            libc6-dev \
-            libcurl4-openssl-dev \
-            libedit2 \
-            libgcc-9-dev \
-            libpython3.8 \
-            libsqlite3-0 \
-            libstdc++-9-dev \
-            libxml2-dev \
-            libz3-dev \
-            pkg-config \
-            tzdata \
-            unzip \
-            zlib1g-dev
-          
-          # Download and install Swift 6.0
-          wget -q https://download.swift.org/swift-6.0-release/ubuntu2204/swift-6.0-RELEASE/swift-6.0-RELEASE-ubuntu22.04.tar.gz
-          tar xzf swift-6.0-RELEASE-ubuntu22.04.tar.gz
-          sudo mv swift-6.0-RELEASE-ubuntu22.04 /opt/swift
+          if [ ! -d "/opt/swift" ]; then
+            # Install dependencies for Swift
+            sudo apt-get update
+            sudo apt-get install -y \
+              binutils \
+              git \
+              gnupg2 \
+              libc6-dev \
+              libcurl4-openssl-dev \
+              libedit2 \
+              libgcc-9-dev \
+              libpython3.8 \
+              libsqlite3-0 \
+              libstdc++-9-dev \
+              libxml2-dev \
+              libz3-dev \
+              pkg-config \
+              tzdata \
+              unzip \
+              zlib1g-dev
+            
+            # Download and install Swift 6.0
+            wget -q https://download.swift.org/swift-6.0-release/ubuntu2204/swift-6.0-RELEASE/swift-6.0-RELEASE-ubuntu22.04.tar.gz
+            tar xzf swift-6.0-RELEASE-ubuntu22.04.tar.gz
+            sudo mv swift-6.0-RELEASE-ubuntu22.04 /opt/swift
+          fi
           echo "/opt/swift/usr/bin" >> $GITHUB_PATH
 
       - name: Cache dependencies
@@ -151,33 +171,43 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Cache Swift toolchain (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: /opt/swift
+          key: swift-6.0-ubuntu-22.04-toolchain
+          restore-keys: swift-6.0-ubuntu-22.04-
+
       - name: Install Swift (Linux)
         if: runner.os == 'Linux'
         run: |
-          # Install dependencies for Swift
-          sudo apt-get update
-          sudo apt-get install -y \
-            binutils \
-            git \
-            gnupg2 \
-            libc6-dev \
-            libcurl4-openssl-dev \
-            libedit2 \
-            libgcc-9-dev \
-            libpython3.8 \
-            libsqlite3-0 \
-            libstdc++-9-dev \
-            libxml2-dev \
-            libz3-dev \
-            pkg-config \
-            tzdata \
-            unzip \
-            zlib1g-dev
-          
-          # Download and install Swift 6.0
-          wget -q https://download.swift.org/swift-6.0-release/ubuntu2204/swift-6.0-RELEASE/swift-6.0-RELEASE-ubuntu22.04.tar.gz
-          tar xzf swift-6.0-RELEASE-ubuntu22.04.tar.gz
-          sudo mv swift-6.0-RELEASE-ubuntu22.04 /opt/swift
+          if [ ! -d "/opt/swift" ]; then
+            # Install dependencies for Swift
+            sudo apt-get update
+            sudo apt-get install -y \
+              binutils \
+              git \
+              gnupg2 \
+              libc6-dev \
+              libcurl4-openssl-dev \
+              libedit2 \
+              libgcc-9-dev \
+              libpython3.8 \
+              libsqlite3-0 \
+              libstdc++-9-dev \
+              libxml2-dev \
+              libz3-dev \
+              pkg-config \
+              tzdata \
+              unzip \
+              zlib1g-dev
+            
+            # Download and install Swift 6.0
+            wget -q https://download.swift.org/swift-6.0-release/ubuntu2204/swift-6.0-RELEASE/swift-6.0-RELEASE-ubuntu22.04.tar.gz
+            tar xzf swift-6.0-RELEASE-ubuntu22.04.tar.gz
+            sudo mv swift-6.0-RELEASE-ubuntu22.04 /opt/swift
+          fi
           echo "/opt/swift/usr/bin" >> $GITHUB_PATH
 
       - name: Cache dependencies
@@ -186,20 +216,25 @@ jobs:
           path: |
             .build
             .swiftpm
-          key: swiftpm-debug-${{ matrix.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          key: swiftpm-test-${{ matrix.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
           restore-keys: |
+            swiftpm-test-${{ matrix.os }}-
             swiftpm-debug-${{ matrix.os }}-
             swiftpm-${{ matrix.os }}-
 
       - name: Resolve dependencies
         run: swift package resolve
 
-      - name: Run tests
-        run: swift test --enable-code-coverage
+      - name: Build for testing (optimized)
+        run: swift build --build-tests --configuration debug
+
+      - name: Run tests (parallel)
+        run: swift test --parallel --enable-code-coverage
 
       - name: Upload coverage reports
+        if: matrix.os == 'macos-15'  # Only upload from one platform to reduce redundancy
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report-${{ matrix.os }}
+          name: coverage-report
           path: .build/debug/codecov/
           retention-days: 7
