@@ -42,5 +42,6 @@
       "Bash(claude config --help)"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": false
 }
