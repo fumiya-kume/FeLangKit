@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Claude Code Docker Launcher
-# Usage: ./launch-claude-docker.sh <issue-data-file> <container-name>
+# Usage: ./launch-claude-docker.sh <issue-data-file> <analysis-file> <container-name>
 
 set -euo pipefail
 
@@ -13,19 +13,26 @@ error() {
     echo "[ERROR] $1" >&2
 }
 
-if [[ $# -ne 2 ]]; then
-    echo "Usage: $0 <issue-data-file> <container-name>"
+if [[ $# -ne 3 ]]; then
+    echo "Usage: $0 <issue-data-file> <analysis-file> <container-name>"
     exit 1
 fi
 
 ISSUE_DATA_FILE="$1"
-CONTAINER_NAME="$2"
+ANALYSIS_FILE="$2"
+CONTAINER_NAME="$3"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Check if issue data file exists
 if [[ ! -f "$ISSUE_DATA_FILE" ]]; then
     error "Issue data file not found: $ISSUE_DATA_FILE"
+    exit 1
+fi
+
+# Check if analysis file exists
+if [[ ! -f "$ANALYSIS_FILE" ]]; then
+    error "Analysis file not found: $ANALYSIS_FILE"
     exit 1
 fi
 
@@ -37,8 +44,17 @@ ISSUE_NUMBER=$(jq -r '.issue_number' "$ISSUE_DATA_FILE")
 OWNER=$(jq -r '.owner' "$ISSUE_DATA_FILE")
 REPO=$(jq -r '.repo' "$ISSUE_DATA_FILE")
 
+# Extract analysis information
+COMPLEXITY_LEVEL=$(jq -r '.complexity_assessment.level' "$ANALYSIS_FILE")
+RISK_LEVEL=$(jq -r '.risk_assessment.overall_risk' "$ANALYSIS_FILE")
+ESTIMATED_TIME=$(jq -r '.implementation_roadmap.total_estimated_time_minutes' "$ANALYSIS_FILE")
+AFFECTED_MODULES=$(jq -r '.codebase_impact.affected_modules | join(", ")' "$ANALYSIS_FILE")
+RECOMMENDED_STRATEGY=$(jq -r '.strategic_analysis.recommended.name' "$ANALYSIS_FILE")
+
 log "Launching Claude Code for issue #$ISSUE_NUMBER: $ISSUE_TITLE"
 log "Branch: $BRANCH_NAME"
+log "Ultra Think Analysis: Complexity=$COMPLEXITY_LEVEL, Risk=$RISK_LEVEL, Time=${ESTIMATED_TIME}min"
+log "Affected Modules: $AFFECTED_MODULES"
 
 # Check if Docker is running
 if ! docker info &> /dev/null; then
@@ -59,46 +75,103 @@ fi
 # Create the instruction file for Claude in the project directory
 INSTRUCTION_FILE="$PROJECT_ROOT/issue-instructions.md"
 
-cat > "$INSTRUCTION_FILE" << EOF
-# GitHub Issue: $ISSUE_TITLE
+# Extract detailed analysis data for instructions
+IMPLEMENTATION_TASKS=$(jq -r '.implementation_roadmap.tasks[] | "- **Phase \(.phase)**: \(.description) (Est: \(.estimated_time))"' "$ANALYSIS_FILE")
+QUALITY_GATES=$(jq -r '.risk_assessment.quality_gates[] | "- \(.)"' "$ANALYSIS_FILE")
+RISKS=$(jq -r '.risk_assessment.identified_risks[] | "- **\(.category | ascii_upcase)**: \(.description)"' "$ANALYSIS_FILE")
+STRATEGIES=$(jq -r '.strategic_analysis.strategies[] | "- **\(.name)** (\(.effort) effort, \(.risk) risk): \(.description)"' "$ANALYSIS_FILE")
 
-## Issue Details
+cat > "$INSTRUCTION_FILE" << EOF
+# 🚀 GitHub Issue with Ultra Think Analysis: $ISSUE_TITLE
+
+## 📋 Issue Details
 - **Issue #**: $ISSUE_NUMBER
 - **Repository**: $OWNER/$REPO
 - **Branch**: $BRANCH_NAME
 
-## Issue Description
+## 📝 Issue Description
 $ISSUE_BODY
 
-## Instructions for Claude
-1. Read and understand the issue requirements
-2. Create a new branch: $BRANCH_NAME
-3. Implement the necessary changes following the project conventions in CLAUDE.md
-4. Run the quality gates: swiftlint lint --fix && swiftlint lint && swift build && swift test
-5. Commit changes using conventional commit format
-6. Push the branch and create a PR
+## 🧠 Ultra Think Analysis Results
 
-Please work on this issue systematically and ensure all tests pass before committing.
+### 📊 Complexity Assessment
+- **Level**: $COMPLEXITY_LEVEL
+- **Estimated Time**: $ESTIMATED_TIME minutes
+- **Risk Level**: $RISK_LEVEL
 
-## Development Environment
-The project uses Swift with the following tools:
-- SwiftLint for code quality
-- Swift Package Manager for dependencies  
-- GitHub Actions for CI/CD
+### 🎯 Affected Components
+- **Modules**: $AFFECTED_MODULES
+- **Strategy**: $RECOMMENDED_STRATEGY
 
-You can run development commands directly in the host environment or use the Docker container for isolated testing.
+### 🛡️ Risk Assessment
+$RISKS
 
-## Container Authentication
-A Docker container is available with shared credentials from your host:
-- Git configuration and SSH keys are mounted
-- GitHub CLI authentication is shared
-- Anthropic API key is available
-- You can run git, gh, swift, and swiftlint commands in the container
+### 📈 Implementation Strategies
+$STRATEGIES
 
-Use commands like:
-- \`docker exec <container-name> swift build\`
-- \`docker exec <container-name> git status\`
-- \`docker exec <container-name> gh pr list\`
+## 🗺️ Implementation Roadmap
+
+The Ultra Think analysis has generated a detailed implementation plan:
+
+$IMPLEMENTATION_TASKS
+
+### ✅ Quality Gates
+$QUALITY_GATES
+
+## 🎯 Strategic Instructions for Claude
+
+**CRITICAL**: This issue has been pre-analyzed with Ultra Think. Follow the strategic guidance above.
+
+### Phase 1: Preparation
+1. **Branch Creation**: Create branch \`$BRANCH_NAME\`
+2. **Code Analysis**: Review the affected modules: $AFFECTED_MODULES
+3. **Strategy Confirmation**: Apply the "$RECOMMENDED_STRATEGY" approach
+
+### Phase 2: Implementation
+4. **Follow Roadmap**: Execute tasks in the order specified above
+5. **Risk Mitigation**: Pay special attention to the identified risks
+6. **Quality Focus**: This is a $COMPLEXITY_LEVEL complexity issue with $RISK_LEVEL risk
+
+### Phase 3: Validation
+7. **Quality Gates**: Run all quality checks: \`swiftlint lint --fix && swiftlint lint && swift build && swift test\`
+8. **Risk Verification**: Ensure all identified risks have been addressed
+9. **Commit Standards**: Use conventional commit format following CLAUDE.md
+
+### Phase 4: Finalization
+10. **Documentation**: Update any relevant documentation
+11. **PR Creation**: Push branch and create PR with comprehensive description
+
+## 🛠️ Development Environment
+
+### Tools Available
+- **Swift**: Build and test commands
+- **SwiftLint**: Code quality enforcement
+- **GitHub CLI**: PR and issue management
+- **Git**: Version control with shared authentication
+
+### Container Commands
+The Docker container ($CONTAINER_NAME) provides isolated execution:
+- \`docker exec $CONTAINER_NAME swift build\`
+- \`docker exec $CONTAINER_NAME swift test\`
+- \`docker exec $CONTAINER_NAME swiftlint lint\`
+- \`docker exec $CONTAINER_NAME git status\`
+- \`docker exec $CONTAINER_NAME gh pr create\`
+
+## 🔐 Authentication & Security
+- Git configuration and SSH keys are securely mounted
+- GitHub CLI authentication is shared from host
+- Anthropic API key is available for additional analysis if needed
+
+## ⚡ Performance Expectations
+- **Estimated Completion**: $ESTIMATED_TIME minutes
+- **Parallel Execution**: Container allows running commands without affecting host
+- **Quality Assurance**: All 132 tests must pass (~0.007s execution time)
+
+---
+
+**Remember**: This Ultra Think analysis provides strategic guidance. Use it to work smarter, not harder. Focus on the identified risks and follow the proven implementation roadmap.
+
+🤖 **Generated by Ultra Think Analysis v1.0**
 EOF
 
 # Prepare credential sharing arguments
