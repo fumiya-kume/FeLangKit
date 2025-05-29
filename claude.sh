@@ -454,11 +454,7 @@ validate_implementation() {
     
     if [[ "$has_changes" == "false" ]] && git diff --quiet && git diff --cached --quiet; then
         warn "No trackable changes detected in worktree (only gitignored files present)"
-        read -p "Continue anyway? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
+        info "Continuing with validation anyway..."
     fi
     
     # Run quality checks if SwiftLint is available
