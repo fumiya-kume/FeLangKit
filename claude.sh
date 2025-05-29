@@ -66,6 +66,10 @@ cleanup() {
         rm -f "${WORKTREE_PATH}/.validation-errors.md"
         rm -f "${WORKTREE_PATH}/.claude-input.txt"
         rm -f "${WORKTREE_PATH}/.claude-error-input.txt"
+        rm -f "${WORKTREE_PATH}/.claude-pr-input.txt"
+        rm -f "${WORKTREE_PATH}/.claude-pr-output.json"
+        rm -f "${WORKTREE_PATH}/.claude-commit-input.txt"
+        rm -f "${WORKTREE_PATH}/.claude-commit-output.txt"
     fi
 }
 
@@ -506,6 +510,158 @@ validate_implementation() {
     return 0
 }
 
+generate_pr_description() {
+    step "Generating PR description with Claude Code..."
+    
+    cd "$WORKTREE_PATH"
+    
+    # Collect implementation context
+    local issue_title=$(jq -r '.title' "$ISSUE_DATA_FILE")
+    local issue_body=$(jq -r '.body // ""' "$ISSUE_DATA_FILE")
+    local commit_messages=$(git log --oneline "master..HEAD" | head -10)
+    local files_changed=$(git diff --name-only "master..HEAD")
+    local files_added=$(git diff --name-status "master..HEAD" | grep "^A" | cut -f2)
+    local files_modified=$(git diff --name-status "master..HEAD" | grep "^M" | cut -f2)
+    
+    # Create context message for Claude Code
+    local pr_context_message="I need you to generate a JSON-formatted PR description for the following GitHub issue implementation:
+
+**Issue #${ISSUE_NUMBER}: $issue_title**
+
+**Issue Description:**
+$issue_body
+
+**Implementation Details:**
+- Branch: $BRANCH_NAME  
+- Commits made:
+\`\`\`
+$commit_messages
+\`\`\`
+
+**Files Changed:**
+$files_changed
+
+**Files Added:**
+$files_added
+
+**Files Modified:**  
+$files_modified
+
+**Validation Results:**
+- ✅ SwiftLint validation passed
+- ✅ Build successful
+- ✅ All tests passed
+
+Please generate a PR description in the JSON format specified in CLAUDE.md. The description should include:
+1. Summary of changes made
+2. Background context explaining why this implementation was needed
+3. Decision rationale for the approach chosen
+4. Implementation details and key changes
+5. Testing coverage and validation steps
+6. Impact assessment including any breaking changes
+
+Return ONLY the JSON object, no additional text or markdown formatting."
+
+    # Create temporary input file for Claude Code PR description generation
+    local pr_input_file="${WORKTREE_PATH}/.claude-pr-input.txt"
+    echo "$pr_context_message" > "$pr_input_file"
+    
+    # Create temporary output file to capture Claude Code response
+    local pr_output_file="${WORKTREE_PATH}/.claude-pr-output.json"
+    
+    info "Launching Claude Code to generate JSON PR description..."
+    if claude < "$pr_input_file" > "$pr_output_file" 2>/dev/null; then
+        # Validate that we got valid JSON
+        if jq . "$pr_output_file" >/dev/null 2>&1; then
+            success "PR description generated successfully"
+            cat "$pr_output_file"
+        else
+            warn "Claude Code output is not valid JSON, falling back to default format"
+            echo "Failed to generate valid JSON PR description. Using fallback format."
+            return 1
+        fi
+    else
+        warn "Claude Code PR description generation failed, using fallback format"
+        return 1
+    fi
+    
+    # Cleanup temporary files
+    rm -f "$pr_input_file" "$pr_output_file"
+}
+
+generate_commit_message() {
+    step "Generating commit message with Claude Code..."
+    
+    cd "$WORKTREE_PATH"
+    
+    # Collect implementation context for commit message
+    local issue_title=$(jq -r '.title' "$ISSUE_DATA_FILE")
+    local issue_body=$(jq -r '.body // ""' "$ISSUE_DATA_FILE")
+    local files_changed=$(git diff --cached --name-only)
+    local files_added=$(git diff --cached --name-status | grep "^A" | cut -f2)
+    local files_modified=$(git diff --cached --name-status | grep "^M" | cut -f2)
+    local files_deleted=$(git diff --cached --name-status | grep "^D" | cut -f2)
+    
+    # Create context message for Claude Code commit message generation
+    local commit_context_message="I need you to generate a conventional commit message for the following GitHub issue implementation:
+
+**Issue #${ISSUE_NUMBER}: $issue_title**
+
+**Issue Description:**
+$issue_body
+
+**Changes Made:**
+- Files changed: $files_changed
+- Files added: $files_added  
+- Files modified: $files_modified
+- Files deleted: $files_deleted
+
+Please generate a conventional commit message following this format:
+\`\`\`
+<type>(<scope>): <description>
+
+<body>
+
+Refs #${ISSUE_NUMBER}
+\`\`\`
+
+Requirements:
+1. Use appropriate conventional commit type (feat, fix, docs, style, refactor, test, chore)
+2. Include a scope if relevant (e.g., tokenizer, parser, visitor, tests)
+3. Write a clear, concise description (≤50 chars for first line)
+4. Include a body explaining what and why (not how)
+5. Reference the issue number with 'Refs #${ISSUE_NUMBER}'
+6. Follow project conventions from CLAUDE.md
+
+Return ONLY the commit message text, no additional formatting or markdown."
+
+    # Create temporary input file for Claude Code commit message generation
+    local commit_input_file="${WORKTREE_PATH}/.claude-commit-input.txt"
+    echo "$commit_context_message" > "$commit_input_file"
+    
+    # Create temporary output file to capture Claude Code response
+    local commit_output_file="${WORKTREE_PATH}/.claude-commit-output.txt"
+    
+    info "Launching Claude Code to generate conventional commit message..."
+    if claude < "$commit_input_file" > "$commit_output_file" 2>/dev/null; then
+        # Validate that we got a reasonable commit message
+        local generated_message=$(cat "$commit_output_file")
+        if [[ -n "$generated_message" ]] && [[ ${#generated_message} -gt 10 ]]; then
+            success "Commit message generated successfully"
+            echo "$generated_message"
+        else
+            warn "Claude Code generated empty or too short commit message, using fallback"
+            return 1
+        fi
+    else
+        warn "Claude Code commit message generation failed, using fallback"
+        return 1
+    fi
+    
+    # Cleanup temporary files
+    rm -f "$commit_input_file" "$commit_output_file"
+}
+
 push_and_create_pr() {
     step "Creating pull request..."
     
@@ -545,14 +701,30 @@ push_and_create_pr() {
         if [[ "$has_real_changes" == "true" ]]; then
             log "Detected changes ready for commit"
             git add .
-            local issue_title=$(jq -r '.title' "$ISSUE_DATA_FILE")
-            git commit -m "feat: implement ${issue_title}
+            
+            # Generate commit message using Claude Code
+            local commit_message=""
+            if commit_message=$(generate_commit_message); then
+                info "Using Claude Code generated commit message"
+                # Add Claude Code attribution to the generated message
+                commit_message="$commit_message
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+            else
+                warn "Falling back to default commit message format"
+                local issue_title=$(jq -r '.title' "$ISSUE_DATA_FILE")
+                commit_message="feat: implement ${issue_title}
 
 Resolves #${ISSUE_NUMBER}
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
+            fi
+            
+            git commit -m "$commit_message"
             
             # Recheck commits ahead
             commits_ahead=$(git rev-list --count "master..HEAD" 2>/dev/null || echo "0")
@@ -604,11 +776,17 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
         local pr_title=$(jq -r '.pr_title' "$ISSUE_DATA_FILE")
         local issue_title=$(jq -r '.title' "$ISSUE_DATA_FILE")
         
-        # Get commit messages for PR body
-        local commit_messages=$(git log --oneline "master..HEAD" | head -10)
-        
-        # Create PR body
-        local pr_body="## Summary
+        # Generate PR description using Claude Code
+        local pr_body=""
+        if pr_body=$(generate_pr_description); then
+            info "Using Claude Code generated JSON PR description"
+        else
+            warn "Falling back to default PR description format"
+            # Get commit messages for fallback PR body
+            local commit_messages=$(git log --oneline "master..HEAD" | head -10)
+            
+            # Fallback PR body
+            pr_body="## Summary
 Resolves #${ISSUE_NUMBER}
 
 This PR addresses: $issue_title
@@ -627,6 +805,7 @@ $commit_messages
 🤖 Generated with [Claude Code](https://claude.ai/code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
+        fi
         
         log "Creating pull request..."
         local pr_url
