@@ -43,6 +43,7 @@ cleanup() {
         docker rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
     fi
     rm -f "$ISSUE_DATA_FILE"
+    rm -f "${SCRIPT_DIR}/.analysis-"*.json 2>/dev/null || true
 }
 
 trap cleanup EXIT
@@ -101,14 +102,22 @@ main() {
         exit 1
     fi
 
-    # Step 2: Launch Claude Code in Docker
+    # Step 2: Ultra Think Analysis
+    ANALYSIS_FILE="${SCRIPT_DIR}/.analysis-$(basename "$ISSUE_DATA_FILE" .json).json"
+    log "Running Ultra Think Analysis..."
+    if ! "$SCRIPT_DIR/ultrathink-analysis.sh" "$ISSUE_DATA_FILE" "$ANALYSIS_FILE"; then
+        error "Failed to complete Ultra Think Analysis"
+        exit 1
+    fi
+
+    # Step 3: Launch Claude Code in Docker
     log "Launching Claude Code in Docker container..."
-    if ! "$SCRIPT_DIR/launch-claude-docker.sh" "$ISSUE_DATA_FILE" "$CONTAINER_NAME"; then
+    if ! "$SCRIPT_DIR/launch-claude-docker.sh" "$ISSUE_DATA_FILE" "$ANALYSIS_FILE" "$CONTAINER_NAME"; then
         error "Failed to launch Claude Code"
         exit 1
     fi
 
-    # Step 3: Monitor and create PR
+    # Step 4: Monitor and create PR
     log "Monitoring progress and preparing PR..."
     if ! "$SCRIPT_DIR/create-pr.sh" "$ISSUE_DATA_FILE" "$CONTAINER_NAME"; then
         error "Failed to create PR"

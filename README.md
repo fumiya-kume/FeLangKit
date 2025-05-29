@@ -56,12 +56,36 @@ let statements = try statementParser.parseStatements(from: tokens)
 - **🚀 Performance** - Optimized parsers with security limits and validation
 - **🌐 Internationalization** - Support for both English and Japanese keywords
 
+## 🧠 Ultra Think Issue Automation
+
+**Intelligent GitHub issue processing with strategic analysis:**
+
+```bash
+# Install dependencies
+brew install gh jq
+
+# Authenticate and configure
+gh auth login
+export ANTHROPIC_API_KEY="your-api-key"
+
+# Process issues with deep analysis
+./scripts/claude-auto-issue.sh https://github.com/owner/repo/issues/123
+```
+
+**Features:**
+- **📊 Complexity Assessment** - Analyzes issue scope and estimates effort
+- **🎯 Codebase Impact** - Identifies affected modules and files
+- **🛡️ Risk Analysis** - Detects potential problems and mitigation strategies
+- **🗺️ Implementation Roadmap** - Creates detailed task breakdown with time estimates
+- **🚀 Parallel Processing** - Handle multiple issues simultaneously in isolated containers
+
 ## 🎯 Use Cases
 
 - **Language Development** - Build interpreters or compilers for the FE pseudo-language
 - **Educational Tools** - Teach parsing concepts and compiler design
 - **Code Analysis** - Analyze and transform FE pseudo-language code
 - **IDE Support** - Build language servers and syntax highlighting
+- **🤖 Automated Development** - Process GitHub issues intelligently with Ultra Think
 
 ## 📋 Requirements
 
