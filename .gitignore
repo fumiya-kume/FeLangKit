@@ -63,5 +63,5 @@ fastlane/test_output
 scripts/container-results
 execution-report.json
 
-# Claude worktrees
-worktrees/
+# Claude worktrees (in repo root)
+issue-*-*/
