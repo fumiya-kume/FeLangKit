@@ -206,6 +206,23 @@ The project includes a complete VS Code dev container configuration for consiste
 - **Branch Strategy**: Create feature branches for issues: `issue-<num>-<date>`
 - **PR Format**: Title format: "Resolve #<num>: <Issue Title>"
 
+### Todo List Management
+- **ALWAYS use TodoWrite tool** when starting work on GitHub issues to create detailed task breakdown
+- **Create comprehensive todo lists** with specific, actionable items for complex implementations
+- **Break down large features** into small, manageable tasks (≤30 minutes each)
+- **Include implementation steps**: analysis, design, coding, testing, validation
+- **Update todo status** in real-time: pending → in_progress → completed
+- **Example detailed breakdown**:
+  ```
+  1. Analyze existing codebase architecture for integration points
+  2. Design new component interface and data structures  
+  3. Implement core functionality with error handling
+  4. Add comprehensive unit tests covering edge cases
+  5. Integrate with existing modules and update dependencies
+  6. Add documentation and code examples
+  7. Run validation sequence and fix any issues
+  ```
+
 ### Code Quality Standards
 - **Linting**: SwiftLint fixes applied automatically before validation
 - **Testing**: All tests must pass before commits
@@ -216,6 +233,14 @@ The project includes a complete VS Code dev container configuration for consiste
 - **Minimal Diffs**: Keep commits focused and small (≤200 LOC)
 - **CI Watching**: Monitor CI status with `gh pr checks --watch`
 - **Safety First**: Pause for confirmation on destructive operations
+
+### Implementation Best Practices
+- **Start with TodoWrite**: IMMEDIATELY create a detailed todo list when beginning any GitHub issue
+- **Task Granularity**: Each todo item should be completable in ≤30 minutes
+- **Progress Tracking**: Mark tasks as in_progress when starting, completed when finished
+- **Comprehensive Coverage**: Include analysis, implementation, testing, and validation tasks
+- **Real-time Updates**: Update todo status throughout the development process
+- **Quality Focus**: Always include SwiftLint, build, and test validation as separate todo items
 
 ## Recent Work Log
 
