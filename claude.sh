@@ -665,8 +665,16 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
             echo
             
             # Check if all checks are complete and successful
-            local pending_count=$(echo "$check_output" | grep -c "pending" || echo "0")
-            local fail_count=$(echo "$check_output" | grep -c "fail" || echo "0")
+            local pending_count=$(echo "$check_output" | grep -c "pending" 2>/dev/null || echo "0")
+            local fail_count=$(echo "$check_output" | grep -c "fail" 2>/dev/null || echo "0")
+            
+            # Ensure we have valid numeric values
+            if ! [[ "$pending_count" =~ ^[0-9]+$ ]]; then
+                pending_count=0
+            fi
+            if ! [[ "$fail_count" =~ ^[0-9]+$ ]]; then
+                fail_count=0
+            fi
             
             if [[ "$pending_count" -eq 0 ]] && [[ "$fail_count" -eq 0 ]]; then
                 local total_checks=$(echo "$check_output" | wc -l)
