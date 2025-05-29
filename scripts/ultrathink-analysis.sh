@@ -122,7 +122,8 @@ fi
 log "Complexity Level: $COMPLEXITY_LEVEL (Score: $COMPLEXITY_SCORE)"
 
 # Update analysis with complexity assessment
-jq --argjson score "$COMPLEXITY_SCORE" \
+TEMP_FILE="${ANALYSIS_OUTPUT_FILE}.tmp.$$"
+if ! jq --argjson score "$COMPLEXITY_SCORE" \
    --arg level "$COMPLEXITY_LEVEL" \
    --argjson factors "$(printf '%s\n' "${COMPLEXITY_FACTORS[@]}" | jq -R . | jq -s .)" \
    '.complexity_assessment = {
@@ -135,7 +136,12 @@ jq --argjson score "$COMPLEXITY_SCORE" \
        elif $level == "moderate" then 2
        else 1 end
      )
-   }' "$ANALYSIS_OUTPUT_FILE" > temp.json && mv temp.json "$ANALYSIS_OUTPUT_FILE"
+   }' "$ANALYSIS_OUTPUT_FILE" > "$TEMP_FILE"; then
+    echo "Error: Failed to update complexity assessment in analysis file"
+    rm -f "$TEMP_FILE"
+    exit 1
+fi
+mv "$TEMP_FILE" "$ANALYSIS_OUTPUT_FILE"
 
 # Stage 2: Codebase Impact Analysis
 stage "Stage 2: Codebase Impact Analysis"
@@ -187,7 +193,8 @@ if [[ $FILE_COUNT -eq 0 ]]; then
 fi
 
 # Update analysis with codebase impact
-jq --argjson modules "$(printf '%s\n' "${AFFECTED_MODULES[@]}" | jq -R . | jq -s .)" \
+TEMP_FILE="${ANALYSIS_OUTPUT_FILE}.tmp.$$"
+if ! jq --argjson modules "$(printf '%s\n' "${AFFECTED_MODULES[@]}" | jq -R . | jq -s .)" \
    --argjson files "$(printf '%s\n' "${POTENTIAL_FILES[@]}" | jq -R . | jq -s .)" \
    --argjson count "$FILE_COUNT" \
    '.codebase_impact = {
@@ -196,7 +203,12 @@ jq --argjson modules "$(printf '%s\n' "${AFFECTED_MODULES[@]}" | jq -R . | jq -s
      estimated_files_changed: $count,
      requires_tests: true,
      backwards_compatible: (if (.complexity_assessment.factors | contains(["breaking_change"])) then false else true end)
-   }' "$ANALYSIS_OUTPUT_FILE" > temp.json && mv temp.json "$ANALYSIS_OUTPUT_FILE"
+   }' "$ANALYSIS_OUTPUT_FILE" > "$TEMP_FILE"; then
+    echo "Error: Failed to update codebase impact in analysis file"
+    rm -f "$TEMP_FILE"
+    exit 1
+fi
+mv "$TEMP_FILE" "$ANALYSIS_OUTPUT_FILE"
 
 # Stage 3: Strategic Analysis
 stage "Stage 3: Strategic Analysis"
@@ -236,7 +248,8 @@ else
 fi
 
 # Update analysis with strategic analysis
-jq --argjson strategies "$STRATEGIES_JSON" \
+TEMP_FILE="${ANALYSIS_OUTPUT_FILE}.tmp.$$"
+if ! jq --argjson strategies "$STRATEGIES_JSON" \
    --argjson recommended "$RECOMMENDED_STRATEGY" \
    '.strategic_analysis = {
      strategies: $strategies,
@@ -247,7 +260,12 @@ jq --argjson strategies "$STRATEGIES_JSON" \
        "Ensure comprehensive test coverage",
        "Use established error handling patterns"
      ]
-   }' "$ANALYSIS_OUTPUT_FILE" > temp.json && mv temp.json "$ANALYSIS_OUTPUT_FILE"
+   }' "$ANALYSIS_OUTPUT_FILE" > "$TEMP_FILE"; then
+    echo "Error: Failed to update strategic analysis in analysis file"
+    rm -f "$TEMP_FILE"
+    exit 1
+fi
+mv "$TEMP_FILE" "$ANALYSIS_OUTPUT_FILE"
 
 insight "Strategic recommendation: $(echo "$RECOMMENDED_STRATEGY" | jq -r '.name')"
 
@@ -300,7 +318,8 @@ else
 fi
 
 # Update analysis with risk assessment
-jq --argjson risks "$RISKS_JSON" \
+TEMP_FILE="${ANALYSIS_OUTPUT_FILE}.tmp.$$"
+if ! jq --argjson risks "$RISKS_JSON" \
    --arg level "$RISK_LEVEL" \
    '.risk_assessment = {
      overall_risk: $level,
@@ -311,7 +330,12 @@ jq --argjson risks "$RISKS_JSON" \
        "Code coverage should not decrease",
        "Manual testing for edge cases"
      ]
-   }' "$ANALYSIS_OUTPUT_FILE" > temp.json && mv temp.json "$ANALYSIS_OUTPUT_FILE"
+   }' "$ANALYSIS_OUTPUT_FILE" > "$TEMP_FILE"; then
+    echo "Error: Failed to update risk assessment in analysis file"
+    rm -f "$TEMP_FILE"
+    exit 1
+fi
+mv "$TEMP_FILE" "$ANALYSIS_OUTPUT_FILE"
 
 warn "Overall risk level: $RISK_LEVEL"
 
@@ -391,7 +415,8 @@ else
 fi
 
 # Update analysis with implementation roadmap
-jq --argjson tasks "$TASKS_JSON" \
+TEMP_FILE="${ANALYSIS_OUTPUT_FILE}.tmp.$$"
+if ! jq --argjson tasks "$TASKS_JSON" \
    --argjson total_time "$TOTAL_MINUTES" \
    '.implementation_roadmap = {
      tasks: $tasks,
@@ -404,10 +429,16 @@ jq --argjson tasks "$TASKS_JSON" \
        "Documentation updated if needed",
        "No regression in existing functionality"
      ]
-   }' "$ANALYSIS_OUTPUT_FILE" > temp.json && mv temp.json "$ANALYSIS_OUTPUT_FILE"
+   }' "$ANALYSIS_OUTPUT_FILE" > "$TEMP_FILE"; then
+    echo "Error: Failed to update implementation roadmap in analysis file"
+    rm -f "$TEMP_FILE"
+    exit 1
+fi
+mv "$TEMP_FILE" "$ANALYSIS_OUTPUT_FILE"
 
 # Add metadata
-jq --arg issue_number "$ISSUE_NUMBER" \
+TEMP_FILE="${ANALYSIS_OUTPUT_FILE}.tmp.$$"
+if ! jq --arg issue_number "$ISSUE_NUMBER" \
    --arg title "$ISSUE_TITLE" \
    --arg analysis_timestamp "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
    --arg analysis_version "1.0" \
@@ -417,11 +448,43 @@ jq --arg issue_number "$ISSUE_NUMBER" \
      analysis_timestamp: $analysis_timestamp,
      analysis_version: $analysis_version,
      analyzer: "ultrathink-analysis.sh"
-   }' "$ANALYSIS_OUTPUT_FILE" > temp.json && mv temp.json "$ANALYSIS_OUTPUT_FILE"
+   }' "$ANALYSIS_OUTPUT_FILE" > "$TEMP_FILE"; then
+    echo "Error: Failed to update metadata in analysis file"
+    rm -f "$TEMP_FILE"
+    exit 1
+fi
+mv "$TEMP_FILE" "$ANALYSIS_OUTPUT_FILE"
 
-# Final summary
+# Final validation and summary
+log "Performing final validation of analysis file..."
+
+# Verify the analysis file was created and contains valid JSON
+if [[ ! -f "$ANALYSIS_OUTPUT_FILE" ]]; then
+    echo "Error: Analysis file was not created: $ANALYSIS_OUTPUT_FILE"
+    exit 1
+fi
+
+if ! jq empty "$ANALYSIS_OUTPUT_FILE" 2>/dev/null; then
+    echo "Error: Analysis file contains invalid JSON"
+    echo "File contents:"
+    cat "$ANALYSIS_OUTPUT_FILE"
+    exit 1
+fi
+
+# Verify essential fields exist
+if ! jq -e '.metadata.issue_number' "$ANALYSIS_OUTPUT_FILE" >/dev/null 2>&1; then
+    echo "Error: Analysis file is missing essential metadata"
+    exit 1
+fi
+
+if ! jq -e '.complexity_assessment.level' "$ANALYSIS_OUTPUT_FILE" >/dev/null 2>&1; then
+    echo "Error: Analysis file is missing complexity assessment"
+    exit 1
+fi
+
 stage "Ultra Think Analysis Complete"
 log "Analysis saved to: $ANALYSIS_OUTPUT_FILE"
+log "File size: $(du -h "$ANALYSIS_OUTPUT_FILE" | cut -f1)"
 log "Complexity: $COMPLEXITY_LEVEL | Risk: $RISK_LEVEL | Est. Time: ${TOTAL_MINUTES}min"
 log "Affected Modules: $(IFS=', '; echo "${AFFECTED_MODULES[*]}")"
 
