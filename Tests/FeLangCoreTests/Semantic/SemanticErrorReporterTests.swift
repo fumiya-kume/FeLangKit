@@ -1,42 +1,32 @@
-import XCTest
+import Testing
 @testable import FeLangCore
 
-final class SemanticErrorReporterTests: XCTestCase {
-
-    var symbolTable: SymbolTable!
-    var sourcePosition: SourcePosition!
-
-    override func setUp() {
-        super.setUp()
-        symbolTable = SymbolTable()
-        sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
-    }
-
-    override func tearDown() {
-        symbolTable = nil
-        sourcePosition = nil
-        super.tearDown()
-    }
+@Suite("SemanticErrorReporter Tests")
+struct SemanticErrorReporterTests {
 
     // MARK: - Basic Error Collection Tests
 
-    func testCollectSingleError() {
+    @Test func collectSingleError() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let reporter = SemanticErrorReporter()
         let error = SemanticError.undeclaredVariable("x", position: sourcePosition)
 
         reporter.collect(error)
 
-        XCTAssertEqual(reporter.errorCount, 1)
-        XCTAssertEqual(reporter.warningCount, 0)
-        XCTAssertFalse(reporter.hasReachedErrorLimit)
+        #expect(reporter.errorCount == 1)
+        #expect(reporter.warningCount == 0)
+        #expect(!reporter.hasReachedErrorLimit)
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
-        XCTAssertEqual(result.errors[0], error)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
+        #expect(result.errors[0] == error)
     }
 
-    func testCollectMultipleErrors() {
+    @Test func collectMultipleErrors() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let reporter = SemanticErrorReporter()
         let errors = [
             SemanticError.undeclaredVariable("x", position: sourcePosition),
@@ -46,29 +36,33 @@ final class SemanticErrorReporterTests: XCTestCase {
 
         reporter.collect(errors)
 
-        XCTAssertEqual(reporter.errorCount, 3)
+        #expect(reporter.errorCount == 3)
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 3)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 3)
     }
 
-    func testCollectSingleWarning() {
+    @Test func collectSingleWarning() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let reporter = SemanticErrorReporter()
         let warning = SemanticWarning.unusedVariable("x", position: sourcePosition)
 
         reporter.collect(warning)
 
-        XCTAssertEqual(reporter.errorCount, 0)
-        XCTAssertEqual(reporter.warningCount, 1)
+        #expect(reporter.errorCount == 0)
+        #expect(reporter.warningCount == 1)
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertTrue(result.isSuccessful) // No errors, only warnings
-        XCTAssertEqual(result.warnings.count, 1)
-        XCTAssertEqual(result.warnings[0], warning)
+        #expect(result.isSuccessful) // No errors, only warnings
+        #expect(result.warnings.count == 1)
+        #expect(result.warnings[0] == warning)
     }
 
-    func testCollectMultipleWarnings() {
+    @Test func collectMultipleWarnings() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let reporter = SemanticErrorReporter()
         let warnings = [
             SemanticWarning.unusedVariable("x", position: sourcePosition),
@@ -77,43 +71,43 @@ final class SemanticErrorReporterTests: XCTestCase {
 
         reporter.collect(warnings)
 
-        XCTAssertEqual(reporter.warningCount, 2)
+        #expect(reporter.warningCount == 2)
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertEqual(result.warnings.count, 2)
+        #expect(result.isSuccessful)
+        #expect(result.warnings.count == 2)
     }
 
     // MARK: - Configuration Tests
 
-    func testDefaultConfiguration() {
+    @Test func defaultConfiguration() {
         let config = SemanticErrorReportingConfig.default
 
-        XCTAssertEqual(config.maxErrorCount, 100)
-        XCTAssertTrue(config.enableDeduplication)
-        XCTAssertFalse(config.enableErrorCorrelation)
-        XCTAssertFalse(config.verboseOutput)
+        #expect(config.maxErrorCount == 100)
+        #expect(config.enableDeduplication)
+        #expect(!config.enableErrorCorrelation)
+        #expect(!config.verboseOutput)
     }
 
-    func testStrictConfiguration() {
+    @Test func strictConfiguration() {
         let config = SemanticErrorReportingConfig.strict
 
-        XCTAssertEqual(config.maxErrorCount, 1000)
-        XCTAssertTrue(config.enableDeduplication)
-        XCTAssertTrue(config.enableErrorCorrelation)
-        XCTAssertTrue(config.verboseOutput)
+        #expect(config.maxErrorCount == 1000)
+        #expect(config.enableDeduplication)
+        #expect(config.enableErrorCorrelation)
+        #expect(config.verboseOutput)
     }
 
-    func testFastConfiguration() {
+    @Test func fastConfiguration() {
         let config = SemanticErrorReportingConfig.fast
 
-        XCTAssertEqual(config.maxErrorCount, 50)
-        XCTAssertFalse(config.enableDeduplication)
-        XCTAssertFalse(config.enableErrorCorrelation)
-        XCTAssertFalse(config.verboseOutput)
+        #expect(config.maxErrorCount == 50)
+        #expect(!config.enableDeduplication)
+        #expect(!config.enableErrorCorrelation)
+        #expect(!config.verboseOutput)
     }
 
-    func testCustomConfiguration() {
+    @Test func customConfiguration() {
         let config = SemanticErrorReportingConfig(
             maxErrorCount: 25,
             enableDeduplication: true,
@@ -121,15 +115,17 @@ final class SemanticErrorReporterTests: XCTestCase {
             verboseOutput: false
         )
 
-        XCTAssertEqual(config.maxErrorCount, 25)
-        XCTAssertTrue(config.enableDeduplication)
-        XCTAssertTrue(config.enableErrorCorrelation)
-        XCTAssertFalse(config.verboseOutput)
+        #expect(config.maxErrorCount == 25)
+        #expect(config.enableDeduplication)
+        #expect(config.enableErrorCorrelation)
+        #expect(!config.verboseOutput)
     }
 
     // MARK: - Error Deduplication Tests
 
-    func testErrorDeduplicationEnabled() {
+    @Test func errorDeduplicationEnabled() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let config = SemanticErrorReportingConfig(enableDeduplication: true)
         let reporter = SemanticErrorReporter(config: config)
 
@@ -140,13 +136,15 @@ final class SemanticErrorReporterTests: XCTestCase {
         reporter.collect(error1)
         reporter.collect(error2)
 
-        XCTAssertEqual(reporter.errorCount, 1) // Should only have one error due to deduplication
+        #expect(reporter.errorCount == 1) // Should only have one error due to deduplication
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(result.errors.count == 1)
     }
 
-    func testErrorDeduplicationDisabled() {
+    @Test func errorDeduplicationDisabled() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let config = SemanticErrorReportingConfig(enableDeduplication: false)
         let reporter = SemanticErrorReporter(config: config)
 
@@ -157,13 +155,14 @@ final class SemanticErrorReporterTests: XCTestCase {
         reporter.collect(error1)
         reporter.collect(error2)
 
-        XCTAssertEqual(reporter.errorCount, 2) // Should have both errors
+        #expect(reporter.errorCount == 2) // Should have both errors
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertEqual(result.errors.count, 2)
+        #expect(result.errors.count == 2)
     }
 
-    func testErrorDeduplicationDifferentPositions() {
+    @Test func errorDeduplicationDifferentPositions() {
+        let symbolTable = SymbolTable()
         let config = SemanticErrorReportingConfig(enableDeduplication: true)
         let reporter = SemanticErrorReporter(config: config)
 
@@ -176,15 +175,16 @@ final class SemanticErrorReporterTests: XCTestCase {
         reporter.collect(error1)
         reporter.collect(error2)
 
-        XCTAssertEqual(reporter.errorCount, 2) // Different positions, should not deduplicate
+        #expect(reporter.errorCount == 2) // Different positions, should not deduplicate
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertEqual(result.errors.count, 2)
+        #expect(result.errors.count == 2)
     }
 
     // MARK: - Error Limit Tests
 
-    func testErrorLimit() {
+    @Test func errorLimit() {
+        let symbolTable = SymbolTable()
         let config = SemanticErrorReportingConfig(maxErrorCount: 3)
         let reporter = SemanticErrorReporter(config: config)
 
@@ -193,43 +193,47 @@ final class SemanticErrorReporterTests: XCTestCase {
             reporter.collect(error)
         }
 
-        XCTAssertEqual(reporter.errorCount, 4) // 3 regular errors + 1 "too many errors" error
-        XCTAssertTrue(reporter.hasReachedErrorLimit)
+        #expect(reporter.errorCount == 4) // 3 regular errors + 1 "too many errors" error
+        #expect(reporter.hasReachedErrorLimit)
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertEqual(result.errors.count, 4)
+        #expect(result.errors.count == 4)
 
         // Check that the last error is the "too many errors" error
         let lastError = result.errors.last
-        XCTAssertNotNil(lastError)
+        #expect(lastError != nil)
         if case .tooManyErrors(let count) = lastError! {
-            XCTAssertEqual(count, 3)
+            #expect(count == 3)
         } else {
-            XCTFail("Expected tooManyErrors error")
+            Issue.record("Expected tooManyErrors error")
         }
     }
 
-    func testErrorLimitWithZeroMax() {
+    @Test func errorLimitWithZeroMax() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let config = SemanticErrorReportingConfig(maxErrorCount: 0)
         let reporter = SemanticErrorReporter(config: config)
 
         let error = SemanticError.undeclaredVariable("x", position: sourcePosition)
         reporter.collect(error)
 
-        XCTAssertEqual(reporter.errorCount, 1) // Should add "too many errors" error immediately
-        XCTAssertTrue(reporter.hasReachedErrorLimit)
+        #expect(reporter.errorCount == 1) // Should add "too many errors" error immediately
+        #expect(reporter.hasReachedErrorLimit)
 
         let result = reporter.finalize(with: symbolTable)
         if case .tooManyErrors(let count) = result.errors.first! {
-            XCTAssertEqual(count, 0)
+            #expect(count == 0) // swiftlint:disable:this empty_count
         } else {
-            XCTFail("Expected tooManyErrors error")
+            Issue.record("Expected tooManyErrors error")
         }
     }
 
     // MARK: - Error Correlation Tests
 
-    func testErrorCorrelationEnabled() throws {
+    @Test func errorCorrelationEnabled() throws {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         // Add unused variables to symbol table
         _ = symbolTable.declare(name: "unusedVar", type: .integer, kind: .variable, position: sourcePosition)
         _ = symbolTable.declare(name: "unusedFunc", type: .function(parameters: [], returnType: .integer), kind: .function, position: SourcePosition(line: 2, column: 1, offset: 10))
@@ -241,7 +245,7 @@ final class SemanticErrorReporterTests: XCTestCase {
 
         // Should generate warnings for unused symbols
         // Note: SymbolTable.getUnusedSymbols() excludes functions by design, so we only expect the variable
-        XCTAssertEqual(result.warnings.count, 1)
+        #expect(result.warnings.count == 1)
 
         let warningTypes = result.warnings.map { warning in
             switch warning {
@@ -254,10 +258,12 @@ final class SemanticErrorReporterTests: XCTestCase {
             }
         }
 
-        XCTAssertTrue(warningTypes.contains("unusedVariable:unusedVar"))
+        #expect(warningTypes.contains("unusedVariable:unusedVar"))
     }
 
-    func testErrorCorrelationDisabled() throws {
+    @Test func errorCorrelationDisabled() throws {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         // Add unused variables to symbol table
         _ = symbolTable.declare(name: "unusedVar", type: .integer, kind: .variable, position: sourcePosition)
 
@@ -267,12 +273,14 @@ final class SemanticErrorReporterTests: XCTestCase {
         let result = reporter.finalize(with: symbolTable)
 
         // Should not generate warnings for unused symbols
-        XCTAssertEqual(result.warnings.count, 0)
+        #expect(result.warnings.isEmpty)
     }
 
     // MARK: - Finalization Tests
 
-    func testFinalizationPreventsMoreCollections() {
+    @Test func finalizationPreventsMoreCollections() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let reporter = SemanticErrorReporter()
         let error1 = SemanticError.undeclaredVariable("x", position: sourcePosition)
         let error2 = SemanticError.undeclaredVariable("y", position: SourcePosition(line: 2, column: 1, offset: 10))
@@ -284,12 +292,14 @@ final class SemanticErrorReporterTests: XCTestCase {
         reporter.collect(error2)
         let result2 = reporter.finalize(with: symbolTable)
 
-        XCTAssertEqual(result1.errors.count, 1)
-        XCTAssertEqual(result2.errors.count, 1) // Should be the same as first result
-        XCTAssertEqual(reporter.errorCount, 1) // Should not increase
+        #expect(result1.errors.count == 1)
+        #expect(result2.errors.count == 1) // Should be the same as first result
+        #expect(reporter.errorCount == 1) // Should not increase
     }
 
-    func testMultipleFinalizationCalls() {
+    @Test func multipleFinalizationCalls() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let reporter = SemanticErrorReporter()
         let error = SemanticError.undeclaredVariable("x", position: sourcePosition)
 
@@ -298,14 +308,16 @@ final class SemanticErrorReporterTests: XCTestCase {
         let result1 = reporter.finalize(with: symbolTable)
         let result2 = reporter.finalize(with: symbolTable)
 
-        XCTAssertEqual(result1.errors.count, 1)
-        XCTAssertEqual(result2.errors.count, 1)
-        XCTAssertEqual(result1.errors, result2.errors)
+        #expect(result1.errors.count == 1)
+        #expect(result2.errors.count == 1)
+        #expect(result1.errors == result2.errors)
     }
 
     // MARK: - Reset Functionality Tests
 
-    func testReset() {
+    @Test func reset() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let reporter = SemanticErrorReporter()
         let error = SemanticError.undeclaredVariable("x", position: sourcePosition)
         let warning = SemanticWarning.unusedVariable("y", position: sourcePosition)
@@ -313,24 +325,26 @@ final class SemanticErrorReporterTests: XCTestCase {
         reporter.collect(error)
         reporter.collect(warning)
 
-        XCTAssertEqual(reporter.errorCount, 1)
-        XCTAssertEqual(reporter.warningCount, 1)
+        #expect(reporter.errorCount == 1)
+        #expect(reporter.warningCount == 1)
 
         reporter.reset()
 
-        XCTAssertEqual(reporter.errorCount, 0)
-        XCTAssertEqual(reporter.warningCount, 0)
-        XCTAssertFalse(reporter.hasReachedErrorLimit)
+        #expect(reporter.errorCount == 0)
+        #expect(reporter.warningCount == 0)
+        #expect(!reporter.hasReachedErrorLimit)
 
         // Should be able to collect new errors after reset
         reporter.collect(error)
-        XCTAssertEqual(reporter.errorCount, 1)
+        #expect(reporter.errorCount == 1)
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(result.errors.count == 1)
     }
 
-    func testResetAfterFinalization() {
+    @Test func resetAfterFinalization() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let reporter = SemanticErrorReporter()
         let error = SemanticError.undeclaredVariable("x", position: sourcePosition)
 
@@ -343,81 +357,68 @@ final class SemanticErrorReporterTests: XCTestCase {
         let newError = SemanticError.undeclaredVariable("z", position: SourcePosition(line: 3, column: 1, offset: 20))
         reporter.collect(newError)
 
-        XCTAssertEqual(reporter.errorCount, 1)
+        #expect(reporter.errorCount == 1)
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertEqual(result.errors.count, 1)
-        XCTAssertEqual(result.errors[0], newError)
+        #expect(result.errors.count == 1)
+        #expect(result.errors[0] == newError)
     }
 
     // MARK: - Thread Safety Tests
 
-    func testConcurrentErrorCollection() {
+    @Test func concurrentErrorCollection() async {
         let reporter = SemanticErrorReporter()
-        let expectation = XCTestExpectation(description: "Concurrent error collection")
         let errorCount = 100
-        let queue = DispatchQueue.global(qos: .userInitiated)
-        let group = DispatchGroup()
 
-        for index in 0..<errorCount {
-            group.enter()
-            queue.async {
-                let position = SourcePosition(line: index + 1, column: 1, offset: index * 10)
-                let error = SemanticError.undeclaredVariable("var\(index)", position: position)
-                reporter.collect(error)
-                group.leave()
+        await withTaskGroup(of: Void.self) { group in
+            for index in 0..<errorCount {
+                group.addTask {
+                    let position = SourcePosition(line: index + 1, column: 1, offset: index * 10)
+                    let error = SemanticError.undeclaredVariable("var\(index)", position: position)
+                    reporter.collect(error)
+                }
             }
         }
 
-        group.notify(queue: .main) {
-            XCTAssertEqual(reporter.errorCount, errorCount)
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 5.0)
+        #expect(reporter.errorCount == errorCount)
     }
 
-    func testConcurrentWarningCollection() {
+    @Test func concurrentWarningCollection() async {
         let reporter = SemanticErrorReporter()
-        let expectation = XCTestExpectation(description: "Concurrent warning collection")
         let warningCount = 50
-        let queue = DispatchQueue.global(qos: .userInitiated)
-        let group = DispatchGroup()
 
-        for index in 0..<warningCount {
-            group.enter()
-            queue.async {
-                let position = SourcePosition(line: index + 1, column: 1, offset: index * 10)
-                let warning = SemanticWarning.unusedVariable("var\(index)", position: position)
-                reporter.collect(warning)
-                group.leave()
+        await withTaskGroup(of: Void.self) { group in
+            for index in 0..<warningCount {
+                group.addTask {
+                    let position = SourcePosition(line: index + 1, column: 1, offset: index * 10)
+                    let warning = SemanticWarning.unusedVariable("var\(index)", position: position)
+                    reporter.collect(warning)
+                }
             }
         }
 
-        group.notify(queue: .main) {
-            XCTAssertEqual(reporter.warningCount, warningCount)
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 5.0)
+        #expect(reporter.warningCount == warningCount)
     }
 
     // MARK: - Edge Case Tests
 
-    func testEmptyErrorCollection() {
+    @Test func emptyErrorCollection() {
+        let symbolTable = SymbolTable()
         let reporter = SemanticErrorReporter()
 
-        XCTAssertEqual(reporter.errorCount, 0)
-        XCTAssertEqual(reporter.warningCount, 0)
-        XCTAssertFalse(reporter.hasReachedErrorLimit)
+        #expect(reporter.errorCount == 0)
+        #expect(reporter.warningCount == 0)
+        #expect(!reporter.hasReachedErrorLimit)
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 0)
-        XCTAssertEqual(result.warnings.count, 0)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
+        #expect(result.warnings.isEmpty)
     }
 
-    func testTooManyErrorsDeduplication() {
+    @Test func tooManyErrorsDeduplication() {
+        let symbolTable = SymbolTable()
+        let sourcePosition = SourcePosition(line: 1, column: 1, offset: 0)
         let config = SemanticErrorReportingConfig(maxErrorCount: 1, enableDeduplication: true)
         let reporter = SemanticErrorReporter(config: config)
 
@@ -430,9 +431,9 @@ final class SemanticErrorReporterTests: XCTestCase {
         reporter.collect(error2) // Should be deduplicated
         reporter.collect(error3) // Should trigger limit
 
-        XCTAssertEqual(reporter.errorCount, 2) // 1 regular error + 1 "too many errors" error
+        #expect(reporter.errorCount == 2) // 1 regular error + 1 "too many errors" error
 
         let result = reporter.finalize(with: symbolTable)
-        XCTAssertEqual(result.errors.count, 2)
+        #expect(result.errors.count == 2)
     }
 }
