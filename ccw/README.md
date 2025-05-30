@@ -16,6 +16,11 @@ CCW is a Go-based automation tool that streamlines the complete GitHub issue wor
   - Summary, Background & Context, Solution Approach
   - Implementation Details, Technical Logic, Testing & Validation
   - Impact & Future Work analysis
+- **Validation Error Recovery**: Automatic error fixing with Claude Code integration
+  - Detects recoverable validation errors (lint, build, test failures)
+  - Automatically calls Claude Code with error context for fixing
+  - Supports multiple recovery attempts with detailed error analysis
+  - Intelligent error grouping and recovery suggestions
 - **Fallback Templates**: Professional PR templates when AI generation unavailable
 - **Implementation Analysis**: Automatic analysis of code changes and git diff
 
@@ -32,6 +37,13 @@ CCW is a Go-based automation tool that streamlines the complete GitHub issue wor
 - **Duplicate PR Detection**: Checks for existing PRs before creation
 - **Orphaned Branch Cleanup**: Maintains clean repository state
 - **Environment Configuration**: Extensive customization via environment variables
+
+### 🖥️ CI/Console Mode Support
+- **Automatic CI Detection**: Detects GitHub Actions, GitLab CI, Jenkins environments
+- **Clean ASCII Output**: Replaces Unicode and emoji characters with ASCII alternatives
+- **CI-Friendly Progress**: Simple text-based progress indicators for logs
+- **Console-Safe Characters**: Uses `[CHECK]`, `[SUCCESS]`, `[WARNING]`, `[ERROR]` instead of emojis
+- **Environment Triggers**: Activated by `CI=true`, `GITHUB_ACTIONS=true`, or `CCW_CONSOLE_MODE=true`
 
 ## Prerequisites
 
@@ -76,17 +88,22 @@ ccw --debug <url>    # Enable debug mode
 DEBUG_MODE=true ccw <url>              # Enable verbose output
 CCW_THEME=modern ccw <url>             # Set UI theme
 CCW_ANIMATIONS=false ccw <url>         # Disable animations
+CCW_CONSOLE_MODE=true ccw <url>        # Force CI-friendly console mode
 ```
 
 ## Workflow
 
-CCW follows a 9-step automated workflow with real-time progress tracking:
+CCW follows a 9-step automated workflow with real-time progress tracking and intelligent error recovery:
 
 1. **Setting up worktree**: Creates isolated git worktree with unique branch name
 2. **Fetching issue data**: Retrieves comprehensive issue information using `gh api`
 3. **Generating analysis**: Prepares implementation context and strategy
 4. **Running Claude Code**: Launches automated implementation with issue context
-5. **Validating implementation**: Runs comprehensive quality checks (SwiftLint, build, tests)
+5. **Validating implementation**: Runs comprehensive quality checks with automatic recovery
+   - **Primary validation**: SwiftLint, build, and test execution
+   - **Error detection**: Identifies recoverable validation failures
+   - **Recovery attempts**: Up to 3 automatic retry attempts with Claude Code
+   - **Error context**: Detailed error analysis and fix suggestions
 6. **Committing changes**: **REQUIRED STEP** - Creates git commit with all changes before PR creation
 7. **Generating PR description**: Creates AI-powered comprehensive PR description
 8. **Creating pull request**: Submits PR with enhanced description using `gh pr create`
@@ -98,6 +115,43 @@ CCW follows a 9-step automated workflow with real-time progress tracking:
 - **Synchronous operation**: Commit step cannot be run in parallel with PR creation
 - **All changes must be staged**: Ensure all implementation changes are committed
 - **Conventional commit format**: Follow project standards for commit messages
+
+### 🔄 Validation Error Recovery
+
+CCW includes an intelligent validation error recovery system that automatically attempts to fix common validation failures:
+
+#### How Recovery Works
+1. **Error Detection**: After initial validation fails, CCW analyzes errors for recoverability
+2. **Recovery Attempts**: Makes up to 3 attempts to fix validation errors
+3. **Claude Code Integration**: Calls Claude Code with detailed error context for each attempt
+4. **Progressive Fixes**: Each attempt builds on previous fixes and remaining errors
+
+#### Recoverable Error Types
+- **SwiftLint Errors**: Code style, formatting, naming conventions, unused imports
+- **Build Errors**: Compilation issues, missing imports, type mismatches, syntax errors
+- **Test Failures**: Test logic issues, assertion failures, test data problems
+
+#### Recovery Features
+- **Detailed Error Analysis**: Groups errors by type with file/line information
+- **Recovery Suggestions**: Provides specific fix guidance for each error type
+- **Progress Tracking**: Shows recovery attempts in real-time with status updates
+- **Intelligent Context**: Passes comprehensive error details to Claude Code for targeted fixes
+
+#### Configuration
+Recovery behavior can be configured via `ccw.yaml`:
+```yaml
+validation_recovery:
+  enabled: true                    # Enable/disable recovery
+  max_attempts: 3                  # Maximum recovery attempts
+  recovery_timeout: "600s"         # Timeout per recovery attempt
+  delay_between_attempts: "10s"    # Delay between attempts
+  recoverable_error_types:         # Error types to attempt recovery
+    - lint
+    - build
+    - test
+  auto_fix_enabled: true           # Enable automatic SwiftLint fixes
+  verbose_output: false            # Show detailed recovery output
+```
 
 ### Enhanced Features
 - **Smart Change Detection**: Only runs validation when actual changes are detected

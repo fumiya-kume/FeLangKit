@@ -2,10 +2,23 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"ccw/types"
 )
+
+// getConsoleChar returns console-safe characters based on CI environment
+func getConsoleChar(fancy, simple string) string {
+	if os.Getenv("CCW_CONSOLE_MODE") == "true" || 
+	   os.Getenv("CI") == "true" || 
+	   os.Getenv("GITHUB_ACTIONS") == "true" ||
+	   os.Getenv("GITLAB_CI") == "true" ||
+	   os.Getenv("JENKINS_URL") != "" {
+		return simple
+	}
+	return fancy
+}
 
 // ExecuteAsyncPRWorkflow handles the async PR creation workflow
 func (app *CCWApp) ExecuteAsyncPRWorkflow(issue *types.Issue, worktreePath, branchName string, validationResult *types.ValidationResult) error {
@@ -22,7 +35,8 @@ func (app *CCWApp) ExecuteAsyncPRWorkflow(issue *types.Issue, worktreePath, bran
 	summaryResultChan := app.claudeIntegration.GenerateImplementationSummaryAsync(worktreePath)
 
 	// Display progress while waiting for async operations
-	app.ui.Info("⏳ Generating implementation summary...")
+	loadingIcon := getConsoleChar("⏳", "[GENERATING]")
+	app.ui.Info(fmt.Sprintf("%s Generating implementation summary...", loadingIcon))
 
 	// Wait for implementation summary with timeout
 	implementationSummary := app.waitForImplementationSummary(summaryResultChan)
@@ -46,11 +60,13 @@ func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.I
 			app.ui.Warning(fmt.Sprintf("Implementation summary generation failed: %v", summaryResult.Error))
 			return "Implementation completed with changes."
 		} else {
-			app.ui.Success("✅ Implementation summary generated")
+			successIcon := getConsoleChar("✅", "[SUCCESS]")
+			app.ui.Success(fmt.Sprintf("%s Implementation summary generated", successIcon))
 			return summaryResult.Summary
 		}
 	case <-time.After(30 * time.Second):
-		app.ui.Warning("⚠️ Implementation summary generation timed out")
+		warningIcon := getConsoleChar("⚠️", "[WARNING]")
+		app.ui.Warning(fmt.Sprintf("%s Implementation summary generation timed out", warningIcon))
 		return "Implementation completed with changes."
 	}
 }
@@ -81,7 +97,8 @@ func (app *CCWApp) pushChangesToRemote(branchName, worktreePath string) error {
 func (app *CCWApp) createPullRequestAsync(issue *types.Issue, validationResult *types.ValidationResult, implementationSummary, branchName, worktreePath string) error {
 	// Step 3: Start PR description generation (async)
 	app.ui.UpdateProgress("pr_creation", "in_progress")
-	app.ui.Info("⏳ Generating PR description...")
+	loadingIcon := getConsoleChar("⏳", "[GENERATING]")
+	app.ui.Info(fmt.Sprintf("%s Generating PR description...", loadingIcon))
 
 	prDescRequest := &types.PRDescriptionRequest{
 		Issue: issue,
@@ -116,18 +133,21 @@ func (app *CCWApp) waitForPRDescription(prDescResultChan <-chan types.PRDescript
 			app.ui.Warning(fmt.Sprintf("PR description generation failed: %v", prDescResult.Error))
 			return app.claudeIntegration.CreateEnhancedPRDescription(prDescRequest)
 		} else {
-			app.ui.Success("✅ PR description generated")
+			successIcon := getConsoleChar("✅", "[SUCCESS]")
+			app.ui.Success(fmt.Sprintf("%s PR description generated", successIcon))
 			return prDescResult.Description
 		}
 	case <-time.After(2 * time.Minute): // Longer timeout for PR description
-		app.ui.Warning("⚠️ PR description generation timed out, using fallback")
+		warningIcon := getConsoleChar("⚠️", "[WARNING]")
+		app.ui.Warning(fmt.Sprintf("%s PR description generation timed out, using fallback", warningIcon))
 		return app.claudeIntegration.CreateEnhancedPRDescription(prDescRequest)
 	}
 }
 
 // createAndMonitorPR creates PR and monitors CI checks
 func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchName, worktreePath string) error {
-	app.ui.Info("⏳ Creating pull request...")
+	loadingIcon := getConsoleChar("⏳", "[CREATING]")
+	app.ui.Info(fmt.Sprintf("%s Creating pull request...", loadingIcon))
 	prRequest := &types.PRRequest{
 		Title: fmt.Sprintf("Resolve #%d: %s", issue.Number, issue.Title),
 		Body:  prDescription,
@@ -147,7 +167,8 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 		}
 		
 		app.ui.UpdateProgress("pr_creation", "completed")
-		app.ui.Success(fmt.Sprintf("✅ Pull request created: %s", prResult.PullRequest.HTMLURL))
+		successIcon := getConsoleChar("✅", "[SUCCESS]")
+		app.ui.Success(fmt.Sprintf("%s Pull request created: %s", successIcon, prResult.PullRequest.HTMLURL))
 		
 		// Step 5: Monitor CI checks (async, optional)
 		app.monitorCIChecks(prResult.PullRequest.HTMLURL)
@@ -158,7 +179,8 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 	}
 
 	app.ui.UpdateProgress("complete", "completed")
-	app.ui.Success("🎉 Async workflow completed successfully!")
+	celebrationIcon := getConsoleChar("🎉", "[COMPLETE]")
+	app.ui.Success(fmt.Sprintf("%s Async workflow completed successfully!", celebrationIcon))
 	
 	// Cleanup worktree
 	app.cleanupWorktree(worktreePath)
@@ -168,7 +190,8 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 
 // monitorCIChecks monitors CI checks asynchronously
 func (app *CCWApp) monitorCIChecks(prURL string) {
-	app.ui.Info("⏳ Monitoring CI checks...")
+	loadingIcon := getConsoleChar("⏳", "[MONITORING]")
+	app.ui.Info(fmt.Sprintf("%s Monitoring CI checks...", loadingIcon))
 	ciResultChan := app.prManager.MonitorPRChecksAsync(prURL, 5*time.Minute)
 	
 	select {

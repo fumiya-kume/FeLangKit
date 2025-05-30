@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"ccw/commit"
@@ -12,6 +13,18 @@ import (
 	"ccw/github"
 	"ccw/types"
 )
+
+// getConsoleChar returns console-safe characters based on CI environment
+func getConsoleCharWorkflow(fancy, simple string) string {
+	if os.Getenv("CCW_CONSOLE_MODE") == "true" || 
+	   os.Getenv("CI") == "true" || 
+	   os.Getenv("GITHUB_ACTIONS") == "true" ||
+	   os.Getenv("GITLAB_CI") == "true" ||
+	   os.Getenv("JENKINS_URL") != "" {
+		return simple
+	}
+	return fancy
+}
 
 // ExecuteListWorkflow handles interactive issue selection workflow
 func (app *CCWApp) ExecuteListWorkflow(repoURL string, state string, labels []string, limit int) error {
@@ -139,8 +152,8 @@ func (app *CCWApp) ExecuteWorkflow(issueURL string) error {
 		return err
 	}
 
-	// Step 5: Validate implementation
-	validationResult, err := app.validateImplementation()
+	// Step 5: Validate implementation with recovery
+	validationResult, err := app.validateImplementationWithRecovery(issue)
 	if err != nil {
 		return err
 	}
@@ -152,15 +165,18 @@ func (app *CCWApp) ExecuteWorkflow(issueURL string) error {
 		}
 		
 		// Step 7: Execute async PR workflow after successful commit
-		return app.executeAsyncWorkflow(issue, validationResult)
+		// Convert back to git.ValidationResult for async workflow
+		gitValidationForAsync := convertTypesToGitValidationResult(validationResult)
+		return app.executeAsyncWorkflow(issue, gitValidationForAsync)
 	}
 
-	app.ui.Warning("Implementation validation failed")
-	app.logger.Error("workflow", "Implementation validation failed", map[string]interface{}{
+	app.ui.Warning("Implementation validation failed after all recovery attempts")
+	app.logger.Error("workflow", "Implementation validation failed after recovery", map[string]interface{}{
 		"validation_errors": validationResult.Errors,
 		"worktree_path":     app.worktreeConfig.WorktreePath,
+		"recovery_attempts": app.config.MaxRetries,
 	})
-	return fmt.Errorf("validation failed")
+	return fmt.Errorf("validation failed after %d recovery attempts", app.config.MaxRetries)
 }
 
 // setupDevelopmentEnvironment creates worktree and saves issue data
@@ -375,7 +391,8 @@ func (app *CCWApp) commitChanges(issue *types.Issue) error {
 	})
 	
 	app.ui.UpdateProgress("commit", "completed")
-	app.ui.Success("✅ Changes committed successfully!")
+	successIcon := getConsoleCharWorkflow("✅", "[SUCCESS]")
+	app.ui.Success(fmt.Sprintf("%s Changes committed successfully!", successIcon))
 	
 	return nil
 }
@@ -419,4 +436,313 @@ func (app *CCWApp) traceFunction(funcName string, params map[string]interface{})
 	if os.Getenv("TRACE_MODE") == "true" {
 		app.logger.Debug("trace", fmt.Sprintf("FUNCTION: %s", funcName), params)
 	}
+}
+
+// convertGitValidationResultToTypes converts git.ValidationResult to types.ValidationResult
+func convertGitValidationResultToTypes(gitResult *git.ValidationResult) *types.ValidationResult {
+	if gitResult == nil {
+		return nil
+	}
+	
+	// Convert errors
+	var errors []types.ValidationError
+	for _, err := range gitResult.Errors {
+		errors = append(errors, types.ValidationError{
+			Type:        err.Type,
+			Message:     err.Message,
+			File:        err.File,
+			Line:        err.Line,
+			Recoverable: err.Recoverable,
+		})
+	}
+	
+	// Convert LintResult
+	var lintResult *types.LintResult
+	if gitResult.LintResult != nil {
+		lintResult = &types.LintResult{
+			Success:   gitResult.LintResult.Success,
+			Output:    gitResult.LintResult.Output,
+			Errors:    gitResult.LintResult.Errors,
+			Warnings:  gitResult.LintResult.Warnings,
+			AutoFixed: gitResult.LintResult.AutoFixed,
+		}
+	}
+	
+	// Convert BuildResult
+	var buildResult *types.BuildResult
+	if gitResult.BuildResult != nil {
+		buildResult = &types.BuildResult{
+			Success: gitResult.BuildResult.Success,
+			Output:  gitResult.BuildResult.Output,
+			Error:   gitResult.BuildResult.Error,
+		}
+	}
+	
+	// Convert TestResult
+	var testResult *types.TestResult
+	if gitResult.TestResult != nil {
+		testResult = &types.TestResult{
+			Success:   gitResult.TestResult.Success,
+			Output:    gitResult.TestResult.Output,
+			TestCount: gitResult.TestResult.TestCount,
+			Passed:    gitResult.TestResult.Passed,
+			Failed:    gitResult.TestResult.Failed,
+		}
+	}
+	
+	return &types.ValidationResult{
+		Success:     gitResult.Success,
+		LintResult:  lintResult,
+		BuildResult: buildResult,
+		TestResult:  testResult,
+		Errors:      errors,
+		Duration:    gitResult.Duration,
+		Timestamp:   gitResult.Timestamp,
+	}
+}
+
+// convertGitWorktreeConfigToTypes converts git.WorktreeConfig to types.WorktreeConfig
+func convertGitWorktreeConfigToTypes(gitConfig *git.WorktreeConfig) *types.WorktreeConfig {
+	if gitConfig == nil {
+		return nil
+	}
+	
+	return &types.WorktreeConfig{
+		BasePath:     gitConfig.BasePath,
+		BranchName:   gitConfig.BranchName,
+		WorktreePath: gitConfig.WorktreePath,
+		IssueNumber:  gitConfig.IssueNumber,
+		CreatedAt:    gitConfig.CreatedAt,
+		Owner:        gitConfig.Owner,
+		Repository:   gitConfig.Repository,
+		IssueURL:     gitConfig.IssueURL,
+	}
+}
+
+// convertTypesToGitValidationResult converts types.ValidationResult to git.ValidationResult
+func convertTypesToGitValidationResult(typesResult *types.ValidationResult) *git.ValidationResult {
+	if typesResult == nil {
+		return nil
+	}
+	
+	// Convert errors
+	var errors []git.ValidationError
+	for _, err := range typesResult.Errors {
+		errors = append(errors, git.ValidationError{
+			Type:        err.Type,
+			Message:     err.Message,
+			File:        err.File,
+			Line:        err.Line,
+			Recoverable: err.Recoverable,
+		})
+	}
+	
+	// Convert LintResult
+	var lintResult *git.LintResult
+	if typesResult.LintResult != nil {
+		lintResult = &git.LintResult{
+			Success:   typesResult.LintResult.Success,
+			Output:    typesResult.LintResult.Output,
+			Errors:    typesResult.LintResult.Errors,
+			Warnings:  typesResult.LintResult.Warnings,
+			AutoFixed: typesResult.LintResult.AutoFixed,
+		}
+	}
+	
+	// Convert BuildResult
+	var buildResult *git.BuildResult
+	if typesResult.BuildResult != nil {
+		buildResult = &git.BuildResult{
+			Success: typesResult.BuildResult.Success,
+			Output:  typesResult.BuildResult.Output,
+			Error:   typesResult.BuildResult.Error,
+		}
+	}
+	
+	// Convert TestResult
+	var testResult *git.TestResult
+	if typesResult.TestResult != nil {
+		testResult = &git.TestResult{
+			Success:   typesResult.TestResult.Success,
+			Output:    typesResult.TestResult.Output,
+			TestCount: typesResult.TestResult.TestCount,
+			Passed:    typesResult.TestResult.Passed,
+			Failed:    typesResult.TestResult.Failed,
+		}
+	}
+	
+	return &git.ValidationResult{
+		Success:     typesResult.Success,
+		LintResult:  lintResult,
+		BuildResult: buildResult,
+		TestResult:  testResult,
+		Errors:      errors,
+		Duration:    typesResult.Duration,
+		Timestamp:   typesResult.Timestamp,
+	}
+}
+
+// validateImplementationWithRecovery validates implementation and attempts recovery on failure
+func (app *CCWApp) validateImplementationWithRecovery(issue *types.Issue) (*types.ValidationResult, error) {
+	app.ui.UpdateProgress("validation", "in_progress")
+	
+	// First validation attempt
+	gitValidationResult, err := app.validateImplementation()
+	if err != nil {
+		app.ui.UpdateProgress("validation", "failed")
+		return nil, err
+	}
+	
+	// Convert to types.ValidationResult
+	validationResult := convertGitValidationResultToTypes(gitValidationResult)
+	
+	// If validation succeeds, we're done
+	if validationResult.Success {
+		app.ui.UpdateProgress("validation", "completed")
+		app.ui.Success("Validation passed on first attempt")
+		return validationResult, nil
+	}
+	
+	// Check if any errors are recoverable
+	hasRecoverableErrors := false
+	for _, validationError := range validationResult.Errors {
+		if validationError.Recoverable {
+			hasRecoverableErrors = true
+			break
+		}
+	}
+	
+	if !hasRecoverableErrors {
+		app.ui.UpdateProgress("validation", "failed")
+		app.ui.Warning("Validation failed with non-recoverable errors")
+		return validationResult, nil
+	}
+	
+	// Attempt recovery
+	app.ui.Warning("Validation failed, attempting automatic recovery...")
+	app.logger.Info("workflow", "Starting validation recovery process", map[string]interface{}{
+		"initial_errors": len(validationResult.Errors),
+		"max_retries":    app.config.MaxRetries,
+	})
+	
+	for attempt := 1; attempt <= app.config.MaxRetries; attempt++ {
+		app.ui.Info(fmt.Sprintf("Recovery attempt %d of %d", attempt, app.config.MaxRetries))
+		
+		// Run Claude Code with error context to fix issues
+		if err := app.runRecoveryImplementation(issue, validationResult, attempt); err != nil {
+			app.logger.Error("workflow", "Recovery implementation failed", map[string]interface{}{
+				"attempt": attempt,
+				"error":   err.Error(),
+			})
+			app.ui.Warning(fmt.Sprintf("Recovery attempt %d failed: %v", attempt, err))
+			continue
+		}
+		
+		// Re-validate after recovery attempt
+		gitRecoveryResult, err := app.validateImplementation()
+		if err != nil {
+			app.logger.Error("workflow", "Validation after recovery failed", map[string]interface{}{
+				"attempt": attempt,
+				"error":   err.Error(),
+			})
+			continue
+		}
+		
+		// Convert to types.ValidationResult
+		recoveryResult := convertGitValidationResultToTypes(gitRecoveryResult)
+		
+		// Check if recovery was successful
+		if recoveryResult.Success {
+			app.ui.UpdateProgress("validation", "completed")
+			app.ui.Success(fmt.Sprintf("Validation recovered successfully on attempt %d", attempt))
+			app.logger.Info("workflow", "Validation recovery successful", map[string]interface{}{
+				"successful_attempt": attempt,
+				"total_attempts":     attempt,
+			})
+			return recoveryResult, nil
+		}
+		
+		// Log progress for this attempt
+		app.logger.Info("workflow", "Recovery attempt completed", map[string]interface{}{
+			"attempt":         attempt,
+			"still_has_errors": len(recoveryResult.Errors),
+			"previous_errors":  len(validationResult.Errors),
+		})
+		
+		// Update validation result for next iteration
+		validationResult = recoveryResult
+		
+		app.ui.Warning(fmt.Sprintf("Recovery attempt %d completed but validation still failing (%d errors)", 
+			attempt, len(recoveryResult.Errors)))
+	}
+	
+	// All recovery attempts failed
+	app.ui.UpdateProgress("validation", "failed")
+	app.ui.Error(fmt.Sprintf("All %d recovery attempts failed", app.config.MaxRetries))
+	return validationResult, nil
+}
+
+// runRecoveryImplementation executes Claude Code with validation error context
+func (app *CCWApp) runRecoveryImplementation(issue *types.Issue, validationResult *types.ValidationResult, attempt int) error {
+	app.debugStep("recovery", "Running recovery implementation", map[string]interface{}{
+		"attempt":     attempt,
+		"error_count": len(validationResult.Errors),
+	})
+	
+	// Prepare Claude context with validation errors
+	claudeContext := &types.ClaudeContext{
+		IssueData:         issue,
+		WorktreeConfig:    convertGitWorktreeConfigToTypes(app.worktreeConfig),
+		ProjectPath:       app.worktreeConfig.WorktreePath,
+		IsRetry:           true,
+		RetryAttempt:      attempt,
+		ValidationErrors:  validationResult.Errors,
+		MaxRetries:        app.config.MaxRetries,
+		TaskType:          "implementation",
+	}
+	
+	// Execute Claude Code in recovery mode
+	app.ui.Info(fmt.Sprintf("Running Claude Code for recovery (attempt %d)...", attempt))
+	
+	// Show validation error summary
+	errorSummary := app.formatValidationErrorsForDisplay(validationResult)
+	app.ui.Info("Errors to fix:")
+	fmt.Println(errorSummary)
+	
+	if err := app.claudeIntegration.RunWithContext(claudeContext); err != nil {
+		return fmt.Errorf("Claude Code recovery execution failed: %w", err)
+	}
+	
+	app.ui.Success(fmt.Sprintf("Recovery attempt %d completed", attempt))
+	return nil
+}
+
+// formatValidationErrorsForDisplay formats validation errors for user display
+func (app *CCWApp) formatValidationErrorsForDisplay(result *types.ValidationResult) string {
+	if len(result.Errors) == 0 {
+		return "No errors found"
+	}
+	
+	var output strings.Builder
+	
+	// Group errors by type
+	errorsByType := make(map[string][]types.ValidationError)
+	for _, err := range result.Errors {
+		errorsByType[err.Type] = append(errorsByType[err.Type], err)
+	}
+	
+	// Format each type
+	for errorType, errors := range errorsByType {
+		output.WriteString(fmt.Sprintf("  %s (%d errors):\n", strings.ToUpper(errorType), len(errors)))
+		for _, err := range errors {
+			if err.File != "" && err.Line > 0 {
+				output.WriteString(fmt.Sprintf("    - %s:%d: %s\n", err.File, err.Line, err.Message))
+			} else {
+				output.WriteString(fmt.Sprintf("    - %s\n", err.Message))
+			}
+		}
+		output.WriteString("\n")
+	}
+	
+	return output.String()
 }

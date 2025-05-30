@@ -29,6 +29,9 @@ type CCWConfig struct {
 	
 	// Claude Configuration
 	Claude ClaudeConfiguration `yaml:"claude" json:"claude"`
+	
+	// Validation Recovery Configuration
+	ValidationRecovery ValidationRecoveryConfiguration `yaml:"validation_recovery" json:"validation_recovery"`
 }
 
 // UI Configuration
@@ -88,6 +91,17 @@ type ClaudeConfiguration struct {
 	Model                 string `yaml:"model" json:"model"`
 	Context               string `yaml:"context" json:"context"`
 	EnhancedCommitMessage bool   `yaml:"enhanced_commit_message" json:"enhanced_commit_message"`
+}
+
+// Validation Recovery Configuration
+type ValidationRecoveryConfiguration struct {
+	Enabled               bool     `yaml:"enabled" json:"enabled"`
+	MaxAttempts           int      `yaml:"max_attempts" json:"max_attempts"`
+	RecoveryTimeout       string   `yaml:"recovery_timeout" json:"recovery_timeout"`
+	DelayBetweenAttempts  string   `yaml:"delay_between_attempts" json:"delay_between_attempts"`
+	RecoverableErrorTypes []string `yaml:"recoverable_error_types" json:"recoverable_error_types"`
+	AutoFixEnabled        bool     `yaml:"auto_fix_enabled" json:"auto_fix_enabled"`
+	VerboseOutput         bool     `yaml:"verbose_output" json:"verbose_output"`
 }
 
 // Legacy Config struct for backward compatibility

@@ -108,6 +108,23 @@ func (ui *UIManager) initializeAdvancedTerminal() {
 	ui.applyPlatformSettings()
 }
 
+// isConsoleMode checks if we're running in console mode (CI-friendly)
+func (ui *UIManager) isConsoleMode() bool {
+	return os.Getenv("CCW_CONSOLE_MODE") == "true" || 
+		   os.Getenv("CI") == "true" || 
+		   os.Getenv("GITHUB_ACTIONS") == "true" ||
+		   os.Getenv("GITLAB_CI") == "true" ||
+		   os.Getenv("JENKINS_URL") != ""
+}
+
+// getConsoleChar returns console-safe characters based on mode
+func (ui *UIManager) getConsoleChar(fancy, simple string) string {
+	if ui.isConsoleMode() {
+		return simple
+	}
+	return fancy
+}
+
 // Apply platform-specific terminal settings
 func (ui *UIManager) applyPlatformSettings() {
 	platformInfo := platform.GetPlatformInfo()
@@ -203,21 +220,30 @@ func (ui *UIManager) InitializeProgress() {
 func (ui *UIManager) DisplayHeader() {
 	fmt.Print("\n")
 	
-	if ui.currentTheme.BorderStyle == "double" {
-		fmt.Println(ui.accentColor("╔══════════════════════════════════════════════════════════════╗"))
-		fmt.Println(ui.accentColor("║                    CCW - Claude Code Worktree               ║"))
-		fmt.Println(ui.accentColor("║               Automated Issue Processing Tool               ║"))
-		fmt.Println(ui.accentColor("╚══════════════════════════════════════════════════════════════╝"))
-	} else if ui.currentTheme.BorderStyle == "rounded" {
-		fmt.Println(ui.accentColor("╭──────────────────────────────────────────────────────────────╮"))
-		fmt.Println(ui.accentColor("│                    CCW - Claude Code Worktree               │"))
-		fmt.Println(ui.accentColor("│               Automated Issue Processing Tool               │"))
-		fmt.Println(ui.accentColor("╰──────────────────────────────────────────────────────────────╯"))
-	} else { // single
-		fmt.Println(ui.accentColor("┌──────────────────────────────────────────────────────────────┐"))
-		fmt.Println(ui.accentColor("│                    CCW - Claude Code Worktree               │"))
-		fmt.Println(ui.accentColor("│               Automated Issue Processing Tool               │"))
-		fmt.Println(ui.accentColor("└──────────────────────────────────────────────────────────────┘"))
+	if ui.isConsoleMode() {
+		// Console mode: use simple ASCII characters
+		fmt.Println(ui.accentColor("================================================================"))
+		fmt.Println(ui.accentColor("                    CCW - Claude Code Worktree                 "))
+		fmt.Println(ui.accentColor("               Automated Issue Processing Tool                 "))
+		fmt.Println(ui.accentColor("================================================================"))
+	} else {
+		// Interactive mode: use fancy Unicode characters
+		if ui.currentTheme.BorderStyle == "double" {
+			fmt.Println(ui.accentColor("╔══════════════════════════════════════════════════════════════╗"))
+			fmt.Println(ui.accentColor("║                    CCW - Claude Code Worktree               ║"))
+			fmt.Println(ui.accentColor("║               Automated Issue Processing Tool               ║"))
+			fmt.Println(ui.accentColor("╚══════════════════════════════════════════════════════════════╝"))
+		} else if ui.currentTheme.BorderStyle == "rounded" {
+			fmt.Println(ui.accentColor("╭──────────────────────────────────────────────────────────────╮"))
+			fmt.Println(ui.accentColor("│                    CCW - Claude Code Worktree               │"))
+			fmt.Println(ui.accentColor("│               Automated Issue Processing Tool               │"))
+			fmt.Println(ui.accentColor("╰──────────────────────────────────────────────────────────────╯"))
+		} else { // single
+			fmt.Println(ui.accentColor("┌──────────────────────────────────────────────────────────────┐"))
+			fmt.Println(ui.accentColor("│                    CCW - Claude Code Worktree               │"))
+			fmt.Println(ui.accentColor("│               Automated Issue Processing Tool               │"))
+			fmt.Println(ui.accentColor("└──────────────────────────────────────────────────────────────┘"))
+		}
 	}
 	
 	fmt.Print("\n")
@@ -225,14 +251,20 @@ func (ui *UIManager) DisplayHeader() {
 
 // Display validation results with visual formatting
 func (ui *UIManager) DisplayValidationResults(result *types.ValidationResult) {
-	fmt.Println(ui.primaryColor("🔍 Validation Results"))
-	fmt.Println(strings.Repeat("─", 50))
+	title := ui.getConsoleChar("🔍 Validation Results", "Validation Results")
+	separator := ui.getConsoleChar("─", "-")
+	
+	fmt.Println(ui.primaryColor(title))
+	fmt.Println(strings.Repeat(separator, 50))
 
 	if result.LintResult != nil {
-		status := "✅ PASSED"
+		passedIcon := ui.getConsoleChar("✅", "[PASS]")
+		failedIcon := ui.getConsoleChar("❌", "[FAIL]")
+		
+		status := passedIcon + " PASSED"
 		color := ui.successColor
 		if !result.LintResult.Success {
-			status = "❌ FAILED"
+			status = failedIcon + " FAILED"
 			color = ui.errorColorFunc
 		}
 		fmt.Printf("SwiftLint: %s", color(status))
@@ -243,20 +275,26 @@ func (ui *UIManager) DisplayValidationResults(result *types.ValidationResult) {
 	}
 
 	if result.BuildResult != nil {
-		status := "✅ PASSED"
+		passedIcon := ui.getConsoleChar("✅", "[PASS]")
+		failedIcon := ui.getConsoleChar("❌", "[FAIL]")
+		
+		status := passedIcon + " PASSED"
 		color := ui.successColor
 		if !result.BuildResult.Success {
-			status = "❌ FAILED"
+			status = failedIcon + " FAILED"
 			color = ui.errorColorFunc
 		}
 		fmt.Printf("Build:     %s\n", color(status))
 	}
 
 	if result.TestResult != nil {
-		status := "✅ PASSED"
+		passedIcon := ui.getConsoleChar("✅", "[PASS]")
+		failedIcon := ui.getConsoleChar("❌", "[FAIL]")
+		
+		status := passedIcon + " PASSED"
 		color := ui.successColor
 		if !result.TestResult.Success {
-			status = "❌ FAILED"
+			status = failedIcon + " FAILED"
 			color = ui.errorColorFunc
 		}
 		fmt.Printf("Tests:     %s", color(status))
