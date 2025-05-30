@@ -255,37 +255,66 @@ When creating pull requests (handled automatically by claude.sh), the descriptio
 
 ```markdown
 ## Summary
-Brief overview of the changes made
+Concise overview of what this PR accomplishes and its main value
 
-## Background
-- **Motivation:** Why this change was needed
-- **Problem Statement:** What issue this solves
-- **Decision Rationale:** Why this approach was chosen over alternatives
+## Background & Context
+Provide detailed background about the issue and context:
+- **Original Issue:** Detailed explanation of the problem that was reported or identified
+- **Root Cause:** What was causing the issue (if applicable)
+- **User Impact:** How this issue affected users or the development process
+- **Previous State:** Describe how things worked before this change
+- **Requirements:** What specific requirements needed to be met
 
-## Implementation
-- **Approach:** High-level implementation strategy
-- **Key Changes:** List of major changes made
-- **Files Modified:** List of modified/created files
-- **Design Decisions:** Important design choices and their reasoning
+## Solution Approach
+Explain the solution and reasoning in detail:
+- **Core Solution:** Clear explanation of how this PR solves the identified problem
+- **Technical Strategy:** The overall technical approach chosen
+- **Logic & Reasoning:** Detailed explanation of the implementation logic and why this approach was selected
+- **Alternative Approaches:** Briefly mention other approaches considered and why they were not chosen
+- **Architecture Changes:** Any changes to the overall system architecture or design patterns
 
-## Testing
-- **Test Coverage:** Description of tests added/updated
-- **Validation Steps:** Steps taken to validate the implementation
-- **Quality Checks:** SwiftLint, build, test results
+## Implementation Details
+Technical implementation breakdown:
+- **Key Components:** Main components or modules that were modified/added
+- **Code Changes:** Detailed explanation of the major code changes made
+- **Files Modified:** List of files changed with brief explanation of changes in each
+- **New Functionality:** Any new features or capabilities added
+- **Integration Points:** How this change integrates with existing code
+- **Error Handling:** How errors and edge cases are handled
 
-## Impact
-- **Breaking Changes:** Any breaking changes (or 'None')
-- **Performance Impact:** Expected performance implications
-- **Future Considerations:** How this enables future work
+## Technical Logic
+Explain the technical reasoning and logic:
+- **Algorithm/Logic:** Step-by-step explanation of key algorithms or logic implemented
+- **Data Flow:** How data flows through the new/modified components
+- **Performance Considerations:** Any performance optimizations or trade-offs made
+- **Security Considerations:** Security implications and measures taken
+- **Backwards Compatibility:** How backwards compatibility is maintained (if applicable)
+
+## Testing & Validation
+Comprehensive testing approach:
+- **Test Strategy:** Overall testing approach used
+- **Test Coverage:** Specific tests added and what they validate
+- **Manual Testing:** Manual testing performed and results
+- **Edge Cases:** Edge cases tested and how they are handled
+- **Quality Assurance:** SwiftLint, build, and test results
+
+## Impact & Future Work
+Analysis of impact and future implications:
+- **Breaking Changes:** Any breaking changes with migration guidance
+- **Performance Impact:** Measured or expected performance changes
+- **Maintenance Impact:** How this affects ongoing maintenance
+- **Future Enhancements:** How this change enables or supports future work
+- **Technical Debt:** Any technical debt introduced or resolved
 ```
 
 **Key Requirements:**
-- **Markdown Format**: All PR descriptions must use clean, readable Markdown structure
-- **Include Background Context**: Explain the reasoning behind decisions made
-- **Decision Rationale**: Justify why specific approaches were chosen
-- **Implementation Details**: Provide sufficient detail for reviewers to understand changes
-- **Quality Validation**: Document all validation steps performed
-- **Future Impact**: Explain how changes support project evolution
+- **Comprehensive Context**: Provide detailed background about the original issue, root cause, and user impact
+- **Solution Explanation**: Clearly explain how the problem is solved and why this approach was chosen
+- **Technical Logic**: Include step-by-step explanation of key algorithms, data flow, and technical reasoning
+- **Implementation Details**: Describe key components, integration points, and error handling approaches
+- **Alternative Analysis**: Mention other approaches considered and rationale for the chosen solution
+- **Testing Coverage**: Document comprehensive testing strategy including edge cases and manual testing
+- **Future Impact**: Explain how changes support future work and any technical debt implications
 
 ## Recent Work Log
 
