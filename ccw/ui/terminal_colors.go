@@ -9,13 +9,13 @@ import (
 
 // TerminalColorInfo holds detected terminal color information
 type TerminalColorInfo struct {
-	Background      string
-	Foreground      string
-	AccentColor     string
+	Background        string
+	Foreground        string
+	AccentColor       string
 	SupportsTrueColor bool
-	Colors256       bool
-	ThemeType       string // "light", "dark", "auto"
-	DetectionMethod string
+	Colors256         bool
+	ThemeType         string // "light", "dark", "auto"
+	DetectionMethod   string
 }
 
 // DetectTerminalColors attempts to detect terminal color scheme from various sources
@@ -146,7 +146,7 @@ func detectFromTerminalQueries() *TerminalColorInfo {
 	if bg, fg := queryTerminalColors(); bg != "" || fg != "" {
 		info.Background = bg
 		info.Foreground = fg
-		
+
 		// Determine theme type based on background brightness
 		if bg != "" {
 			if isLightColor(bg) {
@@ -165,16 +165,16 @@ func detectFromTerminalQueries() *TerminalColorInfo {
 func queryTerminalColors() (background, foreground string) {
 	// This is a simplified version - in practice, you'd need to handle
 	// terminal responses more carefully and with timeouts
-	
+
 	// Query background color: ESC ] 11 ; ? BEL
 	// Query foreground color: ESC ] 10 ; ? BEL
-	
+
 	// For now, return empty as this requires complex terminal I/O
 	// In a full implementation, you'd:
 	// 1. Send the query
 	// 2. Read response with timeout
 	// 3. Parse the color response
-	
+
 	return "", ""
 }
 
@@ -188,7 +188,7 @@ func detectFromCommonTerminals() *TerminalColorInfo {
 	switch {
 	case termProgram == "iterm.app":
 		// iTerm2 - check for common profile indicators
-		info.ThemeType = "dark" // iTerm2 commonly uses dark themes
+		info.ThemeType = "dark"      // iTerm2 commonly uses dark themes
 		info.AccentColor = "#007AFF" // macOS system blue
 		return info
 
@@ -206,25 +206,25 @@ func detectFromCommonTerminals() *TerminalColorInfo {
 
 	case strings.Contains(termProgram, "gnome"):
 		// GNOME Terminal
-		info.ThemeType = "light" // GNOME often defaults to light
+		info.ThemeType = "light"     // GNOME often defaults to light
 		info.AccentColor = "#3584E4" // GNOME blue
 		return info
 
 	case termProgram == "ghostty":
 		// Ghostty terminal
-		info.ThemeType = "light" // Ghostty often defaults to light
+		info.ThemeType = "light"     // Ghostty often defaults to light
 		info.AccentColor = "#0066CC" // Nice blue
 		return info
 
 	case strings.Contains(termProgram, "alacritty"):
 		// Alacritty
-		info.ThemeType = "dark" // Alacritty commonly uses dark themes
+		info.ThemeType = "dark"      // Alacritty commonly uses dark themes
 		info.AccentColor = "#F38BA8" // Alacritty pink/orange
 		return info
 
 	case strings.Contains(termProgram, "kitty"):
 		// Kitty terminal
-		info.ThemeType = "dark" // Kitty commonly uses dark themes
+		info.ThemeType = "dark"      // Kitty commonly uses dark themes
 		info.AccentColor = "#89B4FA" // Kitty blue
 		return info
 
@@ -236,7 +236,7 @@ func detectFromCommonTerminals() *TerminalColorInfo {
 
 	case os.Getenv("WSLENV") != "":
 		// Windows Subsystem for Linux
-		info.ThemeType = "dark" // WSL terminals are often dark
+		info.ThemeType = "dark"      // WSL terminals are often dark
 		info.AccentColor = "#0078D4" // Windows blue
 		return info
 	}
@@ -248,7 +248,7 @@ func detectFromCommonTerminals() *TerminalColorInfo {
 func isLightColor(colorHex string) bool {
 	// Remove # if present
 	colorHex = strings.TrimPrefix(colorHex, "#")
-	
+
 	// Parse RGB values
 	if len(colorHex) != 6 {
 		return false
@@ -270,9 +270,9 @@ func isLightColor(colorHex string) bool {
 // CreateThemeFromTerminal creates a color theme based on terminal detection
 func CreateThemeFromTerminal() ColorTheme {
 	colorInfo := DetectTerminalColors()
-	
+
 	var theme ColorTheme
-	
+
 	// Use detected accent color if available
 	accentColor := colorInfo.AccentColor
 	if accentColor == "" {
@@ -299,9 +299,9 @@ func CreateThemeFromTerminal() ColorTheme {
 		theme = ColorTheme{
 			Name:               fmt.Sprintf("terminal-light (%s)", colorInfo.DetectionMethod),
 			Primary:            darkenColor(accentColor, 0.3), // Darker for light background
-			Success:            "#006600", // Darker green for light background
-			Error:              "#CC0000", // Darker red for light background
-			Warning:            "#B8860B", // Darker yellow for light background
+			Success:            "#006600",                     // Darker green for light background
+			Error:              "#CC0000",                     // Darker red for light background
+			Warning:            "#B8860B",                     // Darker yellow for light background
 			Info:               darkenColor(accentColor, 0.3),
 			Subtle:             "#555555", // Dark gray for light background
 			Background:         colorInfo.Background,
@@ -316,7 +316,7 @@ func CreateThemeFromTerminal() ColorTheme {
 			Name:               fmt.Sprintf("terminal-auto (%s)", colorInfo.DetectionMethod),
 			Primary:            accentColor,
 			Success:            "#00AA00",
-			Error:              "#CC0000", 
+			Error:              "#CC0000",
 			Warning:            "#FF6600",
 			Info:               accentColor,
 			Subtle:             "#666666",
@@ -333,7 +333,7 @@ func CreateThemeFromTerminal() ColorTheme {
 // darkenColor darkens a hex color by a given factor (0.0 to 1.0)
 func darkenColor(colorHex string, factor float64) string {
 	colorHex = strings.TrimPrefix(colorHex, "#")
-	
+
 	if len(colorHex) != 6 {
 		return colorHex // Return original if invalid
 	}
@@ -352,12 +352,24 @@ func darkenColor(colorHex string, factor float64) string {
 	b = int64(float64(b) * (1.0 - factor))
 
 	// Ensure values stay in valid range
-	if r < 0 { r = 0 }
-	if g < 0 { g = 0 }
-	if b < 0 { b = 0 }
-	if r > 255 { r = 255 }
-	if g > 255 { g = 255 }
-	if b > 255 { b = 255 }
+	if r < 0 {
+		r = 0
+	}
+	if g < 0 {
+		g = 0
+	}
+	if b < 0 {
+		b = 0
+	}
+	if r > 255 {
+		r = 255
+	}
+	if g > 255 {
+		g = 255
+	}
+	if b > 255 {
+		b = 255
+	}
 
 	return fmt.Sprintf("#%02X%02X%02X", r, g, b)
 }
@@ -365,32 +377,32 @@ func darkenColor(colorHex string, factor float64) string {
 // ShowTerminalDetectionInfo displays what was detected about the terminal
 func ShowTerminalDetectionInfo() {
 	colorInfo := DetectTerminalColors()
-	
+
 	fmt.Println("🖥️  Terminal Color Detection Results")
 	fmt.Println("==================================")
 	fmt.Printf("Detection method: %s\n", colorInfo.DetectionMethod)
 	fmt.Printf("Theme type: %s\n", colorInfo.ThemeType)
 	fmt.Printf("True color support: %v\n", colorInfo.SupportsTrueColor)
 	fmt.Printf("256 color support: %v\n", colorInfo.Colors256)
-	
+
 	if colorInfo.AccentColor != "" {
 		fmt.Printf("Detected accent color: %s\n", colorInfo.AccentColor)
 	}
-	
+
 	if colorInfo.Background != "" {
 		fmt.Printf("Background color: %s\n", colorInfo.Background)
 	}
-	
+
 	if colorInfo.Foreground != "" {
 		fmt.Printf("Foreground color: %s\n", colorInfo.Foreground)
 	}
-	
+
 	fmt.Println("\nEnvironment variables:")
 	relevantVars := []string{
-		"TERM", "COLORTERM", "TERM_PROGRAM", "ITERM_PROFILE", 
+		"TERM", "COLORTERM", "TERM_PROGRAM", "ITERM_PROFILE",
 		"VSCODE_THEME_KIND", "THEME", "APPEARANCE", "DARK_MODE",
 	}
-	
+
 	for _, varName := range relevantVars {
 		if value := os.Getenv(varName); value != "" {
 			fmt.Printf("  %s = %s\n", varName, value)

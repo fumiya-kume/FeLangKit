@@ -7,29 +7,29 @@ import "time"
 // CCWConfig represents the complete CCW configuration with YAML support
 type CCWConfig struct {
 	// Core settings
-	WorktreeBase      string `yaml:"worktree_base" json:"worktree_base"`
-	MaxRetries        int    `yaml:"max_retries" json:"max_retries"`
-	ClaudeTimeout     string `yaml:"claude_timeout" json:"claude_timeout"`
-	DebugMode         bool   `yaml:"debug_mode" json:"debug_mode"`
-	
+	WorktreeBase  string `yaml:"worktree_base" json:"worktree_base"`
+	MaxRetries    int    `yaml:"max_retries" json:"max_retries"`
+	ClaudeTimeout string `yaml:"claude_timeout" json:"claude_timeout"`
+	DebugMode     bool   `yaml:"debug_mode" json:"debug_mode"`
+
 	// UI Configuration
 	UI UIConfiguration `yaml:"ui" json:"ui"`
-	
+
 	// Git Configuration
 	Git GitConfiguration `yaml:"git" json:"git"`
-	
+
 	// Logging Configuration
 	Logging LoggingConfiguration `yaml:"logging" json:"logging"`
-	
+
 	// Performance Configuration
 	Performance PerformanceConfiguration `yaml:"performance" json:"performance"`
-	
+
 	// GitHub Configuration
 	GitHub GitHubConfiguration `yaml:"github" json:"github"`
-	
+
 	// Claude Configuration
 	Claude ClaudeConfiguration `yaml:"claude" json:"claude"`
-	
+
 	// Validation Recovery Configuration
 	ValidationRecovery ValidationRecoveryConfiguration `yaml:"validation_recovery" json:"validation_recovery"`
 }
@@ -63,7 +63,7 @@ type LoggingConfiguration struct {
 	MaxAge     int    `yaml:"max_age" json:"max_age"`
 }
 
-// Performance Configuration  
+// Performance Configuration
 type PerformanceConfiguration struct {
 	Level                      int     `yaml:"level" json:"level"`
 	AdaptiveRefresh            bool    `yaml:"adaptive_refresh" json:"adaptive_refresh"`
@@ -106,15 +106,15 @@ type ValidationRecoveryConfiguration struct {
 
 // Legacy Config struct for backward compatibility
 type Config struct {
-	WorktreeBase         string                     `json:"worktree_base"`
-	MaxRetries           int                        `json:"max_retries"`
-	ClaudeTimeout        string                     `json:"claude_timeout"`
-	DebugMode            bool                       `json:"debug_mode"`
-	ThemeName            string                     `json:"theme_name"`
-	AnimationsEnabled    bool                       `json:"animations_enabled"`
-	GitTimeout           string                     `json:"git_timeout,omitempty"`
-	GitRetryAttempts     int                        `json:"git_retry_attempts,omitempty"`
-	PerformanceConfig    *PerformanceConfigLegacy  `json:"performance_config,omitempty"`
+	WorktreeBase      string                   `json:"worktree_base"`
+	MaxRetries        int                      `json:"max_retries"`
+	ClaudeTimeout     string                   `json:"claude_timeout"`
+	DebugMode         bool                     `json:"debug_mode"`
+	ThemeName         string                   `json:"theme_name"`
+	AnimationsEnabled bool                     `json:"animations_enabled"`
+	GitTimeout        string                   `json:"git_timeout,omitempty"`
+	GitRetryAttempts  int                      `json:"git_retry_attempts,omitempty"`
+	PerformanceConfig *PerformanceConfigLegacy `json:"performance_config,omitempty"`
 }
 
 // Legacy performance config for backward compatibility

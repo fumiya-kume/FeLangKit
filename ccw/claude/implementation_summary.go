@@ -11,17 +11,17 @@ import (
 // GenerateImplementationSummaryAsync generates implementation summary asynchronously
 func (ci *ClaudeIntegration) GenerateImplementationSummaryAsync(worktreePath string) <-chan types.ImplementationSummaryResult {
 	resultChan := make(chan types.ImplementationSummaryResult, 1)
-	
+
 	go func() {
 		defer close(resultChan)
-		
+
 		summary, err := ci.GenerateImplementationSummary(worktreePath)
 		resultChan <- types.ImplementationSummaryResult{
 			Summary: summary,
 			Error:   err,
 		}
 	}()
-	
+
 	return resultChan
 }
 
@@ -43,13 +43,13 @@ func (ci *ClaudeIntegration) GenerateImplementationSummary(worktreePath string) 
 	// Parse the changes
 	lines := strings.Split(changes, "\n")
 	var addedFiles, modifiedFiles, deletedFiles []string
-	
+
 	for _, line := range lines {
 		parts := strings.Fields(line)
 		if len(parts) >= 2 {
 			status := parts[0]
 			file := parts[1]
-			
+
 			switch status {
 			case "A":
 				addedFiles = append(addedFiles, file)
@@ -64,7 +64,7 @@ func (ci *ClaudeIntegration) GenerateImplementationSummary(worktreePath string) 
 	// Build summary
 	var summary strings.Builder
 	summary.WriteString("Implementation completed with the following changes:\n")
-	
+
 	if len(addedFiles) > 0 {
 		summary.WriteString(fmt.Sprintf("- Added %d new files: %s\n", len(addedFiles), strings.Join(addedFiles, ", ")))
 	}

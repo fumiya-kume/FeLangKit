@@ -72,7 +72,9 @@
       "Bash(go run:*)",
       "Bash(cp:*)",
       "Bash(git rm:*)",
-      "Bash(./main https://github.com/fumiya-kume/FeLangKit/issues/151)"
+      "Bash(./main https://github.com/fumiya-kume/FeLangKit/issues/151)",
+      "Bash(go fmt:*)",
+      "Bash(go vet:*)"
     ],
     "deny": []
   },

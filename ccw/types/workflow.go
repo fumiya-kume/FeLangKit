@@ -38,15 +38,15 @@ type PRDescriptionRequest struct {
 }
 
 type Config struct {
-	WorktreeBase         string             `json:"worktree_base"`
-	MaxRetries           int                `json:"max_retries"`
-	ClaudeTimeout        string             `json:"claude_timeout"`
-	DebugMode            bool               `json:"debug_mode"`
-	ThemeName            string             `json:"theme_name"`
-	AnimationsEnabled    bool               `json:"animations_enabled"`
-	PerformanceConfig    *PerformanceConfig `json:"performance_config,omitempty"`
-	GitTimeout           string             `json:"git_timeout,omitempty"`
-	GitRetryAttempts     int                `json:"git_retry_attempts,omitempty"`
+	WorktreeBase      string             `json:"worktree_base"`
+	MaxRetries        int                `json:"max_retries"`
+	ClaudeTimeout     string             `json:"claude_timeout"`
+	DebugMode         bool               `json:"debug_mode"`
+	ThemeName         string             `json:"theme_name"`
+	AnimationsEnabled bool               `json:"animations_enabled"`
+	PerformanceConfig *PerformanceConfig `json:"performance_config,omitempty"`
+	GitTimeout        string             `json:"git_timeout,omitempty"`
+	GitRetryAttempts  int                `json:"git_retry_attempts,omitempty"`
 }
 
 // Workflow and progress tracking models

@@ -28,18 +28,18 @@ type ThemeConfig struct {
 }
 
 type UIState struct {
-	HeaderContent            string
-	ScrollRegionSet          bool
-	CursorSaved              bool
-	LastRender               time.Time
-	ContentChanged           bool
-	RenderCount              int64
-	LastContentHash          string
-	ConsecutiveNoChanges     int
-	AdaptiveInterval         time.Duration
-	SkippedRenders           int
-	DirtyRegions             []DirtyRegion
-	ContentCache             *ContentCache
+	HeaderContent        string
+	ScrollRegionSet      bool
+	CursorSaved          bool
+	LastRender           time.Time
+	ContentChanged       bool
+	RenderCount          int64
+	LastContentHash      string
+	ConsecutiveNoChanges int
+	AdaptiveInterval     time.Duration
+	SkippedRenders       int
+	DirtyRegions         []DirtyRegion
+	ContentCache         *ContentCache
 }
 
 type DirtyRegion struct {

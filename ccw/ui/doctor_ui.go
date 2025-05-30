@@ -47,68 +47,78 @@ type SystemCheck struct {
 type DoctorModel struct {
 	sections       []DoctorSection
 	currentSection int
+	currentCheck   int
 	expanded       map[DoctorSection]bool
+	checkExpanded  map[string]bool
 	checks         map[DoctorSection][]SystemCheck
 	windowSize     tea.WindowSizeMsg
 	checking       bool
 	allGood        bool
 	config         *config.CCWConfig
 	configErr      error
+	navigationMode NavigationMode
 }
+
+type NavigationMode int
+
+const (
+	NavigationSections NavigationMode = iota
+	NavigationChecks
+)
 
 // Doctor-specific styles
 var (
 	doctorHeaderStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Background(lipgloss.Color("#0066CC")).
-		Padding(1, 2).
-		Bold(true).
-		Width(80).
-		Align(lipgloss.Center)
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#0066CC")).
+				Padding(1, 2).
+				Bold(true).
+				Width(80).
+				Align(lipgloss.Center)
 
 	sectionHeaderStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#0066CC")).
-		Bold(true).
-		Padding(0, 1).
-		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(lipgloss.Color("#0066CC"))
+				Foreground(lipgloss.Color("#0066CC")).
+				Bold(true).
+				Padding(0, 1).
+				Border(lipgloss.NormalBorder(), false, false, false, true).
+				BorderForeground(lipgloss.Color("#0066CC"))
 
 	checkItemStyle = lipgloss.NewStyle().
-		PaddingLeft(2)
+			PaddingLeft(2)
 
 	statusPassStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#00AA00")).
-		Bold(true)
+			Foreground(lipgloss.Color("#00AA00")).
+			Bold(true)
 
 	statusWarnStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FF6600")).
-		Bold(true)
+			Foreground(lipgloss.Color("#FF6600")).
+			Bold(true)
 
 	statusFailStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#CC0000")).
-		Bold(true)
+			Foreground(lipgloss.Color("#CC0000")).
+			Bold(true)
 
 	statusCheckingStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#0066CC")).
-		Bold(true)
+				Foreground(lipgloss.Color("#0066CC")).
+				Bold(true)
 
 	detailsStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#666666")).
-		PaddingLeft(4)
+			Foreground(lipgloss.Color("#666666")).
+			PaddingLeft(4)
 
 	summaryBoxStyle = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#00AA00")).
-		Foreground(lipgloss.Color("#00AA00")).
-		Padding(1, 2).
-		Margin(1, 0)
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#00AA00")).
+			Foreground(lipgloss.Color("#00AA00")).
+			Padding(1, 2).
+			Margin(1, 0)
 
 	tipsBoxStyle = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#0066CC")).
-		Foreground(lipgloss.Color("#0066CC")).
-		Padding(1, 2).
-		Margin(1, 0)
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#0066CC")).
+			Foreground(lipgloss.Color("#0066CC")).
+			Padding(1, 2).
+			Margin(1, 0)
 )
 
 // Initialize doctor model
@@ -122,6 +132,7 @@ func NewDoctorModel() DoctorModel {
 	}
 
 	expanded := make(map[DoctorSection]bool)
+	checkExpanded := make(map[string]bool)
 	checks := make(map[DoctorSection][]SystemCheck)
 
 	// Initialize all sections as expanded by default
@@ -136,11 +147,14 @@ func NewDoctorModel() DoctorModel {
 	return DoctorModel{
 		sections:       sections,
 		currentSection: 0,
+		currentCheck:   0,
 		expanded:       expanded,
+		checkExpanded:  checkExpanded,
 		checks:         checks,
 		checking:       false,
 		config:         ccwConfig,
 		configErr:      configErr,
+		navigationMode: NavigationSections,
 	}
 }
 
@@ -158,20 +172,58 @@ func (m DoctorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q", "esc":
+		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "esc":
+			// For integrated mode, return a custom message to go back to main menu
+			return m, func() tea.Msg { return BackToMainMenuMsg{} }
 		case "up", "k":
-			if m.currentSection > 0 {
-				m.currentSection--
+			if m.navigationMode == NavigationSections {
+				if m.currentSection > 0 {
+					m.currentSection--
+				}
+			} else if m.navigationMode == NavigationChecks {
+				if m.currentCheck > 0 {
+					m.currentCheck--
+				}
 			}
 		case "down", "j":
-			if m.currentSection < len(m.sections)-1 {
-				m.currentSection++
+			if m.navigationMode == NavigationSections {
+				if m.currentSection < len(m.sections)-1 {
+					m.currentSection++
+				}
+			} else if m.navigationMode == NavigationChecks {
+				currentSectionChecks := m.checks[m.sections[m.currentSection]]
+				if m.currentCheck < len(currentSectionChecks)-1 {
+					m.currentCheck++
+				}
 			}
 		case "enter", " ":
-			// Toggle current section
+			if m.navigationMode == NavigationSections {
+				// Toggle current section
+				section := m.sections[m.currentSection]
+				m.expanded[section] = !m.expanded[section]
+			} else if m.navigationMode == NavigationChecks {
+				// Toggle current check details
+				currentSectionChecks := m.checks[m.sections[m.currentSection]]
+				if m.currentCheck < len(currentSectionChecks) {
+					check := currentSectionChecks[m.currentCheck]
+					checkKey := fmt.Sprintf("%d-%s", m.currentSection, check.Name)
+					m.checkExpanded[checkKey] = !m.checkExpanded[checkKey]
+				}
+			}
+		case "right", "l":
+			// Enter check navigation mode if section is expanded
 			section := m.sections[m.currentSection]
-			m.expanded[section] = !m.expanded[section]
+			if m.expanded[section] && len(m.checks[section]) > 0 {
+				m.navigationMode = NavigationChecks
+				m.currentCheck = 0
+			}
+		case "left", "h":
+			// Return to section navigation mode
+			if m.navigationMode == NavigationChecks {
+				m.navigationMode = NavigationSections
+			}
 		case "r":
 			// Refresh checks
 			m.checking = true
@@ -230,11 +282,15 @@ func (m DoctorModel) View() string {
 	// Sections
 	for i, section := range m.sections {
 		sectionName := m.getSectionName(section)
-		
+
 		// Section header with cursor
 		cursor := "  "
 		if i == m.currentSection {
-			cursor = "▶ "
+			if m.navigationMode == NavigationSections {
+				cursor = "▶ "
+			} else {
+				cursor = "◆ " // Different indicator when in check navigation mode
+			}
 		}
 
 		expandIcon := "▼"
@@ -249,8 +305,8 @@ func (m DoctorModel) View() string {
 		// Section content
 		if m.expanded[section] {
 			checks := m.checks[section]
-			for _, check := range checks {
-				b.WriteString(m.renderCheck(check))
+			for j, check := range checks {
+				b.WriteString(m.renderCheckWithNavigation(check, i, j))
 			}
 			b.WriteString("\n")
 		}
@@ -265,6 +321,50 @@ func (m DoctorModel) View() string {
 	b.WriteString(m.renderInstructions())
 
 	return b.String()
+}
+
+func (m DoctorModel) renderCheckWithNavigation(check SystemCheck, sectionIdx, checkIdx int) string {
+	var icon string
+	var style lipgloss.Style
+
+	switch check.Status {
+	case StatusPass:
+		icon = "✅"
+		style = statusPassStyle
+	case StatusWarn:
+		icon = "⚠️ "
+		style = statusWarnStyle
+	case StatusFail:
+		icon = "❌"
+		style = statusFailStyle
+	case StatusChecking:
+		icon = "🔄"
+		style = statusCheckingStyle
+	default:
+		icon = "⏳"
+		style = subtleStyle
+	}
+
+	// Check navigation cursor
+	checkCursor := "  "
+	if sectionIdx == m.currentSection && checkIdx == m.currentCheck && m.navigationMode == NavigationChecks {
+		checkCursor = "→ "
+	}
+
+	line := fmt.Sprintf("%s%s %s", checkCursor, icon, check.Name)
+	if check.Details != "" {
+		line += fmt.Sprintf(": %s", check.Details)
+	}
+
+	result := checkItemStyle.Render(style.Render(line)) + "\n"
+
+	// Show description if check is expanded or if it's not pending
+	checkKey := fmt.Sprintf("%d-%s", sectionIdx, check.Name)
+	if m.checkExpanded[checkKey] && check.Description != "" {
+		result += detailsStyle.Render("    📝 "+check.Description) + "\n"
+	}
+
+	return result
 }
 
 func (m DoctorModel) renderCheck(check SystemCheck) string {
@@ -295,7 +395,7 @@ func (m DoctorModel) renderCheck(check SystemCheck) string {
 	}
 
 	result := checkItemStyle.Render(style.Render(line)) + "\n"
-	
+
 	if check.Description != "" && check.Status != StatusPending {
 		result += detailsStyle.Render(check.Description) + "\n"
 	}
@@ -305,7 +405,7 @@ func (m DoctorModel) renderCheck(check SystemCheck) string {
 
 func (m DoctorModel) renderSummary() string {
 	var summary strings.Builder
-	
+
 	if m.allGood {
 		summary.WriteString("🎉 All critical dependencies are available!\n")
 		summary.WriteString("CCW should work correctly in this environment.")
@@ -326,10 +426,11 @@ func (m DoctorModel) renderSummary() string {
 func (m DoctorModel) renderInstructions() string {
 	instructions := []string{
 		"💡 Navigation:",
-		"  ↑/↓ - Navigate sections",
-		"  Enter/Space - Toggle section",
+		"  ↑/↓ - Navigate sections/checks",
+		"  ←/→ - Switch section/check mode",
+		"  Enter/Space - Toggle expand",
 		"  R - Refresh checks",
-		"  Q/Esc - Quit",
+		"  Q - Quit | Esc - Back to menu",
 	}
 
 	tips := []string{
@@ -373,6 +474,8 @@ type systemCheckResultMsg struct {
 type checksCompleteMsg struct{}
 
 type tickMsg time.Time
+
+type BackToMainMenuMsg struct{}
 
 // Commands for running checks
 func runSystemChecks() tea.Cmd {
@@ -748,7 +851,7 @@ func isGitRepository() bool {
 func RunDoctorUI() error {
 	model := NewDoctorModel()
 	p := tea.NewProgram(model, tea.WithAltScreen())
-	
+
 	_, err := p.Run()
 	return err
 }

@@ -44,28 +44,28 @@ func setupWorktree(config *types.WorktreeConfig) error {
 // Default git operation configuration
 func getDefaultGitConfig() *GitOperationConfig {
 	return &GitOperationConfig{
-		Timeout:       30 * time.Second,  // 30 second timeout for git operations
-		RetryAttempts: 3,                 // Retry failed operations up to 3 times
-		RetryDelay:    2 * time.Second,   // Wait 2 seconds between retries
+		Timeout:       30 * time.Second, // 30 second timeout for git operations
+		RetryAttempts: 3,                // Retry failed operations up to 3 times
+		RetryDelay:    2 * time.Second,  // Wait 2 seconds between retries
 	}
 }
 
 // Get git configuration from app config
 func getGitConfigFromAppConfig(config *types.Config) *GitOperationConfig {
 	gitConfig := getDefaultGitConfig()
-	
+
 	// Parse timeout from config
 	if config.GitTimeout != "" {
 		if timeout, err := time.ParseDuration(config.GitTimeout); err == nil {
 			gitConfig.Timeout = timeout
 		}
 	}
-	
+
 	// Set retry attempts from config
 	if config.GitRetryAttempts > 0 {
 		gitConfig.RetryAttempts = config.GitRetryAttempts
 	}
-	
+
 	return gitConfig
 }
 
@@ -78,7 +78,7 @@ func createGitCommand(args []string, workingDir string) *exec.Cmd {
 func createGitCommandWithTimeout(args []string, workingDir string, timeout time.Duration) *exec.Cmd {
 	ctx, _ := context.WithTimeout(context.Background(), timeout)
 	var cmd *exec.Cmd
-	
+
 	switch runtime.GOOS {
 	case "windows":
 		// On Windows, ensure git.exe is used
@@ -104,35 +104,35 @@ func createGitCommandWithTimeout(args []string, workingDir string, timeout time.
 		// Unix systems
 		cmd = exec.CommandContext(ctx, "git", args...)
 	}
-	
+
 	if workingDir != "" {
 		cmd.Dir = workingDir
 	}
-	
+
 	return cmd
 }
 
 // Execute git command with retry logic
 func executeGitCommandWithRetry(args []string, workingDir string) error {
 	config := getDefaultGitConfig()
-	
+
 	for attempt := 1; attempt <= config.RetryAttempts; attempt++ {
 		cmd := createGitCommandWithTimeout(args, workingDir, config.Timeout)
 		err := cmd.Run()
-		
+
 		if err == nil {
 			return nil // Success
 		}
-		
+
 		// Check if this is a timeout or network error that might benefit from retry
 		if attempt < config.RetryAttempts && isRetryableError(err) {
 			time.Sleep(config.RetryDelay)
 			continue
 		}
-		
+
 		return fmt.Errorf("git command failed after %d attempts: %w", attempt, err)
 	}
-	
+
 	return nil
 }
 
@@ -142,7 +142,7 @@ func executeGitCommandWithRetry(args []string, workingDir string) error {
 func cleanupWorktree(worktreePath string) error {
 	// Get the parent directory to run git worktree remove from
 	parentDir := filepath.Dir(worktreePath)
-	
+
 	// Remove the worktree using cross-platform command
 	cmd := createGitCommand([]string{"worktree", "remove", "--force", worktreePath}, parentDir)
 	if err := cmd.Run(); err != nil {
@@ -171,9 +171,9 @@ func (g *GitOperations) PushChangesWithAICommit(worktreePath, branchName string,
 	// Generate enhanced commit message
 	generator := &CommitMessageGenerator{
 		claudeIntegration: claudeIntegration,
-		config:           g.appConfig,
+		config:            g.appConfig,
 	}
-	
+
 	// Convert types.Issue to git.Issue
 	gitIssue := &Issue{
 		Number: issue.Number,
@@ -278,7 +278,7 @@ func createWorktreeConfig(issueURL string, worktreeBase string) (*types.Worktree
 	// Generate unique branch name with timestamp
 	timestamp := time.Now().Format("20060102-150405")
 	branchName := fmt.Sprintf("issue-%d-%s", issueNumber, timestamp)
-	
+
 	// Create worktree path
 	worktreePath := filepath.Join(worktreeBase, fmt.Sprintf("issue-%d-%s", issueNumber, timestamp))
 
@@ -322,7 +322,7 @@ func getGitRepoInfo(path string) (owner, repo string, err error) {
 	}
 
 	remoteURL := strings.TrimSpace(string(output))
-	
+
 	// Parse GitHub URL
 	if strings.Contains(remoteURL, "github.com") {
 		// Handle both HTTPS and SSH URLs

@@ -19,12 +19,12 @@ import (
 
 // CCWApp represents the main application structure
 type CCWApp struct {
-	config            *config.Config
-	gitOps            *git.Operations
-	validator         *git.QualityValidator
-	worktreeConfig    *git.WorktreeConfig
-	sessionID         string
-	
+	config         *config.Config
+	gitOps         *git.Operations
+	validator      *git.QualityValidator
+	worktreeConfig *git.WorktreeConfig
+	sessionID      string
+
 	// Component integrations
 	githubClient      *github.GitHubClient
 	claudeIntegration *claude.ClaudeIntegration
@@ -39,18 +39,18 @@ type CCWApp struct {
 func NewCCWApp() (*CCWApp, error) {
 	// Generate session ID
 	sessionID := fmt.Sprintf("%d-%s", time.Now().Unix(), generateRandomID(8))
-	
+
 	// Load configuration using config package
 	ccwConfig, err := config.LoadConfiguration()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
-	
+
 	// Validate configuration
 	if err := ccwConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
-	
+
 	// Convert to legacy config format for backward compatibility
 	legacyConfig := ccwConfig.ToLegacyConfig()
 
@@ -72,7 +72,7 @@ func NewCCWApp() (*CCWApp, error) {
 
 	// Initialize components using packages
 	githubClient := &github.GitHubClient{}
-	
+
 	timeout, _ := time.ParseDuration(ccwConfig.ClaudeTimeout)
 	claudeIntegration := &claude.ClaudeIntegration{
 		Timeout:    timeout,
@@ -128,7 +128,7 @@ func (app *CCWApp) Cleanup() {
 		})
 		app.logger.Close()
 	}
-	
+
 	if app.ui != nil {
 		app.ui.RestoreTerminalState()
 	}

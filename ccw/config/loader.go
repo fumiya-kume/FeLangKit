@@ -15,15 +15,15 @@ import (
 // LoadConfiguration loads configuration from YAML file with fallback to environment variables
 func LoadConfiguration() (*CCWConfig, error) {
 	config := GetDefaultCCWConfig()
-	
+
 	// Try to load from YAML file
 	if err := loadFromYAMLFile(config); err != nil {
 		// YAML file not found or invalid, continue with defaults
 	}
-	
+
 	// Override with environment variables
 	loadFromEnvironment(config)
-	
+
 	return config, nil
 }
 
@@ -40,7 +40,7 @@ func loadFromYAMLFile(config *CCWConfig) error {
 		filepath.Join(os.Getenv("HOME"), ".config", "ccw", "config.yaml"),
 		filepath.Join(os.Getenv("HOME"), ".config", "ccw", "config.yml"),
 	}
-	
+
 	for _, configPath := range configPaths {
 		if data, err := os.ReadFile(configPath); err == nil {
 			if err := yaml.Unmarshal(data, config); err != nil {
@@ -49,7 +49,7 @@ func loadFromYAMLFile(config *CCWConfig) error {
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("no config file found")
 }
 
@@ -70,7 +70,7 @@ func loadFromEnvironment(config *CCWConfig) {
 	if val := os.Getenv("CCW_CLAUDE_TIMEOUT"); val != "" {
 		config.ClaudeTimeout = val
 	}
-	
+
 	// UI Configuration
 	if val := os.Getenv("CCW_THEME"); val != "" {
 		config.UI.Theme = val
@@ -84,7 +84,7 @@ func loadFromEnvironment(config *CCWConfig) {
 	if val := os.Getenv("CCW_UNICODE"); val != "" {
 		config.UI.Unicode = strings.ToLower(val) == "true"
 	}
-	
+
 	// Git Configuration
 	if val := os.Getenv("CCW_GIT_TIMEOUT"); val != "" {
 		config.Git.Timeout = val
@@ -100,7 +100,7 @@ func loadFromEnvironment(config *CCWConfig) {
 	if val := os.Getenv("CCW_GIT_DEFAULT_BRANCH"); val != "" {
 		config.Git.DefaultBranch = val
 	}
-	
+
 	// Logging Configuration
 	if val := os.Getenv("CCW_LOG_LEVEL"); val != "" {
 		config.Logging.Level = val
@@ -111,7 +111,7 @@ func loadFromEnvironment(config *CCWConfig) {
 	if val := os.Getenv("CCW_LOG_FILE"); val != "" {
 		config.Logging.File = val
 	}
-	
+
 	// Performance Configuration
 	if val := os.Getenv("CCW_PERFORMANCE_LEVEL"); val != "" {
 		if level, err := strconv.Atoi(val); err == nil {
@@ -138,7 +138,7 @@ func loadFromEnvironment(config *CCWConfig) {
 			config.Performance.CacheSize = size
 		}
 	}
-	
+
 	// GitHub Configuration
 	if val := os.Getenv("CCW_MONITOR_CI"); val != "" {
 		config.GitHub.MonitorCI = strings.ToLower(val) == "true"
@@ -155,7 +155,7 @@ func loadFromEnvironment(config *CCWConfig) {
 	if val := os.Getenv("CCW_AUTO_ASSIGN"); val != "" {
 		config.GitHub.AutoAssign = strings.ToLower(val) == "true"
 	}
-	
+
 	// Claude Configuration
 	if val := os.Getenv("CCW_CLAUDE_TIMEOUT"); val != "" {
 		config.Claude.Timeout = val

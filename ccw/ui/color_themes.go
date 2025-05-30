@@ -9,17 +9,17 @@ import (
 
 // ColorTheme represents a color theme for the UI
 type ColorTheme struct {
-	Name                string
-	Primary             string
-	Success             string
-	Error               string
-	Warning             string
-	Info                string
-	Subtle              string
-	Background          string
-	SelectedBackground  string
-	SelectedForeground  string
-	BorderColor         string
+	Name               string
+	Primary            string
+	Success            string
+	Error              string
+	Warning            string
+	Info               string
+	Subtle             string
+	Background         string
+	SelectedBackground string
+	SelectedForeground string
+	BorderColor        string
 }
 
 // Predefined color themes
@@ -82,7 +82,7 @@ func DetectTerminalBackground() string {
 		// iTerm2 - default to dark but could be either
 		return "dark"
 	}
-	
+
 	if strings.Contains(termProgram, "vscode") {
 		// VS Code terminal - often dark
 		return "dark"
@@ -106,15 +106,15 @@ func DetectTerminalBackground() string {
 func GetOptimalTheme() ColorTheme {
 	// First try terminal-aware detection
 	terminalTheme := GetOptimalTerminalTheme()
-	
+
 	// If terminal detection provided useful info, use it
 	if terminalTheme.Name != "" && !strings.Contains(terminalTheme.Name, "fallback") {
 		return terminalTheme
 	}
-	
+
 	// Fallback to basic detection
 	background := DetectTerminalBackground()
-	
+
 	switch background {
 	case "dark":
 		return DarkTheme
@@ -181,10 +181,10 @@ func ApplyTheme(theme ColorTheme) {
 func ShowColorTest(theme ColorTheme) {
 	println("🎨 Color Visibility Test for", theme.Name, "theme:")
 	println("=" + strings.Repeat("=", 40+len(theme.Name)))
-	
+
 	// Apply theme temporarily
 	ApplyTheme(theme)
-	
+
 	// Test each color
 	println("  ", successStyle.Render("✓ Success"), "- Green text should be clearly visible")
 	println("  ", errorStyle.Render("✗ Error"), "- Red text should be clearly visible")

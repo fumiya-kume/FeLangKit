@@ -11,7 +11,7 @@ func GetDefaultCCWConfig() *CCWConfig {
 		MaxRetries:    3,
 		ClaudeTimeout: "30m",
 		DebugMode:     false,
-		
+
 		UI: UIConfiguration{
 			Theme:       "default",
 			Animations:  true,
@@ -20,7 +20,7 @@ func GetDefaultCCWConfig() *CCWConfig {
 			Width:       80,
 			Height:      24,
 		},
-		
+
 		Git: GitConfiguration{
 			Timeout:       "30s",
 			RetryAttempts: 3,
@@ -28,7 +28,7 @@ func GetDefaultCCWConfig() *CCWConfig {
 			DefaultBranch: "master",
 			RemoteName:    "origin",
 		},
-		
+
 		Logging: LoggingConfiguration{
 			Level:      "info",
 			Format:     "text",
@@ -37,7 +37,7 @@ func GetDefaultCCWConfig() *CCWConfig {
 			MaxBackups: 3,
 			MaxAge:     7,
 		},
-		
+
 		Performance: PerformanceConfiguration{
 			Level:                      2,
 			AdaptiveRefresh:            true,
@@ -48,7 +48,7 @@ func GetDefaultCCWConfig() *CCWConfig {
 			CacheSize:                  100,
 			ChangeDetectionSensitivity: 0.1,
 		},
-		
+
 		GitHub: GitHubConfiguration{
 			MonitorCI:     false,
 			PRTemplate:    "",
@@ -56,7 +56,7 @@ func GetDefaultCCWConfig() *CCWConfig {
 			DefaultLabels: []string{},
 			AutoAssign:    false,
 		},
-		
+
 		Claude: ClaudeConfiguration{
 			Timeout:               "30m",
 			MaxRetries:            3,
@@ -64,7 +64,7 @@ func GetDefaultCCWConfig() *CCWConfig {
 			Context:               "",
 			EnhancedCommitMessage: true,
 		},
-		
+
 		ValidationRecovery: ValidationRecoveryConfiguration{
 			Enabled:               true,
 			MaxAttempts:           3,
