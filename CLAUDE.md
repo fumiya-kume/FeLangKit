@@ -242,13 +242,13 @@ The project includes a complete VS Code dev container configuration for consiste
 - **Real-time Updates**: Update todo status throughout the development process
 - **Quality Focus**: Always include SwiftLint, build, and test validation as separate todo items
 
-### Git and GitHub Operations Restrictions
-- **NEVER create commits, branches, or push changes** - This is handled exclusively by claude.sh
-- **NEVER create or merge pull requests** - Shell script manages all GitHub operations
-- **NEVER run git commands** that modify repository state (add, commit, push, merge)
-- **FOCUS ONLY on implementation** - Write code, create files, modify existing files
-- **Shell script handles**: Validation, commits, PR creation, CI monitoring, and all git operations
-- **Your role**: Pure implementation work based on GitHub issue requirements
+### Git and GitHub Operations
+- **Execute git commands directly** when requested by the user
+- **Create commits, branches, and push changes** as needed for user requests
+- **Create pull requests** using `gh pr create` when asked
+- **Run all git operations** (add, commit, push, merge) when appropriate
+- **claude.sh is available** for automated GitHub issue processing but is not required
+- **Direct execution preferred** when user explicitly requests git/GitHub operations
 
 ### PR Description Format Requirements
 When creating pull requests (handled automatically by claude.sh), the description must be generated in **JSON format** with the following structure:
