@@ -59,6 +59,10 @@ type CIStatus struct {
 	LastUpdated time.Time
 	URL         string
 	Conclusion  string
+	TotalChecks int
+	PassedChecks int
+	FailedChecks int
+	PendingChecks int
 }
 
 type CheckRun struct {
@@ -68,4 +72,41 @@ type CheckRun struct {
 	URL         string    `json:"html_url"`
 	StartedAt   time.Time `json:"started_at"`
 	CompletedAt time.Time `json:"completed_at"`
+	DetailsURL  string    `json:"details_url,omitempty"`
+	Summary     string    `json:"summary,omitempty"`
+	Text        string    `json:"text,omitempty"`
+}
+
+// Enhanced CI monitoring types for real-time updates
+type CIWatchUpdate struct {
+	Status      *CIStatus
+	CheckUpdate *CheckRun
+	EventType   string // "status_change", "check_complete", "all_complete", "failure"
+	Message     string
+	Timestamp   time.Time
+}
+
+type CIWatchResult struct {
+	FinalStatus *CIStatus
+	Updates     []CIWatchUpdate
+	Error       error
+	Duration    time.Duration
+}
+
+// CI failure types for recovery mechanisms
+type CIFailureType string
+
+const (
+	CIFailureBuild   CIFailureType = "build"
+	CIFailureLint    CIFailureType = "lint"
+	CIFailureTest    CIFailureType = "test"
+	CIFailureUnknown CIFailureType = "unknown"
+)
+
+type CIFailureInfo struct {
+	Type        CIFailureType
+	CheckName   string
+	FailureText string
+	DetailsURL  string
+	Recoverable bool
 }
