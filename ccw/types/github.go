@@ -67,14 +67,15 @@ type CIStatus struct {
 
 type CheckRun struct {
 	Name        string    `json:"name"`
-	Status      string    `json:"status"`
+	Status      string    `json:"state"`
 	Conclusion  string    `json:"conclusion"`
-	URL         string    `json:"html_url"`
-	StartedAt   time.Time `json:"started_at"`
-	CompletedAt time.Time `json:"completed_at"`
-	DetailsURL  string    `json:"details_url,omitempty"`
-	Summary     string    `json:"summary,omitempty"`
-	Text        string    `json:"text,omitempty"`
+	URL         string    `json:"link"`
+	StartedAt   time.Time `json:"startedAt"`
+	CompletedAt time.Time `json:"completedAt"`
+	Description string    `json:"description,omitempty"`
+	Event       string    `json:"event,omitempty"`
+	Workflow    string    `json:"workflow,omitempty"`
+	Bucket      string    `json:"bucket,omitempty"`
 }
 
 // Enhanced CI monitoring types for real-time updates
