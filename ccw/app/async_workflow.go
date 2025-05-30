@@ -52,21 +52,51 @@ func (app *CCWApp) ExecuteAsyncPRWorkflow(issue *types.Issue, worktreePath, bran
 	return app.createPullRequestAsync(issue, validationResult, implementationSummary, branchName, worktreePath)
 }
 
-// waitForImplementationSummary waits for implementation summary with timeout
+// waitForImplementationSummary waits for implementation summary with count-up timer
 func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.ImplementationSummaryResult) string {
+	startTime := time.Now()
+	ticker := time.NewTicker(5 * time.Second) // Less frequent updates for shorter task
+	defer ticker.Stop()
+	
+	// Timer display channel
+	timerDone := make(chan bool, 1)
+	
+	// Start timer display goroutine
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				elapsed := time.Since(startTime).Round(time.Second)
+				timerIcon := getConsoleChar("⏱️", "[TIMER]")
+				app.ui.Info(fmt.Sprintf("%s Implementation summary generation: %s elapsed", timerIcon, elapsed.String()))
+			case <-timerDone:
+				return
+			}
+		}
+	}()
+	
+	// Wait for completion or timeout
 	select {
 	case summaryResult := <-summaryResultChan:
+		// Stop timer display
+		timerDone <- true
+		
+		elapsed := time.Since(startTime).Round(time.Second)
 		if summaryResult.Error != nil {
-			app.ui.Warning(fmt.Sprintf("Implementation summary generation failed: %v", summaryResult.Error))
+			app.ui.Warning(fmt.Sprintf("Implementation summary generation failed after %s: %v", elapsed.String(), summaryResult.Error))
 			return "Implementation completed with changes."
 		} else {
 			successIcon := getConsoleChar("✅", "[SUCCESS]")
-			app.ui.Success(fmt.Sprintf("%s Implementation summary generated", successIcon))
+			app.ui.Success(fmt.Sprintf("%s Implementation summary generated in %s", successIcon, elapsed.String()))
 			return summaryResult.Summary
 		}
 	case <-time.After(30 * time.Second):
+		// Stop timer display
+		timerDone <- true
+		
+		elapsed := time.Since(startTime).Round(time.Second)
 		warningIcon := getConsoleChar("⚠️", "[WARNING]")
-		app.ui.Warning(fmt.Sprintf("%s Implementation summary generation timed out", warningIcon))
+		app.ui.Warning(fmt.Sprintf("%s Implementation summary generation timed out after %s", warningIcon, elapsed.String()))
 		return "Implementation completed with changes."
 	}
 }
@@ -125,21 +155,51 @@ func (app *CCWApp) createPullRequestAsync(issue *types.Issue, validationResult *
 	return app.createAndMonitorPR(issue, prDescription, branchName, worktreePath)
 }
 
-// waitForPRDescription waits for PR description generation with timeout
+// waitForPRDescription waits for PR description generation with count-up timer
 func (app *CCWApp) waitForPRDescription(prDescResultChan <-chan types.PRDescriptionResult, prDescRequest *types.PRDescriptionRequest) string {
+	startTime := time.Now()
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	
+	// Timer display channel
+	timerDone := make(chan bool, 1)
+	
+	// Start timer display goroutine
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				elapsed := time.Since(startTime).Round(time.Second)
+				timerIcon := getConsoleChar("⏱️", "[TIMER]")
+				app.ui.Info(fmt.Sprintf("%s PR description generation: %s elapsed", timerIcon, elapsed.String()))
+			case <-timerDone:
+				return
+			}
+		}
+	}()
+	
+	// Wait for completion or timeout
 	select {
 	case prDescResult := <-prDescResultChan:
+		// Stop timer display
+		timerDone <- true
+		
+		elapsed := time.Since(startTime).Round(time.Second)
 		if prDescResult.Error != nil {
-			app.ui.Warning(fmt.Sprintf("PR description generation failed: %v", prDescResult.Error))
+			app.ui.Warning(fmt.Sprintf("PR description generation failed after %s: %v", elapsed.String(), prDescResult.Error))
 			return app.claudeIntegration.CreateEnhancedPRDescription(prDescRequest)
 		} else {
 			successIcon := getConsoleChar("✅", "[SUCCESS]")
-			app.ui.Success(fmt.Sprintf("%s PR description generated", successIcon))
+			app.ui.Success(fmt.Sprintf("%s PR description generated in %s", successIcon, elapsed.String()))
 			return prDescResult.Description
 		}
 	case <-time.After(2 * time.Minute): // Longer timeout for PR description
+		// Stop timer display
+		timerDone <- true
+		
+		elapsed := time.Since(startTime).Round(time.Second)
 		warningIcon := getConsoleChar("⚠️", "[WARNING]")
-		app.ui.Warning(fmt.Sprintf("%s PR description generation timed out, using fallback", warningIcon))
+		app.ui.Warning(fmt.Sprintf("%s PR description generation timed out after %s, using fallback", warningIcon, elapsed.String()))
 		return app.claudeIntegration.CreateEnhancedPRDescription(prDescRequest)
 	}
 }
