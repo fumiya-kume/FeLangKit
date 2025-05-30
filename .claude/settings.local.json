@@ -44,7 +44,10 @@
       "Bash(pgrep:*)",
       "Bash(pkill:*)",
       "Bash(timeout 3 sleep 5)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n \"forStatement|case.*range|ForStatement\" /Users/kuu/ghq/github.com/fumiya-kume/FeLangKit/issue-149-20250530-173616-cab75781/Sources/FeLangCore/Semantic/SemanticAnalyzer.swift)",
+      "Bash(/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n \"isCompatible\" /Users/kuu/ghq/github.com/fumiya-kume/FeLangKit/issue-149-20250530-173616-cab75781/Sources/FeLangCore/Semantic/SemanticAnalyzer.swift)",
+      "Bash(/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n \"func isCompatible|extension.*isCompatible\" /Users/kuu/ghq/github.com/fumiya-kume/FeLangKit/issue-149-20250530-173616-cab75781/Sources/FeLangCore)"
     ],
     "deny": []
   },

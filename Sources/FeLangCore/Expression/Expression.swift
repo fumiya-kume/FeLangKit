@@ -170,6 +170,38 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
     public var isLeftAssociative: Bool {
         return true
     }
+
+    /// Returns the human-readable operation name for error reporting.
+    public var operationName: String {
+        switch self {
+        case .add:
+            return "add"
+        case .subtract:
+            return "subtract"
+        case .multiply:
+            return "multiply"
+        case .divide:
+            return "divide"
+        case .modulo:
+            return "modulo"
+        case .equal:
+            return "equal"
+        case .notEqual:
+            return "notEqual"
+        case .greater:
+            return "greater"
+        case .greaterEqual:
+            return "greaterEqual"
+        case .less:
+            return "less"
+        case .lessEqual:
+            return "lessEqual"
+        case .and:
+            return "and"
+        case .or:
+            return "or"
+        }
+    }
 }
 
 /// Represents unary operators.

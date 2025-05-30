@@ -550,19 +550,19 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             let startType = inferExpressionType(rangeFor.start)
             let endType = inferExpressionType(rangeFor.end)
 
-            if !startType.isCompatible(with: .integer) {
+            if startType != .integer && startType != .unknown && startType != .error {
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
                 errorReporter.collect(.typeMismatch(expected: .integer, actual: startType, position: position))
             }
 
-            if !endType.isCompatible(with: .integer) {
+            if endType != .integer && endType != .unknown && endType != .error {
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
                 errorReporter.collect(.typeMismatch(expected: .integer, actual: endType, position: position))
             }
 
             if let step = rangeFor.step {
                 let stepType = inferExpressionType(step)
-                if !stepType.isCompatible(with: .integer) {
+                if stepType != .integer && stepType != .unknown && stepType != .error {
                     let position = SourcePosition(line: 0, column: 0, offset: 0)
                     errorReporter.collect(.typeMismatch(expected: .integer, actual: stepType, position: position))
                 }
@@ -804,22 +804,22 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                     return .string
                 } else {
                     let position = SourcePosition(line: 0, column: 0, offset: 0)
-                    errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+                    errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.operationName, position: position))
                     return .error
                 }
             } else {
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.operationName, position: position))
                 return .error
             }
 
         case .modulo:
-            // Modulo only works with integers
-            if leftType.isCompatible(with: .integer) && rightType.isCompatible(with: .integer) {
+            // Modulo only works with integers (exact type match required)
+            if leftType == .integer && rightType == .integer {
                 return .integer
             } else {
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.operationName, position: position))
                 return .error
             }
 
@@ -829,7 +829,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 return .boolean
             } else {
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.operationName, position: position))
                 return .error
             }
 
@@ -840,7 +840,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 return .boolean
             } else {
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.operationName, position: position))
                 return .error
             }
 
@@ -850,7 +850,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 return .boolean
             } else {
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.operationName, position: position))
                 return .error
             }
         }
@@ -1099,28 +1099,12 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         }
 
         // Validate function body and check for return statements
-        var hasReturnStatement = false
-        var hasUnreachableCode = false
-        for (index, stmt) in decl.body.enumerated() {
-            if hasUnreachableCode {
-                // Code after return statement is unreachable
-                errorReporter.collect(SemanticError.unreachableCode(position: position))
-                break
-            }
-
+        for stmt in decl.body {
             validateStatement(stmt)
-
-            if case .returnStatement = stmt {
-                hasReturnStatement = true
-                // Mark that subsequent statements are unreachable
-                if index < decl.body.count - 1 {
-                    hasUnreachableCode = true
-                }
-            }
         }
 
         // Check for missing return statement in functions (not procedures)
-        if decl.returnType != nil && !hasReturnStatement {
+        if decl.returnType != nil && !containsReturnStatement(decl.body) {
             errorReporter.collect(.missingReturnStatement(function: decl.name, position: position))
         }
 
@@ -1232,5 +1216,53 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
     private func decrementNestingDepth() {
         currentNestingDepth = max(0, currentNestingDepth - 1)
+    }
+
+    /// Recursively check if a list of statements contains a return statement.
+    private func containsReturnStatement(_ statements: [Statement]) -> Bool {
+        for stmt in statements {
+            if containsReturnStatement(stmt) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// Recursively check if a statement contains a return statement.
+    private func containsReturnStatement(_ statement: Statement) -> Bool {
+        switch statement {
+        case .returnStatement:
+            return true
+        case .block(let statements):
+            return containsReturnStatement(statements)
+        case .ifStatement(let ifStmt):
+            if containsReturnStatement(ifStmt.thenBody) {
+                return true
+            }
+            for elseIf in ifStmt.elseIfs {
+                if containsReturnStatement(elseIf.body) {
+                    return true
+                }
+            }
+            if let elseBody = ifStmt.elseBody {
+                return containsReturnStatement(elseBody)
+            }
+            return false
+        case .whileStatement(let whileStmt):
+            return containsReturnStatement(whileStmt.body)
+        case .forStatement(let forStmt):
+            switch forStmt {
+            case .range(let rangeFor):
+                return containsReturnStatement(rangeFor.body)
+            case .forEach(let forEach):
+                return containsReturnStatement(forEach.body)
+            }
+        case .functionDeclaration(let funcDecl):
+            return containsReturnStatement(funcDecl.body)
+        case .procedureDeclaration(let procDecl):
+            return containsReturnStatement(procDecl.body)
+        case .variableDeclaration, .constantDeclaration, .assignment, .expressionStatement, .breakStatement:
+            return false
+        }
     }
 }
