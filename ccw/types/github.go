@@ -110,3 +110,48 @@ type CIFailureInfo struct {
 	DetailsURL  string
 	Recoverable bool
 }
+
+// PR comment types for comment-driven feedback loop
+type PRComment struct {
+	ID        int       `json:"id"`
+	Body      string    `json:"body"`
+	User      User      `json:"user"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	HTMLURL   string    `json:"html_url"`
+}
+
+type PRCommentAnalysis struct {
+	HasUnaddressedComments bool
+	Comments               []PRComment
+	ActionableComments     []ActionableComment
+	TotalComments          int
+}
+
+type ActionableComment struct {
+	Comment     PRComment
+	Category    CommentCategory
+	Priority    CommentPriority
+	Actionable  bool
+	Suggestion  string
+}
+
+type CommentCategory string
+
+const (
+	CommentCodeReview   CommentCategory = "code_review"
+	CommentSuggestion   CommentCategory = "suggestion"
+	CommentQuestion     CommentCategory = "question"
+	CommentApproval     CommentCategory = "approval"
+	CommentRequest      CommentCategory = "request"
+	CommentDiscussion   CommentCategory = "discussion"
+	CommentBotGenerated CommentCategory = "bot"
+)
+
+type CommentPriority string
+
+const (
+	CommentPriorityHigh   CommentPriority = "high"
+	CommentPriorityMedium CommentPriority = "medium"
+	CommentPriorityLow    CommentPriority = "low"
+)
