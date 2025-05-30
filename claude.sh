@@ -792,7 +792,7 @@ calculate_header_content() {
             
             # Limit number of steps shown in standard mode for better height management
             local max_steps_to_show=${#WORKFLOW_STEPS[@]}
-            if [[ "${HEADER_CONFIG[layout]}" == "standard" ]] && [[ ${#WORKFLOW_STEPS[@]} -gt 5 ]]; then
+            if [[ "$(get_config_value "layout" "standard")" == "standard" ]] && [[ ${#WORKFLOW_STEPS[@]} -gt 5 ]]; then
                 max_steps_to_show=5
             fi
             
