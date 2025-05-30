@@ -472,8 +472,6 @@ public final class SemanticErrorReporter: @unchecked Sendable {
     // MARK: - Private Methods
 
     private func extractPositionKey(from error: SemanticError) -> String {
-        let position: SourcePosition
-
         switch error {
         case .typeMismatch(_, _, let position),
              .incompatibleTypes(_, _, _, let position),
