@@ -1039,7 +1039,7 @@ main() {
             info "Next steps:"
             info "1. Monitor PR: gh pr view --web"
             info "2. Check CI: gh pr checks"
-            info "3. Merge when ready: gh pr merge"
+            info "3. Merge when ready: gh pr merge --merge"
             echo
             cleanup_worktree
             return 0
