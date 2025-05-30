@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"ccw/claude"
@@ -110,6 +111,56 @@ func NewCCWApp() (*CCWApp, error) {
 		errorStore:        errorStore,
 		sessionID:         sessionID,
 	}, nil
+}
+
+// Execute interactive issue selection workflow
+func (app *CCWApp) executeListWorkflow(repoURL string, state string, labels []string, limit int) error {
+	// Extract repository information
+	owner, repo, err := github.ExtractRepoInfo(repoURL)
+	if err != nil {
+		return fmt.Errorf("failed to extract repository info: %w", err)
+	}
+
+	app.ui.Info(fmt.Sprintf("Fetching issues from %s/%s...", owner, repo))
+	
+	// Fetch issues from GitHub
+	issues, err := app.githubClient.ListIssues(owner, repo, state, labels, limit)
+	if err != nil {
+		return fmt.Errorf("failed to fetch issues: %w", err)
+	}
+
+	if len(issues) == 0 {
+		app.ui.Warning("No issues found matching the criteria")
+		return nil
+	}
+
+	// Display issue selection interface
+	selectedIssues, err := app.ui.DisplayIssueSelection(issues)
+	if err != nil {
+		return fmt.Errorf("issue selection failed: %w", err)
+	}
+
+	app.ui.Info(fmt.Sprintf("Selected %d issue(s) for processing", len(selectedIssues)))
+
+	// Process each selected issue
+	for i, issue := range selectedIssues {
+		app.ui.Info(fmt.Sprintf("Processing issue %d of %d: #%d %s", i+1, len(selectedIssues), issue.Number, issue.Title))
+		
+		// Construct issue URL
+		issueURL := fmt.Sprintf("https://github.com/%s/%s/issues/%d", owner, repo, issue.Number)
+		
+		// Execute normal workflow for this issue
+		if err := app.executeWorkflow(issueURL); err != nil {
+			app.ui.Warning(fmt.Sprintf("Failed to process issue #%d: %v", issue.Number, err))
+			// Continue with next issue rather than failing completely
+			continue
+		}
+		
+		app.ui.Success(fmt.Sprintf("Successfully processed issue #%d", issue.Number))
+	}
+
+	app.ui.Success("All selected issues have been processed!")
+	return nil
 }
 
 // Updated workflow execution using new packages
@@ -287,6 +338,9 @@ func main() {
 	case "-h", "--help":
 		usage()
 		return
+	case "list":
+		handleListCommand()
+		return
 	case "--init-config":
 		if len(os.Args) >= 3 {
 			filename := os.Args[2]
@@ -347,6 +401,118 @@ func main() {
 	}
 }
 
+// Handle the list command with argument parsing
+func handleListCommand() {
+	var repoURL string
+	var startArgIndex int
+
+	// Check if repository URL is provided or use current repository
+	if len(os.Args) < 3 {
+		// No arguments provided, use current repository
+		currentRepo, err := github.GetCurrentRepoURL()
+		if err != nil {
+			fmt.Printf("Error: Failed to detect current repository: %v\n", err)
+			fmt.Println("Usage: ccw list [repo-url] [options]")
+			fmt.Println("  repo-url      Repository URL (e.g., https://github.com/owner/repo or owner/repo)")
+			fmt.Println("                If not provided, uses current repository's GitHub remote")
+			fmt.Println("  --state       Issue state: open, closed, all (default: open)")
+			fmt.Println("  --labels      Comma-separated list of labels to filter by")
+			fmt.Println("  --limit       Maximum number of issues to fetch (default: 20)")
+			os.Exit(1)
+		}
+		repoURL = currentRepo
+		startArgIndex = 2 // Start parsing options from index 2
+	} else {
+		// Check if the first argument is an option or repository URL
+		firstArg := os.Args[2]
+		if strings.HasPrefix(firstArg, "--") {
+			// First argument is an option, use current repository
+			currentRepo, err := github.GetCurrentRepoURL()
+			if err != nil {
+				fmt.Printf("Error: Failed to detect current repository: %v\n", err)
+				fmt.Println("Usage: ccw list [repo-url] [options]")
+				fmt.Println("  repo-url      Repository URL (e.g., https://github.com/owner/repo or owner/repo)")
+				fmt.Println("                If not provided, uses current repository's GitHub remote")
+				os.Exit(1)
+			}
+			repoURL = currentRepo
+			startArgIndex = 2 // Start parsing options from index 2
+		} else {
+			// First argument is repository URL
+			repoURL = firstArg
+			startArgIndex = 3 // Start parsing options from index 3
+		}
+	}
+
+	state := "open"      // default state
+	labels := []string{} // default no label filter
+	limit := 20          // default limit
+
+	// Parse additional arguments
+	for i := startArgIndex; i < len(os.Args); i++ {
+		switch os.Args[i] {
+		case "--state":
+			if i+1 < len(os.Args) {
+				state = os.Args[i+1]
+				i++ // skip next argument
+			} else {
+				fmt.Println("Error: --state requires a value")
+				os.Exit(1)
+			}
+		case "--labels":
+			if i+1 < len(os.Args) {
+				labelStr := os.Args[i+1]
+				labels = strings.Split(labelStr, ",")
+				// Trim whitespace from labels
+				for j := range labels {
+					labels[j] = strings.TrimSpace(labels[j])
+				}
+				i++ // skip next argument
+			} else {
+				fmt.Println("Error: --labels requires a value")
+				os.Exit(1)
+			}
+		case "--limit":
+			if i+1 < len(os.Args) {
+				var err error
+				limit, err = strconv.Atoi(os.Args[i+1])
+				if err != nil {
+					fmt.Printf("Error: --limit requires a valid number, got: %s\n", os.Args[i+1])
+					os.Exit(1)
+				}
+				if limit <= 0 {
+					fmt.Println("Error: --limit must be greater than 0")
+					os.Exit(1)
+				}
+				i++ // skip next argument
+			} else {
+				fmt.Println("Error: --limit requires a value")
+				os.Exit(1)
+			}
+		default:
+			fmt.Printf("Error: unknown option %s\n", os.Args[i])
+			os.Exit(1)
+		}
+	}
+
+	// Validate state
+	if state != "open" && state != "closed" && state != "all" {
+		fmt.Printf("Error: invalid state '%s'. Must be: open, closed, or all\n", state)
+		os.Exit(1)
+	}
+
+	// Initialize app and execute list workflow
+	app, err := NewCCWApp()
+	if err != nil {
+		log.Fatalf("Failed to initialize application: %v", err)
+	}
+	defer app.cleanup()
+
+	if err := app.executeListWorkflow(repoURL, state, labels, limit); err != nil {
+		log.Fatalf("List workflow failed: %v", err)
+	}
+}
+
 // Helper functions
 func parseTimeoutFromConfig(timeoutStr string) time.Duration {
 	if duration, err := time.ParseDuration(timeoutStr); err == nil {
@@ -389,23 +555,40 @@ func parseIntWithDefault(value string, defaultValue int) (int, error) {
 func usage() {
 	fmt.Printf(`CCW - Claude Code Worktree Automation Tool
 
-Usage: ccw <github-issue-url>
+Usage: 
+  ccw <github-issue-url>                  Process a specific GitHub issue
+  ccw list [repo-url] [options]           List and select issues interactively
 
 Arguments:
   github-issue-url    GitHub issue URL (e.g., https://github.com/owner/repo/issues/123)
+  repo-url           Repository URL (e.g., https://github.com/owner/repo or owner/repo)
+                     If not provided, uses current repository's GitHub remote
 
-Options:
+List Command Options:
+  --state            Issue state: open, closed, all (default: open)
+  --labels           Comma-separated list of labels to filter by
+  --limit            Maximum number of issues to fetch (default: 20)
+
+Examples:
+  ccw https://github.com/owner/repo/issues/123
+  ccw list                                           # Use current repository
+  ccw list owner/repo                                # Use specific repository
+  ccw list --state open --limit 10                  # Use current repository with options
+  ccw list https://github.com/owner/repo --state open --limit 10
+  ccw list owner/repo --labels bug,enhancement --state all
+
+General Options:
   -h, --help         Show this help message
   --init-config      Generate sample configuration file (ccw.yaml)
   --init-config FILE Generate sample configuration file with custom name
   --cleanup          Clean up all worktrees
   --debug            Enable debug mode
 
-This tool now uses a package-based architecture:
-- config: YAML configuration management
-- git: Git operations with timeout and retry logic
-- ui: Terminal UI components
-- More packages coming soon...
+Features:
+- Interactive issue selection with arrow keys and spacebar
+- Multi-issue processing support
+- Configurable filtering by state and labels
+- Package-based architecture for maintainability
 
 For configuration help: ccw --init-config
 `)
