@@ -297,6 +297,47 @@ show_progress_with_spinner() {
     printf "\r${CYAN}[✓]${NC} %s [${GREEN}████████████████████████████████${NC}] 100%% | Complete!     \n" "$message"
 }
 
+run_with_loading() {
+    local message="$1"
+    local output_file="$2"
+    shift 2
+    local command=("$@")
+    
+    # Start loading animation in background
+    show_loading "$message" &
+    local loading_pid=$!
+    
+    # Run the command
+    local exit_code=0
+    if [[ -n "$output_file" ]]; then
+        if "${command[@]}" > "$output_file" 2>&1; then
+            exit_code=0
+        else
+            exit_code=$?
+        fi
+    else
+        if "${command[@]}" >/dev/null 2>&1; then
+            exit_code=0
+        else
+            exit_code=$?
+        fi
+    fi
+    
+    # Stop loading animation
+    kill $loading_pid 2>/dev/null
+    wait $loading_pid 2>/dev/null
+    echo -e "\r\033[K" # Clear loading line
+    
+    if [[ $exit_code -eq 0 ]]; then
+        success "$message completed"
+    else
+        error "$message failed (exit code: $exit_code)"
+        return $exit_code
+    fi
+    
+    return $exit_code
+}
+
 show_loading() {
     local message="$1"
     local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
@@ -453,8 +494,8 @@ fetch_issue_data() {
     local temp_file=$(mktemp)
     trap "rm -f '$temp_file'" EXIT
     
-    # Use GitHub CLI to fetch issue data
-    if ! gh api "repos/${OWNER}/${REPO}/issues/${ISSUE_NUMBER}" > "$temp_file"; then
+    # Use GitHub CLI to fetch issue data with loading animation
+    if ! run_with_loading "Fetching issue data from GitHub API" "$temp_file" gh api "repos/${OWNER}/${REPO}/issues/${ISSUE_NUMBER}"; then
         error "Failed to fetch issue data. Check if the issue exists and you have access."
         exit 1
     fi
@@ -506,19 +547,15 @@ create_worktree() {
     # Check if worktree already exists
     if [[ -d "$WORKTREE_PATH" ]]; then
         warn "Worktree already exists at $WORKTREE_PATH"
-        log "Automatically removing existing worktree..."
-        git worktree remove "$WORKTREE_PATH" --force || true
-        rm -rf "$WORKTREE_PATH"
-        success "Existing worktree removed"
+        run_with_loading "Removing existing worktree" "" git worktree remove "$WORKTREE_PATH" --force
+        run_with_loading "Cleaning up worktree directory" "" rm -rf "$WORKTREE_PATH"
     fi
     
     # Fetch latest changes
-    log "Fetching latest changes..."
-    git fetch origin
+    run_with_loading "Fetching latest changes from origin" "" git fetch origin
     
     # Create new worktree from master
-    log "Creating worktree at: $WORKTREE_PATH"
-    if ! git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" origin/master; then
+    if ! run_with_loading "Creating new git worktree" "" git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" origin/master; then
         error "Failed to create git worktree"
         exit 1
     fi
@@ -789,44 +826,44 @@ validate_implementation() {
     # Run quality checks if SwiftLint is available
     if command -v swiftlint &> /dev/null; then
         update_activity "Running SwiftLint code quality checks"
-        log "Running SwiftLint validation..."
-        if ! swiftlint lint --fix; then
+        
+        # Auto-fix with loading
+        if ! run_with_loading "Running SwiftLint auto-fix" "" swiftlint lint --fix; then
             warn "SwiftLint auto-fix applied changes"
         fi
         
-        local swiftlint_output
-        if ! swiftlint_output=$(swiftlint lint 2>&1); then
+        # Validation with loading
+        local swiftlint_temp=$(mktemp)
+        if ! run_with_loading "Running SwiftLint validation" "$swiftlint_temp" swiftlint lint; then
             error "SwiftLint validation failed"
+            local swiftlint_output=$(cat "$swiftlint_temp")
             validation_errors+="\n## SwiftLint Errors:\n\`\`\`\n$swiftlint_output\n\`\`\`\n"
             has_errors=true
-        else
-            success "SwiftLint validation passed"
         fi
+        rm -f "$swiftlint_temp"
     fi
     
     # Build the project
     update_activity "Building project with Swift Package Manager"
-    log "Building project..."
-    local build_output
-    if ! build_output=$(swift build 2>&1); then
+    local build_temp=$(mktemp)
+    if ! run_with_loading "Building Swift package" "$build_temp" swift build; then
         error "Build failed"
+        local build_output=$(cat "$build_temp")
         validation_errors+="\n## Build Errors:\n\`\`\`\n$build_output\n\`\`\`\n"
         has_errors=true
-    else
-        success "Build successful"
     fi
+    rm -f "$build_temp"
     
     # Run tests
     update_activity "Running comprehensive test suite"
-    log "Running tests..."
-    local test_output
-    if ! test_output=$(swift test 2>&1); then
+    local test_temp=$(mktemp)
+    if ! run_with_loading "Running Swift test suite" "$test_temp" swift test; then
         error "Tests failed"
+        local test_output=$(cat "$test_temp")
         validation_errors+="\n## Test Errors:\n\`\`\`\n$test_output\n\`\`\`\n"
         has_errors=true
-    else
-        success "All tests passed"
     fi
+    rm -f "$test_temp"
     
     if [[ "$has_errors" == "true" ]]; then
         # Store validation errors for retry
@@ -1134,15 +1171,17 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
     info "Branch has $commits_ahead commits ahead of master"
     
     # Push branch to origin
-    log "Pushing branch to origin..."
-    if ! git push origin "$BRANCH_NAME"; then
+    if ! run_with_loading "Pushing branch to origin" "" git push origin "$BRANCH_NAME"; then
         error "Failed to push branch to origin"
         exit 1
     fi
-    success "Branch pushed to origin"
     
     # Check if PR already exists
-    local existing_pr=$(gh pr list --head "$BRANCH_NAME" --json number,url --jq '.[0] // empty')
+    local pr_temp=$(mktemp)
+    run_with_loading "Checking for existing pull requests" "$pr_temp" gh pr list --head "$BRANCH_NAME" --json number,url --jq '.[0] // empty'
+    local existing_pr=$(cat "$pr_temp")
+    rm -f "$pr_temp"
+    
     if [[ -n "$existing_pr" ]]; then
         local pr_number=$(echo "$existing_pr" | jq -r '.number')
         local pr_url=$(echo "$existing_pr" | jq -r '.url')
@@ -1184,18 +1223,15 @@ $commit_messages
 Co-Authored-By: Claude <noreply@anthropic.com>"
         fi
         
-        log "Creating pull request..."
-        local pr_url
-        if pr_url=$(gh pr create \
-            --title "$pr_title" \
-            --body "$pr_body" \
-            --head "$BRANCH_NAME" \
-            --base master); then
+        local pr_temp=$(mktemp)
+        if run_with_loading "Creating pull request" "$pr_temp" gh pr create --title "$pr_title" --body "$pr_body" --head "$BRANCH_NAME" --base master; then
+            local pr_url=$(cat "$pr_temp")
             success "Pull request created: $pr_url"
         else
             error "Failed to create pull request"
             exit 1
         fi
+        rm -f "$pr_temp"
     fi
     
     # Monitor PR checks
