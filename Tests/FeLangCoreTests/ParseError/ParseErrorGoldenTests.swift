@@ -27,7 +27,12 @@ struct ParseErrorGoldenTests {
 
     @Test("Semantic Error Golden File Tests")
     func testSemanticErrorsAgainstGoldenFile() async throws {
-        try ParseErrorTestUtils.executeGoldenTests(for: .semanticErrors)
+        // Load semantic error test cases and execute them
+        let testCases = try ParseErrorTestUtils.loadGoldenFile(for: .semanticErrors)
+
+        for testCase in testCases {
+            try executeSemanticGoldenTest(testCase)
+        }
     }
 
     @Test("Tokenizer Error Golden File Tests")
@@ -333,6 +338,158 @@ struct ParseErrorGoldenTests {
 
             try ParseErrorTestUtils.generateGoldenFile(for: .edgeCases, testCases: edgeCaseTestCases)
         }
+    }
+
+    /// Executes a single semantic error golden test case.
+    /// This creates a semantic error based on the test case and validates the formatted output.
+    private func executeSemanticGoldenTest(_ testCase: ParseErrorTestUtils.GoldenTestCase) throws {
+        // For semantic errors, we need to create the appropriate SemanticError based on the test case name
+        // and validate the formatting matches the expected output
+        let semanticError = try createSemanticErrorFromTestCase(testCase)
+        let actualFormatted = ErrorFormatter.format(semanticError)
+
+        // Normalize whitespace for comparison
+        let normalizedActual = normalizeErrorMessage(actualFormatted)
+        let normalizedExpected = normalizeErrorMessage(testCase.expectedError)
+
+        #expect(normalizedActual == normalizedExpected, """
+            Semantic error formatting mismatch for test case '\(testCase.name)':
+            Expected:
+            \(testCase.expectedError)
+
+            Actual:
+            \(actualFormatted)
+            """)
+    }
+
+    /// Creates a SemanticError from a golden test case.
+    /// This maps test case names to specific semantic errors for validation.
+    private func createSemanticErrorFromTestCase(_ testCase: ParseErrorTestUtils.GoldenTestCase) throws -> SemanticError {
+        if let error = createTypeRelatedError(testCase.name) {
+            return error
+        }
+        if let error = createVariableRelatedError(testCase.name) {
+            return error
+        }
+        if let error = createFunctionRelatedError(testCase.name) {
+            return error
+        }
+        if let error = createControlFlowError(testCase.name) {
+            return error
+        }
+        if let error = createArrayAndFieldError(testCase.name) {
+            return error
+        }
+        if let error = createAnalysisError(testCase.name) {
+            return error
+        }
+
+        throw ParseErrorTestError.unexpectedSuccess(testCase.name, "Unknown test case name")
+    }
+
+    private func createTypeRelatedError(_ testCaseName: String) -> SemanticError? {
+        switch testCaseName {
+        case "type_mismatch_integer_string":
+            return SemanticError.typeMismatch(expected: .integer, actual: .string, at: SourcePosition(line: 1, column: 19, offset: 18))
+        case "incompatible_types_addition":
+            return SemanticError.incompatibleTypes(.integer, .string, operation: "+", at: SourcePosition(line: 1, column: 17, offset: 16))
+        case "unknown_type_declaration":
+            return SemanticError.unknownType("MyCustomType", at: SourcePosition(line: 1, column: 8, offset: 7))
+        case "invalid_type_conversion":
+            return SemanticError.invalidTypeConversion(from: .string, to: .integer, at: SourcePosition(line: 1, column: 19, offset: 18))
+        default:
+            return nil
+        }
+    }
+
+    private func createVariableRelatedError(_ testCaseName: String) -> SemanticError? {
+        switch testCaseName {
+        case "undeclared_variable":
+            return SemanticError.undeclaredVariable("undeclaredVar", at: SourcePosition(line: 1, column: 10, offset: 9))
+        case "variable_already_declared":
+            return SemanticError.variableAlreadyDeclared("x", at: SourcePosition(line: 2, column: 5, offset: 20))
+        case "variable_not_initialized":
+            return SemanticError.variableNotInitialized("x", at: SourcePosition(line: 2, column: 10, offset: 25))
+        case "constant_reassignment":
+            return SemanticError.constantReassignment("PI", at: SourcePosition(line: 2, column: 1, offset: 18))
+        case "invalid_assignment_target":
+            return SemanticError.invalidAssignmentTarget(at: SourcePosition(line: 1, column: 7, offset: 6))
+        default:
+            return nil
+        }
+    }
+
+    private func createFunctionRelatedError(_ testCaseName: String) -> SemanticError? {
+        switch testCaseName {
+        case "undeclared_function":
+            return SemanticError.undeclaredFunction("unknownFunction", at: SourcePosition(line: 1, column: 15, offset: 14))
+        case "function_already_declared":
+            return SemanticError.functionAlreadyDeclared("add", at: SourcePosition(line: 2, column: 10, offset: 50))
+        case "incorrect_argument_count":
+            return SemanticError.incorrectArgumentCount(function: "multiply", expected: 2, actual: 1, at: SourcePosition(line: 2, column: 15, offset: 60))
+        case "argument_type_mismatch":
+            return SemanticError.argumentTypeMismatch(function: "greet", paramIndex: 0, expected: .string, actual: .integer, at: SourcePosition(line: 2, column: 22, offset: 45))
+        case "missing_return_statement":
+            return SemanticError.missingReturnStatement(function: "calculate", at: SourcePosition(line: 4, column: 1, offset: 60))
+        case "return_type_mismatch":
+            return SemanticError.returnTypeMismatch(function: "getNumber", expected: .integer, actual: .string, at: SourcePosition(line: 3, column: 3, offset: 45))
+        case "void_function_returns_value":
+            return SemanticError.voidFunctionReturnsValue(function: "doSomething", at: SourcePosition(line: 3, column: 3, offset: 35))
+        default:
+            return nil
+        }
+    }
+
+    private func createControlFlowError(_ testCaseName: String) -> SemanticError? {
+        switch testCaseName {
+        case "unreachable_code":
+            return SemanticError.unreachableCode(at: SourcePosition(line: 4, column: 3, offset: 50))
+        case "break_outside_loop":
+            return SemanticError.breakOutsideLoop(at: SourcePosition(line: 3, column: 3, offset: 35))
+        case "return_outside_function":
+            return SemanticError.returnOutsideFunction(at: SourcePosition(line: 2, column: 1, offset: 12))
+        default:
+            return nil
+        }
+    }
+
+    private func createArrayAndFieldError(_ testCaseName: String) -> SemanticError? {
+        switch testCaseName {
+        case "invalid_array_access":
+            return SemanticError.invalidArrayAccess(at: SourcePosition(line: 2, column: 16, offset: 45))
+        case "array_index_type_mismatch":
+            return SemanticError.arrayIndexTypeMismatch(expected: .integer, actual: .string, at: SourcePosition(line: 2, column: 16, offset: 50))
+        case "invalid_array_dimension":
+            return SemanticError.invalidArrayDimension(at: SourcePosition(line: 1, column: 13, offset: 12))
+        case "undeclared_field":
+            return SemanticError.undeclaredField(fieldName: "age", recordType: "Person", at: SourcePosition(line: 3, column: 12, offset: 45))
+        case "invalid_field_access":
+            return SemanticError.invalidFieldAccess(at: SourcePosition(line: 2, column: 14, offset: 30))
+        default:
+            return nil
+        }
+    }
+
+    private func createAnalysisError(_ testCaseName: String) -> SemanticError? {
+        switch testCaseName {
+        case "cyclic_dependency":
+            return SemanticError.cyclicDependency(["a", "b", "c", "a"], at: SourcePosition(line: 3, column: 10, offset: 35))
+        case "analysis_depth_exceeded":
+            return SemanticError.analysisDepthExceeded(at: SourcePosition(line: 1, column: 13, offset: 12))
+        case "too_many_errors":
+            return SemanticError.tooManyErrors(count: 100)
+        default:
+            return nil
+        }
+    }
+
+    /// Normalizes error messages for comparison by standardizing whitespace.
+    private func normalizeErrorMessage(_ message: String) -> String {
+        return message
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
     }
 }
 

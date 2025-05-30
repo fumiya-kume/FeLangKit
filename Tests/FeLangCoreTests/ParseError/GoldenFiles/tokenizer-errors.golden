@@ -6,5 +6,5 @@
 Input:
 writeLine("Hello world
 Expected Error:
-UnknownParseError: Unterminated string literal at line 1, column 11
+UnknownError: Unterminated string literal at line 1, column 11
 

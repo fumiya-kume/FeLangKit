@@ -1,9 +1,308 @@
 # Semantic Errors - Type mismatches and scope issues
-# This file will contain expected error messages for regression testing
-# Add test cases in the format:
-# === Test Case: test_name ===
-# Input:
-# [your test input here]
-# Expected Error:
-# [expected error message here]
+# Generated for comprehensive semantic error testing
+# This file contains expected error messages for regression testing
 
+=== Test Case: type_mismatch_integer_string ===
+Input:
+var x: integer := "hello"
+Expected Error:
+SemanticError: Type mismatch
+  at line 1, column 19
+  Expected type: integer
+  Actual type: string
+  Suggestion: Check variable declaration
+  Suggestion: Use explicit type conversion
+
+=== Test Case: incompatible_types_addition ===
+Input:
+var result := 5 + "text"
+Expected Error:
+SemanticError: Incompatible types for operation '+'
+  at line 1, column 17
+  Left operand type: integer
+  Right operand type: string
+  Suggestion: Ensure both operands have compatible types
+  Suggestion: Use type conversion if needed
+
+=== Test Case: unknown_type_declaration ===
+Input:
+var x: MyCustomType
+Expected Error:
+SemanticError: Unknown type 'MyCustomType'
+  at line 1, column 8
+  Suggestion: Check spelling of type name
+  Suggestion: Ensure type is declared
+  Suggestion: Use built-in types: integer, real, string, boolean
+
+=== Test Case: invalid_type_conversion ===
+Input:
+var x: boolean := integer("invalid")
+Expected Error:
+SemanticError: Invalid type conversion
+  at line 1, column 19
+  From: string
+  To: integer
+  Suggestion: Use compatible types
+  Suggestion: Check conversion is supported
+
+=== Test Case: undeclared_variable ===
+Input:
+var x := undeclaredVar + 5
+Expected Error:
+SemanticError: Undeclared variable 'undeclaredVar'
+  at line 1, column 10
+  Suggestion: Declare variable before use
+  Suggestion: Check variable name spelling
+  Suggestion: Ensure variable is in scope
+
+=== Test Case: variable_already_declared ===
+Input:
+var x: integer
+var x: string
+Expected Error:
+SemanticError: Variable 'x' already declared
+  at line 2, column 5
+  Suggestion: Use different variable name
+  Suggestion: Remove duplicate declaration
+  Suggestion: Check variable scope
+
+=== Test Case: variable_not_initialized ===
+Input:
+var x: integer
+var y := x + 5
+Expected Error:
+SemanticError: Variable 'x' used before initialization
+  at line 2, column 10
+  Suggestion: Initialize variable before use
+  Suggestion: Assign value to variable
+  Suggestion: Check initialization order
+
+=== Test Case: constant_reassignment ===
+Input:
+const PI := 3.14
+PI := 3.14159
+Expected Error:
+SemanticError: Cannot reassign constant 'PI'
+  at line 2, column 1
+  Suggestion: Use variable instead of constant
+  Suggestion: Initialize constant with final value
+  Suggestion: Create new variable for changed value
+
+=== Test Case: invalid_assignment_target ===
+Input:
+5 + 3 := 10
+Expected Error:
+SemanticError: Invalid assignment target
+  at line 1, column 7
+  Suggestion: Assign to variable, not expression
+  Suggestion: Use valid lvalue for assignment
+
+=== Test Case: undeclared_function ===
+Input:
+var result := unknownFunction(5)
+Expected Error:
+SemanticError: Undeclared function 'unknownFunction'
+  at line 1, column 15
+  Suggestion: Declare function before use
+  Suggestion: Check function name spelling
+  Suggestion: Import required module
+
+=== Test Case: function_already_declared ===
+Input:
+function add(x: integer, y: integer): integer
+function add(a: real, b: real): real
+Expected Error:
+SemanticError: Function 'add' already declared
+  at line 2, column 10
+  Suggestion: Use different function name
+  Suggestion: Remove duplicate declaration
+  Suggestion: Check function overloading rules
+
+=== Test Case: incorrect_argument_count ===
+Input:
+function multiply(x: integer, y: integer): integer
+var result := multiply(5)
+Expected Error:
+SemanticError: Incorrect argument count for function 'multiply'
+  at line 2, column 15
+  Expected: 2 arguments
+  Actual: 1 arguments
+  Suggestion: Provide correct number of arguments
+  Suggestion: Check function signature
+
+=== Test Case: argument_type_mismatch ===
+Input:
+function greet(name: string): string
+var message := greet(42)
+Expected Error:
+SemanticError: Argument type mismatch for function 'greet'
+  at line 2, column 22
+  Parameter 1: expected string, got integer
+  Suggestion: Use correct argument type
+  Suggestion: Apply type conversion
+  Suggestion: Check function parameters
+
+=== Test Case: missing_return_statement ===
+Input:
+function calculate(x: integer): integer
+begin
+  var temp := x * 2
+end
+Expected Error:
+SemanticError: Missing return statement in function 'calculate'
+  at line 4, column 1
+  Suggestion: Add return statement
+  Suggestion: Ensure all code paths return value
+  Suggestion: Use procedure if no return needed
+
+=== Test Case: return_type_mismatch ===
+Input:
+function getNumber(): integer
+begin
+  return "not a number"
+end
+Expected Error:
+SemanticError: Return type mismatch in function 'getNumber'
+  at line 3, column 3
+  Expected: integer
+  Actual: string
+  Suggestion: Return correct type
+  Suggestion: Update function signature
+  Suggestion: Apply type conversion
+
+=== Test Case: void_function_returns_value ===
+Input:
+procedure doSomething()
+begin
+  return 42
+end
+Expected Error:
+SemanticError: Void function 'doSomething' cannot return value
+  at line 3, column 3
+  Suggestion: Remove return value
+  Suggestion: Change function to return type
+  Suggestion: Use procedure syntax
+
+=== Test Case: unreachable_code ===
+Input:
+function test(): integer
+begin
+  return 42
+  var x := 10
+end
+Expected Error:
+SemanticError: Unreachable code detected
+  at line 4, column 3
+  Suggestion: Remove unreachable code
+  Suggestion: Fix control flow logic
+  Suggestion: Check conditional statements
+
+=== Test Case: break_outside_loop ===
+Input:
+function test(): integer
+begin
+  break
+  return 0
+end
+Expected Error:
+SemanticError: Break statement outside loop
+  at line 3, column 3
+  Suggestion: Use break only inside loops
+  Suggestion: Remove break statement
+  Suggestion: Use return for functions
+
+=== Test Case: return_outside_function ===
+Input:
+var x := 10
+return x
+Expected Error:
+SemanticError: Return statement outside function
+  at line 2, column 1
+  Suggestion: Use return only inside functions
+  Suggestion: Remove return statement
+  Suggestion: Declare function wrapper
+
+=== Test Case: invalid_array_access ===
+Input:
+var notAnArray: integer := 5
+var element := notAnArray[0]
+Expected Error:
+SemanticError: Invalid array access
+  at line 2, column 16
+  Suggestion: Check array variable exists
+  Suggestion: Use valid index expression
+  Suggestion: Ensure array is properly declared
+
+=== Test Case: array_index_type_mismatch ===
+Input:
+var numbers: array[10] of integer
+var element := numbers["invalid"]
+Expected Error:
+SemanticError: Array index type mismatch
+  at line 2, column 16
+  Expected: integer
+  Actual: string
+  Suggestion: Use integer index
+  Suggestion: Convert index to correct type
+
+=== Test Case: invalid_array_dimension ===
+Input:
+var matrix: array[-5..10] of integer
+Expected Error:
+SemanticError: Invalid array dimension
+  at line 1, column 13
+  Suggestion: Use valid dimension specification
+  Suggestion: Check array declaration syntax
+
+=== Test Case: undeclared_field ===
+Input:
+type Person = record name: string end
+var p: Person
+var age := p.age
+Expected Error:
+SemanticError: Undeclared field 'age' in record 'Person'
+  at line 3, column 12
+  Suggestion: Check field name spelling
+  Suggestion: Declare field in record type
+  Suggestion: Use existing field
+
+=== Test Case: invalid_field_access ===
+Input:
+var x: integer := 5
+var field := x.someField
+Expected Error:
+SemanticError: Invalid field access
+  at line 2, column 14
+  Suggestion: Access field on record variable
+  Suggestion: Check record type has field
+  Suggestion: Use dot notation
+
+=== Test Case: cyclic_dependency ===
+Input:
+var a := b + 1
+var b := c + 1
+var c := a + 1
+Expected Error:
+SemanticError: Cyclic dependency detected
+  at line 3, column 10
+  Dependency chain: a -> b -> c -> a
+  Suggestion: Break circular dependency
+  Suggestion: Reorder declarations
+  Suggestion: Use forward declarations
+
+=== Test Case: analysis_depth_exceeded ===
+Input:
+var deep := ((((((((((x + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1) + 1)
+Expected Error:
+SemanticError: Analysis depth exceeded
+  at line 1, column 13
+  Suggestion: Simplify expression structure
+  Suggestion: Reduce nesting depth
+  Suggestion: Break complex expressions
+
+=== Test Case: too_many_errors ===
+Input:
+# This would be generated when error limit is reached
+Expected Error:
+SemanticError: Too many semantic errors (100), stopping analysis
+  Fix existing errors before continuing
