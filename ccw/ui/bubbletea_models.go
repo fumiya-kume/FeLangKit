@@ -2,10 +2,12 @@ package ui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"ccw/types"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
@@ -49,9 +51,65 @@ type MainMenuModel struct {
 
 // Issue selection model
 type IssueSelectionModel struct {
-	list     list.Model
-	selected []*types.Issue
-	done     bool
+	list         list.Model
+	selected     []*types.Issue
+	done         bool
+	allIssues    []*types.Issue
+	filtered     []list.Item
+	sortBy       SortBy
+	showDetails  bool
+	detailsIndex int
+	keys         KeyMap
+}
+
+// SortBy represents different sorting options
+type SortBy int
+
+const (
+	SortByNumber SortBy = iota
+	SortByTitle
+	SortByState
+	SortByDate
+)
+
+// KeyMap defines keyboard shortcuts
+type KeyMap struct {
+	ToggleSelect key.Binding
+	Sort         key.Binding
+	Details      key.Binding
+	Search       key.Binding
+	Back         key.Binding
+	Start        key.Binding
+}
+
+// DefaultKeyMap returns default key bindings
+func DefaultKeyMap() KeyMap {
+	return KeyMap{
+		ToggleSelect: key.NewBinding(
+			key.WithKeys(" ", "enter"),
+			key.WithHelp("space/enter", "toggle selection"),
+		),
+		Sort: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "cycle sort (number/title/state/date)"),
+		),
+		Details: key.NewBinding(
+			key.WithKeys("d"),
+			key.WithHelp("d", "toggle details"),
+		),
+		Search: key.NewBinding(
+			key.WithKeys("/"),
+			key.WithHelp("/", "search/filter"),
+		),
+		Back: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "back to main menu"),
+		),
+		Start: key.NewBinding(
+			key.WithKeys("ctrl+s"),
+			key.WithHelp("ctrl+s", "start workflow with selected"),
+		),
+	}
 }
 
 // Progress tracking model
@@ -68,14 +126,32 @@ type IssueItem struct {
 	issue *types.Issue
 }
 
-func (i IssueItem) FilterValue() string { return i.issue.Title }
-func (i IssueItem) Title() string       { return fmt.Sprintf("#%d: %s", i.issue.Number, i.issue.Title) }
+func (i IssueItem) FilterValue() string { 
+	// Include title, labels, and issue number for fuzzy search
+	labels := make([]string, len(i.issue.Labels))
+	for idx, label := range i.issue.Labels {
+		labels[idx] = label.Name
+	}
+	return fmt.Sprintf("%s %d %s %s", i.issue.Title, i.issue.Number, strings.Join(labels, " "), i.issue.State)
+}
+
+func (i IssueItem) Title() string { 
+	return fmt.Sprintf("#%d: %s", i.issue.Number, i.issue.Title) 
+}
+
 func (i IssueItem) Description() string {
 	labels := make([]string, len(i.issue.Labels))
-	for i, label := range i.issue.Labels {
-		labels[i] = label.Name
+	for idx, label := range i.issue.Labels {
+		labels[idx] = label.Name
 	}
-	return fmt.Sprintf("State: %s | Labels: %s", i.issue.State, strings.Join(labels, ", "))
+	labelStr := "No labels"
+	if len(labels) > 0 {
+		labelStr = strings.Join(labels, ", ")
+		if len(labelStr) > 50 {
+			labelStr = labelStr[:47] + "..."
+		}
+	}
+	return fmt.Sprintf("State: %s | Labels: %s", i.issue.State, labelStr)
 }
 
 // Styles with improved visibility and contrast
@@ -174,11 +250,15 @@ func NewAppModel(ui *UIManager) AppModel {
 
 	issueList := list.New([]list.Item{}, delegate, 80, 20)
 	issueList.Title = "Select Issues to Process"
-	issueList.SetShowStatusBar(false)
-	issueList.SetFilteringEnabled(false) // Disable filtering for simpler UX
+	issueList.SetShowStatusBar(true)
+	issueList.SetFilteringEnabled(true) // Enable filtering for enhanced search
 
 	issueSelection := IssueSelectionModel{
-		list: issueList,
+		list:     issueList,
+		allIssues: []*types.Issue{},
+		filtered: []list.Item{},
+		sortBy:   SortByNumber,
+		keys:     DefaultKeyMap(),
 	}
 
 	// Initialize progress tracker
@@ -458,11 +538,12 @@ func (m AppModel) updateMainMenu(msg tea.Msg) (MainMenuModel, tea.Cmd) {
 func (m AppModel) updateIssueSelection(msg tea.Msg) (IssueSelectionModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case key.Matches(msg, m.issueSelection.keys.Back):
 			m.state = StateMainMenu
 			return m.issueSelection, nil
-		case "enter":
+			
+		case key.Matches(msg, m.issueSelection.keys.ToggleSelect):
 			// Toggle selection
 			selectedItem := m.issueSelection.list.SelectedItem()
 			if item, ok := selectedItem.(IssueItem); ok {
@@ -483,7 +564,21 @@ func (m AppModel) updateIssueSelection(msg tea.Msg) (IssueSelectionModel, tea.Cm
 					m.issueSelection.selected = append(m.issueSelection.selected, item.issue)
 				}
 			}
-		case "s":
+			
+		case key.Matches(msg, m.issueSelection.keys.Sort):
+			// Cycle through sort options
+			m.issueSelection.sortBy = (m.issueSelection.sortBy + 1) % 4
+			m.issueSelection = m.sortIssues(m.issueSelection)
+			
+		case key.Matches(msg, m.issueSelection.keys.Details):
+			// Toggle details view
+			m.issueSelection.showDetails = !m.issueSelection.showDetails
+			if m.issueSelection.showDetails {
+				// Set details index to current selection
+				m.issueSelection.detailsIndex = m.issueSelection.list.Index()
+			}
+			
+		case key.Matches(msg, m.issueSelection.keys.Start):
 			// Start workflow with selected issues
 			if len(m.issueSelection.selected) > 0 {
 				m.state = StateProgressTracking
@@ -558,6 +653,10 @@ func (m AppModel) viewMainMenu() string {
 func (m AppModel) viewIssueSelection() string {
 	header := headerStyle.Render("📝 Issue Selection")
 
+	// Sort indicator
+	sortIndicator := m.getSortIndicator()
+	
+	// Selected issues info
 	selectedInfo := ""
 	if len(m.issueSelection.selected) > 0 {
 		selectedNums := make([]string, len(m.issueSelection.selected))
@@ -569,9 +668,39 @@ func (m AppModel) viewIssueSelection() string {
 		selectedInfo = "\n" + subtleStyle.Render("No issues selected yet")
 	}
 
-	footer := subtleStyle.Render("Enter: toggle selection • 's': start workflow • Esc: back to main menu")
+	// Main list view
+	mainView := m.issueSelection.list.View()
+	
+	// Details view if enabled
+	detailsView := ""
+	if m.issueSelection.showDetails {
+		detailsView = m.getIssueDetails()
+	}
 
-	return header + "\n\n" + m.issueSelection.list.View() + selectedInfo + "\n\n" + footer
+	// Help footer
+	helpText := []string{
+		"space/enter: toggle",
+		"s: sort (" + m.getSortName() + ")",
+		"d: details",
+		"/: search",
+		"ctrl+s: start workflow",
+		"esc: back",
+	}
+	footer := subtleStyle.Render(strings.Join(helpText, " • "))
+
+	if m.issueSelection.showDetails && detailsView != "" {
+		// Split view: list on left, details on right
+		leftWidth := (m.windowSize.Width - 4) / 2
+		rightWidth := m.windowSize.Width - leftWidth - 4
+		
+		leftPanel := lipgloss.NewStyle().Width(leftWidth).Render(mainView)
+		rightPanel := lipgloss.NewStyle().Width(rightWidth).Render(detailsView)
+		
+		content := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)
+		return header + "\n" + sortIndicator + content + selectedInfo + "\n\n" + footer
+	}
+
+	return header + "\n" + sortIndicator + "\n" + mainView + selectedInfo + "\n\n" + footer
 }
 
 // Progress View
@@ -637,11 +766,8 @@ func sendHeaderUpdate(interval time.Duration) tea.Cmd {
 
 // Set issues for selection
 func (m *AppModel) SetIssues(issues []*types.Issue) {
-	items := make([]list.Item, len(issues))
-	for i, issue := range issues {
-		items[i] = IssueItem{issue: issue}
-	}
-	m.issueSelection.list.SetItems(items)
+	m.issueSelection.allIssues = issues
+	m.issueSelection = m.sortIssues(m.issueSelection)
 }
 
 // Set progress steps
@@ -668,3 +794,128 @@ func SendProgressComplete() tea.Cmd {
 		return ProgressCompleteMsg{}
 	}
 }
+
+// Helper methods for issue selection enhancements
+
+// sortIssues sorts the issues based on current sort criteria
+func (m AppModel) sortIssues(issueModel IssueSelectionModel) IssueSelectionModel {
+	issues := make([]*types.Issue, len(issueModel.allIssues))
+	copy(issues, issueModel.allIssues)
+	
+	switch issueModel.sortBy {
+	case SortByNumber:
+		sort.Slice(issues, func(i, j int) bool {
+			return issues[i].Number < issues[j].Number
+		})
+	case SortByTitle:
+		sort.Slice(issues, func(i, j int) bool {
+			return strings.ToLower(issues[i].Title) < strings.ToLower(issues[j].Title)
+		})
+	case SortByState:
+		sort.Slice(issues, func(i, j int) bool {
+			// Sort open issues first
+			if issues[i].State != issues[j].State {
+				return issues[i].State == "open"
+			}
+			return issues[i].Number < issues[j].Number
+		})
+	case SortByDate:
+		// Note: This would require CreatedAt field in types.Issue
+		// For now, sort by number as fallback
+		sort.Slice(issues, func(i, j int) bool {
+			return issues[i].Number > issues[j].Number // Reverse for newest first
+		})
+	}
+	
+	// Convert to list items
+	items := make([]list.Item, len(issues))
+	for i, issue := range issues {
+		items[i] = IssueItem{issue: issue}
+	}
+	
+	issueModel.filtered = items
+	issueModel.list.SetItems(items)
+	return issueModel
+}
+
+// getSortIndicator returns a visual indicator for current sort
+func (m AppModel) getSortIndicator() string {
+	sortName := m.getSortName()
+	return subtleStyle.Render(fmt.Sprintf("Sorted by: %s", sortName))
+}
+
+// getSortName returns the current sort method name
+func (m AppModel) getSortName() string {
+	switch m.issueSelection.sortBy {
+	case SortByNumber:
+		return "number"
+	case SortByTitle:
+		return "title"
+	case SortByState:
+		return "state"
+	case SortByDate:
+		return "date"
+	default:
+		return "unknown"
+	}
+}
+
+// getIssueDetails returns detailed view of the selected issue
+func (m AppModel) getIssueDetails() string {
+	if len(m.issueSelection.filtered) == 0 {
+		return ""
+	}
+	
+	index := m.issueSelection.list.Index()
+	if index < 0 || index >= len(m.issueSelection.filtered) {
+		return ""
+	}
+	
+	if item, ok := m.issueSelection.filtered[index].(IssueItem); ok {
+		issue := item.issue
+		
+		var details strings.Builder
+		details.WriteString(headerStyle.Render("Issue Details") + "\n\n")
+		
+		// Basic info
+		details.WriteString(infoStyle.Render("Number: ") + fmt.Sprintf("#%d\n", issue.Number))
+		details.WriteString(infoStyle.Render("Title: ") + issue.Title + "\n")
+		details.WriteString(infoStyle.Render("State: "))
+		if issue.State == "open" {
+			details.WriteString(successStyle.Render(issue.State))
+		} else {
+			details.WriteString(subtleStyle.Render(issue.State))
+		}
+		details.WriteString("\n\n")
+		
+		// Labels
+		if len(issue.Labels) > 0 {
+			details.WriteString(infoStyle.Render("Labels:\n"))
+			for _, label := range issue.Labels {
+				details.WriteString(fmt.Sprintf("  • %s\n", label.Name))
+			}
+		} else {
+			details.WriteString(subtleStyle.Render("No labels\n"))
+		}
+		
+		// Selection status
+		details.WriteString("\n")
+		isSelected := false
+		for _, selected := range m.issueSelection.selected {
+			if selected.Number == issue.Number {
+				isSelected = true
+				break
+			}
+		}
+		if isSelected {
+			details.WriteString(successStyle.Render("✓ SELECTED"))
+		} else {
+			details.WriteString(subtleStyle.Render("○ Not selected"))
+		}
+		
+		return details.String()
+	}
+	
+	return ""
+}
+
