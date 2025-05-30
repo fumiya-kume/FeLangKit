@@ -56,9 +56,19 @@ show_loading() {
     local message="$1"
     local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
     local i=0
+    local seconds=0
+    local start_time=$(date +%s)
     
     while true; do
-        printf "\r${CYAN}[${spinner[i]}]${NC} %s" "$message"
+        local current_time=$(date +%s)
+        seconds=$((current_time - start_time))
+        
+        # Format time as MM:SS
+        local minutes=$((seconds / 60))
+        local remaining_seconds=$((seconds % 60))
+        local formatted_time=$(printf "%02d:%02d" "$minutes" "$remaining_seconds")
+        
+        printf "\r${CYAN}[${spinner[i]}]${NC} %s ${YELLOW}[%s]${NC}          " "$message" "$formatted_time"
         i=$(( (i + 1) % ${#spinner[@]} ))
         sleep 0.1
     done
@@ -376,19 +386,19 @@ EOF
     local input_file="${WORKTREE_PATH}/.claude-input.txt"
     echo "$context_message" > "$input_file"
     
-    # Launch Claude Code with the context as initial input and JSON format
-    info "Launching Claude Code with issue context and JSON output format..."
+    # Launch Claude Code with the context as initial input
+    info "Launching Claude Code with issue context..."
     info "Note: You may see a trust prompt - select 'Yes, proceed' to continue"
     
     # Start loading animation in background
     show_loading "Processing with Claude Code" &
     local loading_pid=$!
     
-    # Launch Claude Code
+    # Launch Claude Code with timeout (10 minutes for main implementation)
     local claude_output_file="${WORKTREE_PATH}/.claude-output.log"
     local claude_error_file="${WORKTREE_PATH}/.claude-error.log"
     
-    if claude --format json < "$input_file" > "$claude_output_file" 2> "$claude_error_file"; then
+    if timeout 600 claude < "$input_file" > "$claude_output_file" 2> "$claude_error_file"; then
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
@@ -400,10 +410,16 @@ EOF
             cat "$claude_output_file"
         fi
     else
+        local exit_code=$?
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
-        error "Claude Code session failed or was interrupted"
+        
+        if [[ $exit_code -eq 124 ]]; then
+            error "Claude Code session timed out after 10 minutes"
+        else
+            error "Claude Code session failed or was interrupted (exit code: $exit_code)"
+        fi
         
         # Show error details
         if [[ -s "$claude_error_file" ]]; then
@@ -471,18 +487,18 @@ EOF
     local input_file="${WORKTREE_PATH}/.claude-error-input.txt"
     echo "$error_context_message" > "$input_file"
     
-    # Launch Claude Code with the error context as initial input and JSON format
-    info "Launching Claude Code with validation error context and JSON output format..."
+    # Launch Claude Code with the error context as initial input
+    info "Launching Claude Code with validation error context..."
     
     # Start loading animation in background
     show_loading "Fixing validation errors with Claude Code" &
     local loading_pid=$!
     
-    # Launch Claude Code
+    # Launch Claude Code with timeout (8 minutes for error fixing)
     local claude_output_file="${WORKTREE_PATH}/.claude-error-output.log"
     local claude_error_file="${WORKTREE_PATH}/.claude-error-stderr.log"
     
-    if claude --format json < "$input_file" > "$claude_output_file" 2> "$claude_error_file"; then
+    if timeout 480 claude < "$input_file" > "$claude_output_file" 2> "$claude_error_file"; then
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
@@ -494,10 +510,16 @@ EOF
             cat "$claude_output_file"
         fi
     else
+        local exit_code=$?
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
-        error "Claude Code error-fixing session failed or was interrupted"
+        
+        if [[ $exit_code -eq 124 ]]; then
+            error "Claude Code error-fixing session timed out after 8 minutes"
+        else
+            error "Claude Code error-fixing session failed or was interrupted (exit code: $exit_code)"
+        fi
         
         # Show error details
         if [[ -s "$claude_error_file" ]]; then
@@ -661,7 +683,7 @@ Return ONLY the JSON object, no additional text or markdown formatting."
     
     local claude_pr_error_file="${WORKTREE_PATH}/.claude-pr-error.log"
     
-    if claude < "$pr_input_file" > "$pr_output_file" 2> "$claude_pr_error_file"; then
+    if timeout 180 claude --print --output-format json < "$pr_input_file" > "$pr_output_file" 2> "$claude_pr_error_file"; then
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
@@ -679,10 +701,17 @@ Return ONLY the JSON object, no additional text or markdown formatting."
             return 1
         fi
     else
+        local exit_code=$?
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
-        warn "Claude Code PR description generation failed, using fallback format"
+        
+        if [[ $exit_code -eq 124 ]]; then
+            warn "Claude Code PR description generation timed out after 3 minutes, using fallback format"
+        else
+            warn "Claude Code PR description generation failed, using fallback format (exit code: $exit_code)"
+        fi
+        
         if [[ -s "$claude_pr_error_file" ]]; then
             error "Claude Code PR generation error output:"
             cat "$claude_pr_error_file"
@@ -755,7 +784,7 @@ Return ONLY the commit message text, no additional formatting or markdown."
     
     local claude_commit_error_file="${WORKTREE_PATH}/.claude-commit-error.log"
     
-    if claude < "$commit_input_file" > "$commit_output_file" 2> "$claude_commit_error_file"; then
+    if timeout 120 claude --print < "$commit_input_file" > "$commit_output_file" 2> "$claude_commit_error_file"; then
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
@@ -773,10 +802,17 @@ Return ONLY the commit message text, no additional formatting or markdown."
             return 1
         fi
     else
+        local exit_code=$?
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
-        warn "Claude Code commit message generation failed, using fallback"
+        
+        if [[ $exit_code -eq 124 ]]; then
+            warn "Claude Code commit message generation timed out after 2 minutes, using fallback"
+        else
+            warn "Claude Code commit message generation failed, using fallback (exit code: $exit_code)"
+        fi
+        
         if [[ -s "$claude_commit_error_file" ]]; then
             error "Claude Code commit generation error output:"
             cat "$claude_commit_error_file"
