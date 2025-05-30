@@ -22,6 +22,7 @@ const (
 	StateIssueSelection
 	StateProgressTracking
 	StateLogViewer
+	StateValidationResults
 	StateCompleted
 )
 
@@ -32,6 +33,7 @@ type AppModel struct {
 	issueSelection  IssueSelectionModel
 	progressTracker ProgressModel
 	logViewer       LogViewerModel
+	validationModel ValidationModel
 	windowSize      tea.WindowSizeMsg
 	ui             *UIManager
 	showLogs        bool
@@ -250,6 +252,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progressTracker, cmd = m.updateProgress(msg)
 	case StateLogViewer:
 		m.logViewer, cmd = m.logViewer.Update(msg)
+	case StateValidationResults:
+		var newModel tea.Model
+		newModel, cmd = m.validationModel.Update(msg)
+		if validationModel, ok := newModel.(ValidationModel); ok {
+			m.validationModel = validationModel
+		}
 	}
 
 	// Always update log viewer in background for live updates
@@ -273,6 +281,8 @@ func (m AppModel) View() string {
 		mainContent = m.viewProgress()
 	case StateLogViewer:
 		return m.logViewer.View()
+	case StateValidationResults:
+		return m.validationModel.View()
 	case StateCompleted:
 		mainContent = "Workflow completed! Press 'q' to quit.\n"
 	default:
@@ -280,7 +290,7 @@ func (m AppModel) View() string {
 	}
 	
 	// Show logs alongside main content if enabled
-	if m.showLogs && m.state != StateLogViewer {
+	if m.showLogs && m.state != StateLogViewer && m.state != StateValidationResults {
 		return m.layoutWithLogs(mainContent)
 	}
 	
@@ -378,6 +388,8 @@ func (m AppModel) getStateName() string {
 		return "Progress"
 	case StateLogViewer:
 		return "Logs"
+	case StateValidationResults:
+		return "Validation"
 	case StateCompleted:
 		return "Complete"
 	default:
@@ -600,6 +612,11 @@ func (m *AppModel) SetProgressSteps(steps []types.WorkflowStep) {
 // Get selected issues
 func (m *AppModel) GetSelectedIssues() []*types.Issue {
 	return m.issueSelection.selected
+}
+
+// Set validation results
+func (m *AppModel) SetValidationResults(result *types.ValidationResult) {
+	m.validationModel = NewValidationModel(result, m.windowSize.Width, m.windowSize.Height)
 }
 
 // Send progress update

@@ -251,6 +251,24 @@ func (ui *UIManager) DisplayHeader() {
 
 // Display validation results with visual formatting
 func (ui *UIManager) DisplayValidationResults(result *types.ValidationResult) {
+	// Check if we should use Bubble Tea for interactive display
+	if ui.ShouldUseBubbleTea() {
+		ui.DisplayValidationResultsInteractive(result)
+		return
+	}
+
+	// Fall back to console mode for CI/non-interactive environments
+	ui.displayValidationResultsConsole(result)
+}
+
+// DisplayValidationResultsInteractive shows validation results using Bubble Tea
+func (ui *UIManager) DisplayValidationResultsInteractive(result *types.ValidationResult) {
+	btm := ui.GetBubbleTeaManager()
+	btm.ShowValidationResults(result)
+}
+
+// displayValidationResultsConsole shows validation results in console mode
+func (ui *UIManager) displayValidationResultsConsole(result *types.ValidationResult) {
 	title := ui.getConsoleChar("🔍 Validation Results", "Validation Results")
 	separator := ui.getConsoleChar("─", "-")
 	

@@ -118,6 +118,29 @@ func (btm *BubbleTeaManager) CompleteProgress() {
 	}
 }
 
+// ShowValidationResults displays validation results interactively
+func (btm *BubbleTeaManager) ShowValidationResults(result *types.ValidationResult) error {
+	// Enable UI mode to redirect logs to UI buffer
+	logging.SetUIMode(true)
+	defer logging.SetUIMode(false)
+	
+	// Set the validation results in our model
+	btm.model.SetValidationResults(result)
+	
+	// Set state to validation results
+	btm.model.state = StateValidationResults
+	
+	// Run the program
+	btm.program = tea.NewProgram(*btm.model, tea.WithAltScreen())
+	
+	_, err := btm.program.Run()
+	if err != nil {
+		return fmt.Errorf("error displaying validation results: %w", err)
+	}
+
+	return nil
+}
+
 // Quit the current program
 func (btm *BubbleTeaManager) Quit() {
 	if btm.program != nil {
