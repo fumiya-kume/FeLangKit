@@ -191,8 +191,14 @@ func NewAppModel(ui *UIManager) AppModel {
 	InitLogBuffer(1000) // Keep last 1000 log entries
 	logViewer := NewLogViewerModel(80, 20, GetLogBuffer())
 
-	// Initialize validation results model
-	validationResults := NewValidationModel(nil, 80, 20)
+	// Initialize validation results model with empty result
+	emptyValidationResult := &types.ValidationResult{
+		Success:   true,
+		Errors:    []types.ValidationError{},
+		Duration:  0,
+		Timestamp: time.Now(),
+	}
+	validationResults := NewValidationModel(emptyValidationResult, 80, 20)
 
 	return AppModel{
 		state:             StateMainMenu,
@@ -267,7 +273,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StateValidationResults:
 		var validationModel tea.Model
 		validationModel, cmd = m.validationResults.Update(msg)
-		m.validationResults = validationModel.(ValidationModel)
+		if vm, ok := validationModel.(ValidationModel); ok {
+			m.validationResults = vm
+		}
 	}
 
 	// Always update log viewer in background for live updates
