@@ -38,7 +38,7 @@ func (ci *ClaudeIntegration) GeneratePRDescription(req *types.PRDescriptionReque
 	cmdCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute) // Shorter timeout for PR description
 	defer cancel()
 
-	cmd := exec.CommandContext(cmdCtx, "claude", "--print", "--output-format", "json")
+	cmd := exec.CommandContext(cmdCtx, "claude", "--print")
 	cmd.Dir = req.WorktreeConfig.WorktreePath
 
 	// Prepare Claude prompt for PR description generation
@@ -324,7 +324,7 @@ func (ci *ClaudeIntegration) RunWithContext(ctx *types.ClaudeContext) error {
 	// Prepare Claude Code command
 	var args []string
 	if ctx.IsRetry {
-		args = []string{"--print", "--output-format", "json"}
+		args = []string{"--print"}
 	} else {
 		args = []string{}
 	}

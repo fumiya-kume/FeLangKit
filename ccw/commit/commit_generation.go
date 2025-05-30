@@ -2,6 +2,7 @@ package commit
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -460,4 +461,26 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// Missing types and helper functions
+
+// ClaudeIntegration placeholder
+type ClaudeIntegration struct{}
+
+// Config placeholder  
+type Config struct{}
+
+// Issue represents a GitHub issue
+type Issue struct {
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	Body   string `json:"body"`
+}
+
+// Helper function to create git commands
+func createGitCommand(args []string, workDir string) *exec.Cmd {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = workDir
+	return cmd
 }
