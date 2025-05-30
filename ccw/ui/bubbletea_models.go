@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -45,12 +46,29 @@ type MainMenuModel struct {
 	selected bool
 }
 
-// Issue selection model  
+// Issue selection model with enhanced features
 type IssueSelectionModel struct {
-	list     list.Model
-	selected []*types.Issue
-	done     bool
+	list             list.Model
+	selected         []*types.Issue
+	done             bool
+	allIssues        []*types.Issue
+	sortBy           SortBy
+	showDetails      bool
+	selectedIndex    int
+	searchEnabled    bool
+	originalItems    []list.Item
 }
+
+// Sorting options
+type SortBy int
+
+const (
+	SortByNumber SortBy = iota
+	SortByTitle
+	SortByState
+	SortByDate
+	SortByUpdated
+)
 
 // Progress tracking model
 type ProgressModel struct {
@@ -61,19 +79,83 @@ type ProgressModel struct {
 	done        bool
 }
 
-// Issue list item for Bubble Tea list component
+// Enhanced issue list item with detailed information
 type IssueItem struct {
 	issue *types.Issue
 }
 
-func (i IssueItem) FilterValue() string { return i.issue.Title }
-func (i IssueItem) Title() string       { return fmt.Sprintf("#%d: %s", i.issue.Number, i.issue.Title) }
+func (i IssueItem) FilterValue() string { 
+	// Include title, labels, and state in filter for comprehensive search
+	labels := make([]string, len(i.issue.Labels))
+	for idx, label := range i.issue.Labels {
+		labels[idx] = label.Name
+	}
+	return fmt.Sprintf("%s %s %s", i.issue.Title, i.issue.State, strings.Join(labels, " "))
+}
+
+func (i IssueItem) Title() string { 
+	stateIcon := "⭕" // default
+	switch i.issue.State {
+	case "open":
+		stateIcon = "🟢"
+	case "closed":
+		stateIcon = "🔴"
+	case "draft":
+		stateIcon = "📝"
+	}
+	
+	return fmt.Sprintf("%s #%d: %s", stateIcon, i.issue.Number, i.issue.Title) 
+}
+
 func (i IssueItem) Description() string { 
 	labels := make([]string, len(i.issue.Labels))
-	for i, label := range i.issue.Labels {
-		labels[i] = label.Name
+	for idx, label := range i.issue.Labels {
+		labels[idx] = label.Name
 	}
-	return fmt.Sprintf("State: %s | Labels: %s", i.issue.State, strings.Join(labels, ", "))
+	
+	labelStr := "none"
+	if len(labels) > 0 {
+		labelStr = strings.Join(labels, ", ")
+		if len(labelStr) > 40 {
+			labelStr = labelStr[:37] + "..."
+		}
+	}
+	
+	return fmt.Sprintf("State: %s | Labels: %s | Updated: %s", 
+		i.issue.State, 
+		labelStr,
+		i.issue.UpdatedAt.Format("2006-01-02"))
+}
+
+// GetDetailedDescription returns full issue details for expanded view
+func (i IssueItem) GetDetailedDescription() string {
+	labels := make([]string, len(i.issue.Labels))
+	for idx, label := range i.issue.Labels {
+		labels[idx] = label.Name
+	}
+	
+	assignees := make([]string, len(i.issue.Assignees))
+	for idx, assignee := range i.issue.Assignees {
+		assignees[idx] = assignee.Login
+	}
+	
+	body := i.issue.Body
+	if len(body) > 200 {
+		body = body[:197] + "..."
+	}
+	
+	details := fmt.Sprintf(
+		"State: %s\nLabels: %s\nAssignees: %s\nCreated: %s\nUpdated: %s\nURL: %s\n\nDescription:\n%s",
+		i.issue.State,
+		strings.Join(labels, ", "),
+		strings.Join(assignees, ", "),
+		i.issue.CreatedAt.Format("2006-01-02 15:04"),
+		i.issue.UpdatedAt.Format("2006-01-02 15:04"),
+		i.issue.HTMLURL,
+		body,
+	)
+	
+	return details
 }
 
 // Styles with improved visibility and contrast
@@ -170,12 +252,17 @@ func NewAppModel(ui *UIManager) AppModel {
 		Padding(0, 0, 0, 1)
 	
 	issueList := list.New([]list.Item{}, delegate, 80, 20)
-	issueList.Title = "Select Issues to Process"
-	issueList.SetShowStatusBar(false)
-	issueList.SetFilteringEnabled(false) // Disable filtering for simpler UX
+	issueList.Title = "🔍 Enhanced Issue Selection"
+	issueList.SetShowStatusBar(true)
+	issueList.SetFilteringEnabled(true) // Enable fuzzy search/filtering
+	issueList.SetShowHelp(true)
 	
 	issueSelection := IssueSelectionModel{
-		list: issueList,
+		list:          issueList,
+		sortBy:        SortByNumber, // Default sort by issue number
+		showDetails:   false,
+		searchEnabled: true,
+		originalItems: []list.Item{},
 	}
 
 	// Initialize progress tracker
@@ -414,15 +501,21 @@ func (m AppModel) updateMainMenu(msg tea.Msg) (MainMenuModel, tea.Cmd) {
 	return m.mainMenu, nil
 }
 
-// Issue Selection Update
+// Issue Selection Update with enhanced functionality
 func (m AppModel) updateIssueSelection(msg tea.Msg) (IssueSelectionModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
+			if m.issueSelection.showDetails {
+				// Exit detail view
+				m.issueSelection.showDetails = false
+				return m.issueSelection, nil
+			}
+			// Return to main menu
 			m.state = StateMainMenu
 			return m.issueSelection, nil
-		case "enter":
+		case "enter", " ":
 			// Toggle selection
 			selectedItem := m.issueSelection.list.SelectedItem()
 			if item, ok := selectedItem.(IssueItem); ok {
@@ -443,11 +536,40 @@ func (m AppModel) updateIssueSelection(msg tea.Msg) (IssueSelectionModel, tea.Cm
 					m.issueSelection.selected = append(m.issueSelection.selected, item.issue)
 				}
 			}
-		case "s":
+		case "d":
+			// Toggle detailed view for selected issue
+			m.issueSelection.showDetails = !m.issueSelection.showDetails
+			m.issueSelection.selectedIndex = m.issueSelection.list.Index()
+		case "ctrl+s":
 			// Start workflow with selected issues
 			if len(m.issueSelection.selected) > 0 {
 				m.state = StateProgressTracking
 				return m.issueSelection, nil
+			}
+		case "1":
+			// Sort by number
+			m.issueSelection.sortBy = SortByNumber
+			m.issueSelection = m.applySorting(m.issueSelection)
+		case "2":
+			// Sort by title
+			m.issueSelection.sortBy = SortByTitle
+			m.issueSelection = m.applySorting(m.issueSelection)
+		case "3":
+			// Sort by state
+			m.issueSelection.sortBy = SortByState
+			m.issueSelection = m.applySorting(m.issueSelection)
+		case "4":
+			// Sort by creation date
+			m.issueSelection.sortBy = SortByDate
+			m.issueSelection = m.applySorting(m.issueSelection)
+		case "5":
+			// Sort by update date
+			m.issueSelection.sortBy = SortByUpdated
+			m.issueSelection = m.applySorting(m.issueSelection)
+		case "ctrl+r":
+			// Reset search/filter
+			if len(m.issueSelection.originalItems) > 0 {
+				m.issueSelection.list.SetItems(m.issueSelection.originalItems)
 			}
 		}
 	}
@@ -511,10 +633,15 @@ func (m AppModel) viewMainMenu() string {
 	return s
 }
 
-// Issue Selection View
+// Enhanced Issue Selection View
 func (m AppModel) viewIssueSelection() string {
-	header := headerStyle.Render("📝 Issue Selection")
+	header := headerStyle.Render("🔍 Enhanced Issue Selection")
 	
+	// Sort information
+	sortInfo := fmt.Sprintf("Sort: %s", m.issueSelection.sortBy.String())
+	sortLine := "\n" + infoStyle.Render("📊 ") + subtleStyle.Render(sortInfo)
+	
+	// Selected issues information
 	selectedInfo := ""
 	if len(m.issueSelection.selected) > 0 {
 		selectedNums := make([]string, len(m.issueSelection.selected))
@@ -525,10 +652,54 @@ func (m AppModel) viewIssueSelection() string {
 	} else {
 		selectedInfo = "\n" + subtleStyle.Render("No issues selected yet")
 	}
-
-	footer := subtleStyle.Render("Enter: toggle selection • 's': start workflow • Esc: back to main menu")
-
-	return header + "\n\n" + m.issueSelection.list.View() + selectedInfo + "\n\n" + footer
+	
+	// Enhanced footer with all available controls
+	controls := []string{
+		"Enter/Space: toggle selection",
+		"D: details",
+		"1-5: sort",
+		"/: search",
+		"Ctrl+S: start workflow",
+		"Esc: back/exit details",
+	}
+	footer := subtleStyle.Render(strings.Join(controls, " • "))
+	
+	// Main content
+	var content strings.Builder
+	content.WriteString(header)
+	content.WriteString(sortLine)
+	content.WriteString("\n\n")
+	
+	// Show detailed view if enabled
+	if m.issueSelection.showDetails {
+		if selectedItem := m.issueSelection.list.SelectedItem(); selectedItem != nil {
+			if item, ok := selectedItem.(IssueItem); ok {
+				detailsHeader := infoStyle.Render("📋 Issue Details:")
+				details := subtleStyle.Render(item.GetDetailedDescription())
+				
+				detailsBox := lipgloss.NewStyle().
+					Border(lipgloss.RoundedBorder()).
+					BorderForeground(lipgloss.Color("#666666")).
+					Padding(1).
+					Width(m.windowSize.Width - 4).
+					Render(details)
+				
+				content.WriteString(detailsHeader)
+				content.WriteString("\n")
+				content.WriteString(detailsBox)
+				content.WriteString("\n")
+			}
+		}
+	} else {
+		// Show normal list view
+		content.WriteString(m.issueSelection.list.View())
+	}
+	
+	content.WriteString(selectedInfo)
+	content.WriteString("\n\n")
+	content.WriteString(footer)
+	
+	return content.String()
 }
 
 // Progress View
@@ -582,13 +753,20 @@ type ProgressUpdateMsg struct {
 
 type ProgressCompleteMsg struct{}
 
-// Set issues for selection
+// Set issues for selection with enhanced features
 func (m *AppModel) SetIssues(issues []*types.Issue) {
 	items := make([]list.Item, len(issues))
 	for i, issue := range issues {
 		items[i] = IssueItem{issue: issue}
 	}
+	
+	// Store all issues and original items for sorting/filtering
+	m.issueSelection.allIssues = issues
+	m.issueSelection.originalItems = items
+	
+	// Apply initial sorting
 	m.issueSelection.list.SetItems(items)
+	m.issueSelection = m.applySorting(m.issueSelection)
 }
 
 // Set progress steps
@@ -613,5 +791,70 @@ func SendProgressUpdate(stepID, status string) tea.Cmd {
 func SendProgressComplete() tea.Cmd {
 	return func() tea.Msg {
 		return ProgressCompleteMsg{}
+	}
+}
+
+// Apply sorting to issue selection model
+func (m AppModel) applySorting(selection IssueSelectionModel) IssueSelectionModel {
+	items := selection.list.Items()
+	issueItems := make([]IssueItem, len(items))
+	
+	// Convert to IssueItem slice for sorting
+	for i, item := range items {
+		if issueItem, ok := item.(IssueItem); ok {
+			issueItems[i] = issueItem
+		}
+	}
+	
+	// Sort based on selected criteria
+	switch selection.sortBy {
+	case SortByNumber:
+		sort.Slice(issueItems, func(i, j int) bool {
+			return issueItems[i].issue.Number < issueItems[j].issue.Number
+		})
+	case SortByTitle:
+		sort.Slice(issueItems, func(i, j int) bool {
+			return strings.ToLower(issueItems[i].issue.Title) < strings.ToLower(issueItems[j].issue.Title)
+		})
+	case SortByState:
+		sort.Slice(issueItems, func(i, j int) bool {
+			return issueItems[i].issue.State < issueItems[j].issue.State
+		})
+	case SortByDate:
+		sort.Slice(issueItems, func(i, j int) bool {
+			return issueItems[i].issue.CreatedAt.Before(issueItems[j].issue.CreatedAt)
+		})
+	case SortByUpdated:
+		sort.Slice(issueItems, func(i, j int) bool {
+			return issueItems[i].issue.UpdatedAt.After(issueItems[j].issue.UpdatedAt)
+		})
+	}
+	
+	// Convert back to list.Item slice
+	sortedItems := make([]list.Item, len(issueItems))
+	for i, issueItem := range issueItems {
+		sortedItems[i] = issueItem
+	}
+	
+	// Update the list with sorted items
+	selection.list.SetItems(sortedItems)
+	return selection
+}
+
+// Get sort name for display
+func (s SortBy) String() string {
+	switch s {
+	case SortByNumber:
+		return "Number"
+	case SortByTitle:
+		return "Title"
+	case SortByState:
+		return "State"
+	case SortByDate:
+		return "Created"
+	case SortByUpdated:
+		return "Updated"
+	default:
+		return "Unknown"
 	}
 }
