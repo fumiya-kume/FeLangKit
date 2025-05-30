@@ -170,39 +170,100 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 		successIcon := getConsoleChar("✅", "[SUCCESS]")
 		app.ui.Success(fmt.Sprintf("%s Pull request created: %s", successIcon, prResult.PullRequest.HTMLURL))
 		
-		// Step 5: Monitor CI checks (async, optional)
-		app.monitorCIChecks(prResult.PullRequest.HTMLURL)
+		// Step 5: Monitor CI checks with proper Goroutine-based watching
+		app.monitorCIChecksWithGoroutines(prResult.PullRequest, branchName, worktreePath)
+		
+		// Mark workflow as complete only after CI monitoring finishes
+		app.ui.UpdateProgress("complete", "completed")
+		celebrationIcon := getConsoleChar("🎉", "[COMPLETE]")
+		app.ui.Success(fmt.Sprintf("%s Async workflow completed successfully!", celebrationIcon))
+		
+		// Cleanup worktree
+		app.cleanupWorktree(worktreePath)
+		
+		return nil
 		
 	case <-time.After(1 * time.Minute):
 		app.ui.UpdateProgress("pr_creation", "failed")
 		return fmt.Errorf("PR creation timed out")
 	}
-
-	app.ui.UpdateProgress("complete", "completed")
-	celebrationIcon := getConsoleChar("🎉", "[COMPLETE]")
-	app.ui.Success(fmt.Sprintf("%s Async workflow completed successfully!", celebrationIcon))
-	
-	// Cleanup worktree
-	app.cleanupWorktree(worktreePath)
-	
-	return nil
 }
 
-// monitorCIChecks monitors CI checks asynchronously
-func (app *CCWApp) monitorCIChecks(prURL string) {
+// monitorCIChecksWithGoroutines monitors CI checks using Goroutines with proper real-time updates
+func (app *CCWApp) monitorCIChecksWithGoroutines(pr *types.PullRequest, branchName, worktreePath string) {
 	loadingIcon := getConsoleChar("⏳", "[MONITORING]")
-	app.ui.Info(fmt.Sprintf("%s Monitoring CI checks...", loadingIcon))
-	ciResultChan := app.prManager.MonitorPRChecksAsync(prURL, 5*time.Minute)
+	app.ui.Info(fmt.Sprintf("%s Starting continuous CI monitoring...", loadingIcon))
 	
-	select {
-	case ciResult := <-ciResultChan:
-		if ciResult.Error != nil {
-			app.ui.Warning(fmt.Sprintf("CI monitoring failed: %v", ciResult.Error))
-		} else {
-			app.ui.Info(fmt.Sprintf("CI Status: %s", ciResult.Status.Status))
+	// Create CI watch request with proper configuration
+	request := &types.CIWatchRequest{
+		PRURL:            pr.HTMLURL,
+		PRNumber:         pr.Number,
+		WorktreePath:     worktreePath,
+		BranchName:       branchName,
+		MaxWaitTime:      30 * time.Minute, // Much longer timeout for real CI monitoring
+		UpdateInterval:   10 * time.Second,
+		EnableRecovery:   true,
+		RecoveryAttempts: 2,
+	}
+	
+	// Start CI monitoring with recovery
+	updateChan := app.prManager.WatchPRChecksWithRecovery(request)
+	
+	// Process real-time updates
+	for update := range updateChan {
+		if update.Error != nil {
+			warningIcon := getConsoleChar("⚠️", "[WARNING]")
+			app.ui.Warning(fmt.Sprintf("%s CI monitoring error: %v", warningIcon, update.Error))
+		} else if update.Status != nil {
+			app.displayCIStatus(update.Status, update.Message)
+		} else if update.Message != "" {
+			infoIcon := getConsoleChar("ℹ️", "[INFO]")
+			app.ui.Info(fmt.Sprintf("%s %s", infoIcon, update.Message))
 		}
-	case <-time.After(1 * time.Minute): // Short timeout for CI monitoring demo
-		app.ui.Info("CI monitoring will continue in background")
+		
+		// Check if monitoring completed
+		if update.Completed {
+			if update.Status != nil && update.Status.Status == "success" {
+				successIcon := getConsoleChar("✅", "[SUCCESS]")
+				app.ui.Success(fmt.Sprintf("%s All CI checks passed!", successIcon))
+			} else if update.Error == nil {
+				completedIcon := getConsoleChar("🏁", "[COMPLETED]")
+				app.ui.Info(fmt.Sprintf("%s CI monitoring completed", completedIcon))
+			}
+			break
+		}
+	}
+}
+
+// displayCIStatus displays detailed CI status information
+func (app *CCWApp) displayCIStatus(status *types.CIStatus, message string) {
+	if status.TotalChecks == 0 {
+		return
+	}
+	
+	// Display summary
+	statusIcon := getConsoleChar("📊", "[STATUS]")
+	summary := fmt.Sprintf("%s CI Status: %d total, %d passing, %d failing, %d pending", 
+		statusIcon, status.TotalChecks, status.PassingChecks, status.FailingChecks, status.PendingChecks)
+	
+	switch status.Status {
+	case "success":
+		app.ui.Success(summary)
+	case "failure":
+		app.ui.Warning(summary)
+		// Display failure details
+		for _, failure := range status.FailureDetails {
+			failIcon := getConsoleChar("❌", "[FAIL]")
+			app.ui.Warning(fmt.Sprintf("  %s %s (%s): %s", failIcon, failure.CheckName, failure.FailType, failure.Message))
+		}
+	case "pending":
+		app.ui.Info(summary)
+	default:
+		app.ui.Info(summary)
+	}
+	
+	if message != "" {
+		app.ui.Info(fmt.Sprintf("  %s", message))
 	}
 }
 

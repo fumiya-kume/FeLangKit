@@ -54,11 +54,17 @@ type PullRequest struct {
 
 // CI monitoring models
 type CIStatus struct {
-	Status      string
-	Checks      []CheckRun
-	LastUpdated time.Time
-	URL         string
-	Conclusion  string
+	Status         string               `json:"status"`
+	Checks         []CheckRun           `json:"checks"`
+	LastUpdated    time.Time            `json:"last_updated"`
+	URL            string               `json:"url"`
+	Conclusion     string               `json:"conclusion"`
+	TotalChecks    int                  `json:"total_checks"`
+	PassingChecks  int                  `json:"passing_checks"`
+	FailingChecks  int                  `json:"failing_checks"`
+	PendingChecks  int                  `json:"pending_checks"`
+	ChecksSummary  map[string]int       `json:"checks_summary"`
+	FailureDetails []CheckFailureDetail `json:"failure_details"`
 }
 
 type CheckRun struct {
@@ -68,4 +74,32 @@ type CheckRun struct {
 	URL         string    `json:"html_url"`
 	StartedAt   time.Time `json:"started_at"`
 	CompletedAt time.Time `json:"completed_at"`
+	Output      string    `json:"output"`
+	Summary     string    `json:"summary"`
+}
+
+type CheckFailureDetail struct {
+	CheckName string `json:"check_name"`
+	FailType  string `json:"fail_type"` // "build", "lint", "test", "other"
+	Message   string `json:"message"`
+	URL       string `json:"url"`
+}
+
+// CI monitoring channels and goroutine communication
+type CIWatchUpdate struct {
+	Status    *CIStatus `json:"status"`
+	Error     error     `json:"error"`
+	Completed bool      `json:"completed"`
+	Message   string    `json:"message"`
+}
+
+type CIWatchRequest struct {
+	PRURL           string        `json:"pr_url"`
+	PRNumber        int           `json:"pr_number"`
+	WorktreePath    string        `json:"worktree_path"`
+	BranchName      string        `json:"branch_name"`
+	MaxWaitTime     time.Duration `json:"max_wait_time"`
+	UpdateInterval  time.Duration `json:"update_interval"`
+	EnableRecovery  bool          `json:"enable_recovery"`
+	RecoveryAttempts int          `json:"recovery_attempts"`
 }

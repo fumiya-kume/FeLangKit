@@ -1,27 +1,32 @@
 {
-
-  "number": 148,
-  "title": "Migrate StatementVisitorTests from XCTest to Swift Testing",
-  "body": "# Migrate StatementVisitorTests from XCTest to Swift Testing\n\n## Overview\nMigrate `Tests/FeLangCoreTests/Visitor/StatementVisitorTests.swift` from XCTest to Swift Testing framework for consistency with the modernized test suite.\n\n## Current Status\n- **Framework**: XCTest (legacy)\n- **Test Count**: 10 test methods\n- **Test Class**: `StatementVisitorTests: XCTestCase`\n\n## Test Coverage Areas\nThe file contains tests for the Statement Visitor pattern:\n- **Variable Declaration Visiting**: Variable name and type processing\n- **Assignment Statement Visiting**: Target and value expression handling\n- **Control Flow Visiting**: If/else, while, for statement processing\n- **Function Declaration Visiting**: Function signature and body handling\n- **Block Statement Visiting**: Nested statement processing\n- **Return Statement Visiting**: Return value expression handling\n- **Visitor Pattern Integrity**: Proper statement traversal and delegation\n\n## Migration Requirements\n\n### 1. Framework Conversion\n- [ ] Replace `import XCTest` with `import Testing`\n- [ ] Convert `final class StatementVisitorTests: XCTestCase` to `@Suite(\"StatementVisitor Tests\") struct StatementVisitorTests`\n- [ ] No setUp/tearDown methods to handle (stateless tests)\n\n### 2. Test Method Migration\n- [ ] Convert all 10 `func test*()` methods to `@Test func *()` format\n- [ ] Replace XCTest assertions with Swift Testing equivalents:\n  - `XCTAssertEqual()` → `#expect()`\n  - `XCTAssertTrue()` → `#expect()`\n  - `XCTAssertNotNil()` → `#expect()`\n\n### 3. Visitor Pattern Verification\n- [ ] Ensure statement visitor pattern implementation remains intact\n- [ ] Verify statement traversal order is maintained\n- [ ] Confirm nested statement processing works correctly\n\n## Validation Steps\n- [ ] Run `swift test --filter StatementVisitorTests` to ensure all tests pass\n- [ ] Verify statement visitor pattern behavior remains consistent\n- [ ] Run `swiftlint lint --fix \u0026\u0026 swiftlint lint` to ensure code quality\n- [ ] Confirm statement visiting logic is preserved\n\n## Example Migration Pattern\n**Before (XCTest):**\n```swift\nfunc testVisitVariableDeclaration() {\n    let visitor = MockStatementVisitor()\n    let stmt = Statement.variableDeclaration(\"x\", type: .integer, initializer: nil)\n    \n    stmt.accept(visitor)\n    \n    XCTAssertEqual(visitor.visitedVariables.count, 1)\n    XCTAssertEqual(visitor.visitedVariables.first, \"x\")\n}\n```\n\n**After (Swift Testing):**\n```swift\n@Test func visitVariableDeclaration() {\n    let visitor = MockStatementVisitor()\n    let stmt = Statement.variableDeclaration(\"x\", type: .integer, initializer: nil)\n    \n    stmt.accept(visitor)\n    \n    #expect(visitor.visitedVariables.count == 1)\n    #expect(visitor.visitedVariables.first == \"x\")\n}\n```\n\n## Success Criteria\n- [ ] All 10 test methods successfully migrated\n- [ ] Zero test failures after migration\n- [ ] Statement visitor pattern functionality preserved\n- [ ] Code passes SwiftLint validation\n\n---\n**Priority**: Low-Medium  \n**Effort**: 1-2 hours",
+  "number": 212,
+  "title": "Implement Proper CI Monitoring with Goroutines for CCW",
+  "body": "## Problem\n\nThe current CCW implementation has inadequate CI monitoring after PR creation. The current system:\n\n- Only monitors CI for 1 minute then gives up with \"CI monitoring will continue in background\"\n- Uses basic string parsing instead of proper `gh pr checks --watch`\n- Doesn't actually observe CI completion as required by the rules\n- Lacks proper failure handling and recovery mechanisms\n\n## Expected Behavior\n\nAccording to the CCW rules, the system should:\n- Use `gh pr checks --watch` for continuous monitoring\n- Wait for CI completion before marking workflow as complete\n- Handle CI failures with potential auto-fixes\n- Provide real-time progress updates\n\n## Proposed Solution\n\nImplement proper CI monitoring using Goroutines with the following features:\n\n### 1. Enhanced CI Monitoring with Goroutines\n- Replace current `MonitorPRChecks` with `gh pr checks --watch` implementation\n- Use Goroutines for non-blocking CI observation\n- Implement proper channel-based communication for status updates\n\n### 2. Real-time CI Status Updates\n- Continuous monitoring until CI completion\n- Live progress reporting with check statuses\n- Proper error handling and timeout management\n\n### 3. CI Failure Recovery\n- Detect specific failure types (build, lint, test failures)\n- Attempt automatic fixes where possible\n- Force-push fixes and resume monitoring\n\n### 4. Improved User Experience\n- Clear progress indicators during CI monitoring\n- Real-time status updates\n- Proper completion signals\n\n## Implementation Plan\n\n1. **Enhanced PR Manager** (`ccw/pr/pr_management.go`)\n   - Implement `WatchPRChecksWithGoroutine()` using `gh pr checks --watch`\n   - Add proper JSON parsing for check statuses\n   - Implement channel-based status streaming\n\n2. **Goroutine-based Workflow** (`ccw/app/async_workflow.go`)\n   - Replace current `monitorCIChecks()` with proper watching\n   - Add concurrent CI monitoring and status reporting\n   - Implement failure detection and recovery\n\n3. **CI Status Types** (`ccw/types/github.go`)\n   - Enhance CI status structures for detailed reporting\n   - Add check-specific status tracking\n\n## Technical Requirements\n\n- Use Go channels for Goroutine communication\n- Implement proper context cancellation\n- Add timeout handling with configurable durations\n- Ensure thread-safe status updates\n\n## Acceptance Criteria\n\n- [ ] CI monitoring continues until completion (not 1 minute timeout)\n- [ ] Uses `gh pr checks --watch` command properly\n- [ ] Provides real-time status updates via Goroutines\n- [ ] Handles CI failures with recovery attempts\n- [ ] Maintains responsive UI during long CI runs\n- [ ] Properly signals workflow completion only after CI success\n\n## Related Files\n\n- `ccw/app/async_workflow.go` - Current inadequate monitoring\n- `ccw/pr/pr_management.go` - PR management functions\n- `ccw/types/github.go` - CI status types\n- `.cursor/rules/all.mdc` - CCW workflow rules\n\nThis enhancement will ensure CCW properly observes CI results as specified in the workflow rules, providing a complete automated development workflow.",
   "state": "open",
-  "url": "https://api.github.com/repos/fumiya-kume/FeLangKit/issues/148",
-
+  "url": "https://api.github.com/repos/fumiya-kume/FeLangKit/issues/212",
+  "html_url": "https://github.com/fumiya-kume/FeLangKit/issues/212",
   "labels": [
     {
       "name": "enhancement",
       "color": "a2eeef"
     },
     {
-      "name": "good first issue",
-      "color": "7057ff"
-    },
-    {
-      "name": "testing",
+      "name": "ccw",
       "color": "ededed"
     },
     {
-      "name": "swift-testing",
-{
+      "name": "ci-monitoring",
+      "color": "ededed"
+    },
+    {
+      "name": "goroutines",
+      "color": "ededed"
+    }
+  ],
+  "assignees": [],
+  "created_at": "2025-05-30T15:20:28Z",
+  "updated_at": "2025-05-30T15:20:28Z",
+  "repository": {
     "name": "",
     "full_name": "",
     "owner": {
