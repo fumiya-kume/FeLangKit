@@ -275,3 +275,32 @@ func (btm *BubbleTeaManager) RunDoctorInteractive() error {
 
 	return nil
 }
+
+// RunIssueSelection runs the enhanced issue selection interface
+func (btm *BubbleTeaManager) RunIssueSelection(issues []*types.Issue) ([]*types.Issue, error) {
+	// Enable UI mode to redirect logs to UI buffer
+	logging.SetUIMode(true)
+	defer logging.SetUIMode(false)
+
+	// Set the issues in our model
+	btm.model.SetIssues(issues)
+
+	// Set state to issue selection
+	btm.model.state = StateIssueSelection
+
+	// Run the program
+	btm.program = tea.NewProgram(*btm.model, tea.WithAltScreen())
+
+	finalModel, err := btm.program.Run()
+	if err != nil {
+		return nil, fmt.Errorf("error running issue selection: %w", err)
+	}
+
+	// Extract selected issues from final model
+	if appModel, ok := finalModel.(AppModel); ok {
+		*btm.model = appModel
+		return btm.model.GetSelectedIssues(), nil
+	}
+
+	return nil, fmt.Errorf("failed to get selected issues")
+}
