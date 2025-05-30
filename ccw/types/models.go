@@ -483,3 +483,26 @@ func (po *PerformanceOptimizer) AccessibleMetrics() *PerformanceMetrics {
 	metricsCopy := *po.Metrics
 	return &metricsCopy
 }
+
+// String returns a formatted string representation of PerformanceMetrics
+func (pm *PerformanceMetrics) String() string {
+	pm.mutex.RLock()
+	defer pm.mutex.RUnlock()
+	
+	// Handle the case where MinRenderTime is uninitialized (1 hour default)
+	minRenderTime := pm.MinRenderTime
+	if minRenderTime >= time.Hour {
+		minRenderTime = 0 // Show 0 if no renders have occurred
+	}
+	
+	return fmt.Sprintf("PerformanceStats{TotalRenders:%d, SkippedRenders:%d, AvgRenderTime:%s, MaxRenderTime:%s, MinRenderTime:%s, ChangeRate:%.2f, OptLevel:%d, Adjustments:%d}",
+		pm.TotalRenders,
+		pm.SkippedRenders,
+		pm.AverageRenderTime,
+		pm.MaxRenderTime,
+		minRenderTime,
+		pm.ContentChangeRate,
+		pm.OptimizationLevel,
+		pm.AdaptiveAdjustments,
+	)
+}
