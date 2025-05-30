@@ -1,89 +1,90 @@
-import XCTest
+import Testing
 @testable import FeLangCore
 
-final class ASTWalkerTests: XCTestCase {
+@Suite("ASTWalker Tests")
+struct ASTWalkerTests {
 
     // MARK: - Expression Identifier Collection Tests
 
-    func testCollectIdentifiersFromSimpleExpression() {
+    @Test func collectIdentifiersFromSimpleExpression() {
         let expr = Expression.identifier("x")
         let identifiers = ASTWalker.collectIdentifiers(from: expr)
-        XCTAssertEqual(identifiers, Set(["x"]))
+        #expect(identifiers == Set(["x"]))
     }
 
-    func testCollectIdentifiersFromBinaryExpression() {
+    @Test func collectIdentifiersFromBinaryExpression() {
         let expr = Expression.binary(.add, .identifier("x"), .identifier("y"))
         let identifiers = ASTWalker.collectIdentifiers(from: expr)
-        XCTAssertEqual(identifiers, Set(["x", "y"]))
+        #expect(identifiers == Set(["x", "y"]))
     }
 
-    func testCollectIdentifiersFromComplexExpression() {
+    @Test func collectIdentifiersFromComplexExpression() {
         // (x + y) * func(z, w)
         let expr = Expression.binary(.multiply,
             .binary(.add, .identifier("x"), .identifier("y")),
             .functionCall("func", [.identifier("z"), .identifier("w")])
         )
         let identifiers = ASTWalker.collectIdentifiers(from: expr)
-        XCTAssertEqual(identifiers, Set(["x", "y", "z", "w"]))
+        #expect(identifiers == Set(["x", "y", "z", "w"]))
     }
 
-    func testCollectIdentifiersFromArrayAccess() {
+    @Test func collectIdentifiersFromArrayAccess() {
         let expr = Expression.arrayAccess(.identifier("arr"), .identifier("index"))
         let identifiers = ASTWalker.collectIdentifiers(from: expr)
-        XCTAssertEqual(identifiers, Set(["arr", "index"]))
+        #expect(identifiers == Set(["arr", "index"]))
     }
 
-    func testCollectIdentifiersFromFieldAccess() {
+    @Test func collectIdentifiersFromFieldAccess() {
         let expr = Expression.fieldAccess(.identifier("obj"), "property")
         let identifiers = ASTWalker.collectIdentifiers(from: expr)
-        XCTAssertEqual(identifiers, Set(["obj"]))
+        #expect(identifiers == Set(["obj"]))
     }
 
-    func testCollectIdentifiersFromLiteral() {
+    @Test func collectIdentifiersFromLiteral() {
         let expr = Expression.literal(.integer(42))
         let identifiers = ASTWalker.collectIdentifiers(from: expr)
-        XCTAssertTrue(identifiers.isEmpty)
+        #expect(identifiers.isEmpty)
     }
 
     // MARK: - Expression Node Counting Tests
 
-    func testCountNodesInSimpleExpression() {
+    @Test func countNodesInSimpleExpression() {
         let expr = Expression.literal(.integer(42))
         let count = ASTWalker.countNodes(in: expr)
-        XCTAssertEqual(count, 1)
+        #expect(count == 1)
     }
 
-    func testCountNodesInBinaryExpression() {
+    @Test func countNodesInBinaryExpression() {
         let expr = Expression.binary(.add, .literal(.integer(1)), .literal(.integer(2)))
         let count = ASTWalker.countNodes(in: expr)
-        XCTAssertEqual(count, 3) // binary + two literals
+        #expect(count == 3) // binary + two literals
     }
 
-    func testCountNodesInComplexExpression() {
+    @Test func countNodesInComplexExpression() {
         // (x + 1) * func(y, 2)
         let expr = Expression.binary(.multiply,
             .binary(.add, .identifier("x"), .literal(.integer(1))),
             .functionCall("func", [.identifier("y"), .literal(.integer(2))])
         )
         let count = ASTWalker.countNodes(in: expr)
-        XCTAssertEqual(count, 7) // binary(multiply) + binary(add) + x + 1 + func() + y + 2
+        #expect(count == 7) // binary(multiply) + binary(add) + x + 1 + func() + y + 2
     }
 
-    func testCountNodesInArrayAccess() {
+    @Test func countNodesInArrayAccess() {
         let expr = Expression.arrayAccess(.identifier("arr"), .literal(.integer(0)))
         let count = ASTWalker.countNodes(in: expr)
-        XCTAssertEqual(count, 3) // arrayAccess + arr + 0
+        #expect(count == 3) // arrayAccess + arr + 0
     }
 
     // MARK: - Expression Transformation Tests
 
-    func testTransformExpressionIdentity() {
+    @Test func transformExpressionIdentity() {
         let expr = Expression.binary(.add, .identifier("x"), .literal(.integer(1)))
         let transformed = ASTWalker.transformExpression(expr) { $0 }
-        XCTAssertEqual(transformed, expr)
+        #expect(transformed == expr)
     }
 
-    func testTransformExpressionReplacements() {
+    @Test func transformExpressionReplacements() {
         let expr = Expression.binary(.add, .identifier("x"), .identifier("y"))
         let transformed = ASTWalker.transformExpression(expr) { expr in
             switch expr {
@@ -97,10 +98,10 @@ final class ASTWalkerTests: XCTestCase {
         }
 
         let expected = Expression.binary(.add, .identifier("a"), .identifier("b"))
-        XCTAssertEqual(transformed, expected)
+        #expect(transformed == expected)
     }
 
-    func testTransformExpressionNested() {
+    @Test func transformExpressionNested() {
         // func(x, y + 1)
         let expr = Expression.functionCall("func", [
             .identifier("x"),
@@ -120,48 +121,48 @@ final class ASTWalkerTests: XCTestCase {
             .identifier("X"),
             .binary(.add, .identifier("Y"), .literal(.integer(1)))
         ])
-        XCTAssertEqual(transformed, expected)
+        #expect(transformed == expected)
     }
 
     // MARK: - Statement Identifier Collection Tests
 
-    func testCollectIdentifiersFromVariableDeclaration() {
+    @Test func collectIdentifiersFromVariableDeclaration() {
         let stmt = Statement.variableDeclaration(VariableDeclaration(
             name: "x",
             type: .integer,
             initialValue: .identifier("y")
         ))
         let identifiers = ASTWalker.collectIdentifiers(from: stmt)
-        XCTAssertEqual(identifiers, Set(["x", "y"]))
+        #expect(identifiers == Set(["x", "y"]))
     }
 
-    func testCollectIdentifiersFromAssignment() {
+    @Test func collectIdentifiersFromAssignment() {
         let stmt = Statement.assignment(.variable("x", .binary(.add, .identifier("y"), .identifier("z"))))
         let identifiers = ASTWalker.collectIdentifiers(from: stmt)
-        XCTAssertEqual(identifiers, Set(["x", "y", "z"]))
+        #expect(identifiers == Set(["x", "y", "z"]))
     }
 
-    func testCollectIdentifiersFromIfStatement() {
+    @Test func collectIdentifiersFromIfStatement() {
         let ifStmt = IfStatement(
             condition: .identifier("flag"),
             thenBody: [.assignment(.variable("x", .identifier("y")))]
         )
         let stmt = Statement.ifStatement(ifStmt)
         let identifiers = ASTWalker.collectIdentifiers(from: stmt)
-        XCTAssertEqual(identifiers, Set(["flag", "x", "y"]))
+        #expect(identifiers == Set(["flag", "x", "y"]))
     }
 
-    func testCollectIdentifiersFromWhileStatement() {
+    @Test func collectIdentifiersFromWhileStatement() {
         let whileStmt = WhileStatement(
             condition: .identifier("condition"),
             body: [.assignment(.variable("counter", .binary(.add, .identifier("counter"), .literal(.integer(1)))))]
         )
         let stmt = Statement.whileStatement(whileStmt)
         let identifiers = ASTWalker.collectIdentifiers(from: stmt)
-        XCTAssertEqual(identifiers, Set(["condition", "counter"]))
+        #expect(identifiers == Set(["condition", "counter"]))
     }
 
-    func testCollectIdentifiersFromForRangeStatement() {
+    @Test func collectIdentifiersFromForRangeStatement() {
         let rangeFor = ForStatement.RangeFor(
             variable: "i",
             start: .identifier("start"),
@@ -170,10 +171,10 @@ final class ASTWalkerTests: XCTestCase {
         )
         let stmt = Statement.forStatement(.range(rangeFor))
         let identifiers = ASTWalker.collectIdentifiers(from: stmt)
-        XCTAssertEqual(identifiers, Set(["i", "start", "end", "sum"]))
+        #expect(identifiers == Set(["i", "start", "end", "sum"]))
     }
 
-    func testCollectIdentifiersFromForEachStatement() {
+    @Test func collectIdentifiersFromForEachStatement() {
         let forEach = ForStatement.ForEachLoop(
             variable: "item",
             iterable: .identifier("items"),
@@ -181,10 +182,10 @@ final class ASTWalkerTests: XCTestCase {
         )
         let stmt = Statement.forStatement(.forEach(forEach))
         let identifiers = ASTWalker.collectIdentifiers(from: stmt)
-        XCTAssertEqual(identifiers, Set(["item", "items"]))
+        #expect(identifiers == Set(["item", "items"]))
     }
 
-    func testCollectIdentifiersFromFunctionDeclaration() {
+    @Test func collectIdentifiersFromFunctionDeclaration() {
         let funcDecl = FunctionDeclaration(
             name: "add",
             parameters: [Parameter(name: "a", type: .integer), Parameter(name: "b", type: .integer)],
@@ -197,53 +198,53 @@ final class ASTWalkerTests: XCTestCase {
         )
         let stmt = Statement.functionDeclaration(funcDecl)
         let identifiers = ASTWalker.collectIdentifiers(from: stmt)
-        XCTAssertEqual(identifiers, Set(["add", "a", "b", "result"]))
+        #expect(identifiers == Set(["add", "a", "b", "result"]))
     }
 
-    func testCollectIdentifiersFromBlock() {
+    @Test func collectIdentifiersFromBlock() {
         let block = Statement.block([
             .variableDeclaration(VariableDeclaration(name: "x", type: .integer, initialValue: .literal(.integer(1)))),
             .assignment(.variable("y", .identifier("x")))
         ])
         let identifiers = ASTWalker.collectIdentifiers(from: block)
-        XCTAssertEqual(identifiers, Set(["x", "y"]))
+        #expect(identifiers == Set(["x", "y"]))
     }
 
     // MARK: - Statement Node Counting Tests
 
-    func testCountNodesInSimpleStatement() {
+    @Test func countNodesInSimpleStatement() {
         let stmt = Statement.breakStatement
         let count = ASTWalker.countNodes(in: stmt)
-        XCTAssertEqual(count, 1)
+        #expect(count == 1)
     }
 
-    func testCountNodesInAssignmentStatement() {
+    @Test func countNodesInAssignmentStatement() {
         let stmt = Statement.assignment(.variable("x", .binary(.add, .identifier("y"), .literal(.integer(1)))))
         let count = ASTWalker.countNodes(in: stmt)
-        XCTAssertEqual(count, 4) // assignment + binary + y + 1
+        #expect(count == 4) // assignment + binary + y + 1
     }
 
-    func testCountNodesInIfStatement() {
+    @Test func countNodesInIfStatement() {
         let ifStmt = IfStatement(
             condition: .identifier("flag"),
             thenBody: [.breakStatement, .breakStatement]
         )
         let stmt = Statement.ifStatement(ifStmt)
         let count = ASTWalker.countNodes(in: stmt)
-        XCTAssertEqual(count, 4) // if + flag + break + break
+        #expect(count == 4) // if + flag + break + break
     }
 
-    func testCountNodesInWhileStatement() {
+    @Test func countNodesInWhileStatement() {
         let whileStmt = WhileStatement(
             condition: .literal(.boolean(true)),
             body: [.breakStatement]
         )
         let stmt = Statement.whileStatement(whileStmt)
         let count = ASTWalker.countNodes(in: stmt)
-        XCTAssertEqual(count, 3) // while + true + break
+        #expect(count == 3) // while + true + break
     }
 
-    func testCountNodesInForStatement() {
+    @Test func countNodesInForStatement() {
         let rangeFor = ForStatement.RangeFor(
             variable: "i",
             start: .literal(.integer(0)),
@@ -252,18 +253,18 @@ final class ASTWalkerTests: XCTestCase {
         )
         let stmt = Statement.forStatement(.range(rangeFor))
         let count = ASTWalker.countNodes(in: stmt)
-        XCTAssertEqual(count, 4) // for + 0 + 10 + break
+        #expect(count == 4) // for + 0 + 10 + break
     }
 
-    func testCountNodesInBlock() {
+    @Test func countNodesInBlock() {
         let block = Statement.block([.breakStatement, .breakStatement, .breakStatement])
         let count = ASTWalker.countNodes(in: block)
-        XCTAssertEqual(count, 4) // block + 3 breaks
+        #expect(count == 4) // block + 3 breaks
     }
 
     // MARK: - Statement Expression Transformation Tests
 
-    func testTransformExpressionsInAssignment() {
+    @Test func transformExpressionsInAssignment() {
         let stmt = Statement.assignment(.variable("x", .identifier("y")))
         let transformed = ASTWalker.transformExpressions(in: stmt) { expr in
             switch expr {
@@ -275,10 +276,10 @@ final class ASTWalkerTests: XCTestCase {
         }
 
         let expected = Statement.assignment(.variable("x", .identifier("z")))
-        XCTAssertEqual(transformed, expected)
+        #expect(transformed == expected)
     }
 
-    func testTransformExpressionsInIfStatement() {
+    @Test func transformExpressionsInIfStatement() {
         let ifStmt = IfStatement(
             condition: .identifier("flag"),
             thenBody: [.assignment(.variable("x", .identifier("y")))]
@@ -299,10 +300,10 @@ final class ASTWalkerTests: XCTestCase {
             thenBody: [.assignment(.variable("x", .identifier("Y")))]
         )
         let expected = Statement.ifStatement(expectedIfStmt)
-        XCTAssertEqual(transformed, expected)
+        #expect(transformed == expected)
     }
 
-    func testTransformExpressionsInVariableDeclaration() {
+    @Test func transformExpressionsInVariableDeclaration() {
         let stmt = Statement.variableDeclaration(VariableDeclaration(
             name: "x",
             type: .integer,
@@ -323,10 +324,10 @@ final class ASTWalkerTests: XCTestCase {
             type: .integer,
             initialValue: .literal(.integer(42))
         ))
-        XCTAssertEqual(transformed, expected)
+        #expect(transformed == expected)
     }
 
-    func testTransformExpressionsInReturnStatement() {
+    @Test func transformExpressionsInReturnStatement() {
         let stmt = Statement.returnStatement(ReturnStatement(expression: .identifier("result")))
 
         let transformed = ASTWalker.transformExpressions(in: stmt) { expr in
@@ -339,10 +340,10 @@ final class ASTWalkerTests: XCTestCase {
         }
 
         let expected = Statement.returnStatement(ReturnStatement(expression: .literal(.integer(0))))
-        XCTAssertEqual(transformed, expected)
+        #expect(transformed == expected)
     }
 
-    func testTransformExpressionsInBlock() {
+    @Test func transformExpressionsInBlock() {
         let block = Statement.block([
             .assignment(.variable("x", .identifier("y"))),
             .expressionStatement(.identifier("z"))
@@ -361,24 +362,28 @@ final class ASTWalkerTests: XCTestCase {
             .assignment(.variable("x", .identifier("Y"))),
             .expressionStatement(.identifier("Z"))
         ])
-        XCTAssertEqual(transformed, expected)
+        #expect(transformed == expected)
     }
 
     // MARK: - Performance Tests
 
-    func testExpressionWalkingPerformance() {
+    @Test func expressionWalkingPerformance() {
         // Build a moderately complex expression tree
         var expr = Expression.identifier("x")
         for index in 0..<50 {
             expr = .binary(.add, expr, .literal(.integer(index)))
         }
 
-        measure {
-            _ = ASTWalker.collectIdentifiers(from: expr)
-        }
+        // Simple performance test - just ensure it completes quickly
+        let startTime = getCurrentTime()
+        _ = ASTWalker.collectIdentifiers(from: expr)
+        let timeElapsed = getCurrentTime() - startTime
+
+        // Verify it completes within reasonable time (100ms)
+        #expect(timeElapsed < 0.1)
     }
 
-    func testStatementWalkingPerformance() {
+    @Test func statementWalkingPerformance() {
         // Build a moderately complex statement tree
         var statements: [Statement] = []
         for index in 0..<50 {
@@ -386,49 +391,53 @@ final class ASTWalkerTests: XCTestCase {
         }
         let block = Statement.block(statements)
 
-        measure {
-            _ = ASTWalker.countNodes(in: block)
-        }
+        // Simple performance test - just ensure it completes quickly
+        let startTime = getCurrentTime()
+        _ = ASTWalker.countNodes(in: block)
+        let timeElapsed = getCurrentTime() - startTime
+
+        // Verify it completes within reasonable time (100ms)
+        #expect(timeElapsed < 0.1)
     }
 
     // MARK: - Edge Cases
 
-    func testEmptyBlock() {
+    @Test func emptyBlock() {
         let block = Statement.block([])
         let identifiers = ASTWalker.collectIdentifiers(from: block)
-        XCTAssertTrue(identifiers.isEmpty)
+        #expect(identifiers.isEmpty)
 
         let count = ASTWalker.countNodes(in: block)
-        XCTAssertEqual(count, 1) // Just the block itself
+        #expect(count == 1) // Just the block itself
     }
 
-    func testFunctionCallWithoutArguments() {
+    @Test func functionCallWithoutArguments() {
         let expr = Expression.functionCall("func", [])
         let identifiers = ASTWalker.collectIdentifiers(from: expr)
-        XCTAssertTrue(identifiers.isEmpty)
+        #expect(identifiers.isEmpty)
 
         let count = ASTWalker.countNodes(in: expr)
-        XCTAssertEqual(count, 1)
+        #expect(count == 1)
     }
 
-    func testReturnStatementWithoutExpression() {
+    @Test func returnStatementWithoutExpression() {
         let stmt = Statement.returnStatement(ReturnStatement())
         let identifiers = ASTWalker.collectIdentifiers(from: stmt)
-        XCTAssertTrue(identifiers.isEmpty)
+        #expect(identifiers.isEmpty)
 
         let count = ASTWalker.countNodes(in: stmt)
-        XCTAssertEqual(count, 1)
+        #expect(count == 1)
     }
 
-    func testVariableDeclarationWithoutInitialValue() {
+    @Test func variableDeclarationWithoutInitialValue() {
         let stmt = Statement.variableDeclaration(VariableDeclaration(
             name: "x",
             type: .integer
         ))
         let identifiers = ASTWalker.collectIdentifiers(from: stmt)
-        XCTAssertEqual(identifiers, Set(["x"]))
+        #expect(identifiers == Set(["x"]))
 
         let count = ASTWalker.countNodes(in: stmt)
-        XCTAssertEqual(count, 1)
+        #expect(count == 1)
     }
 }
