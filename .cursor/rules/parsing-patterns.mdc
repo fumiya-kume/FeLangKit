@@ -1,0 +1,168 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# FE Language Parsing Patterns
+
+## Core Parsing Architecture
+
+### Module Hierarchy
+Follow the established parsing pipeline in [Sources/FeLangCore/](mdc:Sources/FeLangCore):
+
+1. **[Tokenizer](mdc:Sources/FeLangCore/Tokenizer)**: Text → Tokens
+   - Handle Japanese and English keywords
+   - Maintain position information for error reporting
+   - Implement security limits for input size
+
+2. **[Expression](mdc:Sources/FeLangCore/Expression)**: Tokens → Expression AST
+   - Support infix operators with precedence
+   - Handle function calls and variable references
+   - Parse literals (numbers, strings, booleans)
+
+3. **[Parser](mdc:Sources/FeLangCore/Parser)**: Tokens → Statement AST
+   - Parse assignment statements (`x ← value`)
+   - Handle control flow (if, while, for)
+   - Build complete program ASTs
+
+4. **[Semantic](mdc:Sources/FeLangCore/Semantic)**: AST → Validated AST
+   - Type checking and inference
+   - Variable scope analysis
+   - Symbol table management
+
+## Parsing Conventions
+
+### Error Handling
+```swift
+// Provide detailed error context
+struct ParseError: Error {
+    let message: String
+    let position: Position
+    let context: String?
+}
+
+// Use Result types for recoverable errors
+func parseExpression() -> Result<Expression, ParseError>
+```
+
+### Swift-Parsing Integration
+Leverage the [swift-parsing](https://github.com/pointfreeco/swift-parsing) library:
+```swift
+import Parsing
+
+// Use parser combinators for complex grammar
+let assignmentParser = Parse {
+    identifier
+    "←" 
+    expression
+}.map(AssignmentStatement.init)
+```
+
+### AST Node Patterns
+```swift
+// Consistent AST node structure
+protocol ASTNode {
+    var position: Position { get }
+    var children: [ASTNode] { get }
+}
+
+// Expression hierarchy
+enum Expression: ASTNode {
+    case literal(Literal)
+    case variable(String)
+    case binaryOp(Expression, BinaryOperator, Expression)
+    case functionCall(String, [Expression])
+}
+```
+
+## Testing Patterns
+
+### Golden File Testing
+Use structured test files in [Tests/FeLangCoreTests/ParseError/GoldenFiles/](mdc:Tests/FeLangCoreTests/ParseError/GoldenFiles):
+```swift
+func testParsingFromGoldenFile() throws {
+    let input = try String(contentsOf: goldenFileURL)
+    let expected = try loadExpectedOutput(for: goldenFileURL)
+    let result = try parser.parse(input)
+    XCTAssertEqual(result.description, expected)
+}
+```
+
+### Error Testing
+```swift
+func testParseError() {
+    let invalidInput = "x ←"  // Missing right-hand side
+    XCTAssertThrowsError(try parser.parse(invalidInput)) { error in
+        guard let parseError = error as? ParseError else {
+            XCTFail("Expected ParseError")
+            return
+        }
+        XCTAssertTrue(parseError.message.contains("expression"))
+    }
+}
+```
+
+## Performance Considerations
+
+### Lazy Parsing
+- Parse only what's needed for current operation
+- Use streaming tokenization for large files
+- Implement parser caching for repeated patterns
+
+### Memory Management
+- Avoid deep recursion in large ASTs
+- Use iterative algorithms where possible
+- Implement proper cleanup for parser state
+
+### Security Limits
+```swift
+// Prevent parser bombs
+struct ParserLimits {
+    static let maxTokens = 100_000
+    static let maxNestingDepth = 1_000
+    static let maxInputSize = 10_MB
+}
+```
+
+## Internationalization
+
+### Keyword Support
+Support both Japanese and English keywords:
+```swift
+enum Keyword: String, CaseIterable {
+    // Japanese
+    case assignment_jp = "←"
+    case if_jp = "もし"
+    case while_jp = "繰り返し"
+    
+    // English  
+    case assignment_en = "←"
+    case if_en = "if"
+    case while_en = "while"
+}
+```
+
+### Error Messages
+Provide localized error messages with clear context:
+```swift
+let errorMessage = String(localized: "Expected expression after '\(operator)'", 
+                         comment: "Parser error for missing expression")
+```
+
+## Visitor Pattern Implementation
+
+Use the [Visitor](mdc:Sources/FeLangCore/Visitor) module for AST traversal:
+```swift
+protocol ASTVisitor {
+    associatedtype Result
+    func visit(_ node: Expression) -> Result
+    func visit(_ node: Statement) -> Result
+}
+
+// Example: Pretty printer visitor
+struct PrettyPrintVisitor: ASTVisitor {
+    func visit(_ node: Expression) -> String {
+        // Format expression as readable text
+    }
+}
+```

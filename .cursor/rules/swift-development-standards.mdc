@@ -1,0 +1,83 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Swift Development Standards for FeLangKit
+
+## Code Quality Requirements
+Always run these commands before committing:
+```bash
+swiftlint lint --fix && swiftlint lint
+swift build && swift test
+```
+
+## SwiftLint Configuration
+Follow the project's [.swiftlint.yml](mdc:.swiftlint.yml) configuration:
+
+### Enabled Rules
+- `explicit_self`: Explicitly use `self` when needed
+- `force_unwrapping`: Avoid force unwrapping
+- `empty_count`: Use `isEmpty` instead of `count == 0`
+- `closure_end_indentation`: Proper closure indentation
+
+### Custom Rules
+- **No Force Cast**: Avoid `as!` - use safe casting with `as?` instead
+- **TODO Comments**: Allowed but should be tracked in issues
+
+### Disabled Rules
+- File/function/type length limits (relaxed for language toolkit)
+- Line length (flexible for complex parsing code)
+
+## Vision Pro Development Patterns
+
+### Memory Management
+- Use `weak` references for delegate patterns
+- Implement proper cleanup in `deinit`
+- Avoid retain cycles in parsing trees
+
+### Error Handling
+- Use comprehensive error types for parsing failures
+- Provide detailed error context with line/column information
+- Implement recovery strategies where possible
+
+### Performance Considerations
+- Lazy initialization for expensive parser components
+- Streaming tokenization for large inputs
+- Efficient AST representation
+
+## Testing Standards
+
+### Test Organization
+Structure tests to match module hierarchy in [Tests/](mdc:Tests):
+- Unit tests for individual components
+- Integration tests for module interactions
+- Golden file tests for parser output verification
+
+### Coverage Requirements
+- New public APIs require test coverage
+- Parser edge cases must be tested
+- Error conditions should have dedicated tests
+
+### Test Data
+- Use [Tests/FeLangCoreTests/ParseError/GoldenFiles/](mdc:Tests/FeLangCoreTests/ParseError/GoldenFiles) for reference outputs
+- Create minimal reproducible test cases
+- Document complex test scenarios
+
+## Documentation Standards
+
+### Public APIs
+- Document all public types and methods
+- Include usage examples in doc comments
+- Specify complexity characteristics for algorithms
+
+### Module Documentation
+Each module should maintain:
+- `docs/README.md` with overview and examples
+- API documentation with clear usage patterns
+- Migration guides for breaking changes
+
+## Swift 6 Compatibility
+- Leverage strict concurrency checking
+- Use modern async/await patterns where appropriate
+- Follow sendable protocols for concurrent access

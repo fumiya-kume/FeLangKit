@@ -1,0 +1,48 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# FeLangKit Architecture Guide
+
+## Project Structure
+FeLangKit is organized into 4 main targets defined in [Package.swift](mdc:Package.swift):
+
+### Core Modules
+- **FeLangCore**: Core parsing library with modular architecture
+  - [Tokenizer](mdc:Sources/FeLangCore/Tokenizer): Convert source text into tokens
+  - [Expression](mdc:Sources/FeLangCore/Expression): Parse and represent expressions  
+  - [Parser](mdc:Sources/FeLangCore/Parser): Parse statements and build program ASTs
+  - [Utilities](mdc:Sources/FeLangCore/Utilities): Shared functionality across modules
+  - [Semantic](mdc:Sources/FeLangCore/Semantic): Semantic analysis components
+  - [Visitor](mdc:Sources/FeLangCore/Visitor): AST visitor patterns
+  - [PrettyPrinter](mdc:Sources/FeLangCore/PrettyPrinter): Code formatting and output
+
+### Higher-Level Modules
+- **FeLangKit**: Main toolkit library (depends on FeLangCore, FeLangRuntime)
+- **FeLangRuntime**: Runtime execution components (depends on FeLangCore)  
+- **FeLangServer**: Language server implementation (depends on FeLangCore, FeLangKit)
+
+### Dependencies
+- Uses [swift-parsing](https://github.com/pointfreeco/swift-parsing) for parsing combinators
+- Platform: macOS 13.0+ minimum
+- Swift tools version: 6.0
+
+## Testing Structure
+Each module has corresponding test targets in [Tests/](mdc:Tests):
+- [FeLangCoreTests/](mdc:Tests/FeLangCoreTests): Comprehensive tests with golden files
+- [FeLangKitTests/](mdc:Tests/FeLangKitTests): Integration tests
+- [FeLangRuntimeTests/](mdc:Tests/FeLangRuntimeTests): Runtime behavior tests
+- [FeLangServerTests/](mdc:Tests/FeLangServerTests): Language server tests
+
+## Documentation Standards
+Each module maintains documentation in `docs/` subdirectories:
+- Module-level README files explain purpose and usage
+- Architecture decisions documented in [docs/design/](mdc:docs/design)
+- See [README.md](mdc:README.md) for comprehensive project overview
+
+## Development Workflow
+1. Changes should maintain modular boundaries
+2. Test coverage expected for new functionality
+3. Documentation updates required for public APIs
+4. Follow SwiftLint configuration in [.swiftlint.yml](mdc:.swiftlint.yml)

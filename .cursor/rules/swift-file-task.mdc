@@ -3,5 +3,35 @@ description: This rule ensures Swift code quality by running linting and testing
 globs: *.swift
 alwaysApply: false
 ---
-Execute `swiftlint lint --fix && swiftlint lint` for lint validation.
-Execute `swift build && swift test` to ensure that the code is working well.
+# Swift File Task Validation
+
+## Quality Gates
+Execute these commands before any commit:
+```bash
+swiftlint lint --fix && swiftlint lint
+swift build && swift test
+```
+
+## Pre-commit Checklist
+- [ ] SwiftLint passes without warnings
+- [ ] All tests pass including golden file tests
+- [ ] Build succeeds on target platform (macOS 13+)
+- [ ] No force casts (`as!`) or force unwrapping in new code
+- [ ] Public APIs have documentation comments
+- [ ] Changes maintain module boundaries per [Package.swift](mdc:Package.swift)
+
+## Performance Validation
+For parser changes, also verify:
+```bash
+# Run performance tests if available
+swift test --filter PerformanceTests
+
+# Check memory usage with instruments for large inputs
+# Verify parsing limits are respected
+```
+
+## Documentation Updates
+When modifying public APIs:
+- Update module documentation in `Sources/{Module}/docs/`
+- Add usage examples to doc comments
+- Update [README.md](mdc:README.md) if architecture changes
