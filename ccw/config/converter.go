@@ -9,7 +9,7 @@ func (c *CCWConfig) ToLegacyConfig() *Config {
 	// Parse durations for legacy performance config
 	minRefresh, _ := time.ParseDuration(c.Performance.MinRefreshInterval)
 	maxRefresh, _ := time.ParseDuration(c.Performance.MaxRefreshInterval)
-	
+
 	return &Config{
 		WorktreeBase:      c.WorktreeBase,
 		MaxRetries:        c.MaxRetries,
@@ -35,9 +35,9 @@ func (c *CCWConfig) ToLegacyConfig() *Config {
 // FromEnvironment creates a legacy performance config from environment variables
 func GetPerformanceConfigFromEnv() *PerformanceConfigLegacy {
 	config := GetDefaultPerformanceConfig()
-	
+
 	// This would be populated from environment variables
 	// Implementation moved to main package for legacy support
-	
+
 	return config
 }

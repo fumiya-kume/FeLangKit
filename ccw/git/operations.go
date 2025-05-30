@@ -18,7 +18,7 @@ func (g *Operations) CreateWorktree(branchName, worktreePath string) error {
 
 	// Create git worktree using cross-platform command with timeout
 	cmd := CreateGitCommandWithTimeout([]string{"worktree", "add", "-b", branchName, worktreePath, "HEAD"}, g.basePath, g.GetTimeout())
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to create git worktree: %w\nOutput: %s", err, string(output))
@@ -31,7 +31,7 @@ func (g *Operations) CreateWorktree(branchName, worktreePath string) error {
 func (g *Operations) RemoveWorktree(worktreePath string) error {
 	// Get the parent directory to run git worktree remove from
 	parentDir := filepath.Dir(worktreePath)
-	
+
 	// Remove the worktree using cross-platform command
 	cmd := CreateGitCommand([]string{"worktree", "remove", "--force", worktreePath}, parentDir)
 	if err := cmd.Run(); err != nil {
@@ -84,7 +84,7 @@ func (g *Operations) ListWorktrees() ([]string, error) {
 
 	var worktrees []string
 	lines := strings.Split(string(output), "\n")
-	
+
 	for _, line := range lines {
 		if strings.HasPrefix(line, "worktree ") {
 			path := strings.TrimPrefix(line, "worktree ")
@@ -139,7 +139,7 @@ func (g *Operations) CommitChanges(worktreePath, commitMessage string) error {
 	if err != nil {
 		return fmt.Errorf("failed to check for changes: %w", err)
 	}
-	
+
 	if strings.TrimSpace(string(output)) == "" {
 		return fmt.Errorf("no changes to commit")
 	}

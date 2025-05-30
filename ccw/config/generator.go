@@ -16,17 +16,17 @@ func (c *CCWConfig) SaveToFile(filename string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal config to YAML: %w", err)
 	}
-	
+
 	// Ensure directory exists
 	dir := filepath.Dir(filename)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
-	
+
 	if err := os.WriteFile(filename, data, 0644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -94,10 +94,10 @@ claude:
   context: ""                      # Additional context file path
   enhanced_commit_message: true    # Enable AI-powered commit message generation
 `
-	
+
 	if err := os.WriteFile(filename, []byte(yamlData), 0644); err != nil {
 		return fmt.Errorf("failed to write sample config: %w", err)
 	}
-	
+
 	return nil
 }

@@ -33,7 +33,7 @@ type AppModel struct {
 	progressTracker ProgressModel
 	logViewer       LogViewerModel
 	windowSize      tea.WindowSizeMsg
-	ui             *UIManager
+	ui              *UIManager
 	showLogs        bool
 	logsPanelWidth  int
 }
@@ -45,7 +45,7 @@ type MainMenuModel struct {
 	selected bool
 }
 
-// Issue selection model  
+// Issue selection model
 type IssueSelectionModel struct {
 	list     list.Model
 	selected []*types.Issue
@@ -68,7 +68,7 @@ type IssueItem struct {
 
 func (i IssueItem) FilterValue() string { return i.issue.Title }
 func (i IssueItem) Title() string       { return fmt.Sprintf("#%d: %s", i.issue.Number, i.issue.Title) }
-func (i IssueItem) Description() string { 
+func (i IssueItem) Description() string {
 	labels := make([]string, len(i.issue.Labels))
 	for i, label := range i.issue.Labels {
 		labels[i] = label.Name
@@ -79,53 +79,53 @@ func (i IssueItem) Description() string {
 // Styles with improved visibility and contrast
 var (
 	titleStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Background(lipgloss.Color("#0066CC")).
-		Padding(0, 1).
-		Bold(true)
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#0066CC")).
+			Padding(0, 1).
+			Bold(true)
 
 	headerStyle = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#0066CC")).
-		Foreground(lipgloss.Color("#0066CC")).
-		Padding(1, 2).
-		Bold(true)
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#0066CC")).
+			Foreground(lipgloss.Color("#0066CC")).
+			Padding(1, 2).
+			Bold(true)
 
 	menuItemStyle = lipgloss.NewStyle().
-		PaddingLeft(4).
-		Foreground(lipgloss.Color("#333333"))
+			PaddingLeft(4).
+			Foreground(lipgloss.Color("#333333"))
 
 	selectedMenuItemStyle = lipgloss.NewStyle().
-		PaddingLeft(2).
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Background(lipgloss.Color("#0066CC")).
-		Bold(true)
+				PaddingLeft(2).
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#0066CC")).
+				Bold(true)
 
 	progressStyle = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#00AA00")).
-		Foreground(lipgloss.Color("#00AA00")).
-		Padding(1, 2)
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#00AA00")).
+			Foreground(lipgloss.Color("#00AA00")).
+			Padding(1, 2)
 
 	// Additional styles for better visibility
 	successStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#00AA00")).
-		Bold(true)
+			Foreground(lipgloss.Color("#00AA00")).
+			Bold(true)
 
 	errorStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#CC0000")).
-		Bold(true)
+			Foreground(lipgloss.Color("#CC0000")).
+			Bold(true)
 
 	warningStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FF6600")).
-		Bold(true)
+			Foreground(lipgloss.Color("#FF6600")).
+			Bold(true)
 
 	infoStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#0066CC")).
-		Bold(true)
+			Foreground(lipgloss.Color("#0066CC")).
+			Bold(true)
 
 	subtleStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#666666"))
+			Foreground(lipgloss.Color("#666666"))
 )
 
 // Initialize application model
@@ -133,7 +133,7 @@ func NewAppModel(ui *UIManager) AppModel {
 	// Apply optimal color theme
 	optimalTheme := GetOptimalTheme()
 	ApplyTheme(optimalTheme)
-	
+
 	// Initialize main menu
 	mainMenu := MainMenuModel{
 		choices: []string{
@@ -146,7 +146,7 @@ func NewAppModel(ui *UIManager) AppModel {
 
 	// Initialize issue selection with enhanced delegate
 	delegate := list.NewDefaultDelegate()
-	
+
 	// Customize delegate styles using current theme colors
 	delegate.Styles.SelectedTitle = lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
@@ -154,26 +154,26 @@ func NewAppModel(ui *UIManager) AppModel {
 		Foreground(lipgloss.Color(optimalTheme.Primary)).
 		Bold(true).
 		Padding(0, 0, 0, 1)
-		
+
 	delegate.Styles.SelectedDesc = lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
 		BorderForeground(lipgloss.Color(optimalTheme.Primary)).
 		Foreground(lipgloss.Color(optimalTheme.Subtle)).
 		Padding(0, 0, 0, 1)
-		
+
 	delegate.Styles.NormalTitle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color(optimalTheme.Subtle)).
 		Padding(0, 0, 0, 1)
-		
+
 	delegate.Styles.NormalDesc = lipgloss.NewStyle().
 		Foreground(lipgloss.Color(optimalTheme.Subtle)).
 		Padding(0, 0, 0, 1)
-	
+
 	issueList := list.New([]list.Item{}, delegate, 80, 20)
 	issueList.Title = "Select Issues to Process"
 	issueList.SetShowStatusBar(false)
 	issueList.SetFilteringEnabled(false) // Disable filtering for simpler UX
-	
+
 	issueSelection := IssueSelectionModel{
 		list: issueList,
 	}
@@ -194,10 +194,10 @@ func NewAppModel(ui *UIManager) AppModel {
 		mainMenu:        mainMenu,
 		issueSelection:  issueSelection,
 		progressTracker: progressModel,
-		logViewer:      logViewer,
-		ui:             ui,
-		showLogs:       true,
-		logsPanelWidth: 40, // 40% of screen width for logs
+		logViewer:       logViewer,
+		ui:              ui,
+		showLogs:        true,
+		logsPanelWidth:  40, // 40% of screen width for logs
 	}
 }
 
@@ -227,7 +227,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		m.windowSize = msg
-		
+
 		// Update component sizes based on log panel visibility
 		mainWidth := msg.Width
 		if m.showLogs {
@@ -235,7 +235,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			logWidth := msg.Width * m.logsPanelWidth / 100
 			m.logViewer = NewLogViewerModel(logWidth, msg.Height, GetLogBuffer())
 		}
-		
+
 		m.issueSelection.list.SetWidth(mainWidth)
 		m.issueSelection.list.SetHeight(msg.Height - 10)
 	}
@@ -263,7 +263,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // Main application View
 func (m AppModel) View() string {
 	var mainContent string
-	
+
 	switch m.state {
 	case StateMainMenu:
 		mainContent = m.viewMainMenu()
@@ -278,12 +278,12 @@ func (m AppModel) View() string {
 	default:
 		mainContent = ""
 	}
-	
+
 	// Show logs alongside main content if enabled
 	if m.showLogs && m.state != StateLogViewer {
 		return m.layoutWithLogs(mainContent)
 	}
-	
+
 	return mainContent
 }
 
@@ -292,15 +292,15 @@ func (m AppModel) layoutWithLogs(mainContent string) string {
 	if m.windowSize.Width == 0 {
 		return mainContent // No window size yet, return main content only
 	}
-	
+
 	// Calculate widths
 	mainWidth := m.windowSize.Width * (100 - m.logsPanelWidth) / 100
 	logWidth := m.windowSize.Width * m.logsPanelWidth / 100
-	
+
 	// Create log viewer with proper sizing
 	logViewer := NewLogViewerModel(logWidth, m.windowSize.Height, GetLogBuffer())
 	logContent := logViewer.View()
-	
+
 	// Style the main content area
 	styledMainContent := lipgloss.NewStyle().
 		Width(mainWidth - 2).
@@ -309,22 +309,22 @@ func (m AppModel) layoutWithLogs(mainContent string) string {
 		BorderForeground(lipgloss.Color("#666666")).
 		Padding(1).
 		Render(mainContent)
-		
+
 	// Style the log content area
 	styledLogContent := lipgloss.NewStyle().
 		Width(logWidth - 2).
 		Height(m.windowSize.Height).
 		Render(logContent)
-	
+
 	// Create horizontal layout
 	layout := lipgloss.JoinHorizontal(lipgloss.Top,
 		styledMainContent,
 		styledLogContent,
 	)
-	
+
 	// Add status bar at the bottom
 	statusBar := m.createStatusBar()
-	
+
 	return lipgloss.JoinVertical(lipgloss.Left,
 		layout,
 		statusBar,
@@ -338,21 +338,21 @@ func (m AppModel) createStatusBar() string {
 		"Tab: Toggle logs",
 		"Ctrl+C/Q: Quit",
 	}
-	
+
 	status := fmt.Sprintf("State: %s | Logs: %s",
 		m.getStateName(),
 		map[bool]string{true: "ON", false: "OFF"}[m.showLogs],
 	)
-	
+
 	controlsText := subtleStyle.Render(strings.Join(controls, " • "))
 	statusText := subtleStyle.Render(status)
-	
+
 	// Create full-width status bar
 	width := m.windowSize.Width
 	if width == 0 {
 		width = 80 // Default width
 	}
-	
+
 	return lipgloss.NewStyle().
 		Width(width).
 		Background(lipgloss.Color("#222222")).
@@ -514,7 +514,7 @@ func (m AppModel) viewMainMenu() string {
 // Issue Selection View
 func (m AppModel) viewIssueSelection() string {
 	header := headerStyle.Render("📝 Issue Selection")
-	
+
 	selectedInfo := ""
 	if len(m.issueSelection.selected) > 0 {
 		selectedNums := make([]string, len(m.issueSelection.selected))
@@ -534,12 +534,12 @@ func (m AppModel) viewIssueSelection() string {
 // Progress View
 func (m AppModel) viewProgress() string {
 	header := headerStyle.Render("⏳ Workflow Progress")
-	
+
 	var stepsView strings.Builder
 	for i, step := range m.progressTracker.steps {
 		var icon string
 		var statusStyle lipgloss.Style
-		
+
 		switch step.Status {
 		case "completed":
 			icon = "✅"
@@ -554,11 +554,11 @@ func (m AppModel) viewProgress() string {
 			icon = "⏳"
 			statusStyle = subtleStyle
 		}
-		
-		stepLine := fmt.Sprintf("%s %s %s - %s\n", 
-			icon, 
+
+		stepLine := fmt.Sprintf("%s %s %s - %s\n",
+			icon,
 			infoStyle.Render(fmt.Sprintf("%d/%d", i+1, len(m.progressTracker.steps))),
-			statusStyle.Render(step.Name), 
+			statusStyle.Render(step.Name),
 			subtleStyle.Render(step.Description))
 		stepsView.WriteString(stepLine)
 	}
@@ -570,7 +570,7 @@ func (m AppModel) viewProgress() string {
 
 	footer := subtleStyle.Render("Esc: back to main menu")
 
-	return header + "\n\n" + progressBar + "\n\n" + 
+	return header + "\n\n" + progressBar + "\n\n" +
 		progressStyle.Render(stepsView.String()) + timeInfo + "\n\n" + footer
 }
 

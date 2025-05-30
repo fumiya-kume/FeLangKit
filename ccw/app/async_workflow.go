@@ -11,11 +11,11 @@ import (
 
 // getConsoleChar returns console-safe characters based on CI environment
 func getConsoleChar(fancy, simple string) string {
-	if os.Getenv("CCW_CONSOLE_MODE") == "true" || 
-	   os.Getenv("CI") == "true" || 
-	   os.Getenv("GITHUB_ACTIONS") == "true" ||
-	   os.Getenv("GITLAB_CI") == "true" ||
-	   os.Getenv("JENKINS_URL") != "" {
+	if os.Getenv("CCW_CONSOLE_MODE") == "true" ||
+		os.Getenv("CI") == "true" ||
+		os.Getenv("GITHUB_ACTIONS") == "true" ||
+		os.Getenv("GITLAB_CI") == "true" ||
+		os.Getenv("JENKINS_URL") != "" {
 		return simple
 	}
 	return fancy
@@ -58,10 +58,10 @@ func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.I
 	startTime := time.Now()
 	ticker := time.NewTicker(5 * time.Second) // Less frequent updates for shorter task
 	defer ticker.Stop()
-	
+
 	// Timer display channel
 	timerDone := make(chan bool, 1)
-	
+
 	// Start timer display goroutine
 	go func() {
 		for {
@@ -75,13 +75,13 @@ func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.I
 			}
 		}
 	}()
-	
+
 	// Wait for completion or timeout
 	select {
 	case summaryResult := <-summaryResultChan:
 		// Stop timer display
 		timerDone <- true
-		
+
 		elapsed := time.Since(startTime).Round(time.Second)
 		if summaryResult.Error != nil {
 			app.ui.Warning(fmt.Sprintf("Implementation summary generation failed after %s: %v", elapsed.String(), summaryResult.Error))
@@ -94,7 +94,7 @@ func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.I
 	case <-time.After(30 * time.Second):
 		// Stop timer display
 		timerDone <- true
-		
+
 		elapsed := time.Since(startTime).Round(time.Second)
 		warningIcon := getConsoleChar("⚠️", "[WARNING]")
 		app.ui.Warning(fmt.Sprintf("%s Implementation summary generation timed out after %s", warningIcon, elapsed.String()))
@@ -102,20 +102,19 @@ func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.I
 	}
 }
 
-
 // pushChangesToRemote pushes branch changes to remote repository with progress tracking
 func (app *CCWApp) pushChangesToRemote(branchName, worktreePath string) error {
 	app.debugStep("step7", "Pushing changes to remote", map[string]interface{}{
 		"branch_name":   branchName,
 		"worktree_path": worktreePath,
 	})
-	
+
 	// Start push progress tracking
 	startTime := time.Now()
 	app.ui.UpdateProgress("push", "in_progress")
 	pushIcon := getConsoleChar("📤", "[PUSHING]")
 	app.ui.Info(fmt.Sprintf("%s Pushing changes to remote...", pushIcon))
-	
+
 	// Push with timer (git push is usually fast, so no need for ticker updates)
 	if err := app.gitOps.PushBranch(worktreePath, branchName); err != nil {
 		elapsed := time.Since(startTime).Round(time.Second)
@@ -128,7 +127,7 @@ func (app *CCWApp) pushChangesToRemote(branchName, worktreePath string) error {
 		})
 		return fmt.Errorf("failed to push changes after %s: %w", elapsed.String(), err)
 	}
-	
+
 	elapsed := time.Since(startTime).Round(time.Second)
 	app.ui.UpdateProgress("push", "completed")
 	successIcon := getConsoleChar("✅", "[SUCCESS]")
@@ -176,10 +175,10 @@ func (app *CCWApp) waitForPRDescription(prDescResultChan <-chan types.PRDescript
 	startTime := time.Now()
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
-	
+
 	// Timer display channel
 	timerDone := make(chan bool, 1)
-	
+
 	// Start timer display goroutine
 	go func() {
 		for {
@@ -193,13 +192,13 @@ func (app *CCWApp) waitForPRDescription(prDescResultChan <-chan types.PRDescript
 			}
 		}
 	}()
-	
+
 	// Wait for completion or timeout
 	select {
 	case prDescResult := <-prDescResultChan:
 		// Stop timer display
 		timerDone <- true
-		
+
 		elapsed := time.Since(startTime).Round(time.Second)
 		if prDescResult.Error != nil {
 			app.ui.Warning(fmt.Sprintf("PR description generation failed after %s: %v", elapsed.String(), prDescResult.Error))
@@ -212,7 +211,7 @@ func (app *CCWApp) waitForPRDescription(prDescResultChan <-chan types.PRDescript
 	case <-time.After(2 * time.Minute): // Longer timeout for PR description
 		// Stop timer display
 		timerDone <- true
-		
+
 		elapsed := time.Since(startTime).Round(time.Second)
 		warningIcon := getConsoleChar("⚠️", "[WARNING]")
 		app.ui.Warning(fmt.Sprintf("%s PR description generation timed out after %s, using fallback", warningIcon, elapsed.String()))
@@ -225,10 +224,10 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 	loadingIcon := getConsoleChar("⏳", "[CREATING]")
 	app.ui.Info(fmt.Sprintf("%s Creating pull request...", loadingIcon))
 	prRequest := &types.PRRequest{
-		Title: fmt.Sprintf("Resolve #%d: %s", issue.Number, issue.Title),
-		Body:  prDescription,
-		Head:  branchName,
-		Base:  "master", // or "main"
+		Title:               fmt.Sprintf("Resolve #%d: %s", issue.Number, issue.Title),
+		Body:                prDescription,
+		Head:                branchName,
+		Base:                "master", // or "main"
 		MaintainerCanModify: true,
 	}
 
@@ -241,14 +240,14 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 			app.ui.UpdateProgress("pr_creation", "failed")
 			return fmt.Errorf("failed to create PR: %w", prResult.Error)
 		}
-		
+
 		app.ui.UpdateProgress("pr_creation", "completed")
 		successIcon := getConsoleChar("✅", "[SUCCESS]")
 		app.ui.Success(fmt.Sprintf("%s Pull request created: %s", successIcon, prResult.PullRequest.HTMLURL))
-		
+
 		// Step 5: Monitor CI checks with enhanced Goroutine implementation
 		app.monitorCIChecksWithGoroutines(prResult.PullRequest.HTMLURL)
-		
+
 	case <-time.After(1 * time.Minute):
 		app.ui.UpdateProgress("pr_creation", "failed")
 		return fmt.Errorf("PR creation timed out")
@@ -257,10 +256,10 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 	app.ui.UpdateProgress("complete", "completed")
 	celebrationIcon := getConsoleChar("🎉", "[COMPLETE]")
 	app.ui.Success(fmt.Sprintf("%s Async workflow completed successfully!", celebrationIcon))
-	
+
 	// Cleanup worktree
 	app.cleanupWorktree(worktreePath)
-	
+
 	return nil
 }
 
@@ -268,16 +267,16 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 func (app *CCWApp) monitorCIChecksWithGoroutines(prURL string) {
 	loadingIcon := getConsoleChar("⏳", "[MONITORING]")
 	app.ui.Info(fmt.Sprintf("%s Starting enhanced CI monitoring...", loadingIcon))
-	
+
 	// Create context with configurable timeout (default: 30 minutes)
 	timeout := 30 * time.Minute
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	// Start CI monitoring with Goroutines
 	watchChannel := app.prManager.WatchPRChecksWithGoroutine(ctx, prURL)
-	
+
 	go func() {
 		// Process real-time updates
 		for update := range watchChannel.Updates {
@@ -305,17 +304,17 @@ func (app *CCWApp) handleCIUpdate(update types.CIWatchUpdate) {
 	case "monitoring_started":
 		clockIcon := getConsoleChar("🕐", "[STARTED]")
 		app.ui.Info(fmt.Sprintf("%s %s", clockIcon, update.Message))
-		
+
 	case "status_change":
 		progressIcon := getConsoleChar("📈", "[UPDATE]")
 		app.ui.Info(fmt.Sprintf("%s %s", progressIcon, update.Message))
-		
+
 		if update.Status != nil && update.Status.FailedChecks > 0 {
 			failureIcon := getConsoleChar("❌", "[FAILED]")
 			app.ui.Warning(fmt.Sprintf("%s CI failures detected - analyzing for recovery options", failureIcon))
 			app.analyzeCIFailuresForRecovery(update.Status)
 		}
-		
+
 	case "all_complete":
 		if update.Status != nil && update.Status.Conclusion == "success" {
 			successIcon := getConsoleChar("✅", "[SUCCESS]")
@@ -324,7 +323,7 @@ func (app *CCWApp) handleCIUpdate(update types.CIWatchUpdate) {
 			failureIcon := getConsoleChar("❌", "[FAILED]")
 			app.ui.Error(fmt.Sprintf("%s CI checks failed", failureIcon))
 		}
-		
+
 	case "error":
 		errorIcon := getConsoleChar("⚠️", "[ERROR]")
 		app.ui.Warning(fmt.Sprintf("%s %s", errorIcon, update.Message))
@@ -334,7 +333,7 @@ func (app *CCWApp) handleCIUpdate(update types.CIWatchUpdate) {
 // handleCICompletion processes final CI monitoring results
 func (app *CCWApp) handleCICompletion(result types.CIWatchResult, prURL string) {
 	duration := result.Duration.Truncate(time.Second)
-	
+
 	if result.Error != nil {
 		errorIcon := getConsoleChar("⚠️", "[ERROR]")
 		app.ui.Error(fmt.Sprintf("%s CI monitoring failed after %v: %v", errorIcon, duration, result.Error))
@@ -351,14 +350,14 @@ func (app *CCWApp) handleCICompletion(result types.CIWatchResult, prURL string) 
 	if result.FinalStatus.Conclusion == "success" {
 		successIcon := getConsoleChar("🎉", "[COMPLETE]")
 		app.ui.Success(fmt.Sprintf("%s CI monitoring completed successfully after %v", successIcon, duration))
-		app.ui.Success(fmt.Sprintf("Final status: %d checks passed, %d failed", 
+		app.ui.Success(fmt.Sprintf("Final status: %d checks passed, %d failed",
 			result.FinalStatus.PassedChecks, result.FinalStatus.FailedChecks))
 	} else {
 		failureIcon := getConsoleChar("❌", "[FAILED]")
 		app.ui.Error(fmt.Sprintf("%s CI monitoring completed with failures after %v", failureIcon, duration))
-		app.ui.Error(fmt.Sprintf("Final status: %d checks passed, %d failed", 
+		app.ui.Error(fmt.Sprintf("Final status: %d checks passed, %d failed",
 			result.FinalStatus.PassedChecks, result.FinalStatus.FailedChecks))
-			
+
 		// Analyze failures for potential recovery
 		app.analyzeCIFailuresForRecovery(result.FinalStatus)
 	}
@@ -372,12 +371,12 @@ func (app *CCWApp) analyzeCIFailuresForRecovery(status *types.CIStatus) {
 	}
 
 	app.ui.Info("Analyzing CI failures for potential recovery:")
-	
+
 	for _, failure := range failures {
 		if failure.Recoverable {
 			recoveryIcon := getConsoleChar("🔧", "[RECOVERY]")
 			app.ui.Info(fmt.Sprintf("%s %s failure detected: %s", recoveryIcon, failure.Type, failure.CheckName))
-			
+
 			switch failure.Type {
 			case types.CIFailureLint:
 				app.ui.Info("  → Consider running: swiftlint lint --fix")
@@ -386,7 +385,7 @@ func (app *CCWApp) analyzeCIFailuresForRecovery(status *types.CIStatus) {
 			case types.CIFailureTest:
 				app.ui.Info("  → Consider reviewing test failures and updating tests")
 			}
-			
+
 			if failure.DetailsURL != "" {
 				app.ui.Info(fmt.Sprintf("  → Details: %s", failure.DetailsURL))
 			}
@@ -408,7 +407,7 @@ func (app *CCWApp) cleanupWorktree(worktreePath string) {
 	app.debugStep("step8", "Cleaning up worktree", map[string]interface{}{
 		"worktree_path": worktreePath,
 	})
-	
+
 	app.ui.Info("Cleaning up worktree...")
 	if err := app.gitOps.RemoveWorktree(worktreePath); err != nil {
 		app.logger.Error("workflow", "Failed to cleanup worktree", map[string]interface{}{

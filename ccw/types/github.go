@@ -54,14 +54,14 @@ type PullRequest struct {
 
 // CI monitoring models
 type CIStatus struct {
-	Status      string
-	Checks      []CheckRun
-	LastUpdated time.Time
-	URL         string
-	Conclusion  string
-	TotalChecks int
-	PassedChecks int
-	FailedChecks int
+	Status        string
+	Checks        []CheckRun
+	LastUpdated   time.Time
+	URL           string
+	Conclusion    string
+	TotalChecks   int
+	PassedChecks  int
+	FailedChecks  int
 	PendingChecks int
 }
 

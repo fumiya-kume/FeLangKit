@@ -18,11 +18,11 @@ import (
 
 // getConsoleCharCmd returns console-safe characters based on CI environment
 func getConsoleCharCmd(fancy, simple string) string {
-	if os.Getenv("CCW_CONSOLE_MODE") == "true" || 
-	   os.Getenv("CI") == "true" || 
-	   os.Getenv("GITHUB_ACTIONS") == "true" ||
-	   os.Getenv("GITLAB_CI") == "true" ||
-	   os.Getenv("JENKINS_URL") != "" {
+	if os.Getenv("CCW_CONSOLE_MODE") == "true" ||
+		os.Getenv("CI") == "true" ||
+		os.Getenv("GITHUB_ACTIONS") == "true" ||
+		os.Getenv("GITLAB_CI") == "true" ||
+		os.Getenv("JENKINS_URL") != "" {
 		return simple
 	}
 	return fancy
@@ -175,7 +175,7 @@ func runConsoleDoctorCommand() {
 	ccwConfig, configErr := config.LoadConfiguration()
 
 	checkIcon := getConsoleCharCmd("✓", "[CHECK]")
-	
+
 	// Check Go version
 	fmt.Printf("%s Checking Go version... ", checkIcon)
 	goVersion := runtime.Version()
@@ -248,11 +248,11 @@ func runConsoleDoctorCommand() {
 	// Check environment variables
 	fmt.Printf("%s Checking environment... ", checkIcon)
 	envIssues := []string{}
-	
+
 	if os.Getenv("GITHUB_TOKEN") == "" && os.Getenv("GH_TOKEN") == "" {
 		envIssues = append(envIssues, "no GitHub token (GH_TOKEN or GITHUB_TOKEN)")
 	}
-	
+
 	if len(envIssues) > 0 {
 		warningIcon := getConsoleCharCmd("⚠️", "[WARNING]")
 		fmt.Printf("%s %s\n", warningIcon, strings.Join(envIssues, ", "))
@@ -279,7 +279,7 @@ func runConsoleDoctorCommand() {
 		warningIcon := getConsoleCharCmd("⚠️", "[WARNING]")
 		fmt.Printf("   %s Could not load configuration, showing detected values\n", warningIcon)
 	}
-	
+
 	// Console mode detection
 	fmt.Print("   Console Mode: ")
 	if os.Getenv("CCW_CONSOLE_MODE") == "true" {
@@ -293,7 +293,7 @@ func runConsoleDoctorCommand() {
 			fmt.Println("enabled (Bubble Tea UI not available)")
 		}
 	}
-	
+
 	// Theme configuration
 	fmt.Print("   Theme: ")
 	if ccwConfig != nil {
@@ -309,7 +309,7 @@ func runConsoleDoctorCommand() {
 			fmt.Println("auto-detected")
 		}
 	}
-	
+
 	// Color support
 	fmt.Print("   Color Support: ")
 	if ccwConfig != nil && !ccwConfig.UI.ColorOutput {
@@ -321,7 +321,7 @@ func runConsoleDoctorCommand() {
 	} else {
 		fmt.Println("enabled")
 	}
-	
+
 	// Animations
 	fmt.Print("   Animations: ")
 	if ccwConfig != nil {
@@ -341,7 +341,7 @@ func runConsoleDoctorCommand() {
 			fmt.Println("enabled (default)")
 		}
 	}
-	
+
 	// Unicode support
 	fmt.Print("   Unicode Support: ")
 	if ccwConfig != nil {
@@ -376,7 +376,7 @@ func runConsoleDoctorCommand() {
 	fmt.Println(systemInfoTitle)
 	fmt.Printf("   OS: %s %s\n", runtime.GOOS, runtime.GOARCH)
 	fmt.Printf("   CPUs: %d\n", runtime.NumCPU())
-	
+
 	if wd, err := os.Getwd(); err == nil {
 		fmt.Printf("   Working Directory: %s\n", wd)
 	}
@@ -390,14 +390,14 @@ func runConsoleDoctorCommand() {
 		fmt.Printf("   Worktree Base: %s\n", ccwConfig.WorktreeBase)
 		fmt.Printf("   Max Retries: %d\n", ccwConfig.MaxRetries)
 		fmt.Printf("   Claude Timeout: %s\n", ccwConfig.ClaudeTimeout)
-		
+
 		if ccwConfig.Git.Timeout != "" {
 			fmt.Printf("   Git Timeout: %s\n", ccwConfig.Git.Timeout)
 		}
 		if ccwConfig.Git.DefaultBranch != "" {
 			fmt.Printf("   Default Branch: %s\n", ccwConfig.Git.DefaultBranch)
 		}
-		
+
 		// Performance settings
 		if ccwConfig.Performance.Level > 0 {
 			fmt.Printf("   Performance Level: %d\n", ccwConfig.Performance.Level)
@@ -417,7 +417,7 @@ func runConsoleDoctorCommand() {
 		fmt.Printf("%s Some critical dependencies are missing.\n", errorIcon)
 		fmt.Println("   Please install missing tools before using CCW.")
 	}
-	
+
 	fmt.Println()
 	tipsIcon := getConsoleCharCmd("💡", "[TIPS]")
 	fmt.Printf("%s Tips:\n", tipsIcon)
@@ -459,7 +459,7 @@ func (app *CCWApp) ExecuteWorkflowWithRecovery(issueURL string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			stackTrace := string(debug.Stack())
-			
+
 			app.logger.Error("panic", "Application crashed with panic", map[string]interface{}{
 				"panic_value": r,
 				"stack_trace": stackTrace,
@@ -469,29 +469,29 @@ func (app *CCWApp) ExecuteWorkflowWithRecovery(issueURL string) (err error) {
 				"goos":        runtime.GOOS,
 				"goarch":      runtime.GOARCH,
 			})
-			
+
 			app.ui.Error(fmt.Sprintf("CRASH DETECTED: %v", r))
 			app.ui.Error("Stack trace logged to file. Please check the log for details.")
-			
+
 			// Save crash report
 			app.saveCrashReport(r, stackTrace, issueURL)
-			
+
 			err = fmt.Errorf("application crashed: %v", r)
 		}
 	}()
-	
+
 	app.logger.Debug("workflow", "Starting workflow with recovery", map[string]interface{}{
 		"issue_url":  issueURL,
 		"session_id": app.sessionID,
 		"debug_mode": app.config.DebugMode,
 	})
-	
+
 	if os.Getenv("TRACE_MODE") == "true" {
 		app.traceFunction("executeWorkflowWithRecovery", map[string]interface{}{
 			"issue_url": issueURL,
 		})
 	}
-	
+
 	return app.ExecuteWorkflow(issueURL)
 }
 
@@ -508,7 +508,7 @@ func (app *CCWApp) CleanupAllWorktrees() error {
 	}
 
 	app.ui.Info(fmt.Sprintf("Found %d worktrees to cleanup", len(worktrees)))
-	
+
 	for _, worktreePath := range worktrees {
 		app.ui.Info(fmt.Sprintf("Removing worktree: %s", worktreePath))
 		if err := app.gitOps.RemoveWorktree(worktreePath); err != nil {
@@ -622,14 +622,14 @@ func (app *CCWApp) saveCrashReport(panicValue interface{}, stackTrace, issueURL 
 			"debug_mode": app.config.DebugMode,
 		},
 		"command_line": os.Args,
-		"working_dir":  func() string {
+		"working_dir": func() string {
 			if wd, err := os.Getwd(); err == nil {
 				return wd
 			}
 			return "unknown"
 		}(),
 	}
-	
+
 	// Log crash report using logger
 	if app.logger != nil {
 		app.logger.Error("crash_report", fmt.Sprintf("Application crash: %v", panicValue), crashReport)

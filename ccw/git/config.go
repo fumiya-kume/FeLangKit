@@ -9,9 +9,9 @@ import (
 // GetDefaultGitConfig returns default git operation configuration
 func GetDefaultGitConfig() *GitOperationConfig {
 	return &GitOperationConfig{
-		Timeout:       30 * time.Second,  // 30 second timeout for git operations
-		RetryAttempts: 3,                 // Retry failed operations up to 3 times
-		RetryDelay:    2 * time.Second,   // Wait 2 seconds between retries
+		Timeout:       30 * time.Second, // 30 second timeout for git operations
+		RetryAttempts: 3,                // Retry failed operations up to 3 times
+		RetryDelay:    2 * time.Second,  // Wait 2 seconds between retries
 	}
 }
 
@@ -20,7 +20,7 @@ func NewOperations(basePath string, config *GitOperationConfig, appConfig interf
 	if config == nil {
 		config = GetDefaultGitConfig()
 	}
-	
+
 	return &Operations{
 		basePath:  basePath,
 		config:    config,
@@ -65,6 +65,6 @@ func NewQualityValidator() *QualityValidator {
 func NewCommitMessageGenerator(claudeIntegration interface{}, config interface{}) *CommitMessageGenerator {
 	return &CommitMessageGenerator{
 		claudeIntegration: claudeIntegration,
-		config:           config,
+		config:            config,
 	}
 }

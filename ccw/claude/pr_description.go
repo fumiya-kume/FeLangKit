@@ -16,17 +16,17 @@ import (
 // GeneratePRDescriptionAsync generates PR description asynchronously
 func (ci *ClaudeIntegration) GeneratePRDescriptionAsync(req *types.PRDescriptionRequest) <-chan types.PRDescriptionResult {
 	resultChan := make(chan types.PRDescriptionResult, 1)
-	
+
 	go func() {
 		defer close(resultChan)
-		
+
 		description, err := ci.generatePRDescriptionSync(req)
 		resultChan <- types.PRDescriptionResult{
 			Description: description,
 			Error:       err,
 		}
 	}()
-	
+
 	return resultChan
 }
 
@@ -67,7 +67,7 @@ func (ci *ClaudeIntegration) generatePRDescriptionSync(req *types.PRDescriptionR
 
 	// Extract the description from Claude's output
 	description := strings.TrimSpace(string(output))
-	
+
 	// Basic validation that we got markdown content
 	if len(description) < 100 || !strings.Contains(description, "##") {
 		return "", fmt.Errorf("Claude Code returned invalid or incomplete PR description")
@@ -147,7 +147,7 @@ Analysis of impact and future implications:
 - **Technical Debt:** Any technical debt introduced or resolved
 
 Please respond with ONLY the Markdown content for the PR description, no additional text or formatting.
-`, 
+`,
 		req.Issue.Number,
 		req.Issue.Title,
 		req.Issue.Body,
@@ -239,7 +239,7 @@ func getValidationStatus(result interface{}) string {
 	if result == nil {
 		return "➖ Skipped"
 	}
-	
+
 	// Check if the result has a Success field
 	switch v := result.(type) {
 	case *types.LintResult:
@@ -266,7 +266,7 @@ func getValidationStatusIcon(result interface{}) string {
 	if result == nil {
 		return "❌"
 	}
-	
+
 	// Check if the result has a Success field
 	switch v := result.(type) {
 	case *types.LintResult:

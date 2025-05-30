@@ -19,7 +19,7 @@ type UIManager struct {
 	theme      string
 	animations bool
 	debugMode  bool
-	
+
 	// Color functions
 	primaryColor   func(...interface{}) string
 	successColor   func(...interface{}) string
@@ -27,21 +27,21 @@ type UIManager struct {
 	errorColorFunc func(...interface{}) string
 	infoColor      func(...interface{}) string
 	accentColor    func(...interface{}) string
-	
+
 	// Progress tracking
 	progressTracker *types.ProgressTracker
 	currentTheme    *types.ThemeConfig
-	
+
 	// Animation control
 	animationRunning bool
 	animationMutex   sync.Mutex
-	
+
 	// Advanced terminal control
 	headerUpdateManager *types.HeaderUpdateManager
-	uiState            *types.UIState
-	terminalSize       types.TerminalSize
-	updateInterval     time.Duration
-	
+	uiState             *types.UIState
+	terminalSize        types.TerminalSize
+	updateInterval      time.Duration
+
 	// Performance optimization
 	performanceOptimizer *types.PerformanceOptimizer
 	lastContentHash      string
@@ -55,10 +55,10 @@ func NewUIManager(theme string, animations bool, debugMode bool) *UIManager {
 		animations: animations,
 		debugMode:  debugMode,
 	}
-	
+
 	ui.initializeColors()
 	ui.InitializeProgress()
-	
+
 	return ui
 }
 
@@ -75,10 +75,10 @@ func (ui *UIManager) initializeColors() {
 	ui.errorColorFunc = color.New(color.FgRed, color.Bold).SprintFunc()
 	ui.infoColor = color.New(color.FgCyan).SprintFunc()
 	ui.accentColor = color.New(color.FgMagenta).SprintFunc()
-	
+
 	// Set theme
 	ui.setTheme(ui.theme)
-	
+
 	// Initialize advanced terminal features
 	ui.initializeAdvancedTerminal()
 }
@@ -88,33 +88,33 @@ func (ui *UIManager) initializeAdvancedTerminal() {
 	ui.updateInterval = 250 * time.Millisecond // 4 FPS for smooth updates
 	ui.terminalSize = ui.getTerminalSize()
 	ui.uiState = &types.UIState{
-		LastRender:     time.Now(),
-		ContentChanged: true,
-		RenderCount:    0,
+		LastRender:       time.Now(),
+		ContentChanged:   true,
+		RenderCount:      0,
 		AdaptiveInterval: ui.updateInterval,
 	}
 	ui.headerUpdateManager = &types.HeaderUpdateManager{
-		Interval:    ui.updateInterval,
-		StopChannel: make(chan bool, 2), // Larger buffer to prevent blocking
-		AdaptiveMode: true,
+		Interval:        ui.updateInterval,
+		StopChannel:     make(chan bool, 2), // Larger buffer to prevent blocking
+		AdaptiveMode:    true,
 		ChangeThreshold: 0.1,
 	}
-	
+
 	// Initialize performance optimizer
 	ui.performanceOptimizer = types.NewPerformanceOptimizer(types.GetDefaultPerformanceConfig())
 	ui.headerUpdateManager.PerformanceMetrics = ui.performanceOptimizer.Metrics
-	
+
 	// Apply platform-specific terminal settings
 	ui.applyPlatformSettings()
 }
 
 // isConsoleMode checks if we're running in console mode (CI-friendly)
 func (ui *UIManager) isConsoleMode() bool {
-	return os.Getenv("CCW_CONSOLE_MODE") == "true" || 
-		   os.Getenv("CI") == "true" || 
-		   os.Getenv("GITHUB_ACTIONS") == "true" ||
-		   os.Getenv("GITLAB_CI") == "true" ||
-		   os.Getenv("JENKINS_URL") != ""
+	return os.Getenv("CCW_CONSOLE_MODE") == "true" ||
+		os.Getenv("CI") == "true" ||
+		os.Getenv("GITHUB_ACTIONS") == "true" ||
+		os.Getenv("GITLAB_CI") == "true" ||
+		os.Getenv("JENKINS_URL") != ""
 }
 
 // getConsoleChar returns console-safe characters based on mode
@@ -128,22 +128,22 @@ func (ui *UIManager) getConsoleChar(fancy, simple string) string {
 // Apply platform-specific terminal settings
 func (ui *UIManager) applyPlatformSettings() {
 	platformInfo := platform.GetPlatformInfo()
-	
+
 	// Update terminal size detection
 	ui.terminalSize.SupportsColors = platformInfo.SupportsColor
 	ui.terminalSize.SupportsUnicode = platformInfo.SupportsUnicode
-	
+
 	// Disable colors if not supported
 	if !platformInfo.SupportsColor {
 		color.NoColor = true
 		ui.initializeColorsPlain()
 	}
-	
+
 	// Adjust animations based on platform capabilities
 	if !platformInfo.SupportsUnicode {
 		ui.animations = false // Disable animations if Unicode not supported
 	}
-	
+
 	// Platform-specific refresh rates
 	switch platformInfo.OS {
 	case "windows":
@@ -153,10 +153,10 @@ func (ui *UIManager) applyPlatformSettings() {
 		// Unix terminals are typically faster
 		ui.updateInterval = 250 * time.Millisecond
 	}
-	
+
 	if ui.debugMode {
-		fmt.Printf("Platform: %s/%s, Colors: %v, Unicode: %v\n", 
-			platformInfo.OS, platformInfo.Arch, 
+		fmt.Printf("Platform: %s/%s, Colors: %v, Unicode: %v\n",
+			platformInfo.OS, platformInfo.Arch,
 			platformInfo.SupportsColor, platformInfo.SupportsUnicode)
 	}
 }
@@ -166,7 +166,7 @@ func (ui *UIManager) initializeColorsPlain() {
 	plainFunc := func(a ...interface{}) string {
 		return fmt.Sprint(a...)
 	}
-	
+
 	ui.primaryColor = plainFunc
 	ui.successColor = plainFunc
 	ui.warningColor = plainFunc
@@ -178,14 +178,14 @@ func (ui *UIManager) initializeColorsPlain() {
 // Get terminal size with enhanced capability detection
 func (ui *UIManager) getTerminalSize() types.TerminalSize {
 	platformInfo := platform.GetPlatformInfo()
-	
+
 	// Try to get actual terminal size using cross-platform utilities
 	width, height, err := platform.GetTerminalSize()
 	if err != nil {
 		// Use fallback defaults
 		width, height = 80, 24
 	}
-	
+
 	return types.TerminalSize{
 		Width:             width,
 		Height:            height,
@@ -219,7 +219,7 @@ func (ui *UIManager) InitializeProgress() {
 // Display static header
 func (ui *UIManager) DisplayHeader() {
 	fmt.Print("\n")
-	
+
 	if ui.isConsoleMode() {
 		// Console mode: use simple ASCII characters
 		fmt.Println(ui.accentColor("================================================================"))
@@ -245,7 +245,7 @@ func (ui *UIManager) DisplayHeader() {
 			fmt.Println(ui.accentColor("└──────────────────────────────────────────────────────────────┘"))
 		}
 	}
-	
+
 	fmt.Print("\n")
 }
 
@@ -253,14 +253,14 @@ func (ui *UIManager) DisplayHeader() {
 func (ui *UIManager) DisplayValidationResults(result *types.ValidationResult) {
 	title := ui.getConsoleChar("🔍 Validation Results", "Validation Results")
 	separator := ui.getConsoleChar("─", "-")
-	
+
 	fmt.Println(ui.primaryColor(title))
 	fmt.Println(strings.Repeat(separator, 50))
 
 	if result.LintResult != nil {
 		passedIcon := ui.getConsoleChar("✅", "[PASS]")
 		failedIcon := ui.getConsoleChar("❌", "[FAIL]")
-		
+
 		status := passedIcon + " PASSED"
 		color := ui.successColor
 		if !result.LintResult.Success {
@@ -277,7 +277,7 @@ func (ui *UIManager) DisplayValidationResults(result *types.ValidationResult) {
 	if result.BuildResult != nil {
 		passedIcon := ui.getConsoleChar("✅", "[PASS]")
 		failedIcon := ui.getConsoleChar("❌", "[FAIL]")
-		
+
 		status := passedIcon + " PASSED"
 		color := ui.successColor
 		if !result.BuildResult.Success {
@@ -290,7 +290,7 @@ func (ui *UIManager) DisplayValidationResults(result *types.ValidationResult) {
 	if result.TestResult != nil {
 		passedIcon := ui.getConsoleChar("✅", "[PASS]")
 		failedIcon := ui.getConsoleChar("❌", "[FAIL]")
-		
+
 		status := passedIcon + " PASSED"
 		color := ui.successColor
 		if !result.TestResult.Success {
@@ -318,39 +318,39 @@ func (ui *UIManager) DisplayValidationResults(result *types.ValidationResult) {
 // displayValidationError shows detailed information about a single validation error
 func (ui *UIManager) displayValidationError(err types.ValidationError, errorNumber int) {
 	errorIcon := ui.getConsoleChar("⚠️", "[ERR]")
-	
+
 	// Display error header
-	fmt.Printf("%s %s %d: [%s] %s\n", 
-		errorIcon, 
-		ui.errorColorFunc("Error"), 
-		errorNumber, 
-		ui.warningColor(strings.ToUpper(err.Type)), 
+	fmt.Printf("%s %s %d: [%s] %s\n",
+		errorIcon,
+		ui.errorColorFunc("Error"),
+		errorNumber,
+		ui.warningColor(strings.ToUpper(err.Type)),
 		ui.primaryColor(err.Message))
 
 	// Display cause information if available
 	if err.Cause != nil {
 		indent := "  "
-		
+
 		if err.Cause.Command != "" {
 			cmdIcon := ui.getConsoleChar("🔧", "[CMD]")
 			fmt.Printf("%s%s %s: %s\n", indent, cmdIcon, ui.infoColor("Command"), ui.accentColor(err.Cause.Command))
 		}
-		
+
 		if err.Cause.ExitCode != 0 {
 			exitIcon := ui.getConsoleChar("💥", "[EXIT]")
 			fmt.Printf("%s%s %s: %s\n", indent, exitIcon, ui.infoColor("Exit Code"), ui.errorColorFunc(fmt.Sprintf("%d", err.Cause.ExitCode)))
 		}
-		
+
 		if err.Cause.RootError != "" {
 			causeIcon := ui.getConsoleChar("🔍", "[CAUSE]")
 			fmt.Printf("%s%s %s: %s\n", indent, causeIcon, ui.infoColor("Root Cause"), ui.accentColor(err.Cause.RootError))
 		}
-		
+
 		if err.Cause.Stderr != "" && err.Cause.Stderr != err.Cause.RootError {
 			stderrIcon := ui.getConsoleChar("📄", "[STDERR]")
 			fmt.Printf("%s%s %s:\n%s%s\n", indent, stderrIcon, ui.infoColor("Error Output"), indent+"  ", ui.accentColor(err.Cause.Stderr))
 		}
-		
+
 		if len(err.Cause.Context) > 0 {
 			ctxIcon := ui.getConsoleChar("📋", "[CTX]")
 			fmt.Printf("%s%s %s:\n", indent, ctxIcon, ui.infoColor("Context"))
@@ -359,13 +359,13 @@ func (ui *UIManager) displayValidationError(err types.ValidationError, errorNumb
 			}
 		}
 	}
-	
+
 	// Add recovery suggestion if recoverable
 	if err.Recoverable {
 		recoveryIcon := ui.getConsoleChar("🔄", "[FIX]")
 		fmt.Printf("  %s %s: This error may be automatically recoverable\n", recoveryIcon, ui.successColor("Recovery"))
 	}
-	
+
 	fmt.Println() // Add spacing between errors
 }
 
@@ -399,22 +399,38 @@ func (ui *UIManager) DisplayProgressHeaderWithBackground() {
 		return
 	}
 
-	// Initial render
-	fmt.Print("\033[2J\033[H") // Clear screen and move cursor to top
+	// Check if we should use Bubble Tea for enhanced UI
+	if ui.ShouldUseBubbleTea() {
+		// Use Bubble Tea for proper screen management
+		btm := ui.GetBubbleTeaManager()
+		if steps := ui.progressTracker.Steps; len(steps) > 0 {
+			btm.DisplayProgressInteractive(steps)
+			return
+		}
+	}
+
+	// Fallback to legacy rendering (screen clearing handled by Bubble Tea)
 	ui.DisplayHeader()
 	content := ui.generateHeaderContent()
 	fmt.Print(content)
 	fmt.Println()
-	
-	// Start background updates
+
+	// Start background updates only if not using Bubble Tea
 	ui.startBackgroundHeaderUpdates()
 }
 
 // Setup scroll region for better terminal control
+// NOTE: This method is deprecated in favor of Bubble Tea viewport management
 func (ui *UIManager) setupScrollRegion() {
 	if !ui.uiState.ScrollRegionSet {
-		// Set scroll region (leave top 15 lines for header)
-		fmt.Print("\033[16;24r") // Scroll region from line 16 to 24
+		// In Bubble Tea mode, scroll regions are handled by viewport components
+		// For legacy compatibility, we skip ANSI scroll region setup
+		if ui.ShouldUseBubbleTea() {
+			// Bubble Tea handles viewport and scrolling internally
+			ui.uiState.ScrollRegionSet = true
+			return
+		}
+		// Legacy mode: no scroll region manipulation (removed ANSI codes)
 		ui.uiState.ScrollRegionSet = true
 	}
 }
@@ -423,10 +439,11 @@ func (ui *UIManager) setupScrollRegion() {
 func (ui *UIManager) RestoreTerminalState() {
 	// Stop background updates
 	ui.stopBackgroundHeaderUpdates()
-	
-	// Reset scroll region
+
+	// Reset scroll region (Bubble Tea handles this automatically)
 	if ui.uiState.ScrollRegionSet {
-		fmt.Print("\033[r") // Reset scroll region
+		// In Bubble Tea mode, terminal state is restored automatically
+		// For legacy compatibility, we skip ANSI reset codes
 		ui.uiState.ScrollRegionSet = false
 	}
 }
@@ -450,7 +467,7 @@ func (ui *UIManager) ShouldUseBubbleTea() bool {
 	if os.Getenv("CCW_CONSOLE_MODE") == "true" {
 		return false
 	}
-	
+
 	// Default to Bubble Tea if terminal supports it
 	btm := NewBubbleTeaManager(ui)
 	return btm.CanRunInteractive()

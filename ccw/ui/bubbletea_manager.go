@@ -21,10 +21,10 @@ type BubbleTeaManager struct {
 // NewBubbleTeaManager creates a new Bubble Tea manager
 func NewBubbleTeaManager(ui *UIManager) *BubbleTeaManager {
 	model := NewAppModel(ui)
-	
+
 	// Set up logging integration to send logs to UI buffer
 	logging.SetUILogFunction(AddLogToBuffer)
-	
+
 	return &BubbleTeaManager{
 		ui:    ui,
 		model: &model,
@@ -36,9 +36,9 @@ func (btm *BubbleTeaManager) RunInteractiveMenu() error {
 	// Enable UI mode to redirect logs to UI buffer
 	logging.SetUIMode(true)
 	defer logging.SetUIMode(false) // Restore console logging when done
-	
+
 	btm.program = tea.NewProgram(*btm.model, tea.WithAltScreen())
-	
+
 	finalModel, err := btm.program.Run()
 	if err != nil {
 		return fmt.Errorf("error running Bubble Tea program: %w", err)
@@ -57,16 +57,16 @@ func (btm *BubbleTeaManager) DisplayIssueSelectionInteractive(issues []*types.Is
 	// Enable UI mode to redirect logs to UI buffer
 	logging.SetUIMode(true)
 	defer logging.SetUIMode(false)
-	
+
 	// Set the issues in our model
 	btm.model.SetIssues(issues)
-	
+
 	// Set state to issue selection
 	btm.model.state = StateIssueSelection
-	
+
 	// Run the program
 	btm.program = tea.NewProgram(*btm.model, tea.WithAltScreen())
-	
+
 	finalModel, err := btm.program.Run()
 	if err != nil {
 		return nil, fmt.Errorf("error running issue selection: %w", err)
@@ -86,16 +86,16 @@ func (btm *BubbleTeaManager) DisplayProgressInteractive(steps []types.WorkflowSt
 	// Enable UI mode to redirect logs to UI buffer
 	logging.SetUIMode(true)
 	defer logging.SetUIMode(false)
-	
+
 	// Set the progress steps in our model
 	btm.model.SetProgressSteps(steps)
-	
+
 	// Set state to progress tracking
 	btm.model.state = StateProgressTracking
-	
+
 	// Run the program
 	btm.program = tea.NewProgram(*btm.model, tea.WithAltScreen())
-	
+
 	_, err := btm.program.Run()
 	if err != nil {
 		return fmt.Errorf("error running progress tracking: %w", err)
@@ -129,22 +129,22 @@ func (btm *BubbleTeaManager) Quit() {
 func (btm *BubbleTeaManager) RunSimpleMenu(options []string, title string) (int, error) {
 	fmt.Printf("\n%s\n", title)
 	fmt.Println(string(make([]byte, len(title), len(title))))
-	
+
 	for i, option := range options {
 		fmt.Printf("%d) %s\n", i+1, option)
 	}
-	
+
 	fmt.Print("\nSelect an option: ")
 	var choice int
 	_, err := fmt.Scanf("%d", &choice)
 	if err != nil {
 		return -1, err
 	}
-	
+
 	if choice < 1 || choice > len(options) {
 		return -1, fmt.Errorf("invalid choice: %d", choice)
 	}
-	
+
 	return choice - 1, nil
 }
 
@@ -152,15 +152,15 @@ func (btm *BubbleTeaManager) RunSimpleMenu(options []string, title string) (int,
 func (btm *BubbleTeaManager) CanRunInteractive() bool {
 	// Check if we're in a terminal that supports Bubble Tea
 	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
-	
+
 	// Additional checks for terminal capabilities
-	hasColorSupport := os.Getenv("COLORTERM") != "" || 
+	hasColorSupport := os.Getenv("COLORTERM") != "" ||
 		strings.Contains(strings.ToLower(os.Getenv("TERM")), "color")
-	
+
 	// If we detect modern terminal features, allow Bubble Tea even if IsTerminal fails
-	modernTerminal := os.Getenv("TERM_PROGRAM") != "" && 
+	modernTerminal := os.Getenv("TERM_PROGRAM") != "" &&
 		(hasColorSupport || os.Getenv("COLORTERM") == "truecolor")
-	
+
 	// Debug info (can be removed later)
 	if btm.ui.debugMode {
 		fmt.Printf("Terminal compatibility check:\n")
@@ -169,7 +169,7 @@ func (btm *BubbleTeaManager) CanRunInteractive() bool {
 		fmt.Printf("  Modern terminal: %v\n", modernTerminal)
 		fmt.Printf("  TERM_PROGRAM: %s\n", os.Getenv("TERM_PROGRAM"))
 	}
-	
+
 	return isTerminal || modernTerminal
 }
 
@@ -178,11 +178,11 @@ func (btm *BubbleTeaManager) CanRunInteractive() bool {
 // DisplayIssueSelectionEnhanced shows issue selection with Bubble Tea if available
 func (ui *UIManager) DisplayIssueSelectionEnhanced(issues []*types.Issue) ([]*types.Issue, error) {
 	btm := NewBubbleTeaManager(ui)
-	
+
 	if btm.CanRunInteractive() && ui.GetAnimations() {
 		return btm.DisplayIssueSelectionInteractive(issues)
 	}
-	
+
 	// Fallback to original line-mode selection
 	return ui.DisplayIssueSelection(issues)
 }
@@ -190,11 +190,11 @@ func (ui *UIManager) DisplayIssueSelectionEnhanced(issues []*types.Issue) ([]*ty
 // DisplayProgressEnhanced shows progress tracking with Bubble Tea if available
 func (ui *UIManager) DisplayProgressEnhanced(steps []types.WorkflowStep) error {
 	btm := NewBubbleTeaManager(ui)
-	
+
 	if btm.CanRunInteractive() && ui.GetAnimations() {
 		return btm.DisplayProgressInteractive(steps)
 	}
-	
+
 	// Fallback to original progress display
 	ui.InitializeProgress()
 	ui.DisplayProgressHeaderWithBackground()
@@ -204,24 +204,24 @@ func (ui *UIManager) DisplayProgressEnhanced(steps []types.WorkflowStep) error {
 // RunMainMenuEnhanced shows main menu with Bubble Tea if available
 func (ui *UIManager) RunMainMenuEnhanced() error {
 	btm := NewBubbleTeaManager(ui)
-	
+
 	if btm.CanRunInteractive() && ui.GetAnimations() {
 		return btm.RunInteractiveMenu()
 	}
-	
+
 	// Fallback to simple menu
 	options := []string{
 		"Select Issues to Process",
-		"View Repository Issues", 
+		"View Repository Issues",
 		"Start Workflow",
 		"Exit",
 	}
-	
+
 	choice, err := btm.RunSimpleMenu(options, "CCW - Claude Code Worktree")
 	if err != nil {
 		return err
 	}
-	
+
 	switch choice {
 	case 0:
 		ui.Info("Issue selection mode selected")
@@ -233,6 +233,6 @@ func (ui *UIManager) RunMainMenuEnhanced() error {
 		ui.Info("Exiting...")
 		os.Exit(0)
 	}
-	
+
 	return nil
 }

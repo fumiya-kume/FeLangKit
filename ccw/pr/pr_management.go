@@ -69,7 +69,7 @@ func (pm *PRManager) CreatePullRequest(req *types.PRRequest, worktreePath string
 	outputStr := strings.TrimSpace(string(output))
 	lines := strings.Split(outputStr, "\n")
 	var prURL string
-	
+
 	for _, line := range lines {
 		if strings.Contains(line, "github.com") && strings.Contains(line, "/pull/") {
 			prURL = strings.TrimSpace(line)
@@ -114,7 +114,7 @@ func (pm *PRManager) MonitorPRChecksAsync(prURL string, timeout time.Duration) <
 	return resultChan
 }
 
-// MonitorPRChecks monitors PR CI checks synchronously  
+// MonitorPRChecks monitors PR CI checks synchronously
 func (pm *PRManager) MonitorPRChecks(prURL string, timeout time.Duration) (*types.CIStatus, error) {
 	// Create command with timeout
 	cmdCtx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -129,23 +129,23 @@ func (pm *PRManager) MonitorPRChecks(prURL string, timeout time.Duration) (*type
 
 	// Parse the output to determine status
 	outputStr := strings.TrimSpace(string(output))
-	
+
 	// Basic parsing - in production this would be more sophisticated
 	status := &types.CIStatus{
 		LastUpdated: time.Now(),
 		URL:         prURL,
 	}
 
-	if strings.Contains(strings.ToLower(outputStr), "success") || 
-	   strings.Contains(strings.ToLower(outputStr), "passing") {
+	if strings.Contains(strings.ToLower(outputStr), "success") ||
+		strings.Contains(strings.ToLower(outputStr), "passing") {
 		status.Status = "success"
 		status.Conclusion = "success"
 	} else if strings.Contains(strings.ToLower(outputStr), "fail") ||
-			  strings.Contains(strings.ToLower(outputStr), "error") {
+		strings.Contains(strings.ToLower(outputStr), "error") {
 		status.Status = "failure"
 		status.Conclusion = "failure"
 	} else if strings.Contains(strings.ToLower(outputStr), "pending") ||
-			  strings.Contains(strings.ToLower(outputStr), "running") {
+		strings.Contains(strings.ToLower(outputStr), "running") {
 		status.Status = "pending"
 		status.Conclusion = "pending"
 	} else {
@@ -198,7 +198,7 @@ func (pm *PRManager) monitorChecksLoop(ctx context.Context, prURL string, update
 	defer ticker.Stop()
 
 	var lastStatus *types.CIStatus
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -309,12 +309,12 @@ func (pm *PRManager) parseBasicCIStatus(output, prURL string) (*types.CIStatus, 
 	}
 
 	// Basic parsing logic (existing implementation)
-	if strings.Contains(strings.ToLower(output), "success") || 
-	   strings.Contains(strings.ToLower(output), "passing") {
+	if strings.Contains(strings.ToLower(output), "success") ||
+		strings.Contains(strings.ToLower(output), "passing") {
 		status.Status = "success"
 		status.Conclusion = "success"
 	} else if strings.Contains(strings.ToLower(output), "fail") ||
-			  strings.Contains(strings.ToLower(output), "error") {
+		strings.Contains(strings.ToLower(output), "error") {
 		status.Status = "failure"
 		status.Conclusion = "failure"
 	} else {
@@ -330,11 +330,11 @@ func (pm *PRManager) hasStatusChanged(last, current *types.CIStatus) bool {
 	if last == nil {
 		return true
 	}
-	
+
 	return last.Status != current.Status ||
-		   last.PassedChecks != current.PassedChecks ||
-		   last.FailedChecks != current.FailedChecks ||
-		   last.PendingChecks != current.PendingChecks
+		last.PassedChecks != current.PassedChecks ||
+		last.FailedChecks != current.FailedChecks ||
+		last.PendingChecks != current.PendingChecks
 }
 
 // isAllChecksComplete determines if all CI checks have completed
@@ -348,7 +348,7 @@ func (pm *PRManager) formatStatusMessage(status *types.CIStatus) string {
 		return "No CI checks found"
 	}
 
-	return fmt.Sprintf("CI Status: %d total, %d passed, %d failed, %d pending", 
+	return fmt.Sprintf("CI Status: %d total, %d passed, %d failed, %d pending",
 		status.TotalChecks, status.PassedChecks, status.FailedChecks, status.PendingChecks)
 }
 
@@ -396,7 +396,7 @@ func parseInt(s string) int {
 	if result, err := strconv.Atoi(s); err == nil {
 		return result
 	}
-	
+
 	// Fallback to manual parsing
 	result := 0
 	for _, char := range s {

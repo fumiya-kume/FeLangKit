@@ -26,7 +26,7 @@ func (c *CCWConfig) Validate() error {
 	if _, err := time.ParseDuration(c.Performance.MaxRefreshInterval); err != nil {
 		return fmt.Errorf("invalid performance.max_refresh_interval format: %w", err)
 	}
-	
+
 	// Validate ranges
 	if c.Git.RetryAttempts < 0 || c.Git.RetryAttempts > 10 {
 		return fmt.Errorf("git.retry_attempts must be between 0 and 10")
@@ -37,7 +37,7 @@ func (c *CCWConfig) Validate() error {
 	if c.Performance.ChangeDetectionSensitivity < 0.0 || c.Performance.ChangeDetectionSensitivity > 1.0 {
 		return fmt.Errorf("performance.change_detection_sensitivity must be between 0.0 and 1.0")
 	}
-	
+
 	// Validate log level
 	validLogLevels := []string{"debug", "info", "warn", "error"}
 	valid := false
@@ -50,11 +50,11 @@ func (c *CCWConfig) Validate() error {
 	if !valid {
 		return fmt.Errorf("logging.level must be one of: %s", strings.Join(validLogLevels, ", "))
 	}
-	
+
 	// Validate log format
 	if c.Logging.Format != "text" && c.Logging.Format != "json" {
 		return fmt.Errorf("logging.format must be 'text' or 'json'")
 	}
-	
+
 	return nil
 }

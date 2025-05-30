@@ -61,13 +61,13 @@ func main() {
 
 	// Default case: issue URL provided
 	issueURL := os.Args[1]
-	
+
 	ccwApp, err := app.NewCCWApp()
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 	defer ccwApp.Cleanup()
-	
+
 	if err := ccwApp.ExecuteWorkflow(issueURL); err != nil {
 		log.Fatalf("Workflow failed: %v", err)
 	}
@@ -79,7 +79,7 @@ func handleInitConfig() {
 	if len(os.Args) >= 3 {
 		filename = os.Args[2]
 	}
-	
+
 	if err := config.GenerateSampleConfig(filename); err != nil {
 		log.Fatalf("Failed to generate config file: %v", err)
 	}
@@ -93,7 +93,7 @@ func handleCleanup() {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 	defer ccwApp.Cleanup()
-	
+
 	if err := ccwApp.CleanupAllWorktrees(); err != nil {
 		log.Fatalf("Failed to cleanup worktrees: %v", err)
 	}
@@ -106,16 +106,16 @@ func handleDebugMode() {
 		app.PrintUsage()
 		os.Exit(1)
 	}
-	
+
 	app.EnableDebugMode()
 	issueURL := os.Args[2]
-	
+
 	ccwApp, err := app.NewCCWApp()
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 	defer ccwApp.Cleanup()
-	
+
 	if err := ccwApp.ExecuteWorkflowWithRecovery(issueURL); err != nil {
 		log.Fatalf("Workflow failed: %v", err)
 	}
@@ -128,16 +128,16 @@ func handleVerboseMode() {
 		app.PrintUsage()
 		os.Exit(1)
 	}
-	
+
 	app.EnableVerboseMode()
 	issueURL := os.Args[2]
-	
+
 	ccwApp, err := app.NewCCWApp()
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 	defer ccwApp.Cleanup()
-	
+
 	if err := ccwApp.ExecuteWorkflowWithRecovery(issueURL); err != nil {
 		log.Fatalf("Workflow failed: %v", err)
 	}
@@ -150,16 +150,16 @@ func handleTraceMode() {
 		app.PrintUsage()
 		os.Exit(1)
 	}
-	
+
 	app.EnableTraceMode()
 	issueURL := os.Args[2]
-	
+
 	ccwApp, err := app.NewCCWApp()
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 	defer ccwApp.Cleanup()
-	
+
 	if err := ccwApp.ExecuteWorkflowWithRecovery(issueURL); err != nil {
 		log.Fatalf("Workflow failed: %v", err)
 	}
@@ -172,18 +172,18 @@ func handleConsoleMode() {
 		app.PrintUsage()
 		os.Exit(1)
 	}
-	
+
 	// Set environment variable to force console mode
 	os.Setenv("CCW_CONSOLE_MODE", "true")
-	
+
 	issueURL := os.Args[2]
-	
+
 	ccwApp, err := app.NewCCWApp()
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 	defer ccwApp.Cleanup()
-	
+
 	if err := ccwApp.ExecuteWorkflow(issueURL); err != nil {
 		log.Fatalf("Workflow failed: %v", err)
 	}
