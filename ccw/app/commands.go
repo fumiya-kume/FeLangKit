@@ -123,6 +123,35 @@ func HandleListCommand() {
 
 // HandleDoctorCommand performs system diagnostic checks
 func HandleDoctorCommand() {
+	// Check if we should use Bubble Tea UI
+	if shouldUseBubbleTeaForDoctor() {
+		// Use beautiful interactive Bubble Tea UI
+		if err := ui.RunDoctorUI(); err != nil {
+			fmt.Printf("Error running interactive doctor UI: %v\n", err)
+			fmt.Println("Falling back to console mode...")
+			runConsoleDoctorCommand()
+		}
+		return
+	}
+
+	// Fall back to console mode
+	runConsoleDoctorCommand()
+}
+
+// shouldUseBubbleTeaForDoctor determines if Bubble Tea UI should be used for doctor command
+func shouldUseBubbleTeaForDoctor() bool {
+	// Check if console mode is forced
+	if os.Getenv("CCW_CONSOLE_MODE") == "true" {
+		return false
+	}
+
+	// Create a temporary UI manager to test capabilities
+	testUI := ui.NewUIManagerWithDefaults()
+	return testUI.ShouldUseBubbleTea()
+}
+
+// runConsoleDoctorCommand runs the original console-based doctor command
+func runConsoleDoctorCommand() {
 	fmt.Println("🩺 CCW Doctor - System Diagnostic")
 	fmt.Println("==================================")
 	fmt.Println()
