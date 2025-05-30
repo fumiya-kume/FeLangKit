@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"ccw/commit"
 	"ccw/git"
 	"ccw/github"
 	"ccw/types"
@@ -144,8 +145,13 @@ func (app *CCWApp) ExecuteWorkflow(issueURL string) error {
 		return err
 	}
 
-	// Step 6: Execute async PR workflow if validation successful
+	// Step 6: Commit changes (REQUIRED before PR creation)
 	if validationResult.Success {
+		if err := app.commitChanges(issue); err != nil {
+			return err
+		}
+		
+		// Step 7: Execute async PR workflow after successful commit
 		return app.executeAsyncWorkflow(issue, validationResult)
 	}
 
@@ -313,6 +319,65 @@ func (app *CCWApp) validateImplementation() (*git.ValidationResult, error) {
 	}
 
 	return validationResult, nil
+}
+
+// commitChanges creates a git commit with all changes before PR creation
+func (app *CCWApp) commitChanges(issue *types.Issue) error {
+	app.debugStep("step6_commit", "Creating git commit with all changes", map[string]interface{}{
+		"worktree_path": app.worktreeConfig.WorktreePath,
+		"issue_number":  issue.Number,
+	})
+	
+	app.ui.UpdateProgress("commit", "in_progress")
+	app.ui.Info("Committing changes...")
+	
+	// Generate commit message using the commit generator
+	issueForCommit := &commit.Issue{
+		Number: issue.Number,
+		Title:  issue.Title,
+		Body:   issue.Body,
+	}
+	
+	// Generate commit message synchronously (blocking operation)
+	commitResultChan := app.commitGenerator.GenerateEnhancedCommitMessageAsync(app.worktreeConfig.WorktreePath, issueForCommit)
+	
+	var commitMessage string
+	select {
+	case commitResult := <-commitResultChan:
+		if commitResult.Error != nil {
+			app.ui.Warning(fmt.Sprintf("Commit message generation failed: %v", commitResult.Error))
+			commitMessage = fmt.Sprintf("feat: %s\n\nResolves #%d", issue.Title, issue.Number)
+		} else {
+			commitMessage = commitResult.Message
+		}
+	case <-time.After(30 * time.Second):
+		app.ui.Warning("⚠️ Commit message generation timed out, using fallback")
+		commitMessage = fmt.Sprintf("feat: %s\n\nResolves #%d", issue.Title, issue.Number)
+	}
+	
+	app.debugStep("step6_commit", "Generated commit message", map[string]interface{}{
+		"message": commitMessage,
+	})
+	
+	// Create the actual git commit
+	if err := app.gitOps.CommitChanges(app.worktreeConfig.WorktreePath, commitMessage); err != nil {
+		app.ui.UpdateProgress("commit", "failed")
+		app.logger.Error("workflow", "Failed to commit changes", map[string]interface{}{
+			"error":         err.Error(),
+			"worktree_path": app.worktreeConfig.WorktreePath,
+			"issue_number":  issue.Number,
+		})
+		return fmt.Errorf("failed to commit changes: %w", err)
+	}
+	
+	app.debugStep("step6_commit", "Git commit created successfully", map[string]interface{}{
+		"worktree_path": app.worktreeConfig.WorktreePath,
+	})
+	
+	app.ui.UpdateProgress("commit", "completed")
+	app.ui.Success("✅ Changes committed successfully!")
+	
+	return nil
 }
 
 // executeAsyncWorkflow runs the async PR creation workflow
