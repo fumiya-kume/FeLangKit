@@ -1,0 +1,33 @@
+# CCW temporary files and data
+.issue-data.json
+.worktree-config.json
+.claude-context.json
+.analysis-data.json
+
+# Issue worktree directories
+issue-*-*/
+
+# Log files
+*.log
+logs/
+.ccw/logs/
+
+# Build artifacts
+main
+ccw-*
+
+# Go build cache
+.cache/
+
+# IDE and editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*~
