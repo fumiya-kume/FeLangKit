@@ -475,8 +475,6 @@ type checksCompleteMsg struct{}
 
 type tickMsg time.Time
 
-type BackToMainMenuMsg struct{}
-
 // Commands for running checks
 func runSystemChecks() tea.Cmd {
 	return tea.Batch(

@@ -173,84 +173,58 @@ func (btm *BubbleTeaManager) CanRunInteractive() bool {
 	return isTerminal || modernTerminal
 }
 
-// Enhanced UIManager methods that integrate with Bubble Tea
+// Enhanced UIManager methods using unified CCWApp
 
-// DisplayIssueSelectionEnhanced shows issue selection with Bubble Tea if available
+// DisplayIssueSelectionEnhanced shows issue selection using CCWApp
 func (ui *UIManager) DisplayIssueSelectionEnhanced(issues []*types.Issue) ([]*types.Issue, error) {
-	btm := NewBubbleTeaManager(ui)
-
-	if btm.CanRunInteractive() && ui.GetAnimations() {
-		return btm.DisplayIssueSelectionInteractive(issues)
-	}
-
-	// Fallback to original line-mode selection
-	return ui.DisplayIssueSelection(issues)
+	app := NewCCWApp(&CCWAppOptions{
+		Theme:            ui.theme,
+		EnableAnimations: ui.animations,
+		DebugMode:        ui.debugMode,
+		EnableLogging:    true,
+		AltScreen:        true,
+	})
+	
+	return app.RunIssueSelection(issues)
 }
 
-// DisplayProgressEnhanced shows progress tracking with Bubble Tea if available
+// DisplayProgressEnhanced shows progress tracking using CCWApp
 func (ui *UIManager) DisplayProgressEnhanced(steps []types.WorkflowStep) error {
-	btm := NewBubbleTeaManager(ui)
-
-	if btm.CanRunInteractive() && ui.GetAnimations() {
-		return btm.DisplayProgressInteractive(steps)
-	}
-
-	// Fallback to original progress display
-	ui.InitializeProgress()
-	ui.DisplayProgressHeaderWithBackground()
-	return nil
+	app := NewCCWApp(&CCWAppOptions{
+		Theme:            ui.theme,
+		EnableAnimations: ui.animations,
+		DebugMode:        ui.debugMode,
+		EnableLogging:    true,
+		AltScreen:        true,
+	})
+	
+	return app.RunProgressTracking(steps)
 }
 
-// RunMainMenuEnhanced shows main menu with Bubble Tea if available
+// RunMainMenuEnhanced shows main menu using CCWApp
 func (ui *UIManager) RunMainMenuEnhanced() error {
-	btm := NewBubbleTeaManager(ui)
-
-	if btm.CanRunInteractive() && ui.GetAnimations() {
-		return btm.RunInteractiveMenu()
-	}
-
-	// Fallback to simple menu
-	options := []string{
-		"Select Issues to Process",
-		"View Repository Issues",
-		"Start Workflow",
-		"Doctor (System Diagnostics)",
-		"Exit",
-	}
-
-	choice, err := btm.RunSimpleMenu(options, "CCW - Claude Code Worktree")
-	if err != nil {
-		return err
-	}
-
-	switch choice {
-	case 0:
-		ui.Info("Issue selection mode selected")
-	case 1:
-		ui.Info("Repository view mode selected")
-	case 2:
-		ui.Info("Starting workflow...")
-	case 3:
-		ui.Info("Running doctor diagnostics...")
-		return RunDoctorUI()
-	case 4:
-		ui.Info("Exiting...")
-		os.Exit(0)
-	}
-
-	return nil
+	app := NewCCWApp(&CCWAppOptions{
+		Theme:            ui.theme,
+		EnableAnimations: ui.animations,
+		DebugMode:        ui.debugMode,
+		EnableLogging:    true,
+		AltScreen:        true,
+	})
+	
+	return app.RunMainMenu()
 }
 
-// RunDoctorUIEnhanced runs doctor diagnostics with Bubble Tea if available
+// RunDoctorUIEnhanced runs doctor diagnostics using CCWApp
 func (ui *UIManager) RunDoctorUIEnhanced() error {
-	btm := NewBubbleTeaManager(ui)
-
-	if btm.CanRunInteractive() && ui.GetAnimations() {
-		return btm.RunDoctorInteractive()
-	}
-
-	// Fallback to original doctor UI
-	return RunDoctorUI()
+	app := NewCCWApp(&CCWAppOptions{
+		Theme:            ui.theme,
+		EnableAnimations: ui.animations,
+		DebugMode:        ui.debugMode,
+		EnableLogging:    true,
+		AltScreen:        true,
+	})
+	
+	return app.RunDoctorCheck()
 }
 
 // RunDoctorInteractive shows doctor interface with Bubble Tea
