@@ -102,24 +102,39 @@ func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.I
 }
 
 
-// pushChangesToRemote pushes branch changes to remote repository
+// pushChangesToRemote pushes branch changes to remote repository with progress tracking
 func (app *CCWApp) pushChangesToRemote(branchName, worktreePath string) error {
 	app.debugStep("step7", "Pushing changes to remote", map[string]interface{}{
 		"branch_name":   branchName,
 		"worktree_path": worktreePath,
 	})
 	
-	app.ui.Info("Pushing changes...")
+	// Start push progress tracking
+	startTime := time.Now()
+	app.ui.UpdateProgress("push", "in_progress")
+	pushIcon := getConsoleChar("📤", "[PUSHING]")
+	app.ui.Info(fmt.Sprintf("%s Pushing changes to remote...", pushIcon))
+	
+	// Push with timer (git push is usually fast, so no need for ticker updates)
 	if err := app.gitOps.PushBranch(worktreePath, branchName); err != nil {
+		elapsed := time.Since(startTime).Round(time.Second)
+		app.ui.UpdateProgress("push", "failed")
 		app.logger.Error("workflow", "Failed to push branch", map[string]interface{}{
 			"branch_name":   branchName,
 			"worktree_path": worktreePath,
 			"error":         err.Error(),
+			"elapsed_time":  elapsed.String(),
 		})
-		return fmt.Errorf("failed to push changes: %w", err)
+		return fmt.Errorf("failed to push changes after %s: %w", elapsed.String(), err)
 	}
 	
-	app.debugStep("step7", "Branch pushed successfully", nil)
+	elapsed := time.Since(startTime).Round(time.Second)
+	app.ui.UpdateProgress("push", "completed")
+	successIcon := getConsoleChar("✅", "[SUCCESS]")
+	app.ui.Success(fmt.Sprintf("%s Changes pushed successfully in %s!", successIcon, elapsed.String()))
+	app.debugStep("step7", "Branch pushed successfully", map[string]interface{}{
+		"elapsed_time": elapsed.String(),
+	})
 	return nil
 }
 
