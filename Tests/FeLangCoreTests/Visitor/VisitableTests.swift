@@ -1,11 +1,12 @@
-import XCTest
+import Testing
 @testable import FeLangCore
 
-final class VisitableTests: XCTestCase {
+@Suite("Visitable Tests")
+struct VisitableTests {
 
     // MARK: - Protocol Conformance Tests
 
-    func testExpressionVisitableConformance() {
+    @Test func expressionVisitableConformance() {
         let visitor = ExpressionVisitor<String>(
             visitLiteral: { _ in "literal" },
             visitIdentifier: { _ in "identifier" },
@@ -19,13 +20,13 @@ final class VisitableTests: XCTestCase {
         let expr = Expression.literal(.integer(42))
 
         // Test that Expression conforms to Visitable
-        XCTAssertEqual(expr.accept(visitor), "literal")
+        #expect(expr.accept(visitor) == "literal")
 
         // Test that ExpressionVisitor conforms to Visitor
-        XCTAssertEqual(visitor.visit(expr), "literal")
+        #expect(visitor.visit(expr) == "literal")
     }
 
-    func testStatementVisitableConformance() {
+    @Test func statementVisitableConformance() {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
@@ -44,15 +45,15 @@ final class VisitableTests: XCTestCase {
         let stmt = Statement.breakStatement
 
         // Test that Statement conforms to Visitable
-        XCTAssertEqual(stmt.accept(visitor), "break")
+        #expect(stmt.accept(visitor) == "break")
 
         // Test that StatementVisitor conforms to Visitor
-        XCTAssertEqual(visitor.visit(stmt), "break")
+        #expect(visitor.visit(stmt) == "break")
     }
 
     // MARK: - Convenience Method Tests
 
-    func testExpressionConvenienceMethod() {
+    @Test func expressionConvenienceMethod() {
         let visitor = ExpressionVisitor<String>(
             visitLiteral: { literal in
                 switch literal {
@@ -72,16 +73,16 @@ final class VisitableTests: XCTestCase {
         )
 
         // Test all expression types with convenience method
-        XCTAssertEqual(Expression.literal(.integer(42)).visit(with: visitor), "int(42)")
-        XCTAssertEqual(Expression.identifier("x").visit(with: visitor), "id(x)")
-        XCTAssertEqual(Expression.binary(.add, .literal(.integer(1)), .literal(.integer(2))).visit(with: visitor), "binary(+)")
-        XCTAssertEqual(Expression.unary(.not, .literal(.boolean(true))).visit(with: visitor), "unary(not)")
-        XCTAssertEqual(Expression.arrayAccess(.identifier("arr"), .literal(.integer(0))).visit(with: visitor), "array_access")
-        XCTAssertEqual(Expression.fieldAccess(.identifier("obj"), "prop").visit(with: visitor), "field_access(prop)")
-        XCTAssertEqual(Expression.functionCall("func", []).visit(with: visitor), "function_call(func)")
+        #expect(Expression.literal(.integer(42)).visit(with: visitor) == "int(42)")
+        #expect(Expression.identifier("x").visit(with: visitor) == "id(x)")
+        #expect(Expression.binary(.add, .literal(.integer(1)), .literal(.integer(2))).visit(with: visitor) == "binary(+)")
+        #expect(Expression.unary(.not, .literal(.boolean(true))).visit(with: visitor) == "unary(not)")
+        #expect(Expression.arrayAccess(.identifier("arr"), .literal(.integer(0))).visit(with: visitor) == "array_access")
+        #expect(Expression.fieldAccess(.identifier("obj"), "prop").visit(with: visitor) == "field_access(prop)")
+        #expect(Expression.functionCall("func", []).visit(with: visitor) == "function_call(func)")
     }
 
-    func testStatementConvenienceMethod() {
+    @Test func statementConvenienceMethod() {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
@@ -109,45 +110,45 @@ final class VisitableTests: XCTestCase {
 
         // Test all statement types with convenience method
         let ifStmt = IfStatement(condition: .literal(.boolean(true)), thenBody: [])
-        XCTAssertEqual(Statement.ifStatement(ifStmt).visit(with: visitor), "if")
+        #expect(Statement.ifStatement(ifStmt).visit(with: visitor) == "if")
 
         let whileStmt = WhileStatement(condition: .literal(.boolean(true)), body: [])
-        XCTAssertEqual(Statement.whileStatement(whileStmt).visit(with: visitor), "while")
+        #expect(Statement.whileStatement(whileStmt).visit(with: visitor) == "while")
 
         let rangeFor = ForStatement.RangeFor(variable: "i", start: .literal(.integer(0)), end: .literal(.integer(10)), body: [])
-        XCTAssertEqual(Statement.forStatement(.range(rangeFor)).visit(with: visitor), "for_range")
+        #expect(Statement.forStatement(.range(rangeFor)).visit(with: visitor) == "for_range")
 
         let forEach = ForStatement.ForEachLoop(variable: "item", iterable: .identifier("items"), body: [])
-        XCTAssertEqual(Statement.forStatement(.forEach(forEach)).visit(with: visitor), "for_each")
+        #expect(Statement.forStatement(.forEach(forEach)).visit(with: visitor) == "for_each")
 
-        XCTAssertEqual(Statement.assignment(.variable("x", .literal(.integer(42)))).visit(with: visitor), "assign_var")
+        #expect(Statement.assignment(.variable("x", .literal(.integer(42)))).visit(with: visitor) == "assign_var")
 
         let arrayAccess = Assignment.ArrayAccess(array: .identifier("arr"), index: .literal(.integer(0)))
-        XCTAssertEqual(Statement.assignment(.arrayElement(arrayAccess, .literal(.integer(42)))).visit(with: visitor), "assign_array")
+        #expect(Statement.assignment(.arrayElement(arrayAccess, .literal(.integer(42)))).visit(with: visitor) == "assign_array")
 
         let varDecl = VariableDeclaration(name: "x", type: .integer)
-        XCTAssertEqual(Statement.variableDeclaration(varDecl).visit(with: visitor), "var_decl")
+        #expect(Statement.variableDeclaration(varDecl).visit(with: visitor) == "var_decl")
 
         let constDecl = ConstantDeclaration(name: "PI", type: .real, initialValue: .literal(.real(3.14)))
-        XCTAssertEqual(Statement.constantDeclaration(constDecl).visit(with: visitor), "const_decl")
+        #expect(Statement.constantDeclaration(constDecl).visit(with: visitor) == "const_decl")
 
         let funcDecl = FunctionDeclaration(name: "test", parameters: [], body: [])
-        XCTAssertEqual(Statement.functionDeclaration(funcDecl).visit(with: visitor), "func_decl")
+        #expect(Statement.functionDeclaration(funcDecl).visit(with: visitor) == "func_decl")
 
         let procDecl = ProcedureDeclaration(name: "test", parameters: [], body: [])
-        XCTAssertEqual(Statement.procedureDeclaration(procDecl).visit(with: visitor), "proc_decl")
+        #expect(Statement.procedureDeclaration(procDecl).visit(with: visitor) == "proc_decl")
 
         let returnStmt = ReturnStatement(expression: .literal(.integer(42)))
-        XCTAssertEqual(Statement.returnStatement(returnStmt).visit(with: visitor), "return")
+        #expect(Statement.returnStatement(returnStmt).visit(with: visitor) == "return")
 
-        XCTAssertEqual(Statement.expressionStatement(.literal(.integer(42))).visit(with: visitor), "expr_stmt")
-        XCTAssertEqual(Statement.breakStatement.visit(with: visitor), "break")
-        XCTAssertEqual(Statement.block([]).visit(with: visitor), "block")
+        #expect(Statement.expressionStatement(.literal(.integer(42))).visit(with: visitor) == "expr_stmt")
+        #expect(Statement.breakStatement.visit(with: visitor) == "break")
+        #expect(Statement.block([]).visit(with: visitor) == "block")
     }
 
     // MARK: - Generic Visitor Interface Tests
 
-    func testGenericVisitorInterface() {
+    @Test func genericVisitorInterface() {
         // Create a generic function that can work with any Visitable type
         func processVisitable<T: Visitable, V: Visitor>(_ visitable: T, with visitor: V) -> V.Result where V.NodeType == T {
             return visitable.accept(visitor)
@@ -182,13 +183,13 @@ final class VisitableTests: XCTestCase {
         let stmt = Statement.breakStatement
 
         // Test that the generic function works with both types
-        XCTAssertEqual(processVisitable(expr, with: exprVisitor), "literal")
-        XCTAssertEqual(processVisitable(stmt, with: stmtVisitor), "break")
+        #expect(processVisitable(expr, with: exprVisitor) == "literal")
+        #expect(processVisitable(stmt, with: stmtVisitor) == "break")
     }
 
     // MARK: - Sendable Compliance Tests
 
-    func testSendableCompliance() {
+    @Test func sendableCompliance() {
         // This test ensures that our visitor types are Sendable
         let exprVisitor = ExpressionVisitor<String>(
             visitLiteral: { _ in "literal" },
@@ -220,14 +221,14 @@ final class VisitableTests: XCTestCase {
             let expr = Expression.literal(.integer(42))
             let stmt = Statement.breakStatement
 
-            XCTAssertEqual(expr.visit(with: exprVisitor), "literal")
-            XCTAssertEqual(stmt.visit(with: stmtVisitor), "break")
+            #expect(expr.visit(with: exprVisitor) == "literal")
+            #expect(stmt.visit(with: stmtVisitor) == "break")
         }
     }
 
     // MARK: - Type Safety Tests
 
-    func testTypeSafetyBetweenVisitorTypes() {
+    @Test func typeSafetyBetweenVisitorTypes() {
         let exprVisitor = ExpressionVisitor<String>(
             visitLiteral: { _ in "literal" },
             visitIdentifier: { _ in "identifier" },
@@ -257,12 +258,12 @@ final class VisitableTests: XCTestCase {
         let stmt = Statement.breakStatement
 
         // Test that expression visitors work with expressions
-        XCTAssertEqual(expr.visit(with: exprVisitor), "literal")
-        XCTAssertEqual(expr.accept(exprVisitor), "literal")
+        #expect(expr.visit(with: exprVisitor) == "literal")
+        #expect(expr.accept(exprVisitor) == "literal")
 
         // Test that statement visitors work with statements
-        XCTAssertEqual(stmt.visit(with: stmtVisitor), "break")
-        XCTAssertEqual(stmt.accept(stmtVisitor), "break")
+        #expect(stmt.visit(with: stmtVisitor) == "break")
+        #expect(stmt.accept(stmtVisitor) == "break")
 
         // The following should not compile due to type safety:
         // expr.visit(with: stmtVisitor) // Compile error: StatementVisitor cannot process Expression
