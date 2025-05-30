@@ -103,6 +103,8 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
             return true
         case (.integer, .real), (.real, .integer):
             return true // Numeric types are compatible
+        case (.character, .string):
+            return true // Character can be assigned to string
         case (.array(let elementType1, let dimensions1), .array(let elementType2, let dimensions2)):
             return elementType1.isCompatible(with: elementType2) && dimensions1 == dimensions2
         case (.record(let name1, let fields1), .record(let name2, let fields2)):
@@ -125,6 +127,11 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
             return true // Unknown type during inference
         case (.integer, .real):
             return true // Implicit integer to real conversion
+        case (.character, .string):
+            return true // Implicit character to string conversion
+        case (.array(let srcElement, let srcDims), .array(let targetElement, let targetDims)):
+            // Arrays must have compatible element types and same dimensions
+            return srcElement.canAssignTo(targetElement) && srcDims == targetDims
         default:
             return self.isCompatible(with: target)
         }
