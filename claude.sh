@@ -483,7 +483,9 @@ extract_issue_info() {
         OWNER="${BASH_REMATCH[1]}"
         REPO="${BASH_REMATCH[2]}"
         ISSUE_NUMBER="${BASH_REMATCH[3]}"
-        BRANCH_NAME="issue-${ISSUE_NUMBER}-$(date +%Y%m%d-%H%M%S)"
+        # Generate random string for uniqueness (8 characters)
+        local random_suffix=$(openssl rand -hex 4 2>/dev/null || echo $(date +%s | tail -c 8))
+        BRANCH_NAME="issue-${ISSUE_NUMBER}-$(date +%Y%m%d-%H%M%S)-${random_suffix}"
         WORKTREE_PATH="${WORKTREE_BASE_DIR}/${BRANCH_NAME}"
         ISSUE_DATA_FILE="${WORKTREE_PATH}/.issue-data.json"
         ANALYSIS_FILE="${WORKTREE_PATH}/.analysis-data.json"
