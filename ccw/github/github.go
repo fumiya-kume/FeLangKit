@@ -241,8 +241,7 @@ func (gc *GitHubClient) GetPRStatus(owner, repo string, prNumber int) (string, e
 
 	var result struct {
 		StatusCheckRollup []struct {
-			State      string `json:"state"`
-			Conclusion string `json:"conclusion"`
+			State string `json:"state"`
 		} `json:"statusCheckRollup"`
 	}
 
@@ -256,7 +255,7 @@ func (gc *GitHubClient) GetPRStatus(owner, repo string, prNumber int) (string, e
 	}
 
 	for _, check := range result.StatusCheckRollup {
-		if check.State == "FAILURE" || check.Conclusion == "FAILURE" {
+		if check.State == "FAILURE" || check.State == "ERROR" {
 			return "failed", nil
 		}
 		if check.State == "PENDING" || check.State == "IN_PROGRESS" {
@@ -282,10 +281,13 @@ func (gc *GitHubClient) GetDetailedCIStatus(owner, repo string, prNumber int) (*
 		StatusCheckRollup []struct {
 			Name        string `json:"name"`
 			State       string `json:"state"`
-			Conclusion  string `json:"conclusion"`
 			Link        string `json:"link"`
 			StartedAt   string `json:"startedAt"`
 			CompletedAt string `json:"completedAt"`
+			Description string `json:"description,omitempty"`
+			Event       string `json:"event,omitempty"`
+			Workflow    string `json:"workflow,omitempty"`
+			Bucket      string `json:"bucket,omitempty"`
 		} `json:"statusCheckRollup"`
 		URL string `json:"url"`
 	}
@@ -304,10 +306,13 @@ func (gc *GitHubClient) GetDetailedCIStatus(owner, repo string, prNumber int) (*
 	overallStatus := "success"
 	for _, check := range result.StatusCheckRollup {
 		checkRun := types.CheckRun{
-			Name:       check.Name,
-			Status:     strings.ToLower(check.State),
-			Conclusion: strings.ToLower(check.Conclusion),
-			URL:        check.Link,
+			Name:        check.Name,
+			Status:      strings.ToLower(check.State),
+			URL:         check.Link,
+			Description: check.Description,
+			Event:       check.Event,
+			Workflow:    check.Workflow,
+			Bucket:      check.Bucket,
 		}
 
 		// Parse timestamps
@@ -324,10 +329,10 @@ func (gc *GitHubClient) GetDetailedCIStatus(owner, repo string, prNumber int) (*
 
 		ciStatus.Checks = append(ciStatus.Checks, checkRun)
 
-		// Determine overall status
+		// Determine overall status based on state
 		if check.State == "PENDING" || check.State == "IN_PROGRESS" {
 			overallStatus = "pending"
-		} else if check.State == "FAILURE" || check.Conclusion == "FAILURE" {
+		} else if check.State == "FAILURE" || check.State == "ERROR" {
 			overallStatus = "failure"
 			ciStatus.Conclusion = "failure"
 		}
