@@ -73,3 +73,23 @@ issue-*-*/
 .validation-errors.md
 .claude-input.txt
 .claude-error-input.txt
+
+# CCW tool generated files and directories
+.ccw/
+ccw/ccw
+ccw/ccw-*
+ccw/main
+
+# Temporary summary and description files  
+completion_summary.txt
+error-fixes-summary.md
+flicker-reduction-summary.md
+header-enhancement-summary.md
+pr_description.md
+PR_DESCRIPTION_CLI_POC.md
+
+# VS Code configuration
+.vscode/
+
+# Claude Code settings (local only)
+.claude/settings.local.json
