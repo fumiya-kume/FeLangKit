@@ -76,6 +76,7 @@
       "Bash(go fmt:*)",
       "Bash(go vet:*)",
       "Bash(sed:*)"
+      "Bash(git worktree:*)"
     ],
     "deny": []
   },
