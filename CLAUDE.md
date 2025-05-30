@@ -231,7 +231,6 @@ The project includes a complete VS Code dev container configuration for consiste
 
 ### Development Constraints
 - **Minimal Diffs**: Keep commits focused and small (≤200 LOC)
-- **CI Watching**: Monitor CI status with `gh pr checks --watch`
 - **Safety First**: Pause for confirmation on destructive operations
 
 ### Implementation Best Practices
