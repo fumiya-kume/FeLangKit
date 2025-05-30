@@ -248,7 +248,7 @@ func (pm *PRManager) monitorChecksLoop(ctx context.Context, prURL string, update
 
 // fetchCurrentCIStatus fetches current CI status using gh CLI
 func (pm *PRManager) fetchCurrentCIStatus(ctx context.Context, prURL string) (*types.CIStatus, error) {
-	cmd := exec.CommandContext(ctx, "gh", "pr", "checks", prURL, "--json", "name,state,conclusion,link,startedAt,completedAt")
+	cmd := exec.CommandContext(ctx, "gh", "pr", "checks", prURL, "--json", "name,state,link,startedAt,completedAt,description,event,workflow,bucket")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch CI status: %w\nOutput: %s", err, string(output))
@@ -276,10 +276,11 @@ func (pm *PRManager) buildCIStatusFromChecks(checks []types.CheckRun, prURL stri
 	}
 
 	for _, check := range checks {
-		switch check.Conclusion {
-		case "success":
+		// Use state instead of conclusion since conclusion is not available
+		switch strings.ToUpper(check.Status) {
+		case "SUCCESS", "PASSED":
 			status.PassedChecks++
-		case "failure", "error", "cancelled":
+		case "FAILURE", "ERROR", "FAILED", "CANCELLED":
 			status.FailedChecks++
 		default:
 			status.PendingChecks++
@@ -357,7 +358,9 @@ func (pm *PRManager) AnalyzeCIFailures(status *types.CIStatus) []types.CIFailure
 	var failures []types.CIFailureInfo
 
 	for _, check := range status.Checks {
-		if check.Conclusion == "failure" || check.Conclusion == "error" {
+		// Check status instead of conclusion
+		checkStatus := strings.ToUpper(check.Status)
+		if checkStatus == "FAILURE" || checkStatus == "ERROR" || checkStatus == "FAILED" {
 			failure := types.CIFailureInfo{
 				CheckName:  check.Name,
 				DetailsURL: check.URL,
