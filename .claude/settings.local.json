@@ -39,7 +39,9 @@
       "Bash(git checkout:*)",
       "Bash(mkdir:*)",
       "Bash(./scripts/container/extract-results.sh:*)",
-      "Bash(claude config --help)"
+      "Bash(claude config --help)",
+      "Bash(swift test:*)",
+      "Bash(swift:*)"
     ],
     "deny": []
   },

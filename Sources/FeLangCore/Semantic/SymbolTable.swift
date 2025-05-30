@@ -403,6 +403,77 @@ public final class SymbolTable: @unchecked Sendable {
 
         scopes["global"] = globalScope
     }
+
+    /// Find symbols with names similar to the given name.
+    /// Uses simple string matching to suggest alternative symbol names.
+    /// - Parameters:
+    ///   - name: The name to find similar symbols for
+    ///   - limit: Maximum number of suggestions to return
+    /// - Returns: Array of similar symbol names
+    public func findSimilarSymbols(to name: String, limit: Int = 3) -> [String] {
+        lock.lock()
+        defer { lock.unlock() }
+
+        var suggestions: [String] = []
+        let lowercasedName = name.lowercased()
+
+        // Collect all symbol names from all scopes
+        var allSymbols: Set<String> = []
+        for scope in scopes.values {
+            allSymbols.formUnion(scope.symbols.keys)
+        }
+
+        // Score symbols by similarity
+        var scoredSymbols: [(String, Int)] = []
+
+        for symbolName in allSymbols {
+            let score = calculateSimilarity(between: lowercasedName, and: symbolName.lowercased())
+            if score > 0 {
+                scoredSymbols.append((symbolName, score))
+            }
+        }
+
+        // Sort by score (higher is better) and take top suggestions
+        scoredSymbols.sort { $0.1 > $1.1 }
+        suggestions = Array(scoredSymbols.prefix(limit).map { $0.0 })
+
+        return suggestions
+    }
+
+    /// Calculate similarity score between two strings.
+    /// Uses a simple algorithm based on common prefixes and character overlap.
+    private func calculateSimilarity(between name1: String, and name2: String) -> Int {
+        guard name1 != name2 else { return 0 } // Don't suggest identical names
+
+        let chars1 = Array(name1)
+        let chars2 = Array(name2)
+
+        // Score based on common prefix
+        var commonPrefix = 0
+        let minLength = min(chars1.count, chars2.count)
+        for index in 0..<minLength {
+            if chars1[index] == chars2[index] {
+                commonPrefix += 1
+            } else {
+                break
+            }
+        }
+
+        // Score based on character overlap
+        let set1 = Set(chars1)
+        let set2 = Set(chars2)
+        let overlap = set1.intersection(set2).count
+
+        // Length similarity
+        let lengthDiff = abs(chars1.count - chars2.count)
+        let lengthBonus = max(0, 5 - lengthDiff)
+
+        // Calculate final score
+        let score = commonPrefix * 3 + overlap + lengthBonus
+
+        // Only suggest if there's meaningful similarity
+        return score >= 3 ? score : 0
+    }
 }
 
 // MARK: - Debug Support

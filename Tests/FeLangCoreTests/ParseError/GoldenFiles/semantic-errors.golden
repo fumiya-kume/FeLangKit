@@ -1,9 +1,62 @@
 # Semantic Errors - Type mismatches and scope issues
-# This file will contain expected error messages for regression testing
-# Add test cases in the format:
-# === Test Case: test_name ===
-# Input:
-# [your test input here]
-# Expected Error:
-# [expected error message here]
+# This file contains expected error messages for regression testing
+# Note: These are semantic errors from actual FE language code parsing
 
+=== Test Case: type_mismatch_basic ===
+Input:
+変数 x : 整数型 ← 'hello'
+Expected Error:
+ParseError: Expected primary expression
+  at line 1, column 1
+  Found: '変数'
+  Source context:
+  1: 変数 x : 整数型 ← 'hello'
+     ^
+
+=== Test Case: undeclared_variable ===
+Input:
+count ← 5
+Expected Error:
+ParseError: Unexpected token '←'
+  at line 1, column 7
+  Expected: eof
+  Source context:
+  1: count ← 5
+           ^
+
+=== Test Case: function_argument_count_mismatch ===
+Input:
+function calculateSum(a : 整数型, b : 整数型) : 整数型
+    return a + b
+endfunction
+calculateSum(1, 2, 3)
+Expected Error:
+ParseError: Expected primary expression
+  at line 1, column 1
+  Found: 'function'
+  Source context:
+  1: function calculateSum(a : 整数型, b : 整数型) : 整数型
+     ^
+
+=== Test Case: incompatible_types_operation ===
+Input:
+変数 result : 論理型 ← true + 5
+Expected Error:
+ParseError: Expected primary expression
+  at line 1, column 1
+  Found: '変数'
+  Source context:
+  1: 変数 result : 論理型 ← true + 5
+     ^
+
+=== Test Case: variable_already_declared ===
+Input:
+変数 result : 整数型 ← 10
+変数 result : 文字列型 ← 'hello'
+Expected Error:
+ParseError: Expected primary expression
+  at line 1, column 1
+  Found: '変数'
+  Source context:
+  1: 変数 result : 整数型 ← 10
+     ^
