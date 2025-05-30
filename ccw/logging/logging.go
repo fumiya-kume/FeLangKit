@@ -12,6 +12,12 @@ import (
 
 // Logging and error handling functionality
 
+// UI integration variables
+var (
+	uiLogFunc    func(types.LogEntry) // Function to send logs to UI
+	uiModeActive bool                 // Whether UI mode is active
+)
+
 // Logger wraps the types.Logger and provides implementation
 type Logger struct {
 	logLevel   types.LogLevel
@@ -140,14 +146,22 @@ func (l *Logger) levelToString(level types.LogLevel) string {
 
 // Output log entry to console
 func (l *Logger) outputToConsole(entry types.LogEntry) {
-	if l.enableJSON {
-		if jsonData, err := json.Marshal(entry); err == nil {
-			fmt.Println(string(jsonData))
+	// Send to UI buffer if available (this will be set up via an interface)
+	if uiLogFunc != nil {
+		uiLogFunc(entry)
+	}
+	
+	// Also output to console (can be disabled when UI is active)
+	if !uiModeActive {
+		if l.enableJSON {
+			if jsonData, err := json.Marshal(entry); err == nil {
+				fmt.Println(string(jsonData))
+			}
+		} else {
+			timestamp := entry.Timestamp.Format("2006-01-02 15:04:05")
+			fmt.Printf("[%s] %s [%s] %s: %s\n", 
+				timestamp, entry.Level, entry.Component, entry.SessionID, entry.Message)
 		}
-	} else {
-		timestamp := entry.Timestamp.Format("2006-01-02 15:04:05")
-		fmt.Printf("[%s] %s [%s] %s: %s\n", 
-			timestamp, entry.Level, entry.Component, entry.SessionID, entry.Message)
 	}
 }
 
@@ -187,4 +201,21 @@ func (l *Logger) PersistError(errorType, message, component string, issueNumber 
 	// For now, just log the error
 	l.Error(component, fmt.Sprintf("%s: %s", errorType, message), context)
 	return nil
+}
+
+// UI Integration functions
+
+// SetUILogFunction sets the function to send logs to the UI
+func SetUILogFunction(fn func(types.LogEntry)) {
+	uiLogFunc = fn
+}
+
+// SetUIMode enables or disables UI mode
+func SetUIMode(active bool) {
+	uiModeActive = active
+}
+
+// IsUIMode returns whether UI mode is active
+func IsUIMode() bool {
+	return uiModeActive
 }

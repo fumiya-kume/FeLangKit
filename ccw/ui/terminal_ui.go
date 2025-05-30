@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -59,6 +60,11 @@ func NewUIManager(theme string, animations bool, debugMode bool) *UIManager {
 	ui.InitializeProgress()
 	
 	return ui
+}
+
+// NewUIManagerWithDefaults creates a UI manager with defaults optimized for Bubble Tea
+func NewUIManagerWithDefaults() *UIManager {
+	return NewUIManager("modern", true, false) // Enable animations by default for Bubble Tea
 }
 
 // Initialize color functions
@@ -327,4 +333,24 @@ func (ui *UIManager) RestoreTerminalState() {
 // Getter for animations field
 func (ui *UIManager) GetAnimations() bool {
 	return ui.animations
+}
+
+// Enhanced UI methods that can use Bubble Tea
+// Note: Enhanced methods are defined in bubbletea_manager.go to avoid circular dependencies
+
+// GetBubbleTeaManager creates a new Bubble Tea manager for this UI
+func (ui *UIManager) GetBubbleTeaManager() *BubbleTeaManager {
+	return NewBubbleTeaManager(ui)
+}
+
+// ShouldUseBubbleTea determines if we should use Bubble Tea for interactive UIs
+func (ui *UIManager) ShouldUseBubbleTea() bool {
+	// Check if console mode is forced via environment variable
+	if os.Getenv("CCW_CONSOLE_MODE") == "true" {
+		return false
+	}
+	
+	// Default to Bubble Tea if terminal supports it
+	btm := NewBubbleTeaManager(ui)
+	return btm.CanRunInteractive()
 }
