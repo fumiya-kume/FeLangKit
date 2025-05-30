@@ -218,6 +218,85 @@ update_step_with_activity() {
     draw_status_box 90
 }
 
+draw_progress_bar() {
+    local current="$1"
+    local total="$2"
+    local width="${3:-50}"
+    local label="${4:-Progress}"
+    
+    # Calculate percentage and filled length
+    local percentage=$((current * 100 / total))
+    local filled=$((current * width / total))
+    local remaining=$((width - filled))
+    
+    # Create progress bar components
+    local filled_bar=""
+    local empty_bar=""
+    
+    # Fill the bar
+    for ((i=0; i<filled; i++)); do
+        filled_bar+="█"
+    done
+    
+    for ((i=0; i<remaining; i++)); do
+        empty_bar+="░"
+    done
+    
+    # Format time remaining
+    local time_remaining=$((total - current))
+    local minutes=$((time_remaining / 60))
+    local seconds=$((time_remaining % 60))
+    local time_str=$(printf "%02d:%02d" "$minutes" "$seconds")
+    
+    # Print progress bar with colors
+    printf "\r${CYAN}[INFO]${NC} %s: [${GREEN}%s${NC}${empty_bar}] %3d%% | %s remaining    " \
+           "$label" "$filled_bar" "$percentage" "$time_str"
+}
+
+show_progress_with_spinner() {
+    local message="$1"
+    local duration="$2"  # Total duration in seconds
+    local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local i=0
+    local elapsed=0
+    local start_time=$(date +%s)
+    
+    while [[ $elapsed -lt $duration ]]; do
+        local current_time=$(date +%s)
+        elapsed=$((current_time - start_time))
+        
+        # Show spinner + progress bar
+        local percentage=$((elapsed * 100 / duration))
+        local filled=$((elapsed * 30 / duration))
+        local remaining=$((30 - filled))
+        
+        local filled_bar=""
+        local empty_bar=""
+        
+        for ((j=0; j<filled; j++)); do
+            filled_bar+="█"
+        done
+        
+        for ((j=0; j<remaining; j++)); do
+            empty_bar+="░"
+        done
+        
+        local time_remaining=$((duration - elapsed))
+        local minutes=$((time_remaining / 60))
+        local seconds=$((time_remaining % 60))
+        local time_str=$(printf "%02d:%02d" "$minutes" "$seconds")
+        
+        printf "\r${CYAN}[${spinner[i]}]${NC} %s [${GREEN}%s${NC}${empty_bar}] %3d%% | %s remaining" \
+               "$message" "$filled_bar" "$percentage" "$time_str"
+        
+        i=$(( (i + 1) % ${#spinner[@]} ))
+        sleep 0.5
+    done
+    
+    # Final state
+    printf "\r${CYAN}[✓]${NC} %s [${GREEN}████████████████████████████████${NC}] 100%% | Complete!     \n" "$message"
+}
+
 show_loading() {
     local message="$1"
     local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
@@ -1139,8 +1218,11 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
             fi
             checks_started=true
             
-            # Display current status
-            echo "--- CI Status (${monitor_time}s/${max_monitor_time}s) ---"
+            # Display current status with progress bar
+            echo -e "\r\033[K" # Clear previous progress bar
+            echo "--- CI Status ---"
+            draw_progress_bar "$monitor_time" "$max_monitor_time" 50 "CI Monitoring Progress"
+            echo -e "\n"
             echo "$check_output"
             echo
             
@@ -1169,8 +1251,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
             fi
         else
             if [[ "$checks_started" == "false" ]]; then
-                local remaining_time=$((max_monitor_time - monitor_time))
-                printf "\r${CYAN}[INFO]${NC} Waiting for CI checks to start... (%ds remaining)          " "$remaining_time"
+                draw_progress_bar "$monitor_time" "$max_monitor_time" 40 "Waiting for CI checks to start"
             fi
         fi
         
