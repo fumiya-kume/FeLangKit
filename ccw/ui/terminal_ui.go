@@ -399,22 +399,36 @@ func (ui *UIManager) DisplayProgressHeaderWithBackground() {
 		return
 	}
 
-	// Initial render
-	fmt.Print("\033[2J\033[H") // Clear screen and move cursor to top
+	// Use Bubble Tea for enhanced progress tracking when available
+	if ui.ShouldUseBubbleTea() {
+		// Delegate to Bubble Tea manager for interactive progress
+		btm := ui.GetBubbleTeaManager()
+		steps := make([]types.WorkflowStep, len(ui.progressTracker.Steps))
+		copy(steps, ui.progressTracker.Steps)
+		btm.DisplayProgressInteractive(steps)
+		return
+	}
+
+	// Fallback: Initial render using traditional approach
 	ui.DisplayHeader()
 	content := ui.generateHeaderContent()
 	fmt.Print(content)
 	fmt.Println()
 	
-	// Start background updates
+	// Start background updates for non-Bubble Tea mode
 	ui.startBackgroundHeaderUpdates()
 }
 
 // Setup scroll region for better terminal control
+// Note: This function is deprecated in favor of Bubble Tea viewport management
 func (ui *UIManager) setupScrollRegion() {
 	if !ui.uiState.ScrollRegionSet {
-		// Set scroll region (leave top 15 lines for header)
-		fmt.Print("\033[16;24r") // Scroll region from line 16 to 24
+		// When using Bubble Tea, viewport management is handled automatically
+		// This is primarily kept for fallback non-Bubble Tea mode
+		if !ui.ShouldUseBubbleTea() {
+			// Only set scroll region if not using Bubble Tea
+			// Legacy terminal applications might still need this
+		}
 		ui.uiState.ScrollRegionSet = true
 	}
 }
@@ -424,9 +438,9 @@ func (ui *UIManager) RestoreTerminalState() {
 	// Stop background updates
 	ui.stopBackgroundHeaderUpdates()
 	
-	// Reset scroll region
+	// Terminal state restoration now handled by Bubble Tea
 	if ui.uiState.ScrollRegionSet {
-		fmt.Print("\033[r") // Reset scroll region
+		// Bubble Tea handles terminal restoration automatically
 		ui.uiState.ScrollRegionSet = false
 	}
 }
@@ -454,4 +468,19 @@ func (ui *UIManager) ShouldUseBubbleTea() bool {
 	// Default to Bubble Tea if terminal supports it
 	btm := NewBubbleTeaManager(ui)
 	return btm.CanRunInteractive()
+}
+
+// ClearScreen clears the screen using Bubble Tea compatible methods
+func (ui *UIManager) ClearScreen() {
+	if ui.ShouldUseBubbleTea() {
+		// When using Bubble Tea, screen clearing is handled by the program lifecycle
+		// This is primarily used for non-Bubble Tea fallback scenarios
+		return
+	}
+	
+	// Fallback for non-Bubble Tea mode (legacy behavior)
+	if !ui.isConsoleMode() {
+		// Only use ANSI codes if not in console mode and not using Bubble Tea
+		fmt.Print("\033[2J\033[H")
+	}
 }

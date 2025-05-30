@@ -91,6 +91,13 @@ func (ui *UIManager) displayProgressHeader() {
 		return
 	}
 
+	// Use Bubble Tea for progress display when available and not in console mode
+	if !ui.isConsoleMode() && ui.ShouldUseBubbleTea() {
+		// For dynamic updates, we delegate to the Bubble Tea progress model
+		// The screen clearing and rendering is handled by Bubble Tea automatically
+		return
+	}
+
 	if ui.isConsoleMode() {
 		// Console mode: simple text-based progress
 		ui.DisplayHeader()
@@ -116,8 +123,7 @@ func (ui *UIManager) displayProgressHeader() {
 		fmt.Println()
 	} else {
 		// Interactive mode: fancy Unicode progress
-		// Clear previous header
-		fmt.Print("\033[2J\033[H") // Clear screen and move cursor to top
+		// Screen clearing now handled by Bubble Tea program lifecycle
 		
 		// Display main header
 		ui.DisplayHeader()
@@ -441,17 +447,9 @@ func (ui *UIManager) calculateContentHash(content string) string {
 
 // Render header with flicker reduction techniques
 func (ui *UIManager) renderHeaderWithFlickerReduction(content string) {
-	// Save cursor position
-	fmt.Print("\033[s")
-	
-	// Move to top of screen
-	fmt.Print("\033[H")
-	
-	// Output content
+	// Bubble Tea handles cursor management automatically
+	// Direct terminal manipulation replaced with content output
 	fmt.Print(content)
-	
-	// Restore cursor position
-	fmt.Print("\033[u")
 }
 
 // Update header if content has changed (with performance optimization)
