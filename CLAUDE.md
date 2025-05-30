@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+You will ultrathink for the solution
+
 ## Project Overview
 
 FeLangKit is a Swift toolkit for the **FE pseudo-language** providing complete parsing and analysis capabilities. The project implements a 3-stage parsing pipeline: Tokenizer → Expression → Parser, with shared utilities and comprehensive testing.
