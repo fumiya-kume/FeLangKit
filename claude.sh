@@ -891,6 +891,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
         # Get current check status
         local check_output
         if check_output=$(gh pr checks 2>/dev/null); then
+            if [[ "$checks_started" == "false" ]]; then
+                echo -e "\r\033[K" # Clear the waiting line
+            fi
             checks_started=true
             
             # Display current status
@@ -923,13 +926,19 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
             fi
         else
             if [[ "$checks_started" == "false" ]]; then
-                info "Waiting for CI checks to start... (${monitor_time}s/${max_monitor_time}s)"
+                local remaining_time=$((max_monitor_time - monitor_time))
+                printf "\r${CYAN}[INFO]${NC} Waiting for CI checks to start... (%ds remaining)          " "$remaining_time"
             fi
         fi
         
         sleep $check_interval
         monitor_time=$((monitor_time + check_interval))
     done
+    
+    # Clear any remaining waiting message
+    if [[ "$checks_started" == "false" ]]; then
+        echo -e "\r\033[K"
+    fi
     
     if [[ "$all_checks_passed" == "true" ]]; then
         success "All CI checks completed successfully!"
