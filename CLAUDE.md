@@ -251,37 +251,36 @@ The project includes a complete VS Code dev container configuration for consiste
 - **Direct execution preferred** when user explicitly requests git/GitHub operations
 
 ### PR Description Format Requirements
-When creating pull requests (handled automatically by claude.sh), the description must be generated in **JSON format** with the following structure:
+When creating pull requests (handled automatically by claude.sh), the description must be generated in **well-structured Markdown format** with the following sections:
 
-```json
-{
-  "summary": "Brief overview of the changes made",
-  "background": {
-    "motivation": "Why this change was needed",
-    "problem_statement": "What issue this solves",
-    "decision_rationale": "Why this approach was chosen over alternatives"
-  },
-  "implementation": {
-    "approach": "High-level implementation strategy",
-    "key_changes": ["List of major changes made"],
-    "files_modified": ["List of modified/created files"],
-    "design_decisions": ["Important design choices and their reasoning"]
-  },
-  "testing": {
-    "test_coverage": "Description of tests added/updated",
-    "validation_steps": ["Steps taken to validate the implementation"],
-    "quality_checks": ["SwiftLint, build, test results"]
-  },
-  "impact": {
-    "breaking_changes": "Any breaking changes (or 'None')",
-    "performance_impact": "Expected performance implications",
-    "future_considerations": "How this enables future work"
-  }
-}
+```markdown
+## Summary
+Brief overview of the changes made
+
+## Background
+- **Motivation:** Why this change was needed
+- **Problem Statement:** What issue this solves
+- **Decision Rationale:** Why this approach was chosen over alternatives
+
+## Implementation
+- **Approach:** High-level implementation strategy
+- **Key Changes:** List of major changes made
+- **Files Modified:** List of modified/created files
+- **Design Decisions:** Important design choices and their reasoning
+
+## Testing
+- **Test Coverage:** Description of tests added/updated
+- **Validation Steps:** Steps taken to validate the implementation
+- **Quality Checks:** SwiftLint, build, test results
+
+## Impact
+- **Breaking Changes:** Any breaking changes (or 'None')
+- **Performance Impact:** Expected performance implications
+- **Future Considerations:** How this enables future work
 ```
 
 **Key Requirements:**
-- **JSON Format Only**: All PR descriptions must be valid JSON structure
+- **Markdown Format**: All PR descriptions must use clean, readable Markdown structure
 - **Include Background Context**: Explain the reasoning behind decisions made
 - **Decision Rationale**: Justify why specific approaches were chosen
 - **Implementation Details**: Provide sufficient detail for reviewers to understand changes
