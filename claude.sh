@@ -131,9 +131,12 @@ draw_status_box() {
         elapsed_time=$(printf "⏱️  %02d:%02d" "$minutes" "$seconds")
     fi
     
-    # Save cursor position and clear area
-    echo -ne "\033[s" # Save cursor
-    echo -ne "\033[H" # Move to top
+    # Clear previous status box area without moving cursor to top
+    if [[ $STATUS_BOX_LINES -gt 0 ]]; then
+        for ((i=0; i<STATUS_BOX_LINES; i++)); do
+            echo -ne "\033[K\033[A" # Clear line and move up
+        done
+    fi
     
     STATUS_BOX_LINES=0
     echo -e "${BLUE}$border_line${NC}"; ((STATUS_BOX_LINES++))
@@ -192,22 +195,25 @@ draw_status_box() {
     local bottom_line=$(printf "╚%*s╝" $((width-2)) "" | tr ' ' '═')
     echo -e "${BLUE}$bottom_line${NC}"; ((STATUS_BOX_LINES++))
     
-    # Restore cursor position
-    echo -ne "\033[u" # Restore cursor
-    echo -ne "\033[${STATUS_BOX_LINES}B" # Move cursor below box
+    # Move cursor below status box
+    echo
 }
 
 update_step() {
     local step_number="$1"
     CURRENT_STEP="$step_number"
     CURRENT_ACTIVITY=""  # Clear activity when step changes
-    draw_status_box 90
+    # Use calculated width for proper formatting
+    local width=$((${#ISSUE_TITLE} > 80 ? ${#ISSUE_TITLE} + 4 : 84))
+    draw_status_box "$width"
 }
 
 update_activity() {
     local activity="$1"
     CURRENT_ACTIVITY="$activity"
-    draw_status_box 90
+    # Use calculated width for proper formatting
+    local width=$((${#ISSUE_TITLE} > 80 ? ${#ISSUE_TITLE} + 4 : 84))
+    draw_status_box "$width"
 }
 
 update_step_with_activity() {
@@ -215,7 +221,9 @@ update_step_with_activity() {
     local activity="$2"
     CURRENT_STEP="$step_number"
     CURRENT_ACTIVITY="$activity"
-    draw_status_box 90
+    # Use calculated width for proper formatting
+    local width=$((${#ISSUE_TITLE} > 80 ? ${#ISSUE_TITLE} + 4 : 84))
+    draw_status_box "$width"
 }
 
 draw_progress_bar() {
@@ -249,7 +257,7 @@ draw_progress_bar() {
     local time_str=$(printf "%02d:%02d" "$minutes" "$seconds")
     
     # Print progress bar with colors
-    printf "\r${CYAN}[INFO]${NC} %s: [${GREEN}%s${NC}${empty_bar}] %3d%% | %s remaining    " \
+    printf "\r${CYAN}[INFO]${NC} %s: [${GREEN}%s${NC}${empty_bar}] %3d%% | %s remaining    \n" \
            "$label" "$filled_bar" "$percentage" "$time_str"
 }
 
@@ -541,26 +549,70 @@ fetch_issue_data() {
     info "Labels: $(jq -r '.labels | join(", ")' "$ISSUE_DATA_FILE")"
 }
 
+cleanup_existing_worktree() {
+    # Check if worktree is registered in git worktree list
+    if git worktree list 2>/dev/null | grep -q "$WORKTREE_PATH"; then
+        warn "Worktree registered in git, removing..."
+        if ! run_with_loading "Removing registered worktree" "" git worktree remove "$WORKTREE_PATH" --force; then
+            warn "Failed to remove worktree via git, trying manual cleanup..."
+            # Manual cleanup if git command fails
+            rm -rf "$WORKTREE_PATH" 2>/dev/null || true
+            git worktree prune 2>/dev/null || true
+        fi
+    fi
+    
+    # Check if directory exists and remove it (in case git worktree remove failed)
+    if [[ -d "$WORKTREE_PATH" ]]; then
+        warn "Worktree directory still exists at $WORKTREE_PATH, force cleaning..."
+        if ! run_with_loading "Force cleaning worktree directory" "" rm -rf "$WORKTREE_PATH"; then
+            error "Failed to remove worktree directory: $WORKTREE_PATH"
+            return 1
+        fi
+    fi
+    
+    # Clean up any dangling worktree entries
+    if git worktree list 2>/dev/null | grep -q "$(basename "$WORKTREE_PATH")"; then
+        warn "Found dangling worktree entries, pruning..."
+        git worktree prune 2>/dev/null || true
+    fi
+    
+    # Final verification that cleanup succeeded
+    if [[ -d "$WORKTREE_PATH" ]]; then
+        error "Worktree cleanup failed - directory still exists: $WORKTREE_PATH"
+        return 1
+    fi
+    
+    return 0
+}
+
 create_worktree() {
     step "Creating git worktree..."
     
     # Ensure base directory exists
     mkdir -p "$WORKTREE_BASE_DIR"
     
-    # Check if worktree already exists
-    if [[ -d "$WORKTREE_PATH" ]]; then
-        warn "Worktree already exists at $WORKTREE_PATH"
-        run_with_loading "Removing existing worktree" "" git worktree remove "$WORKTREE_PATH" --force
-        run_with_loading "Cleaning up worktree directory" "" rm -rf "$WORKTREE_PATH"
+    # Comprehensive worktree cleanup
+    if ! cleanup_existing_worktree; then
+        error "Failed to cleanup existing worktree, cannot proceed"
+        exit 1
     fi
     
     # Fetch latest changes
     run_with_loading "Fetching latest changes from origin" "" git fetch origin
     
-    # Create new worktree from master
+    # Create new worktree from master (without -b to avoid branch conflicts)
     if ! run_with_loading "Creating new git worktree" "" git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" origin/master; then
-        error "Failed to create git worktree"
-        exit 1
+        # If branch creation fails, try creating worktree with existing branch
+        warn "Branch creation failed, trying with checkout instead..."
+        if ! run_with_loading "Creating worktree with checkout" "" git worktree add "$WORKTREE_PATH" "$BRANCH_NAME" 2>/dev/null; then
+            # If that fails too, delete any existing branch and retry
+            warn "Cleaning up existing branch and retrying..."
+            git branch -D "$BRANCH_NAME" 2>/dev/null || true
+            if ! run_with_loading "Creating new git worktree (retry)" "" git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" origin/master; then
+                error "Failed to create git worktree after cleanup"
+                exit 1
+            fi
+        fi
     fi
     
     success "Git worktree created: $WORKTREE_PATH"
@@ -1345,10 +1397,19 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 }
 
 cleanup_worktree() {
-    if [[ -n "$WORKTREE_PATH" && -d "$WORKTREE_PATH" ]]; then
+    if [[ -n "$WORKTREE_PATH" ]]; then
         log "Removing worktree..."
         cd "$PROJECT_ROOT"
-        git worktree remove "$WORKTREE_PATH" --force
+        
+        # Use the comprehensive cleanup function
+        cleanup_existing_worktree
+        
+        # Clean up associated branch if it exists
+        if git branch --list | grep -q "$BRANCH_NAME"; then
+            log "Cleaning up branch: $BRANCH_NAME"
+            git branch -D "$BRANCH_NAME" 2>/dev/null || true
+        fi
+        
         success "Worktree removed: $WORKTREE_PATH"
     fi
 }
