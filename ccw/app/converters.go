@@ -62,21 +62,7 @@ func convertTestResult(gitResult *git.TestResult) *types.TestResult {
 	}
 }
 
-// convertValidationErrors converts git.ValidationError slice to types.ValidationError slice
-func convertValidationErrors(gitErrors []git.ValidationError) []types.ValidationError {
-	if gitErrors == nil {
-		return nil
-	}
-	
-	typesErrors := make([]types.ValidationError, len(gitErrors))
-	for i, gitError := range gitErrors {
-		typesErrors[i] = types.ValidationError{
-			Type:        gitError.Type,
-			Message:     gitError.Message,
-			File:        gitError.File,
-			Line:        gitError.Line,
-			Recoverable: gitError.Recoverable,
-		}
-	}
-	return typesErrors
+// convertValidationErrors now simply returns the input since both use the same type
+func convertValidationErrors(gitErrors []types.ValidationError) []types.ValidationError {
+	return gitErrors
 }

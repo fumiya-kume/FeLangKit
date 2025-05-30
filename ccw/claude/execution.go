@@ -168,6 +168,34 @@ func formatValidationErrorsDetailed(errors []types.ValidationError) string {
 				output.WriteString(fmt.Sprintf("📁 %s:%d\n", err.File, err.Line))
 			}
 			output.WriteString(fmt.Sprintf("   💬 %s\n", err.Message))
+			
+			// Add detailed cause information if available
+			if err.Cause != nil {
+				if err.Cause.Command != "" {
+					output.WriteString(fmt.Sprintf("   🔧 Command: %s\n", err.Cause.Command))
+				}
+				if err.Cause.ExitCode != 0 {
+					output.WriteString(fmt.Sprintf("   💥 Exit Code: %d\n", err.Cause.ExitCode))
+				}
+				if err.Cause.RootError != "" {
+					output.WriteString(fmt.Sprintf("   🔍 Root Cause: %s\n", err.Cause.RootError))
+				}
+				if err.Cause.Stderr != "" && err.Cause.Stderr != err.Cause.RootError {
+					// Truncate stderr if too long for better readability
+					stderr := err.Cause.Stderr
+					if len(stderr) > 200 {
+						stderr = stderr[:200] + "..."
+					}
+					output.WriteString(fmt.Sprintf("   📄 Error Output: %s\n", stderr))
+				}
+				if len(err.Cause.Context) > 0 {
+					output.WriteString("   📋 Context:\n")
+					for key, value := range err.Cause.Context {
+						output.WriteString(fmt.Sprintf("      %s: %s\n", key, value))
+					}
+				}
+			}
+			
 			if err.Recoverable {
 				output.WriteString("   🔧 Recoverable: YES\n")
 			} else {

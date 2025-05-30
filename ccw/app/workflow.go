@@ -525,17 +525,8 @@ func convertTypesToGitValidationResult(typesResult *types.ValidationResult) *git
 		return nil
 	}
 	
-	// Convert errors
-	var errors []git.ValidationError
-	for _, err := range typesResult.Errors {
-		errors = append(errors, git.ValidationError{
-			Type:        err.Type,
-			Message:     err.Message,
-			File:        err.File,
-			Line:        err.Line,
-			Recoverable: err.Recoverable,
-		})
-	}
+	// Convert errors (now using the same type)
+	errors := typesResult.Errors
 	
 	// Convert LintResult
 	var lintResult *git.LintResult
