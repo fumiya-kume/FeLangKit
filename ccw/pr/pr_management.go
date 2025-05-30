@@ -248,7 +248,7 @@ func (pm *PRManager) monitorChecksLoop(ctx context.Context, prURL string, update
 
 // fetchCurrentCIStatus fetches current CI status using gh CLI
 func (pm *PRManager) fetchCurrentCIStatus(ctx context.Context, prURL string) (*types.CIStatus, error) {
-	cmd := exec.CommandContext(ctx, "gh", "pr", "checks", prURL, "--json", "name,status,conclusion,url,startedAt,completedAt,detailsUrl")
+	cmd := exec.CommandContext(ctx, "gh", "pr", "checks", prURL, "--json", "name,state,conclusion,link,startedAt,completedAt")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch CI status: %w\nOutput: %s", err, string(output))
@@ -360,7 +360,7 @@ func (pm *PRManager) AnalyzeCIFailures(status *types.CIStatus) []types.CIFailure
 		if check.Conclusion == "failure" || check.Conclusion == "error" {
 			failure := types.CIFailureInfo{
 				CheckName:  check.Name,
-				DetailsURL: check.DetailsURL,
+				DetailsURL: check.URL,
 			}
 
 			// Analyze failure type
@@ -379,10 +379,7 @@ func (pm *PRManager) AnalyzeCIFailures(status *types.CIStatus) []types.CIFailure
 				failure.Recoverable = false
 			}
 
-			failure.FailureText = check.Summary
-			if failure.FailureText == "" {
-				failure.FailureText = check.Text
-			}
+			failure.FailureText = check.Description
 
 			failures = append(failures, failure)
 		}
