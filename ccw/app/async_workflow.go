@@ -263,21 +263,62 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 	return nil
 }
 
-// monitorCIChecks monitors CI checks asynchronously
+// monitorCIChecks monitors CI checks synchronously with proper timeout and progress tracking
 func (app *CCWApp) monitorCIChecks(prURL string) {
-	loadingIcon := getConsoleChar("⏳", "[MONITORING]")
-	app.ui.Info(fmt.Sprintf("%s Monitoring CI checks...", loadingIcon))
+	app.ui.UpdateProgress("ci_monitoring", "in_progress")
+	
+	startTime := time.Now()
+	monitoringIcon := getConsoleChar("⏳", "[MONITORING]")
+	app.ui.Info(fmt.Sprintf("%s Monitoring CI checks...", monitoringIcon))
+	
+	// Start ticker for progress updates during long monitoring
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	
+	// Timer display channel
+	timerDone := make(chan bool, 1)
+	
+	// Start timer display goroutine
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				elapsed := time.Since(startTime).Round(time.Second)
+				timerIcon := getConsoleChar("⏱️", "[TIMER]")
+				app.ui.Info(fmt.Sprintf("%s CI monitoring: %s elapsed", timerIcon, elapsed.String()))
+			case <-timerDone:
+				return
+			}
+		}
+	}()
+	
+	// Monitor with proper timeout (5 minutes for CI to complete)
 	ciResultChan := app.prManager.MonitorPRChecksAsync(prURL, 5*time.Minute)
 	
 	select {
 	case ciResult := <-ciResultChan:
+		// Stop timer display
+		timerDone <- true
+		
+		elapsed := time.Since(startTime).Round(time.Second)
 		if ciResult.Error != nil {
-			app.ui.Warning(fmt.Sprintf("CI monitoring failed: %v", ciResult.Error))
+			app.ui.UpdateProgress("ci_monitoring", "failed")
+			app.ui.Warning(fmt.Sprintf("CI monitoring failed after %s: %v", elapsed.String(), ciResult.Error))
 		} else {
-			app.ui.Info(fmt.Sprintf("CI Status: %s", ciResult.Status.Status))
+			app.ui.UpdateProgress("ci_monitoring", "completed")
+			statusIcon := getConsoleChar("📊", "[STATUS]")
+			successIcon := getConsoleChar("✅", "[SUCCESS]")
+			app.ui.Info(fmt.Sprintf("%s CI Status: %s", statusIcon, ciResult.Status.Status))
+			app.ui.Success(fmt.Sprintf("%s CI monitoring completed in %s", successIcon, elapsed.String()))
 		}
-	case <-time.After(1 * time.Minute): // Short timeout for CI monitoring demo
-		app.ui.Info("CI monitoring will continue in background")
+	case <-time.After(5 * time.Minute): // Full timeout for CI monitoring
+		// Stop timer display
+		timerDone <- true
+		
+		elapsed := time.Since(startTime).Round(time.Second)
+		app.ui.UpdateProgress("ci_monitoring", "failed")
+		warningIcon := getConsoleChar("⚠️", "[WARNING]")
+		app.ui.Warning(fmt.Sprintf("%s CI monitoring timed out after %s - checks may still be running", warningIcon, elapsed.String()))
 	}
 }
 
