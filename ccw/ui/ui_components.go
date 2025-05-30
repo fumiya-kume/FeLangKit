@@ -257,7 +257,7 @@ func (ui *UIManager) startBackgroundHeaderUpdates() {
 				// Periodic performance stats logging
 				if ui.debugMode && time.Since(lastPerformanceCheck) > performanceCheckInterval {
 					stats := ui.performanceOptimizer.GetPerformanceStats()
-					ui.Debug(fmt.Sprintf("Performance stats: %+v", stats))
+					ui.Debug(fmt.Sprintf("Performance stats: %s", stats.String()))
 					lastPerformanceCheck = time.Now()
 				}
 			}
