@@ -922,6 +922,54 @@ final class SemanticAnalyzerTests: XCTestCase {
         XCTAssertTrue(result.errors.isEmpty)
     }
 
+    // MARK: - Integration Tests with Parser
+
+    func testParserSemanticAnalyzerIntegration() {
+        let parser = Parser()
+        let sourceCode = """
+        変数 x: 整数型 ← 42
+        変数 message: 文字列型 ← "Hello World"
+        """
+
+        do {
+            let statements = try parser.parse(sourceCode)
+            let result = analyzer.analyze(statements)
+
+            XCTAssertTrue(result.isSuccessful)
+            XCTAssertTrue(result.errors.isEmpty)
+
+            // Verify symbols were created correctly
+            XCTAssertNotNil(result.symbolTable.lookup("x"))
+            XCTAssertNotNil(result.symbolTable.lookup("message"))
+        } catch {
+            XCTFail("Parser integration failed: \(error)")
+        }
+    }
+
+    func testParserSemanticAnalyzerIntegrationWithErrors() {
+        let parser = Parser()
+        let sourceCode = """
+        変数 x: 整数型 ← "not a number"
+        変数 y: 文字列型 ← x
+        """
+
+        do {
+            let statements = try parser.parse(sourceCode)
+            let result = analyzer.analyze(statements)
+
+            XCTAssertFalse(result.isSuccessful)
+            XCTAssertGreaterThan(result.errors.count, 0)
+
+            // Should have at least one type mismatch error
+            XCTAssertTrue(result.errors.contains {
+                if case .typeMismatch = $0 { return true }
+                return false
+            })
+        } catch {
+            XCTFail("Parser integration failed: \(error)")
+        }
+    }
+
     // MARK: - Performance Tests
 
     func testAnalysisPerformance() {
