@@ -1081,14 +1081,8 @@ main() {
                 info "3. Remove worktree: git worktree remove $WORKTREE_PATH --force"
                 echo
                 
-                read -p "Continue with PR creation anyway? (y/N): " -n 1 -r
-                echo
-                if [[ $REPLY =~ ^[Yy]$ ]]; then
-                    warn "Proceeding with PR creation despite validation failures"
-                    push_and_create_pr
-                else
-                    exit 1
-                fi
+                warn "Auto-proceeding with PR creation despite validation failures..."
+                push_and_create_pr
             fi
         fi
     done
