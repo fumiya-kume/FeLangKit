@@ -94,9 +94,8 @@ func (ui *UIManager) initializeAdvancedTerminal() {
 		AdaptiveInterval: ui.updateInterval,
 	}
 	ui.headerUpdateManager = &types.HeaderUpdateManager{
-		Interval:    ui.updateInterval,
-		StopChannel: make(chan bool, 2), // Larger buffer to prevent blocking
-		AdaptiveMode: true,
+		Interval:        ui.updateInterval,
+		AdaptiveMode:    true,
 		ChangeThreshold: 0.1,
 	}
 	

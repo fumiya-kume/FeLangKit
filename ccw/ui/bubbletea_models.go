@@ -203,7 +203,8 @@ func NewAppModel(ui *UIManager) AppModel {
 
 // Main application Init
 func (m AppModel) Init() tea.Cmd {
-	return nil
+	// Start periodic header updates for progress tracking
+	return sendHeaderUpdate(250 * time.Millisecond)
 }
 
 // Main application Update
@@ -238,6 +239,22 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		
 		m.issueSelection.list.SetWidth(mainWidth)
 		m.issueSelection.list.SetHeight(msg.Height - 10)
+
+	case HeaderUpdateMsg:
+		// Periodic header updates for progress tracking
+		// The view will automatically update with current progress state
+		
+		// Continue periodic updates with adaptive interval based on current state
+		var interval time.Duration
+		switch m.state {
+		case StateProgressTracking:
+			// More frequent updates during active progress
+			interval = 250 * time.Millisecond
+		default:
+			// Less frequent updates for other states
+			interval = 1 * time.Second
+		}
+		return m, sendHeaderUpdate(interval)
 	}
 
 	var cmd tea.Cmd
@@ -479,6 +496,9 @@ func (m AppModel) updateProgress(msg tea.Msg) (ProgressModel, tea.Cmd) {
 		}
 	case ProgressCompleteMsg:
 		m.state = StateCompleted
+	case HeaderUpdateMsg:
+		// Progress header updates are handled automatically by the main Update
+		// This ensures elapsed time and progress status stay current
 	}
 
 	// Update progress bar
@@ -581,6 +601,16 @@ type ProgressUpdateMsg struct {
 }
 
 type ProgressCompleteMsg struct{}
+
+// HeaderUpdateMsg is sent periodically to refresh progress header
+type HeaderUpdateMsg struct{}
+
+// sendHeaderUpdate returns a command that sends a HeaderUpdateMsg after a delay
+func sendHeaderUpdate(interval time.Duration) tea.Cmd {
+	return tea.Tick(interval, func(t time.Time) tea.Msg {
+		return HeaderUpdateMsg{}
+	})
+}
 
 // Set issues for selection
 func (m *AppModel) SetIssues(issues []*types.Issue) {

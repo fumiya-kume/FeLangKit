@@ -273,110 +273,18 @@ func (ui *UIManager) startLoadingAnimation(operation string) func() {
 	}
 }
 
-// Start background header updates with adaptive refresh
+// DEPRECATED: Background header updates are now handled by Bubble Tea message-driven updates
+// This function is kept for backwards compatibility but does nothing
 func (ui *UIManager) startBackgroundHeaderUpdates() {
-	if !ui.animations {
-		return
-	}
-
-	ui.headerUpdateManager.Mutex.Lock()
-	defer ui.headerUpdateManager.Mutex.Unlock()
-
-	if ui.headerUpdateManager.IsRunning {
-		return
-	}
-
-	ui.headerUpdateManager.IsRunning = true
-	
-	go func() {
-		defer func() {
-			ui.headerUpdateManager.Mutex.Lock()
-			ui.headerUpdateManager.IsRunning = false
-			ui.headerUpdateManager.Mutex.Unlock()
-		}()
-		
-		ticker := time.NewTicker(ui.headerUpdateManager.Interval)
-		defer ticker.Stop()
-		
-		// Performance monitoring
-		lastPerformanceCheck := time.Now()
-		performanceCheckInterval := 10 * time.Second
-		
-		// Add timeout to prevent infinite hanging
-		timeout := time.NewTimer(5 * time.Minute) // Maximum 5 minutes
-		defer timeout.Stop()
-
-		for {
-			select {
-			case <-ui.headerUpdateManager.StopChannel:
-				return
-			case <-timeout.C:
-				// Force exit after timeout to prevent hanging
-				if ui.debugMode {
-					ui.Debug("Background header updates timed out after 5 minutes")
-				}
-				return
-			case <-ticker.C:
-				ui.updateHeaderIfChanged()
-				
-				// Adaptive interval adjustment
-				if ui.headerUpdateManager.AdaptiveMode {
-					currentInterval := ui.performanceOptimizer.GetOptimalRefreshInterval()
-					if currentInterval != ui.headerUpdateManager.Interval {
-						ui.headerUpdateManager.Interval = currentInterval
-						ticker.Stop()
-						ticker = time.NewTicker(currentInterval)
-					}
-				}
-				
-				// Periodic performance stats logging
-				if ui.debugMode && time.Since(lastPerformanceCheck) > performanceCheckInterval {
-					stats := ui.performanceOptimizer.GetPerformanceStats()
-					ui.Debug(fmt.Sprintf("Performance stats: %s", stats.String()))
-					lastPerformanceCheck = time.Now()
-				}
-			}
-		}
-	}()
+	// No-op: Background header updates replaced with Bubble Tea tea.Tick commands
+	// See bubbletea_models.go HeaderUpdateMsg and tea.Tick usage for message-driven updates
 }
 
-// Stop background header updates
+// DEPRECATED: Background header updates are now handled by Bubble Tea message-driven updates
+// This function is kept for backwards compatibility but does nothing
 func (ui *UIManager) stopBackgroundHeaderUpdates() {
-	ui.headerUpdateManager.Mutex.Lock()
-	isRunning := ui.headerUpdateManager.IsRunning
-	ui.headerUpdateManager.Mutex.Unlock()
-
-	if !isRunning {
-		return
-	}
-
-	// Send stop signal with multiple attempts and timeout
-	stopAttempts := 3
-	for i := 0; i < stopAttempts; i++ {
-		select {
-		case ui.headerUpdateManager.StopChannel <- true:
-			// Successfully sent stop signal
-			break
-		case <-time.After(50 * time.Millisecond):
-			// Timeout, try again
-			if ui.debugMode {
-				ui.Debug(fmt.Sprintf("Stop signal attempt %d failed, retrying", i+1))
-			}
-		}
-	}
-	
-	// Wait for goroutine to actually stop
-	for attempts := 0; attempts < 10; attempts++ {
-		ui.headerUpdateManager.Mutex.Lock()
-		running := ui.headerUpdateManager.IsRunning
-		ui.headerUpdateManager.Mutex.Unlock()
-		
-		if !running {
-			break
-		}
-		
-		time.Sleep(10 * time.Millisecond)
-	}
+	// No-op: Background header updates replaced with Bubble Tea tea.Tick commands
+	// No goroutines to stop since all updates are now message-driven
 }
 
 // Generate header content as string
