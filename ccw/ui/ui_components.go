@@ -188,27 +188,48 @@ func (ui *UIManager) startLoadingAnimation(operation string) func() {
 
 	spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 	index := 0
+	
+	// Create a stop channel for clean shutdown
+	stopChan := make(chan bool, 1)
 
 	go func() {
+		defer func() {
+			fmt.Print("\r" + strings.Repeat(" ", 50) + "\r") // Clear line
+		}()
+		
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		
 		for {
-			ui.animationMutex.Lock()
-			if !ui.animationRunning {
+			select {
+			case <-stopChan:
+				return
+			case <-ticker.C:
+				ui.animationMutex.Lock()
+				running := ui.animationRunning
 				ui.animationMutex.Unlock()
-				break
-			}
-			ui.animationMutex.Unlock()
+				
+				if !running {
+					return
+				}
 
-			fmt.Printf("\r%s %s %s", ui.primaryColor(spinner[index]), ui.infoColor(operation), strings.Repeat(" ", 10))
-			index = (index + 1) % len(spinner)
-			time.Sleep(100 * time.Millisecond)
+				fmt.Printf("\r%s %s %s", ui.primaryColor(spinner[index]), ui.infoColor(operation), strings.Repeat(" ", 10))
+				index = (index + 1) % len(spinner)
+			}
 		}
-		fmt.Print("\r" + strings.Repeat(" ", 50) + "\r") // Clear line
 	}()
 
 	return func() {
 		ui.animationMutex.Lock()
 		ui.animationRunning = false
 		ui.animationMutex.Unlock()
+		
+		// Send stop signal with timeout to prevent hanging
+		select {
+		case stopChan <- true:
+		case <-time.After(100 * time.Millisecond):
+			// Timeout - goroutine will stop on next check
+		}
 	}
 }
 
@@ -228,19 +249,32 @@ func (ui *UIManager) startBackgroundHeaderUpdates() {
 	ui.headerUpdateManager.IsRunning = true
 	
 	go func() {
+		defer func() {
+			ui.headerUpdateManager.Mutex.Lock()
+			ui.headerUpdateManager.IsRunning = false
+			ui.headerUpdateManager.Mutex.Unlock()
+		}()
+		
 		ticker := time.NewTicker(ui.headerUpdateManager.Interval)
 		defer ticker.Stop()
 		
 		// Performance monitoring
 		lastPerformanceCheck := time.Now()
 		performanceCheckInterval := 10 * time.Second
+		
+		// Add timeout to prevent infinite hanging
+		timeout := time.NewTimer(5 * time.Minute) // Maximum 5 minutes
+		defer timeout.Stop()
 
 		for {
 			select {
 			case <-ui.headerUpdateManager.StopChannel:
-				ui.headerUpdateManager.Mutex.Lock()
-				ui.headerUpdateManager.IsRunning = false
-				ui.headerUpdateManager.Mutex.Unlock()
+				return
+			case <-timeout.C:
+				// Force exit after timeout to prevent hanging
+				if ui.debugMode {
+					ui.Debug("Background header updates timed out after 5 minutes")
+				}
 				return
 			case <-ticker.C:
 				ui.updateHeaderIfChanged()
@@ -269,17 +303,39 @@ func (ui *UIManager) startBackgroundHeaderUpdates() {
 // Stop background header updates
 func (ui *UIManager) stopBackgroundHeaderUpdates() {
 	ui.headerUpdateManager.Mutex.Lock()
-	defer ui.headerUpdateManager.Mutex.Unlock()
+	isRunning := ui.headerUpdateManager.IsRunning
+	ui.headerUpdateManager.Mutex.Unlock()
 
-	if !ui.headerUpdateManager.IsRunning {
+	if !isRunning {
 		return
 	}
 
-	// Send stop signal
-	select {
-	case ui.headerUpdateManager.StopChannel <- true:
-	default:
-		// Channel might be full, try non-blocking
+	// Send stop signal with multiple attempts and timeout
+	stopAttempts := 3
+	for i := 0; i < stopAttempts; i++ {
+		select {
+		case ui.headerUpdateManager.StopChannel <- true:
+			// Successfully sent stop signal
+			break
+		case <-time.After(50 * time.Millisecond):
+			// Timeout, try again
+			if ui.debugMode {
+				ui.Debug(fmt.Sprintf("Stop signal attempt %d failed, retrying", i+1))
+			}
+		}
+	}
+	
+	// Wait for goroutine to actually stop
+	for attempts := 0; attempts < 10; attempts++ {
+		ui.headerUpdateManager.Mutex.Lock()
+		running := ui.headerUpdateManager.IsRunning
+		ui.headerUpdateManager.Mutex.Unlock()
+		
+		if !running {
+			break
+		}
+		
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
