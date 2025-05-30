@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 	"ccw/types"
@@ -370,6 +371,124 @@ func (ui *UIManager) updateHeaderIfChanged() {
 		ui.uiState.RenderCount++
 		ui.uiState.ContentChanged = false
 	}
+}
+
+// Display interactive issue selection interface
+func (ui *UIManager) DisplayIssueSelection(issues []*types.Issue) ([]*types.Issue, error) {
+	if len(issues) == 0 {
+		ui.Warning("No issues found to display")
+		return nil, fmt.Errorf("no issues available for selection")
+	}
+
+	ui.DisplayHeader()
+	
+	// Use line input mode for reliable, cross-platform compatibility
+	return ui.displayIssueSelectionLineMode(issues)
+}
+
+
+// Display issue summary
+func (ui *UIManager) DisplayIssueSummary(issues []*types.Issue) {
+	ui.DisplayHeader()
+	
+	if len(issues) == 0 {
+		ui.Warning("No issues to display")
+		return
+	}
+	
+	ui.Info(fmt.Sprintf("Repository Issues (%d total)", len(issues)))
+	fmt.Println()
+	
+	// Display issues in a table format
+	fmt.Printf("%s%-6s %-8s %-50s %-12s%s\n", 
+		ui.accentColor("│ "), "NUMBER", "STATE", "TITLE", "LABELS", ui.accentColor(" │"))
+	fmt.Printf("%s%s%s\n", 
+		ui.accentColor("├─"), strings.Repeat("─", 80), ui.accentColor("─┤"))
+	
+	for _, issue := range issues {
+		title := issue.Title
+		if len(title) > 48 {
+			title = title[:45] + "..."
+		}
+		
+		labels := ""
+		if len(issue.Labels) > 0 {
+			labelNames := make([]string, len(issue.Labels))
+			for i, label := range issue.Labels {
+				labelNames[i] = label.Name
+			}
+			labels = strings.Join(labelNames, ",")
+			if len(labels) > 10 {
+				labels = labels[:7] + "..."
+			}
+		}
+		
+		stateColor := ui.successColor
+		if issue.State != "open" {
+			stateColor = ui.infoColor
+		}
+		
+		fmt.Printf("%s#%-5d %s %-50s %-12s%s\n",
+			ui.accentColor("│ "),
+			issue.Number,
+			stateColor(fmt.Sprintf("%-8s", issue.State)),
+			title,
+			labels,
+			ui.accentColor(" │"))
+	}
+	
+	fmt.Printf("%s%s%s\n", 
+		ui.accentColor("└─"), strings.Repeat("─", 80), ui.accentColor("─┘"))
+	fmt.Println()
+}
+
+
+// Line-mode issue selection for cross-platform compatibility
+func (ui *UIManager) displayIssueSelectionLineMode(issues []*types.Issue) ([]*types.Issue, error) {
+	// Display issues with numbers
+	for i, issue := range issues {
+		title := issue.Title
+		if len(title) > 60 {
+			title = title[:57] + "..."
+		}
+		
+		stateColor := ui.successColor
+		if issue.State != "open" {
+			stateColor = ui.infoColor
+		}
+		
+		fmt.Printf("  %d) #%-4d %s %s\n", 
+			i+1,
+			issue.Number, 
+			stateColor(fmt.Sprintf("%-6s", issue.State)),
+			title)
+	}
+	
+	fmt.Println()
+	ui.Info("Enter issue numbers separated by spaces (e.g., '1 3 5'), or 'q' to quit:")
+	
+	var input string
+	fmt.Scanln(&input)
+	
+	if strings.ToLower(input) == "q" {
+		return nil, fmt.Errorf("selection cancelled by user")
+	}
+	
+	// Parse selected numbers
+	selectedIssues := []*types.Issue{}
+	numbers := strings.Fields(input)
+	for _, numStr := range numbers {
+		if num, err := strconv.Atoi(numStr); err == nil && num >= 1 && num <= len(issues) {
+			selectedIssues = append(selectedIssues, issues[num-1])
+		}
+	}
+	
+	if len(selectedIssues) == 0 {
+		ui.Warning("No valid issues selected")
+		return ui.displayIssueSelectionLineMode(issues) // Retry
+	}
+	
+	return selectedIssues, nil
 }
 
 // Utility function to strip ANSI color codes for length calculation

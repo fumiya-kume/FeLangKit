@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -165,6 +167,10 @@ func (app *CCWApp) executeListWorkflow(repoURL string, state string, labels []st
 
 // Updated workflow execution using new packages
 func (app *CCWApp) executeWorkflow(issueURL string) error {
+	app.debugStep("executeWorkflow", "Starting workflow execution", map[string]interface{}{
+		"issue_url": issueURL,
+	})
+	
 	if app.ui.GetAnimations() {
 		app.ui.DisplayProgressHeaderWithBackground()
 	} else {
@@ -172,29 +178,73 @@ func (app *CCWApp) executeWorkflow(issueURL string) error {
 	}
 
 	// Step 1: Extract issue info
+	app.debugStep("step1", "Extracting issue information", map[string]interface{}{
+		"issue_url": issueURL,
+	})
+	
 	app.ui.UpdateProgress("setup", "in_progress")
 	owner, repo, issueNumber, err := github.ExtractIssueInfo(issueURL)
 	if err != nil {
+		app.logger.Error("workflow", "Failed to extract issue info", map[string]interface{}{
+			"issue_url": issueURL,
+			"error":     err.Error(),
+		})
 		return fmt.Errorf("failed to extract issue info: %w", err)
 	}
 
+	app.debugStep("step1", "Issue info extracted successfully", map[string]interface{}{
+		"owner":        owner,
+		"repo":         repo,
+		"issue_number": issueNumber,
+	})
+	
 	app.ui.Info(fmt.Sprintf("Processing issue #%d from %s/%s", issueNumber, owner, repo))
 
 	// Step 2: Fetch issue data
+	app.debugStep("step2", "Fetching GitHub issue data", map[string]interface{}{
+		"owner":        owner,
+		"repo":         repo,
+		"issue_number": issueNumber,
+	})
+	
 	app.ui.UpdateProgress("fetch", "in_progress")
 	app.ui.Info("Fetching GitHub issue data...")
 	
 	issue, err := app.githubClient.GetIssue(owner, repo, issueNumber)
 	if err != nil {
 		app.ui.UpdateProgress("fetch", "failed")
+		app.logger.Error("workflow", "Failed to fetch issue data", map[string]interface{}{
+			"owner":        owner,
+			"repo":         repo,
+			"issue_number": issueNumber,
+			"error":        err.Error(),
+		})
 		return fmt.Errorf("failed to fetch issue data: %w", err)
 	}
+	
+	app.debugStep("step2", "Issue data fetched successfully", map[string]interface{}{
+		"issue_title":  issue.Title,
+		"issue_state":  issue.State,
+		"issue_labels": len(issue.Labels),
+		"issue_body":   truncateForLog(issue.Body, 200),
+	})
+	
 	app.ui.UpdateProgress("fetch", "completed")
 
 	// Step 3: Create worktree configuration using git package
+	app.debugStep("step3", "Creating isolated development environment", map[string]interface{}{
+		"issue_number": issueNumber,
+	})
+	
 	app.ui.Info("Creating isolated development environment...")
 	branchName := generateBranchName(issueNumber)
 	worktreePath := filepath.Join(app.config.WorktreeBase, branchName)
+	
+	app.debugStep("step3", "Generated worktree configuration", map[string]interface{}{
+		"branch_name":   branchName,
+		"worktree_path": worktreePath,
+		"base_path":     app.config.WorktreeBase,
+	})
 	
 	app.worktreeConfig = &git.WorktreeConfig{
 		BasePath:     app.config.WorktreeBase,
@@ -210,20 +260,50 @@ func (app *CCWApp) executeWorkflow(issueURL string) error {
 	// Create git worktree using new package
 	if err := app.gitOps.CreateWorktree(branchName, worktreePath); err != nil {
 		app.ui.UpdateProgress("setup", "failed")
+		app.logger.Error("workflow", "Failed to create worktree", map[string]interface{}{
+			"branch_name":   branchName,
+			"worktree_path": worktreePath,
+			"error":         err.Error(),
+		})
 		return fmt.Errorf("failed to create worktree: %w", err)
 	}
+	
+	app.debugStep("step3", "Worktree created successfully", map[string]interface{}{
+		"branch_name":   branchName,
+		"worktree_path": worktreePath,
+	})
+	
 	app.ui.UpdateProgress("setup", "completed")
 
 	// Save issue and worktree data
+	app.debugStep("step4", "Saving issue and worktree data", map[string]interface{}{
+		"worktree_path": worktreePath,
+	})
+	
 	issueDataFile := filepath.Join(worktreePath, ".issue-data.json")
 	issueData, _ := json.MarshalIndent(issue, "", "  ")
-	os.WriteFile(issueDataFile, issueData, 0644)
+	if err := os.WriteFile(issueDataFile, issueData, 0644); err != nil {
+		app.logger.Error("workflow", "Failed to save issue data", map[string]interface{}{
+			"file":  issueDataFile,
+			"error": err.Error(),
+		})
+	}
 
 	worktreeDataFile := filepath.Join(worktreePath, ".worktree-config.json")
 	worktreeData, _ := json.MarshalIndent(app.worktreeConfig, "", "  ")
-	os.WriteFile(worktreeDataFile, worktreeData, 0644)
+	if err := os.WriteFile(worktreeDataFile, worktreeData, 0644); err != nil {
+		app.logger.Error("workflow", "Failed to save worktree config", map[string]interface{}{
+			"file":  worktreeDataFile,
+			"error": err.Error(),
+		})
+	}
 
 	// Implementation and validation steps...
+	app.debugStep("step5", "Starting Claude Code implementation", map[string]interface{}{
+		"worktree_path": worktreePath,
+		"issue_number":  issueNumber,
+	})
+	
 	app.ui.UpdateProgress("implementation", "in_progress")
 	app.ui.Info("Running implementation...")
 	
@@ -247,42 +327,101 @@ func (app *CCWApp) executeWorkflow(issueURL string) error {
 		TaskType:       "implementation",
 	}
 	
+	app.debugStep("step5", "Executing Claude Code with context", map[string]interface{}{
+		"claude_context": map[string]interface{}{
+			"project_path": worktreePath,
+			"task_type":    "implementation",
+			"issue_title":  issue.Title,
+		},
+	})
+	
 	if err := app.claudeIntegration.RunWithContext(claudeCtx); err != nil {
+		app.logger.Error("workflow", "Claude Code execution failed", map[string]interface{}{
+			"error":         err.Error(),
+			"worktree_path": worktreePath,
+			"issue_number":  issueNumber,
+		})
 		app.ui.Warning(fmt.Sprintf("Claude Code execution warning: %v", err))
+	} else {
+		app.debugStep("step5", "Claude Code execution completed successfully", nil)
 	}
+	
 	app.ui.UpdateProgress("implementation", "completed")
 
 	// Validation using git package
+	app.debugStep("step6", "Starting implementation validation", map[string]interface{}{
+		"worktree_path": worktreePath,
+	})
+	
 	app.ui.UpdateProgress("validation", "in_progress")
 	app.ui.Info("Validating implementation...")
 	
 	validationResult, err := app.validator.ValidateImplementation(worktreePath)
 	if err != nil {
 		app.ui.UpdateProgress("validation", "failed")
+		app.logger.Error("workflow", "Validation error", map[string]interface{}{
+			"error":         err.Error(),
+			"worktree_path": worktreePath,
+		})
 		return fmt.Errorf("validation error: %w", err)
 	}
+
+	app.debugStep("step6", "Validation completed", map[string]interface{}{
+		"success":       validationResult.Success,
+		"errors":        len(validationResult.Errors),
+		"lint_success":  validationResult.LintResult != nil && validationResult.LintResult.Success,
+		"build_success": validationResult.BuildResult != nil && validationResult.BuildResult.Success,
+		"test_success":  validationResult.TestResult != nil && validationResult.TestResult.Success,
+	})
 
 	if validationResult.Success {
 		app.ui.UpdateProgress("validation", "completed")
 		app.ui.Success("Implementation validation successful!")
 		
 		// Push changes using git package
+		app.debugStep("step7", "Pushing changes to remote", map[string]interface{}{
+			"branch_name":   branchName,
+			"worktree_path": worktreePath,
+		})
+		
 		app.ui.Info("Pushing changes...")
 		if err := app.gitOps.PushBranch(worktreePath, branchName); err != nil {
+			app.logger.Error("workflow", "Failed to push branch", map[string]interface{}{
+				"branch_name":   branchName,
+				"worktree_path": worktreePath,
+				"error":         err.Error(),
+			})
 			return fmt.Errorf("failed to push changes: %w", err)
 		}
+		
+		app.debugStep("step7", "Branch pushed successfully", nil)
 		
 		app.ui.UpdateProgress("complete", "completed")
 		app.ui.Success("Workflow completed successfully!")
 		
 		// Cleanup worktree using git package
+		app.debugStep("step8", "Cleaning up worktree", map[string]interface{}{
+			"worktree_path": worktreePath,
+		})
+		
 		app.ui.Info("Cleaning up worktree...")
-		app.gitOps.RemoveWorktree(worktreePath)
+		if err := app.gitOps.RemoveWorktree(worktreePath); err != nil {
+			app.logger.Error("workflow", "Failed to cleanup worktree", map[string]interface{}{
+				"worktree_path": worktreePath,
+				"error":         err.Error(),
+			})
+		} else {
+			app.debugStep("step8", "Worktree cleaned up successfully", nil)
+		}
 		
 		return nil
 	}
 
 	app.ui.Warning("Implementation validation failed")
+	app.logger.Error("workflow", "Implementation validation failed", map[string]interface{}{
+		"validation_errors": validationResult.Errors,
+		"worktree_path":     worktreePath,
+	})
 	return fmt.Errorf("validation failed")
 }
 
@@ -372,7 +511,7 @@ func main() {
 			usage()
 			os.Exit(1)
 		}
-		os.Setenv("DEBUG_MODE", "true")
+		enableDebugMode()
 		issueURL := os.Args[2]
 		
 		app, err := NewCCWApp()
@@ -381,7 +520,45 @@ func main() {
 		}
 		defer app.cleanup()
 		
-		if err := app.executeWorkflow(issueURL); err != nil {
+		if err := app.executeWorkflowWithRecovery(issueURL); err != nil {
+			log.Fatalf("Workflow failed: %v", err)
+		}
+		return
+	case "--verbose":
+		enableVerboseMode()
+		if len(os.Args) < 3 {
+			fmt.Println("Error: --verbose requires an issue URL")
+			usage()
+			os.Exit(1)
+		}
+		issueURL := os.Args[2]
+		
+		app, err := NewCCWApp()
+		if err != nil {
+			log.Fatalf("Failed to initialize application: %v", err)
+		}
+		defer app.cleanup()
+		
+		if err := app.executeWorkflowWithRecovery(issueURL); err != nil {
+			log.Fatalf("Workflow failed: %v", err)
+		}
+		return
+	case "--trace":
+		enableTraceMode()
+		if len(os.Args) < 3 {
+			fmt.Println("Error: --trace requires an issue URL")
+			usage()
+			os.Exit(1)
+		}
+		issueURL := os.Args[2]
+		
+		app, err := NewCCWApp()
+		if err != nil {
+			log.Fatalf("Failed to initialize application: %v", err)
+		}
+		defer app.cleanup()
+		
+		if err := app.executeWorkflowWithRecovery(issueURL); err != nil {
 			log.Fatalf("Workflow failed: %v", err)
 		}
 		return
@@ -582,14 +759,154 @@ General Options:
   --init-config      Generate sample configuration file (ccw.yaml)
   --init-config FILE Generate sample configuration file with custom name
   --cleanup          Clean up all worktrees
-  --debug            Enable debug mode
+  --debug URL        Enable debug mode for specific issue
+  --verbose          Enable verbose debug output for all operations
+  --trace            Enable detailed stack traces and function call logging
+
+Environment Variables:
+  DEBUG_MODE=true    Enable debug output
+  VERBOSE_MODE=true  Enable verbose logging
+  TRACE_MODE=true    Enable stack trace logging
+  CCW_LOG_FILE=true  Force enable file logging
 
 Features:
 - Interactive issue selection with arrow keys and spacebar
 - Multi-issue processing support
 - Configurable filtering by state and labels
+- Comprehensive debugging and error reporting
 - Package-based architecture for maintainability
 
 For configuration help: ccw --init-config
 `)
+}
+
+// Debug mode helpers
+func enableDebugMode() {
+	os.Setenv("DEBUG_MODE", "true")
+	os.Setenv("CCW_LOG_FILE", "true")
+	fmt.Println("[DEBUG] Debug mode enabled - detailed logging activated")
+}
+
+func enableVerboseMode() {
+	os.Setenv("DEBUG_MODE", "true")
+	os.Setenv("VERBOSE_MODE", "true")
+	os.Setenv("CCW_LOG_FILE", "true")
+	fmt.Println("[VERBOSE] Verbose mode enabled - comprehensive logging activated")
+}
+
+func enableTraceMode() {
+	os.Setenv("DEBUG_MODE", "true")
+	os.Setenv("VERBOSE_MODE", "true")
+	os.Setenv("TRACE_MODE", "true")
+	os.Setenv("CCW_LOG_FILE", "true")
+	fmt.Println("[TRACE] Trace mode enabled - stack traces and function calls logged")
+}
+
+// Execute workflow with crash recovery and detailed error reporting
+func (app *CCWApp) executeWorkflowWithRecovery(issueURL string) (err error) {
+	// Set up panic recovery
+	defer func() {
+		if r := recover(); r != nil {
+			stackTrace := string(debug.Stack())
+			
+			app.logger.Error("panic", "Application crashed with panic", map[string]interface{}{
+				"panic_value": r,
+				"stack_trace": stackTrace,
+				"issue_url":   issueURL,
+				"session_id":  app.sessionID,
+				"go_version":  runtime.Version(),
+				"goos":        runtime.GOOS,
+				"goarch":      runtime.GOARCH,
+			})
+			
+			app.ui.Error(fmt.Sprintf("CRASH DETECTED: %v", r))
+			app.ui.Error("Stack trace logged to file. Please check the log for details.")
+			
+			// Save crash report
+			app.saveCrashReport(r, stackTrace, issueURL)
+			
+			err = fmt.Errorf("application crashed: %v", r)
+		}
+	}()
+	
+	app.logger.Debug("workflow", "Starting workflow with recovery", map[string]interface{}{
+		"issue_url":  issueURL,
+		"session_id": app.sessionID,
+		"debug_mode": app.config.DebugMode,
+	})
+	
+	if os.Getenv("TRACE_MODE") == "true" {
+		app.traceFunction("executeWorkflowWithRecovery", map[string]interface{}{
+			"issue_url": issueURL,
+		})
+	}
+	
+	return app.executeWorkflow(issueURL)
+}
+
+// Save detailed crash report
+func (app *CCWApp) saveCrashReport(panicValue interface{}, stackTrace, issueURL string) {
+	crashReport := map[string]interface{}{
+		"timestamp":   time.Now().Format(time.RFC3339),
+		"session_id":  app.sessionID,
+		"panic_value": panicValue,
+		"stack_trace": stackTrace,
+		"issue_url":   issueURL,
+		"environment": map[string]interface{}{
+			"go_version": runtime.Version(),
+			"goos":       runtime.GOOS,
+			"goarch":     runtime.GOARCH,
+			"num_cpu":    runtime.NumCPU(),
+			"debug_mode": app.config.DebugMode,
+		},
+		"command_line": os.Args,
+		"working_dir":  func() string {
+			if wd, err := os.Getwd(); err == nil {
+				return wd
+			}
+			return "unknown"
+		}(),
+	}
+	
+	// Create crash reports directory
+	crashDir := filepath.Join(".", ".ccw", "crashes")
+	os.MkdirAll(crashDir, 0755)
+	
+	// Save crash report
+	crashFile := filepath.Join(crashDir, fmt.Sprintf("crash-%s.json", app.sessionID))
+	if data, err := json.MarshalIndent(crashReport, "", "  "); err == nil {
+		os.WriteFile(crashFile, data, 0644)
+		app.ui.Info(fmt.Sprintf("Crash report saved to: %s", crashFile))
+	}
+}
+
+// Trace function calls in debug mode
+func (app *CCWApp) traceFunction(funcName string, params map[string]interface{}) {
+	if os.Getenv("TRACE_MODE") == "true" {
+		app.logger.Debug("trace", fmt.Sprintf("FUNCTION: %s", funcName), params)
+		
+		// Get caller information
+		if _, file, line, ok := runtime.Caller(1); ok {
+			app.logger.Debug("trace", fmt.Sprintf("CALLER: %s:%d", filepath.Base(file), line), nil)
+		}
+	}
+}
+
+// Debug step helper function
+func (app *CCWApp) debugStep(step, message string, context map[string]interface{}) {
+	if os.Getenv("DEBUG_MODE") == "true" || os.Getenv("VERBOSE_MODE") == "true" {
+		app.logger.Debug("workflow", fmt.Sprintf("[%s] %s", step, message), context)
+	}
+	
+	if os.Getenv("TRACE_MODE") == "true" {
+		app.traceFunction(fmt.Sprintf("debugStep:%s", step), context)
+	}
+}
+
+// Truncate string for logging
+func truncateForLog(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
