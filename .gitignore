@@ -79,6 +79,7 @@ issue-*-*/
 ccw/ccw
 ccw/ccw-*
 ccw/main
+.worktree-config.json
 
 # Temporary summary and description files  
 completion_summary.txt
