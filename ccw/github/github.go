@@ -281,9 +281,9 @@ func (gc *GitHubClient) GetDetailedCIStatus(owner, repo string, prNumber int) (*
 	var result struct {
 		StatusCheckRollup []struct {
 			Name        string `json:"name"`
-			Status      string `json:"status"`
+			State       string `json:"state"`
 			Conclusion  string `json:"conclusion"`
-			DetailsURL  string `json:"detailsUrl"`
+			Link        string `json:"link"`
 			StartedAt   string `json:"startedAt"`
 			CompletedAt string `json:"completedAt"`
 		} `json:"statusCheckRollup"`
@@ -305,9 +305,9 @@ func (gc *GitHubClient) GetDetailedCIStatus(owner, repo string, prNumber int) (*
 	for _, check := range result.StatusCheckRollup {
 		checkRun := types.CheckRun{
 			Name:       check.Name,
-			Status:     strings.ToLower(check.Status),
+			Status:     strings.ToLower(check.State),
 			Conclusion: strings.ToLower(check.Conclusion),
-			URL:        check.DetailsURL,
+			URL:        check.Link,
 		}
 
 		// Parse timestamps
@@ -325,9 +325,9 @@ func (gc *GitHubClient) GetDetailedCIStatus(owner, repo string, prNumber int) (*
 		ciStatus.Checks = append(ciStatus.Checks, checkRun)
 
 		// Determine overall status
-		if check.Status == "PENDING" || check.Status == "IN_PROGRESS" {
+		if check.State == "PENDING" || check.State == "IN_PROGRESS" {
 			overallStatus = "pending"
-		} else if check.Status == "FAILURE" || check.Conclusion == "FAILURE" {
+		} else if check.State == "FAILURE" || check.Conclusion == "FAILURE" {
 			overallStatus = "failure"
 			ciStatus.Conclusion = "failure"
 		}

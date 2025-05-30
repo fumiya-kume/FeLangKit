@@ -59,13 +59,100 @@ type CIStatus struct {
 	LastUpdated time.Time
 	URL         string
 	Conclusion  string
+	TotalChecks int
+	PassedChecks int
+	FailedChecks int
+	PendingChecks int
 }
 
 type CheckRun struct {
 	Name        string    `json:"name"`
-	Status      string    `json:"status"`
+	Status      string    `json:"state"`
 	Conclusion  string    `json:"conclusion"`
-	URL         string    `json:"html_url"`
-	StartedAt   time.Time `json:"started_at"`
-	CompletedAt time.Time `json:"completed_at"`
+	URL         string    `json:"link"`
+	StartedAt   time.Time `json:"startedAt"`
+	CompletedAt time.Time `json:"completedAt"`
+	Description string    `json:"description,omitempty"`
+	Event       string    `json:"event,omitempty"`
+	Workflow    string    `json:"workflow,omitempty"`
+	Bucket      string    `json:"bucket,omitempty"`
 }
+
+// Enhanced CI monitoring types for real-time updates
+type CIWatchUpdate struct {
+	Status      *CIStatus
+	CheckUpdate *CheckRun
+	EventType   string // "status_change", "check_complete", "all_complete", "failure"
+	Message     string
+	Timestamp   time.Time
+}
+
+type CIWatchResult struct {
+	FinalStatus *CIStatus
+	Updates     []CIWatchUpdate
+	Error       error
+	Duration    time.Duration
+}
+
+// CI failure types for recovery mechanisms
+type CIFailureType string
+
+const (
+	CIFailureBuild   CIFailureType = "build"
+	CIFailureLint    CIFailureType = "lint"
+	CIFailureTest    CIFailureType = "test"
+	CIFailureUnknown CIFailureType = "unknown"
+)
+
+type CIFailureInfo struct {
+	Type        CIFailureType
+	CheckName   string
+	FailureText string
+	DetailsURL  string
+	Recoverable bool
+}
+
+// PR comment types for comment-driven feedback loop
+type PRComment struct {
+	ID        int       `json:"id"`
+	Body      string    `json:"body"`
+	User      User      `json:"user"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	HTMLURL   string    `json:"html_url"`
+}
+
+type PRCommentAnalysis struct {
+	HasUnaddressedComments bool
+	Comments               []PRComment
+	ActionableComments     []ActionableComment
+	TotalComments          int
+}
+
+type ActionableComment struct {
+	Comment     PRComment
+	Category    CommentCategory
+	Priority    CommentPriority
+	Actionable  bool
+	Suggestion  string
+}
+
+type CommentCategory string
+
+const (
+	CommentCodeReview   CommentCategory = "code_review"
+	CommentSuggestion   CommentCategory = "suggestion"
+	CommentQuestion     CommentCategory = "question"
+	CommentApproval     CommentCategory = "approval"
+	CommentRequest      CommentCategory = "request"
+	CommentDiscussion   CommentCategory = "discussion"
+	CommentBotGenerated CommentCategory = "bot"
+)
+
+type CommentPriority string
+
+const (
+	CommentPriorityHigh   CommentPriority = "high"
+	CommentPriorityMedium CommentPriority = "medium"
+	CommentPriorityLow    CommentPriority = "low"
+)

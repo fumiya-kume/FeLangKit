@@ -55,7 +55,7 @@ type DirtyRegion struct {
 type HeaderUpdateManager struct {
 	IsRunning             bool
 	Mutex                 sync.Mutex
-	StopChannel           chan bool
+	// StopChannel removed - no longer needed for Bubble Tea message-driven updates
 	UpdateFunc            func()
 	Interval              time.Duration
 	LastUpdate            time.Time
