@@ -266,6 +266,103 @@ func (gc *GitHubClient) MonitorCIStatus(owner, repo string, prNumber int, callba
 	}
 }
 
+// List issues from a repository
+func (gc *GitHubClient) ListIssues(owner, repo string, state string, labels []string, limit int) ([]*types.Issue, error) {
+	// Build base URL
+	url := fmt.Sprintf("repos/%s/%s/issues", owner, repo)
+	
+	// Add query parameters to URL
+	params := []string{}
+	if state != "" {
+		params = append(params, fmt.Sprintf("state=%s", state))
+	}
+	if len(labels) > 0 {
+		labelStr := strings.Join(labels, ",")
+		params = append(params, fmt.Sprintf("labels=%s", labelStr))
+	}
+	if limit > 0 {
+		params = append(params, fmt.Sprintf("per_page=%d", limit))
+	}
+	
+	// Append query parameters to URL
+	if len(params) > 0 {
+		url += "?" + strings.Join(params, "&")
+	}
+	
+	cmd := exec.Command("gh", "api", url)
+	
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch issues via gh CLI: %w", err)
+	}
+	
+	var issues []*types.Issue
+	if err := json.Unmarshal(output, &issues); err != nil {
+		return nil, fmt.Errorf("failed to decode issues data: %w", err)
+	}
+	
+	return issues, nil
+}
+
+// Extract repository information from URL
+func ExtractRepoInfo(repoURL string) (owner, repo string, err error) {
+	// Handle different GitHub URL formats
+	patterns := []string{
+		`^https://github\.com/([^/]+)/([^/]+)/?$`,
+		`^https://github\.com/([^/]+)/([^/]+)\.git$`,
+		`^git@github\.com:([^/]+)/([^/]+)\.git$`,
+		`^([^/]+)/([^/]+)$`, // Simple owner/repo format
+	}
+	
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		matches := re.FindStringSubmatch(repoURL)
+		
+		if len(matches) == 3 {
+			return matches[1], matches[2], nil
+		}
+	}
+	
+	return "", "", fmt.Errorf("invalid GitHub repository URL or format: %s", repoURL)
+}
+
+// Get current repository's GitHub remote URL
+func GetCurrentRepoURL() (string, error) {
+	// Try to get the origin remote URL
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get git remote URL: %w (make sure you're in a git repository)", err)
+	}
+	
+	remoteURL := strings.TrimSpace(string(output))
+	if remoteURL == "" {
+		return "", fmt.Errorf("no git remote URL found")
+	}
+	
+	// Convert SSH URL to HTTPS format if needed for consistency
+	if strings.HasPrefix(remoteURL, "git@github.com:") {
+		// Convert git@github.com:owner/repo.git to https://github.com/owner/repo
+		sshPattern := regexp.MustCompile(`^git@github\.com:([^/]+)/(.+)\.git$`)
+		matches := sshPattern.FindStringSubmatch(remoteURL)
+		if len(matches) == 3 {
+			remoteURL = fmt.Sprintf("https://github.com/%s/%s", matches[1], matches[2])
+		}
+	} else if strings.HasPrefix(remoteURL, "ssh://git@github.com/") {
+		// Convert ssh://git@github.com/owner/repo.git to https://github.com/owner/repo
+		sshPattern := regexp.MustCompile(`^ssh://git@github\.com/([^/]+)/(.+)\.git$`)
+		matches := sshPattern.FindStringSubmatch(remoteURL)
+		if len(matches) == 3 {
+			remoteURL = fmt.Sprintf("https://github.com/%s/%s", matches[1], matches[2])
+		}
+	}
+	
+	// Remove .git suffix if present
+	remoteURL = strings.TrimSuffix(remoteURL, ".git")
+	
+	return remoteURL, nil
+}
+
 // Extract issue information from URL
 func ExtractIssueInfo(issueURL string) (owner, repo string, issueNumber int, err error) {
 	re := regexp.MustCompile(`^https://github\.com/([^/]+)/([^/]+)/issues/(\d+)$`)
