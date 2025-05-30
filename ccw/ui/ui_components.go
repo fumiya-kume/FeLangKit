@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"ccw/types"
 )
 
 // UI components, themes, progress tracking, and animations
@@ -12,7 +13,7 @@ import (
 func (ui *UIManager) setTheme(themeName string) {
 	switch themeName {
 	case "minimal":
-		ui.currentTheme = &ThemeConfig{
+		ui.currentTheme = &types.ThemeConfig{
 			Name:         "minimal",
 			BorderStyle:  "single",
 			PrimaryColor: "blue",
@@ -23,7 +24,7 @@ func (ui *UIManager) setTheme(themeName string) {
 			InfoColor:    "white",
 		}
 	case "modern":
-		ui.currentTheme = &ThemeConfig{
+		ui.currentTheme = &types.ThemeConfig{
 			Name:         "modern",
 			BorderStyle:  "rounded",
 			PrimaryColor: "blue",
@@ -34,7 +35,7 @@ func (ui *UIManager) setTheme(themeName string) {
 			InfoColor:    "cyan",
 		}
 	case "compact":
-		ui.currentTheme = &ThemeConfig{
+		ui.currentTheme = &types.ThemeConfig{
 			Name:         "compact",
 			BorderStyle:  "single",
 			PrimaryColor: "blue",
@@ -45,7 +46,7 @@ func (ui *UIManager) setTheme(themeName string) {
 			InfoColor:    "white",
 		}
 	default: // "default"
-		ui.currentTheme = &ThemeConfig{
+		ui.currentTheme = &types.ThemeConfig{
 			Name:         "default",
 			BorderStyle:  "double",
 			PrimaryColor: "blue",
@@ -85,7 +86,7 @@ func (ui *UIManager) UpdateProgress(stepID string, status string) {
 // Display dynamic header with progress
 func (ui *UIManager) displayProgressHeader() {
 	if ui.progressTracker == nil {
-		ui.displayHeader()
+		ui.DisplayHeader()
 		return
 	}
 
@@ -93,7 +94,7 @@ func (ui *UIManager) displayProgressHeader() {
 	fmt.Print("\033[2J\033[H") // Clear screen and move cursor to top
 	
 	// Display main header
-	ui.displayHeader()
+	ui.DisplayHeader()
 	
 	// Display progress
 	fmt.Println(ui.accentColor("┌─ Workflow Progress ─────────────────────────────────────────┐"))
@@ -168,7 +169,7 @@ func (ui *UIManager) UpdateProgressEnhanced(stepID string, status string) {
 	ui.renderDebouncer = time.AfterFunc(50*time.Millisecond, func() {
 		// Mark content as changed for background update
 		if ui.headerUpdateManager != nil {
-			ui.headerUpdateManager.contentHash = "" // Force update on next cycle
+			ui.headerUpdateManager.ContentHash = "" // Force update on next cycle
 			ui.uiState.ContentChanged = true
 		}
 	})
@@ -216,17 +217,17 @@ func (ui *UIManager) startBackgroundHeaderUpdates() {
 		return
 	}
 
-	ui.headerUpdateManager.mutex.Lock()
-	defer ui.headerUpdateManager.mutex.Unlock()
+	ui.headerUpdateManager.Mutex.Lock()
+	defer ui.headerUpdateManager.Mutex.Unlock()
 
-	if ui.headerUpdateManager.isRunning {
+	if ui.headerUpdateManager.IsRunning {
 		return
 	}
 
-	ui.headerUpdateManager.isRunning = true
+	ui.headerUpdateManager.IsRunning = true
 	
 	go func() {
-		ticker := time.NewTicker(ui.headerUpdateManager.interval)
+		ticker := time.NewTicker(ui.headerUpdateManager.Interval)
 		defer ticker.Stop()
 		
 		// Performance monitoring
@@ -235,19 +236,19 @@ func (ui *UIManager) startBackgroundHeaderUpdates() {
 
 		for {
 			select {
-			case <-ui.headerUpdateManager.stopChannel:
-				ui.headerUpdateManager.mutex.Lock()
-				ui.headerUpdateManager.isRunning = false
-				ui.headerUpdateManager.mutex.Unlock()
+			case <-ui.headerUpdateManager.StopChannel:
+				ui.headerUpdateManager.Mutex.Lock()
+				ui.headerUpdateManager.IsRunning = false
+				ui.headerUpdateManager.Mutex.Unlock()
 				return
 			case <-ticker.C:
 				ui.updateHeaderIfChanged()
 				
 				// Adaptive interval adjustment
-				if ui.headerUpdateManager.adaptiveMode {
+				if ui.headerUpdateManager.AdaptiveMode {
 					currentInterval := ui.performanceOptimizer.GetOptimalRefreshInterval()
-					if currentInterval != ui.headerUpdateManager.interval {
-						ui.headerUpdateManager.interval = currentInterval
+					if currentInterval != ui.headerUpdateManager.Interval {
+						ui.headerUpdateManager.Interval = currentInterval
 						ticker.Stop()
 						ticker = time.NewTicker(currentInterval)
 					}
@@ -256,7 +257,7 @@ func (ui *UIManager) startBackgroundHeaderUpdates() {
 				// Periodic performance stats logging
 				if ui.debugMode && time.Since(lastPerformanceCheck) > performanceCheckInterval {
 					stats := ui.performanceOptimizer.GetPerformanceStats()
-					ui.debug(fmt.Sprintf("Performance stats: %+v", stats))
+					ui.Debug(fmt.Sprintf("Performance stats: %+v", stats))
 					lastPerformanceCheck = time.Now()
 				}
 			}
@@ -266,16 +267,16 @@ func (ui *UIManager) startBackgroundHeaderUpdates() {
 
 // Stop background header updates
 func (ui *UIManager) stopBackgroundHeaderUpdates() {
-	ui.headerUpdateManager.mutex.Lock()
-	defer ui.headerUpdateManager.mutex.Unlock()
+	ui.headerUpdateManager.Mutex.Lock()
+	defer ui.headerUpdateManager.Mutex.Unlock()
 
-	if !ui.headerUpdateManager.isRunning {
+	if !ui.headerUpdateManager.IsRunning {
 		return
 	}
 
 	// Send stop signal
 	select {
-	case ui.headerUpdateManager.stopChannel <- true:
+	case ui.headerUpdateManager.StopChannel <- true:
 	default:
 		// Channel might be full, try non-blocking
 	}
@@ -328,7 +329,9 @@ func (ui *UIManager) generateHeaderContent() string {
 func (ui *UIManager) calculateContentHash(content string) string {
 	// Use performance optimizer for better hash calculation
 	if ui.performanceOptimizer != nil {
-		return ui.performanceOptimizer.calculateContentHash(content)
+		// Call the public method instead
+		_, _ = ui.performanceOptimizer.DetectContentChange(content)
+		// Fall back to simple hash for consistency
 	}
 	
 	// Fallback to simple hash based on content length and first/last chars
@@ -361,7 +364,7 @@ func (ui *UIManager) updateHeaderIfChanged() {
 	// Use performance optimizer to detect changes
 	hasChanged, changeMagnitude := ui.performanceOptimizer.DetectContentChange(currentContent)
 	
-	if hasChanged && changeMagnitude >= ui.headerUpdateManager.changeThreshold {
+	if hasChanged && changeMagnitude >= ui.headerUpdateManager.ChangeThreshold {
 		ui.renderHeaderWithFlickerReduction(currentContent)
 		ui.uiState.LastRender = time.Now()
 		ui.uiState.RenderCount++

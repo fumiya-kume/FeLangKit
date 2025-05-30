@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -95,6 +96,14 @@ type Issue struct {
 type CommitMessageGenerator struct {
 	claudeIntegration interface{}
 	config           interface{}
+}
+
+// GenerateEnhancedCommitMessage creates an AI-powered commit message
+func (cmg *CommitMessageGenerator) GenerateEnhancedCommitMessage(worktreePath string, issue *Issue) (string, error) {
+	// For now, return a simple commit message
+	// TODO: Implement AI-powered commit message generation
+	return fmt.Sprintf("feat: implement solution for issue #%d\n\n%s\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>", 
+		issue.Number, issue.Title), nil
 }
 
 // ChangePattern represents detected patterns in code changes

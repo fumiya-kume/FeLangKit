@@ -174,7 +174,13 @@ func (g *GitOperations) PushChangesWithAICommit(worktreePath, branchName string,
 		config:           g.appConfig,
 	}
 	
-	commitMessage, err := generator.GenerateEnhancedCommitMessage(worktreePath, issue)
+	// Convert types.Issue to git.Issue
+	gitIssue := &Issue{
+		Number: issue.Number,
+		Title:  issue.Title,
+		Body:   issue.Body,
+	}
+	commitMessage, err := generator.GenerateEnhancedCommitMessage(worktreePath, gitIssue)
 	if err != nil {
 		// Fall back to simple commit message
 		commitMessage = "Automated implementation via CCW\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>"

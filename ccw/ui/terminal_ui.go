@@ -28,21 +28,21 @@ type UIManager struct {
 	accentColor    func(...interface{}) string
 	
 	// Progress tracking
-	progressTracker *ProgressTracker
-	currentTheme    *ThemeConfig
+	progressTracker *types.ProgressTracker
+	currentTheme    *types.ThemeConfig
 	
 	// Animation control
 	animationRunning bool
 	animationMutex   sync.Mutex
 	
 	// Advanced terminal control
-	headerUpdateManager *HeaderUpdateManager
-	uiState            *UIState
-	terminalSize       TerminalSize
+	headerUpdateManager *types.HeaderUpdateManager
+	uiState            *types.UIState
+	terminalSize       types.TerminalSize
 	updateInterval     time.Duration
 	
 	// Performance optimization
-	performanceOptimizer *PerformanceOptimizer
+	performanceOptimizer *types.PerformanceOptimizer
 	lastContentHash      string
 	renderDebouncer      *time.Timer
 }
@@ -81,22 +81,22 @@ func (ui *UIManager) initializeColors() {
 func (ui *UIManager) initializeAdvancedTerminal() {
 	ui.updateInterval = 250 * time.Millisecond // 4 FPS for smooth updates
 	ui.terminalSize = ui.getTerminalSize()
-	ui.uiState = &UIState{
+	ui.uiState = &types.UIState{
 		LastRender:     time.Now(),
 		ContentChanged: true,
 		RenderCount:    0,
 		AdaptiveInterval: ui.updateInterval,
 	}
-	ui.headerUpdateManager = &HeaderUpdateManager{
-		interval:    ui.updateInterval,
-		stopChannel: make(chan bool, 1),
-		adaptiveMode: true,
-		changeThreshold: 0.1,
+	ui.headerUpdateManager = &types.HeaderUpdateManager{
+		Interval:    ui.updateInterval,
+		StopChannel: make(chan bool, 1),
+		AdaptiveMode: true,
+		ChangeThreshold: 0.1,
 	}
 	
 	// Initialize performance optimizer
-	ui.performanceOptimizer = NewPerformanceOptimizer(getDefaultPerformanceConfig())
-	ui.headerUpdateManager.performanceMetrics = ui.performanceOptimizer.metrics
+	ui.performanceOptimizer = types.NewPerformanceOptimizer(types.GetDefaultPerformanceConfig())
+	ui.headerUpdateManager.PerformanceMetrics = ui.performanceOptimizer.Metrics
 	
 	// Apply platform-specific terminal settings
 	ui.applyPlatformSettings()
@@ -104,7 +104,7 @@ func (ui *UIManager) initializeAdvancedTerminal() {
 
 // Apply platform-specific terminal settings
 func (ui *UIManager) applyPlatformSettings() {
-	platformInfo := GetPlatformInfo()
+	platformInfo := platform.GetPlatformInfo()
 	
 	// Update terminal size detection
 	ui.terminalSize.SupportsColors = platformInfo.SupportsColor
@@ -153,17 +153,17 @@ func (ui *UIManager) initializeColorsPlain() {
 }
 
 // Get terminal size with enhanced capability detection
-func (ui *UIManager) getTerminalSize() TerminalSize {
-	platformInfo := GetPlatformInfo()
+func (ui *UIManager) getTerminalSize() types.TerminalSize {
+	platformInfo := platform.GetPlatformInfo()
 	
 	// Try to get actual terminal size using cross-platform utilities
-	width, height, err := GetTerminalSize()
+	width, height, err := platform.GetTerminalSize()
 	if err != nil {
 		// Use fallback defaults
 		width, height = 80, 24
 	}
 	
-	return TerminalSize{
+	return types.TerminalSize{
 		Width:             width,
 		Height:            height,
 		SupportsColors:    platformInfo.SupportsColor,
@@ -175,8 +175,8 @@ func (ui *UIManager) getTerminalSize() TerminalSize {
 
 // Initialize progress tracker
 func (ui *UIManager) InitializeProgress() {
-	ui.progressTracker = &ProgressTracker{
-		Steps: []WorkflowStep{
+	ui.progressTracker = &types.ProgressTracker{
+		Steps: []types.WorkflowStep{
 			{ID: "setup", Name: "Setting up worktree", Description: "Creating isolated development environment", Status: "pending"},
 			{ID: "fetch", Name: "Fetching issue data", Description: "Retrieving GitHub issue information", Status: "pending"},
 			{ID: "analysis", Name: "Generating analysis", Description: "Preparing implementation context", Status: "pending"},
@@ -193,7 +193,7 @@ func (ui *UIManager) InitializeProgress() {
 }
 
 // Display static header
-func (ui *UIManager) displayHeader() {
+func (ui *UIManager) DisplayHeader() {
 	fmt.Print("\n")
 	
 	if ui.currentTheme.BorderStyle == "double" {
@@ -217,7 +217,7 @@ func (ui *UIManager) displayHeader() {
 }
 
 // Display validation results with visual formatting
-func (ui *UIManager) displayValidationResults(result *ValidationResult) {
+func (ui *UIManager) DisplayValidationResults(result *types.ValidationResult) {
 	fmt.Println(ui.primaryColor("🔍 Validation Results"))
 	fmt.Println(strings.Repeat("─", 50))
 
@@ -263,38 +263,38 @@ func (ui *UIManager) displayValidationResults(result *ValidationResult) {
 }
 
 // Logging methods
-func (ui *UIManager) info(msg string) {
+func (ui *UIManager) Info(msg string) {
 	fmt.Printf("%s %s\n", ui.infoColor("[INFO]"), msg)
 }
 
-func (ui *UIManager) success(msg string) {
+func (ui *UIManager) Success(msg string) {
 	fmt.Printf("%s %s\n", ui.successColor("[SUCCESS]"), msg)
 }
 
-func (ui *UIManager) warning(msg string) {
+func (ui *UIManager) Warning(msg string) {
 	fmt.Printf("%s %s\n", ui.warningColor("[WARNING]"), msg)
 }
 
-func (ui *UIManager) error(msg string) {
+func (ui *UIManager) Error(msg string) {
 	fmt.Printf("%s %s\n", ui.errorColorFunc("[ERROR]"), msg)
 }
 
-func (ui *UIManager) debug(msg string) {
+func (ui *UIManager) Debug(msg string) {
 	if ui.debugMode {
 		fmt.Printf("%s %s\n", ui.accentColor("[DEBUG]"), msg)
 	}
 }
 
 // Enhanced progress header with background updates
-func (ui *UIManager) displayProgressHeaderWithBackground() {
+func (ui *UIManager) DisplayProgressHeaderWithBackground() {
 	if ui.progressTracker == nil {
-		ui.displayHeader()
+		ui.DisplayHeader()
 		return
 	}
 
 	// Initial render
 	fmt.Print("\033[2J\033[H") // Clear screen and move cursor to top
-	ui.displayHeader()
+	ui.DisplayHeader()
 	content := ui.generateHeaderContent()
 	fmt.Print(content)
 	fmt.Println()
@@ -313,7 +313,7 @@ func (ui *UIManager) setupScrollRegion() {
 }
 
 // Restore normal terminal state
-func (ui *UIManager) restoreTerminalState() {
+func (ui *UIManager) RestoreTerminalState() {
 	// Stop background updates
 	ui.stopBackgroundHeaderUpdates()
 	
@@ -322,4 +322,9 @@ func (ui *UIManager) restoreTerminalState() {
 		fmt.Print("\033[r") // Reset scroll region
 		ui.uiState.ScrollRegionSet = false
 	}
+}
+
+// Getter for animations field
+func (ui *UIManager) GetAnimations() bool {
+	return ui.animations
 }

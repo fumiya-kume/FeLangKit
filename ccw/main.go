@@ -81,13 +81,7 @@ func NewCCWApp() (*CCWApp, error) {
 		DebugMode:  ccwConfig.DebugMode,
 	}
 
-	uiManager := &ui.UIManager{
-		Theme:      ccwConfig.UI.Theme,
-		Animations: ccwConfig.UI.Animations,
-		DebugMode:  ccwConfig.DebugMode,
-	}
-	uiManager.InitializeColors()
-	uiManager.InitializeProgress()
+	uiManager := ui.NewUIManager(ccwConfig.UI.Theme, ccwConfig.UI.Animations, ccwConfig.DebugMode)
 
 	// Initialize logger
 	enableFileLogging := ccwConfig.DebugMode || getEnvWithDefault("CCW_LOG_FILE", "false") == "true"
@@ -97,11 +91,7 @@ func NewCCWApp() (*CCWApp, error) {
 	}
 
 	// Initialize error store
-	errorStore, err := types.NewErrorStore(sessionID)
-	if err != nil {
-		logger.Close()
-		return nil, fmt.Errorf("failed to initialize error store: %w", err)
-	}
+	errorStore := logging.NewErrorStore(filepath.Join(".", ".ccw", "errors.json"), 1000)
 
 	logger.Info("application", "CCW application initialized", map[string]interface{}{
 		"session_id": sessionID,
@@ -124,10 +114,10 @@ func NewCCWApp() (*CCWApp, error) {
 
 // Updated workflow execution using new packages
 func (app *CCWApp) executeWorkflow(issueURL string) error {
-	if app.ui.animations {
-		app.ui.displayProgressHeader()
+	if app.ui.GetAnimations() {
+		app.ui.DisplayProgressHeaderWithBackground()
 	} else {
-		app.ui.displayHeader()
+		app.ui.DisplayHeader()
 	}
 
 	// Step 1: Extract issue info
@@ -137,11 +127,11 @@ func (app *CCWApp) executeWorkflow(issueURL string) error {
 		return fmt.Errorf("failed to extract issue info: %w", err)
 	}
 
-	app.ui.info(fmt.Sprintf("Processing issue #%d from %s/%s", issueNumber, owner, repo))
+	app.ui.Info(fmt.Sprintf("Processing issue #%d from %s/%s", issueNumber, owner, repo))
 
 	// Step 2: Fetch issue data
 	app.ui.UpdateProgress("fetch", "in_progress")
-	app.ui.info("Fetching GitHub issue data...")
+	app.ui.Info("Fetching GitHub issue data...")
 	
 	issue, err := app.githubClient.GetIssue(owner, repo, issueNumber)
 	if err != nil {
@@ -151,7 +141,7 @@ func (app *CCWApp) executeWorkflow(issueURL string) error {
 	app.ui.UpdateProgress("fetch", "completed")
 
 	// Step 3: Create worktree configuration using git package
-	app.ui.info("Creating isolated development environment...")
+	app.ui.Info("Creating isolated development environment...")
 	branchName := generateBranchName(issueNumber)
 	worktreePath := filepath.Join(app.config.WorktreeBase, branchName)
 	
@@ -184,24 +174,36 @@ func (app *CCWApp) executeWorkflow(issueURL string) error {
 
 	// Implementation and validation steps...
 	app.ui.UpdateProgress("implementation", "in_progress")
-	app.ui.info("Running implementation...")
+	app.ui.Info("Running implementation...")
 	
 	// Run Claude Code (simplified for demo)
-	claudeCtx := &claude.ClaudeContext{
+	// Convert git.WorktreeConfig to types.WorktreeConfig
+	typesWorktreeConfig := &types.WorktreeConfig{
+		BasePath:     app.worktreeConfig.BasePath,
+		BranchName:   app.worktreeConfig.BranchName,
+		WorktreePath: app.worktreeConfig.WorktreePath,
+		IssueNumber:  app.worktreeConfig.IssueNumber,
+		CreatedAt:    app.worktreeConfig.CreatedAt,
+		Owner:        app.worktreeConfig.Owner,
+		Repository:   app.worktreeConfig.Repository,
+		IssueURL:     app.worktreeConfig.IssueURL,
+	}
+	
+	claudeCtx := &types.ClaudeContext{
 		IssueData:      issue,
-		WorktreeConfig: app.worktreeConfig,
+		WorktreeConfig: typesWorktreeConfig,
 		ProjectPath:    worktreePath,
 		TaskType:       "implementation",
 	}
 	
 	if err := app.claudeIntegration.RunWithContext(claudeCtx); err != nil {
-		app.ui.warning(fmt.Sprintf("Claude Code execution warning: %v", err))
+		app.ui.Warning(fmt.Sprintf("Claude Code execution warning: %v", err))
 	}
 	app.ui.UpdateProgress("implementation", "completed")
 
 	// Validation using git package
 	app.ui.UpdateProgress("validation", "in_progress")
-	app.ui.info("Validating implementation...")
+	app.ui.Info("Validating implementation...")
 	
 	validationResult, err := app.validator.ValidateImplementation(worktreePath)
 	if err != nil {
@@ -211,25 +213,25 @@ func (app *CCWApp) executeWorkflow(issueURL string) error {
 
 	if validationResult.Success {
 		app.ui.UpdateProgress("validation", "completed")
-		app.ui.success("Implementation validation successful!")
+		app.ui.Success("Implementation validation successful!")
 		
 		// Push changes using git package
-		app.ui.info("Pushing changes...")
+		app.ui.Info("Pushing changes...")
 		if err := app.gitOps.PushBranch(worktreePath, branchName); err != nil {
 			return fmt.Errorf("failed to push changes: %w", err)
 		}
 		
 		app.ui.UpdateProgress("complete", "completed")
-		app.ui.success("Workflow completed successfully!")
+		app.ui.Success("Workflow completed successfully!")
 		
 		// Cleanup worktree using git package
-		app.ui.info("Cleaning up worktree...")
+		app.ui.Info("Cleaning up worktree...")
 		app.gitOps.RemoveWorktree(worktreePath)
 		
 		return nil
 	}
 
-	app.ui.warning("Implementation validation failed")
+	app.ui.Warning("Implementation validation failed")
 	return fmt.Errorf("validation failed")
 }
 
@@ -241,18 +243,18 @@ func (app *CCWApp) cleanupAllWorktrees() error {
 	}
 
 	if len(worktrees) == 0 {
-		app.ui.info("No worktrees to cleanup")
+		app.ui.Info("No worktrees to cleanup")
 		return nil
 	}
 
-	app.ui.info(fmt.Sprintf("Found %d worktrees to cleanup", len(worktrees)))
+	app.ui.Info(fmt.Sprintf("Found %d worktrees to cleanup", len(worktrees)))
 	
 	for _, worktreePath := range worktrees {
-		app.ui.info(fmt.Sprintf("Removing worktree: %s", worktreePath))
+		app.ui.Info(fmt.Sprintf("Removing worktree: %s", worktreePath))
 		if err := app.gitOps.RemoveWorktree(worktreePath); err != nil {
-			app.ui.warning(fmt.Sprintf("Failed to remove worktree %s: %v", worktreePath, err))
+			app.ui.Warning(fmt.Sprintf("Failed to remove worktree %s: %v", worktreePath, err))
 		} else {
-			app.ui.success(fmt.Sprintf("Removed worktree: %s", worktreePath))
+			app.ui.Success(fmt.Sprintf("Removed worktree: %s", worktreePath))
 		}
 	}
 
@@ -269,7 +271,7 @@ func (app *CCWApp) cleanup() {
 	}
 	
 	if app.ui != nil {
-		app.ui.restoreTerminalState()
+		app.ui.RestoreTerminalState()
 	}
 }
 
