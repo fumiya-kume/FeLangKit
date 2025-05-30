@@ -40,7 +40,11 @@
       "Bash(mkdir:*)",
       "Bash(./scripts/container/extract-results.sh:*)",
       "Bash(claude config --help)",
-      "Bash(swift test:*)"
+      "Bash(swift test:*)",
+      "Bash(pgrep:*)",
+      "Bash(pkill:*)",
+      "Bash(timeout 3 sleep 5)",
+      "Bash(echo:*)"
     ],
     "deny": []
   },
