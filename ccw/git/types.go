@@ -3,6 +3,8 @@ package git
 import (
 	"fmt"
 	"time"
+
+	"ccw/types"
 )
 
 // Git operation types and configurations
@@ -35,13 +37,13 @@ type WorktreeConfig struct {
 
 // ValidationResult represents the result of code quality validation
 type ValidationResult struct {
-	Success     bool              `json:"success"`
-	LintResult  *LintResult       `json:"lint_result,omitempty"`
-	BuildResult *BuildResult      `json:"build_result,omitempty"`
-	TestResult  *TestResult       `json:"test_result,omitempty"`
-	Errors      []ValidationError `json:"errors,omitempty"`
-	Duration    time.Duration     `json:"duration"`
-	Timestamp   time.Time         `json:"timestamp"`
+	Success     bool                      `json:"success"`
+	LintResult  *LintResult               `json:"lint_result,omitempty"`
+	BuildResult *BuildResult              `json:"build_result,omitempty"`
+	TestResult  *TestResult               `json:"test_result,omitempty"`
+	Errors      []types.ValidationError   `json:"errors,omitempty"`
+	Duration    time.Duration             `json:"duration"`
+	Timestamp   time.Time                 `json:"timestamp"`
 }
 
 // LintResult represents SwiftLint execution results
@@ -69,14 +71,6 @@ type TestResult struct {
 	Failed    int    `json:"failed"`
 }
 
-// ValidationError represents a validation error
-type ValidationError struct {
-	Type        string `json:"type"`
-	Message     string `json:"message"`
-	File        string `json:"file,omitempty"`
-	Line        int    `json:"line,omitempty"`
-	Recoverable bool   `json:"recoverable"`
-}
 
 // QualityValidator handles code quality validation
 type QualityValidator struct {

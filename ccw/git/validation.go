@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"ccw/types"
 )
 
 // QualityValidator type is defined in types.go
@@ -24,11 +26,18 @@ func (qv *QualityValidator) ValidateImplementation(projectPath string) (*Validat
 		lintResult, err := qv.runSwiftLint(projectPath)
 		if err != nil {
 			result.Success = false
-			result.Errors = append(result.Errors, ValidationError{
-				Type:        "lint",
-				Message:     err.Error(),
-				Recoverable: true,
-			})
+			validationErr := types.NewCommandValidationError(
+				"lint",
+				"SwiftLint validation failed",
+				"swiftlint lint",
+				err,
+				"",
+				"",
+				true,
+			)
+			validationErr.AddContext("project_path", projectPath)
+			validationErr.AddContext("auto_fix_attempted", "true")
+			result.Errors = append(result.Errors, validationErr)
 		}
 		result.LintResult = lintResult
 		if lintResult != nil && !lintResult.Success {
@@ -41,11 +50,18 @@ func (qv *QualityValidator) ValidateImplementation(projectPath string) (*Validat
 		buildResult, err := qv.runBuild(projectPath)
 		if err != nil {
 			result.Success = false
-			result.Errors = append(result.Errors, ValidationError{
-				Type:        "build",
-				Message:     err.Error(),
-				Recoverable: true,
-			})
+			validationErr := types.NewCommandValidationError(
+				"build",
+				"Swift build failed",
+				"swift build",
+				err,
+				buildResult.Output,
+				buildResult.Error,
+				false,
+			)
+			validationErr.AddContext("project_path", projectPath)
+			validationErr.AddContext("build_configuration", "debug")
+			result.Errors = append(result.Errors, validationErr)
 		}
 		result.BuildResult = buildResult
 		if buildResult != nil && !buildResult.Success {
@@ -58,11 +74,19 @@ func (qv *QualityValidator) ValidateImplementation(projectPath string) (*Validat
 		testResult, err := qv.runTests(projectPath)
 		if err != nil {
 			result.Success = false
-			result.Errors = append(result.Errors, ValidationError{
-				Type:        "test",
-				Message:     err.Error(),
-				Recoverable: true,
-			})
+			validationErr := types.NewCommandValidationError(
+				"test",
+				"Swift tests failed",
+				"swift test",
+				err,
+				testResult.Output,
+				"",
+				false,
+			)
+			validationErr.AddContext("project_path", projectPath)
+			validationErr.AddContext("test_count", fmt.Sprintf("%d", testResult.TestCount))
+			validationErr.AddContext("failed_count", fmt.Sprintf("%d", testResult.Failed))
+			result.Errors = append(result.Errors, validationErr)
 		}
 		result.TestResult = testResult
 		if testResult != nil && !testResult.Success {
@@ -81,7 +105,7 @@ func (qv *QualityValidator) runSwiftLint(projectPath string) (*LintResult, error
 	// First, try to auto-fix
 	fixCmd := exec.Command("swiftlint", "lint", "--fix")
 	fixCmd.Dir = projectPath
-	_, fixErr := fixCmd.CombinedOutput()
+	fixOutput, fixErr := fixCmd.CombinedOutput()
 	if fixErr == nil {
 		result.AutoFixed = true
 	}
@@ -107,6 +131,10 @@ func (qv *QualityValidator) runSwiftLint(projectPath string) (*LintResult, error
 				}
 			}
 		}
+		
+		// Return detailed error with command context
+		return result, fmt.Errorf("swiftlint validation failed: %w\nOutput: %s\nFix attempt output: %s", 
+			err, string(output), string(fixOutput))
 	}
 
 	return result, nil
@@ -125,6 +153,7 @@ func (qv *QualityValidator) runBuild(projectPath string) (*BuildResult, error) {
 
 	if err != nil {
 		result.Error = err.Error()
+		return result, fmt.Errorf("swift build failed: %w\nOutput: %s", err, string(output))
 	}
 
 	return result, nil
@@ -164,6 +193,11 @@ func (qv *QualityValidator) runTests(projectPath string) (*TestResult, error) {
 			}
 		}
 		result.TestCount = result.Passed + result.Failed
+	}
+
+	if err != nil {
+		return result, fmt.Errorf("swift test failed: %w\nOutput: %s\nTest results: %d passed, %d failed", 
+			err, string(output), result.Passed, result.Failed)
 	}
 
 	return result, nil
@@ -237,6 +271,23 @@ func (qv *QualityValidator) GetValidationSummary(result *ValidationResult) strin
 		summary.WriteString(fmt.Sprintf("\nErrors (%d):\n", len(result.Errors)))
 		for _, err := range result.Errors {
 			summary.WriteString(fmt.Sprintf("- [%s] %s\n", err.Type, err.Message))
+			if err.Cause != nil {
+				if err.Cause.Command != "" {
+					summary.WriteString(fmt.Sprintf("  Command: %s\n", err.Cause.Command))
+				}
+				if err.Cause.ExitCode != 0 {
+					summary.WriteString(fmt.Sprintf("  Exit Code: %d\n", err.Cause.ExitCode))
+				}
+				if err.Cause.RootError != "" {
+					summary.WriteString(fmt.Sprintf("  Root Cause: %s\n", err.Cause.RootError))
+				}
+				if len(err.Cause.Context) > 0 {
+					summary.WriteString("  Context:\n")
+					for key, value := range err.Cause.Context {
+						summary.WriteString(fmt.Sprintf("    %s: %s\n", key, value))
+					}
+				}
+			}
 		}
 	}
 
