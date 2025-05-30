@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
 
+	"ccw/config"
 	"ccw/github"
+	"ccw/ui"
 )
 
 // HandleListCommand processes the list command with argument parsing
@@ -118,6 +121,280 @@ func HandleListCommand() {
 	}
 }
 
+// HandleDoctorCommand performs system diagnostic checks
+func HandleDoctorCommand() {
+	fmt.Println("🩺 CCW Doctor - System Diagnostic")
+	fmt.Println("==================================")
+	fmt.Println()
+
+	allGood := true
+
+	// Load current configuration to display settings
+	ccwConfig, configErr := config.LoadConfiguration()
+
+	// Check Go version
+	fmt.Print("✓ Checking Go version... ")
+	goVersion := runtime.Version()
+	fmt.Printf("%s\n", goVersion)
+
+	// Check Git availability
+	fmt.Print("✓ Checking Git availability... ")
+	if checkCommandAvailable("git") {
+		if gitVersion := getCommandVersion("git", "--version"); gitVersion != "" {
+			fmt.Printf("%s\n", gitVersion)
+		} else {
+			fmt.Println("available")
+		}
+	} else {
+		fmt.Println("❌ NOT FOUND")
+		allGood = false
+	}
+
+	// Check GitHub CLI availability
+	fmt.Print("✓ Checking GitHub CLI (gh)... ")
+	if checkCommandAvailable("gh") {
+		if ghVersion := getCommandVersion("gh", "--version"); ghVersion != "" {
+			fmt.Printf("%s\n", strings.Split(ghVersion, "\n")[0])
+		} else {
+			fmt.Println("available")
+		}
+	} else {
+		fmt.Println("❌ NOT FOUND")
+		allGood = false
+	}
+
+	// Check Claude Code availability
+	fmt.Print("✓ Checking Claude Code CLI... ")
+	if checkCommandAvailable("claude") {
+		fmt.Println("available")
+	} else {
+		fmt.Println("⚠️  NOT FOUND (optional)")
+	}
+
+	// Check SwiftLint availability (for Swift projects)
+	fmt.Print("✓ Checking SwiftLint... ")
+	if checkCommandAvailable("swiftlint") {
+		if swiftlintVersion := getCommandVersion("swiftlint", "--version"); swiftlintVersion != "" {
+			fmt.Printf("%s\n", swiftlintVersion)
+		} else {
+			fmt.Println("available")
+		}
+	} else {
+		fmt.Println("⚠️  NOT FOUND (optional for Swift projects)")
+	}
+
+	// Check current directory is a Git repository
+	fmt.Print("✓ Checking Git repository... ")
+	if isGitRepository() {
+		if repoURL, err := github.GetCurrentRepoURL(); err == nil {
+			fmt.Printf("valid (%s)\n", repoURL)
+		} else {
+			fmt.Println("valid (local)")
+		}
+	} else {
+		fmt.Println("❌ Current directory is not a Git repository")
+		allGood = false
+	}
+
+	// Check environment variables
+	fmt.Print("✓ Checking environment... ")
+	envIssues := []string{}
+	
+	if os.Getenv("GITHUB_TOKEN") == "" && os.Getenv("GH_TOKEN") == "" {
+		envIssues = append(envIssues, "no GitHub token (GH_TOKEN or GITHUB_TOKEN)")
+	}
+	
+	if len(envIssues) > 0 {
+		fmt.Printf("⚠️  %s\n", strings.Join(envIssues, ", "))
+	} else {
+		fmt.Println("good")
+	}
+
+	// Check CCW configuration
+	fmt.Print("✓ Checking CCW configuration... ")
+	if _, err := os.Stat("ccw.yaml"); err == nil {
+		fmt.Println("ccw.yaml found")
+	} else if _, err := os.Stat("ccw.json"); err == nil {
+		fmt.Println("ccw.json found")
+	} else {
+		fmt.Println("⚠️  no config file (will use defaults)")
+	}
+
+	// UI Configuration Section
+	fmt.Println()
+	fmt.Println("🎨 UI Configuration:")
+	if configErr != nil {
+		fmt.Println("   ⚠️  Could not load configuration, showing detected values")
+	}
+	
+	// Console mode detection
+	fmt.Print("   Console Mode: ")
+	if os.Getenv("CCW_CONSOLE_MODE") == "true" {
+		fmt.Println("enabled (forced via CCW_CONSOLE_MODE)")
+	} else {
+		// Create a temporary UI manager to test Bubble Tea support
+		testUI := ui.NewUIManagerWithDefaults()
+		if testUI.ShouldUseBubbleTea() {
+			fmt.Println("disabled (Bubble Tea UI available)")
+		} else {
+			fmt.Println("enabled (Bubble Tea UI not available)")
+		}
+	}
+	
+	// Theme configuration
+	fmt.Print("   Theme: ")
+	if ccwConfig != nil {
+		fmt.Printf("%s", ccwConfig.UI.Theme)
+		if envTheme := os.Getenv("CCW_THEME"); envTheme != "" {
+			fmt.Printf(" (overridden by CCW_THEME=%s)", envTheme)
+		}
+		fmt.Println()
+	} else {
+		if envTheme := os.Getenv("CCW_THEME"); envTheme != "" {
+			fmt.Printf("%s (from CCW_THEME)\n", envTheme)
+		} else {
+			fmt.Println("auto-detected")
+		}
+	}
+	
+	// Color support
+	fmt.Print("   Color Support: ")
+	if ccwConfig != nil && !ccwConfig.UI.ColorOutput {
+		fmt.Println("disabled (config)")
+	} else if os.Getenv("CCW_COLOR_OUTPUT") == "false" {
+		fmt.Println("disabled (CCW_COLOR_OUTPUT=false)")
+	} else if os.Getenv("NO_COLOR") != "" {
+		fmt.Println("disabled (NO_COLOR set)")
+	} else {
+		fmt.Println("enabled")
+	}
+	
+	// Animations
+	fmt.Print("   Animations: ")
+	if ccwConfig != nil {
+		if ccwConfig.UI.Animations {
+			fmt.Print("enabled")
+		} else {
+			fmt.Print("disabled")
+		}
+		if envAnim := os.Getenv("CCW_ANIMATIONS"); envAnim != "" {
+			fmt.Printf(" (overridden by CCW_ANIMATIONS=%s)", envAnim)
+		}
+		fmt.Println()
+	} else {
+		if envAnim := os.Getenv("CCW_ANIMATIONS"); envAnim != "" {
+			fmt.Printf("%s (from CCW_ANIMATIONS)\n", envAnim)
+		} else {
+			fmt.Println("enabled (default)")
+		}
+	}
+	
+	// Unicode support
+	fmt.Print("   Unicode Support: ")
+	if ccwConfig != nil {
+		if ccwConfig.UI.Unicode {
+			fmt.Print("enabled")
+		} else {
+			fmt.Print("disabled")
+		}
+		if envUnicode := os.Getenv("CCW_UNICODE"); envUnicode != "" {
+			fmt.Printf(" (overridden by CCW_UNICODE=%s)", envUnicode)
+		}
+		fmt.Println()
+	} else {
+		if envUnicode := os.Getenv("CCW_UNICODE"); envUnicode != "" {
+			fmt.Printf("%s (from CCW_UNICODE)\n", envUnicode)
+		} else {
+			fmt.Println("enabled (default)")
+		}
+	}
+
+	// Display terminal capabilities
+	fmt.Print("   Terminal Width/Height: ")
+	if ccwConfig != nil && ccwConfig.UI.Width > 0 && ccwConfig.UI.Height > 0 {
+		fmt.Printf("%dx%d (config)\n", ccwConfig.UI.Width, ccwConfig.UI.Height)
+	} else {
+		fmt.Println("auto-detected")
+	}
+
+	// System information
+	fmt.Println()
+	fmt.Println("📊 System Information:")
+	fmt.Printf("   OS: %s %s\n", runtime.GOOS, runtime.GOARCH)
+	fmt.Printf("   CPUs: %d\n", runtime.NumCPU())
+	
+	if wd, err := os.Getwd(); err == nil {
+		fmt.Printf("   Working Directory: %s\n", wd)
+	}
+
+	// Configuration summary
+	if ccwConfig != nil {
+		fmt.Println()
+		fmt.Println("⚙️ Current Configuration:")
+		fmt.Printf("   Debug Mode: %v\n", ccwConfig.DebugMode)
+		fmt.Printf("   Worktree Base: %s\n", ccwConfig.WorktreeBase)
+		fmt.Printf("   Max Retries: %d\n", ccwConfig.MaxRetries)
+		fmt.Printf("   Claude Timeout: %s\n", ccwConfig.ClaudeTimeout)
+		
+		if ccwConfig.Git.Timeout != "" {
+			fmt.Printf("   Git Timeout: %s\n", ccwConfig.Git.Timeout)
+		}
+		if ccwConfig.Git.DefaultBranch != "" {
+			fmt.Printf("   Default Branch: %s\n", ccwConfig.Git.DefaultBranch)
+		}
+		
+		// Performance settings
+		if ccwConfig.Performance.Level > 0 {
+			fmt.Printf("   Performance Level: %d\n", ccwConfig.Performance.Level)
+			fmt.Printf("   Adaptive Refresh: %v\n", ccwConfig.Performance.AdaptiveRefresh)
+			fmt.Printf("   Content Caching: %v\n", ccwConfig.Performance.ContentCaching)
+		}
+	}
+
+	// Summary
+	fmt.Println()
+	if allGood {
+		fmt.Println("🎉 All critical dependencies are available!")
+		fmt.Println("   CCW should work correctly in this environment.")
+	} else {
+		fmt.Println("❌ Some critical dependencies are missing.")
+		fmt.Println("   Please install missing tools before using CCW.")
+	}
+	
+	fmt.Println()
+	fmt.Println("💡 Tips:")
+	fmt.Println("   - Install GitHub CLI: brew install gh")
+	fmt.Println("   - Install Claude Code: https://claude.ai/code")
+	fmt.Println("   - Install SwiftLint: brew install swiftlint")
+	fmt.Println("   - Set GitHub token: export GH_TOKEN=your_token")
+	fmt.Println("   - Force console mode: export CCW_CONSOLE_MODE=true")
+	fmt.Println("   - Set theme: export CCW_THEME=dark|light|high-contrast")
+	fmt.Println("   - Generate config: ccw --init-config")
+}
+
+// checkCommandAvailable checks if a command is available in PATH
+func checkCommandAvailable(command string) bool {
+	_, err := exec.LookPath(command)
+	return err == nil
+}
+
+// getCommandVersion gets the version string from a command
+func getCommandVersion(command string, versionFlag string) string {
+	cmd := exec.Command(command, versionFlag)
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+
+// isGitRepository checks if the current directory is a Git repository
+func isGitRepository() bool {
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	err := cmd.Run()
+	return err == nil
+}
+
 // ExecuteWorkflowWithRecovery executes workflow with crash recovery and detailed error reporting
 func (app *CCWApp) ExecuteWorkflowWithRecovery(issueURL string) (err error) {
 	// Set up panic recovery
@@ -215,6 +492,7 @@ func PrintUsage() {
 Usage: 
   ccw <github-issue-url>                  Process a specific GitHub issue
   ccw list [repo-url] [options]           List and select issues interactively
+  ccw doctor                              Run system diagnostic checks
 
 Arguments:
   github-issue-url    GitHub issue URL (e.g., https://github.com/owner/repo/issues/123)
