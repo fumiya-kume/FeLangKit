@@ -36,3 +36,10 @@ type CIStatusResult struct {
 	Status *CIStatus
 	Error  error
 }
+
+// CIWatchChannel provides real-time CI monitoring updates
+type CIWatchChannel struct {
+	Updates    <-chan CIWatchUpdate
+	Completion <-chan CIWatchResult
+	Cancel     chan<- struct{}
+}
