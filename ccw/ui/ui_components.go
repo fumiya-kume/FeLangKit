@@ -381,133 +381,11 @@ func (ui *UIManager) DisplayIssueSelection(issues []*types.Issue) ([]*types.Issu
 	}
 
 	ui.DisplayHeader()
-	ui.Info(fmt.Sprintf("Found %d issues. Commands: w/s=up/down, SPACE=select/deselect, number=direct select, ENTER=confirm, q=quit.", len(issues)))
-	fmt.Println()
-
-	// Display selectable issue list
-	selected := make([]bool, len(issues))
-	currentIndex := 0
 	
-	for {
-		// Clear the selection area and redraw
-		fmt.Print("\033[2K") // Clear current line
-		fmt.Print("\033[J")  // Clear from cursor to end of screen
-		
-		// Display issues with selection indicators
-		for i, issue := range issues {
-			cursor := "  "
-			checkbox := "[ ]"
-			
-			if i == currentIndex {
-				cursor = ui.primaryColor("→ ")
-			}
-			
-			if selected[i] {
-				checkbox = ui.successColor("[✓]")
-			} else {
-				checkbox = ui.infoColor("[ ]")
-			}
-			
-			// Truncate title if too long
-			title := issue.Title
-			if len(title) > 60 {
-				title = title[:57] + "..."
-			}
-			
-			// Format issue line
-			stateColor := ui.successColor
-			if issue.State != "open" {
-				stateColor = ui.infoColor
-			}
-			
-			fmt.Printf("%s%s %d) #%-4d %s %s\n", 
-				cursor, 
-				checkbox, 
-				i+1, // Display 1-based index for user selection
-				issue.Number, 
-				stateColor(fmt.Sprintf("%-6s", issue.State)),
-				title)
-		}
-		
-		fmt.Println()
-		ui.Info("w/s: navigate, SPACE: select/deselect, number: direct select, ENTER: confirm, q: quit")
-		
-		// Read input using platform-specific character reading
-		input, err := ui.readInput()
-		if err != nil {
-			return nil, fmt.Errorf("failed to read input: %w", err)
-		}
-		
-		switch {
-		case input == "esc":
-			return nil, fmt.Errorf("selection cancelled by user")
-		case input == "enter":
-			selectedIssues := []*types.Issue{}
-			for i, isSelected := range selected {
-				if isSelected {
-					selectedIssues = append(selectedIssues, issues[i])
-				}
-			}
-			if len(selectedIssues) == 0 {
-				ui.Warning("No issues selected. Please select at least one issue.")
-				continue
-			}
-			return selectedIssues, nil
-		case input == "space":
-			selected[currentIndex] = !selected[currentIndex]
-		case input == "up":
-			if currentIndex > 0 {
-				currentIndex--
-			}
-		case input == "down":
-			if currentIndex < len(issues)-1 {
-				currentIndex++
-			}
-		case strings.HasPrefix(input, "select_"):
-			// Handle direct number selection
-			indexStr := strings.TrimPrefix(input, "select_")
-			if index, err := strconv.Atoi(indexStr); err == nil && index >= 0 && index < len(issues) {
-				currentIndex = index
-				selected[currentIndex] = !selected[currentIndex]
-			}
-		}
-		
-		// Move cursor back up to redraw
-		fmt.Printf("\033[%dA", len(issues)+3)
-	}
+	// Use line input mode for reliable, cross-platform compatibility
+	return ui.displayIssueSelectionLineMode(issues)
 }
 
-// Read input with proper arrow key handling
-func (ui *UIManager) readInput() (string, error) {
-	// Use a simplified approach that works with standard input
-	var input string
-	fmt.Scanln(&input)
-	
-	// Convert common inputs
-	switch strings.ToLower(input) {
-	case "q", "quit", "exit":
-		return "esc", nil
-	case "":
-		return "enter", nil // Empty input treated as enter
-	case " ":
-		return "space", nil
-	case "w", "up":
-		return "up", nil
-	case "s", "down":
-		return "down", nil
-	case "a", "left":
-		return "left", nil
-	case "d", "right":
-		return "right", nil
-	}
-	
-	// Try to parse as number for direct selection
-	if num, err := strconv.Atoi(input); err == nil && num >= 1 {
-		return fmt.Sprintf("select_%d", num-1), nil // Convert to 0-based index
-	}
-	
-	return "", nil // Unknown input, continue
-}
 
 // Display issue summary
 func (ui *UIManager) DisplayIssueSummary(issues []*types.Issue) {
@@ -562,6 +440,55 @@ func (ui *UIManager) DisplayIssueSummary(issues []*types.Issue) {
 	fmt.Printf("%s%s%s\n", 
 		ui.accentColor("└─"), strings.Repeat("─", 80), ui.accentColor("─┘"))
 	fmt.Println()
+}
+
+
+// Line-mode issue selection for cross-platform compatibility
+func (ui *UIManager) displayIssueSelectionLineMode(issues []*types.Issue) ([]*types.Issue, error) {
+	// Display issues with numbers
+	for i, issue := range issues {
+		title := issue.Title
+		if len(title) > 60 {
+			title = title[:57] + "..."
+		}
+		
+		stateColor := ui.successColor
+		if issue.State != "open" {
+			stateColor = ui.infoColor
+		}
+		
+		fmt.Printf("  %d) #%-4d %s %s\n", 
+			i+1,
+			issue.Number, 
+			stateColor(fmt.Sprintf("%-6s", issue.State)),
+			title)
+	}
+	
+	fmt.Println()
+	ui.Info("Enter issue numbers separated by spaces (e.g., '1 3 5'), or 'q' to quit:")
+	
+	var input string
+	fmt.Scanln(&input)
+	
+	if strings.ToLower(input) == "q" {
+		return nil, fmt.Errorf("selection cancelled by user")
+	}
+	
+	// Parse selected numbers
+	selectedIssues := []*types.Issue{}
+	numbers := strings.Fields(input)
+	for _, numStr := range numbers {
+		if num, err := strconv.Atoi(numStr); err == nil && num >= 1 && num <= len(issues) {
+			selectedIssues = append(selectedIssues, issues[num-1])
+		}
+	}
+	
+	if len(selectedIssues) == 0 {
+		ui.Warning("No valid issues selected")
+		return ui.displayIssueSelectionLineMode(issues) // Retry
+	}
+	
+	return selectedIssues, nil
 }
 
 // Utility function to strip ANSI color codes for length calculation
