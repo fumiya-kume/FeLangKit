@@ -220,12 +220,12 @@ public final class SymbolTable: @unchecked Sendable {
         defer { lock.unlock() }
 
         guard var currentScope = scopes[currentScopeId] else {
-            return .failure(.undeclaredVariable(name, at: position))
+            return .failure(.undeclaredVariable(name, position: position))
         }
 
         // Check if symbol already exists in current scope
         if currentScope.symbols[name] != nil {
-            return .failure(.variableAlreadyDeclared(name, at: position))
+            return .failure(.variableAlreadyDeclared(name, position: position))
         }
 
         let symbol = Symbol(
@@ -259,7 +259,7 @@ public final class SymbolTable: @unchecked Sendable {
     }
 
     /// Mark a symbol as used.
-    public func markAsUsed(_ name: String, at position: SourcePosition) -> Result<Void, SemanticError> {
+    public func markAsUsed(_ name: String, position: SourcePosition) -> Result<Void, SemanticError> {
         lock.lock()
         defer { lock.unlock() }
 
@@ -275,11 +275,11 @@ public final class SymbolTable: @unchecked Sendable {
             }
         }
 
-        return .failure(.undeclaredVariable(name, at: position))
+        return .failure(.undeclaredVariable(name, position: position))
     }
 
     /// Mark a symbol as initialized.
-    public func markAsInitialized(_ name: String, at position: SourcePosition) -> Result<Void, SemanticError> {
+    public func markAsInitialized(_ name: String, position: SourcePosition) -> Result<Void, SemanticError> {
         lock.lock()
         defer { lock.unlock() }
 
@@ -295,7 +295,7 @@ public final class SymbolTable: @unchecked Sendable {
             }
         }
 
-        return .failure(.undeclaredVariable(name, at: position))
+        return .failure(.undeclaredVariable(name, position: position))
     }
 
     /// Check if a symbol exists in the current scope only.
@@ -362,10 +362,10 @@ public final class SymbolTable: @unchecked Sendable {
     }
 
     private func addBuiltinFunctions() {
-        // Built-in I/O functions
+        // Built-in I/O functions - writeLine accepts any type (polymorphic)
         let readLineType = FeType.function(parameters: [], returnType: .string)
-        let writeLineType = FeType.function(parameters: [.string], returnType: nil)
-        let writeType = FeType.function(parameters: [.string], returnType: nil)
+        let writeLineType = FeType.function(parameters: [.unknown], returnType: nil)
+        let writeType = FeType.function(parameters: [.unknown], returnType: nil)
 
         // Built-in conversion functions
         let toStringType = FeType.function(parameters: [.integer], returnType: .string)
