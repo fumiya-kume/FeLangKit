@@ -1,11 +1,12 @@
-import XCTest
+import Testing
 @testable import FeLangCore
 
-final class ExpressionVisitorTests: XCTestCase {
+@Suite("ExpressionVisitor Tests")
+struct ExpressionVisitorTests {
 
     // MARK: - Basic Visitor Tests
 
-    func testVisitLiteral() {
+    @Test func visitLiteral() {
         let visitor = ExpressionVisitor<String>(
             visitLiteral: { literal in
                 switch literal {
@@ -24,14 +25,14 @@ final class ExpressionVisitorTests: XCTestCase {
             visitFunctionCall: { _, _ in "function_call" }
         )
 
-        XCTAssertEqual(visitor.visit(.literal(.integer(42))), "int(42)")
-        XCTAssertEqual(visitor.visit(.literal(.real(3.14))), "real(3.14)")
-        XCTAssertEqual(visitor.visit(.literal(.string("hello"))), "string(hello)")
-        XCTAssertEqual(visitor.visit(.literal(.character("x"))), "char(x)")
-        XCTAssertEqual(visitor.visit(.literal(.boolean(true))), "bool(true)")
+        #expect(visitor.visit(.literal(.integer(42))) == "int(42)")
+        #expect(visitor.visit(.literal(.real(3.14))) == "real(3.14)")
+        #expect(visitor.visit(.literal(.string("hello"))) == "string(hello)")
+        #expect(visitor.visit(.literal(.character("x"))) == "char(x)")
+        #expect(visitor.visit(.literal(.boolean(true))) == "bool(true)")
     }
 
-    func testVisitIdentifier() {
+    @Test func visitIdentifier() {
         let visitor = ExpressionVisitor<String>(
             visitLiteral: { _ in "literal" },
             visitIdentifier: { identifier in "id(\(identifier))" },
@@ -42,11 +43,11 @@ final class ExpressionVisitorTests: XCTestCase {
             visitFunctionCall: { _, _ in "function_call" }
         )
 
-        XCTAssertEqual(visitor.visit(.identifier("variable")), "id(variable)")
-        XCTAssertEqual(visitor.visit(.identifier("x")), "id(x)")
+        #expect(visitor.visit(.identifier("variable")) == "id(variable)")
+        #expect(visitor.visit(.identifier("x")) == "id(x)")
     }
 
-    func testVisitBinary() {
+    @Test func visitBinary() {
         let visitor = ExpressionVisitor<String>(
             visitLiteral: { _ in "literal" },
             visitIdentifier: { _ in "identifier" },
@@ -61,13 +62,13 @@ final class ExpressionVisitorTests: XCTestCase {
 
         // Note: This will show the raw Expression values, not the recursive visitor results
         let result = visitor.visit(expr)
-        XCTAssertTrue(result.hasPrefix("binary(+,"))
-        XCTAssertTrue(result.contains("literal("))
-        XCTAssertTrue(result.contains("integer(1)"))
-        XCTAssertTrue(result.contains("integer(2)"))
+        #expect(result.hasPrefix("binary(+,"))
+        #expect(result.contains("literal("))
+        #expect(result.contains("integer(1)"))
+        #expect(result.contains("integer(2)"))
     }
 
-    func testVisitUnary() {
+    @Test func visitUnary() {
         let visitor = ExpressionVisitor<String>(
             visitLiteral: { _ in "literal" },
             visitIdentifier: { _ in "identifier" },
@@ -80,11 +81,11 @@ final class ExpressionVisitorTests: XCTestCase {
 
         let expr = Expression.unary(.not, .literal(.boolean(true)))
         let result = visitor.visit(expr)
-        XCTAssertTrue(result.hasPrefix("unary(not,"))
-        XCTAssertTrue(result.contains("boolean(true)"))
+        #expect(result.hasPrefix("unary(not,"))
+        #expect(result.contains("boolean(true)"))
     }
 
-    func testVisitArrayAccess() {
+    @Test func visitArrayAccess() {
         let visitor = ExpressionVisitor<String>(
             visitLiteral: { _ in "literal" },
             visitIdentifier: { _ in "identifier" },
@@ -97,11 +98,11 @@ final class ExpressionVisitorTests: XCTestCase {
 
         let expr = Expression.arrayAccess(.identifier("arr"), .literal(.integer(0)))
         let result = visitor.visit(expr)
-        XCTAssertTrue(result.hasPrefix("array_access(identifier(\"arr\"),"))
-        XCTAssertTrue(result.contains("integer(0)"))
+        #expect(result.hasPrefix("array_access(identifier(\"arr\"),"))
+        #expect(result.contains("integer(0)"))
     }
 
-    func testVisitFieldAccess() {
+    @Test func visitFieldAccess() {
         let visitor = ExpressionVisitor<String>(
             visitLiteral: { _ in "literal" },
             visitIdentifier: { _ in "identifier" },
@@ -114,12 +115,12 @@ final class ExpressionVisitorTests: XCTestCase {
 
         let expr = Expression.fieldAccess(.identifier("obj"), "property")
         let result = visitor.visit(expr)
-        XCTAssertTrue(result.hasPrefix("field_access("))
-        XCTAssertTrue(result.contains("identifier(\"obj\")"))
-        XCTAssertTrue(result.contains("property"))
+        #expect(result.hasPrefix("field_access("))
+        #expect(result.contains("identifier(\"obj\")"))
+        #expect(result.contains("property"))
     }
 
-    func testVisitFunctionCall() {
+    @Test func visitFunctionCall() {
         let visitor = ExpressionVisitor<String>(
             visitLiteral: { _ in "literal" },
             visitIdentifier: { _ in "identifier" },
@@ -132,12 +133,12 @@ final class ExpressionVisitorTests: XCTestCase {
 
         let expr = Expression.functionCall("func", [.literal(.integer(1)), .identifier("x")])
         let result = visitor.visit(expr)
-        XCTAssertEqual(result, "function_call(func, 2 args)")
+        #expect(result == "function_call(func, 2 args)")
     }
 
     // MARK: - Manual Recursive Visitor Test
 
-    func testManualRecursiveVisitor() {
+    @Test func manualRecursiveVisitor() {
         // Create a manual recursive visitor for basic expression stringification
         func stringifyExpression(_ expr: FeLangCore.Expression) -> String {
             switch expr {
@@ -166,34 +167,34 @@ final class ExpressionVisitorTests: XCTestCase {
         }
 
         // Test simple literal
-        XCTAssertEqual(stringifyExpression(FeLangCore.Expression.literal(.integer(42))), "42")
+        #expect(stringifyExpression(FeLangCore.Expression.literal(.integer(42))) == "42")
 
         // Test binary expression
         let binaryExpr = FeLangCore.Expression.binary(.add, .literal(.integer(1)), .literal(.integer(2)))
-        XCTAssertEqual(stringifyExpression(binaryExpr), "(1 + 2)")
+        #expect(stringifyExpression(binaryExpr) == "(1 + 2)")
 
         // Test nested binary expression
         let nestedExpr = FeLangCore.Expression.binary(.multiply,
                                          .binary(.add, .literal(.integer(1)), .literal(.integer(2))),
                                          .literal(.integer(3)))
-        XCTAssertEqual(stringifyExpression(nestedExpr), "((1 + 2) * 3)")
+        #expect(stringifyExpression(nestedExpr) == "((1 + 2) * 3)")
 
         // Test function call with arguments
         let funcCall = FeLangCore.Expression.functionCall("max", [.literal(.integer(1)), .literal(.integer(2))])
-        XCTAssertEqual(stringifyExpression(funcCall), "max(1, 2)")
+        #expect(stringifyExpression(funcCall) == "max(1, 2)")
 
         // Test field access
         let fieldAccess = FeLangCore.Expression.fieldAccess(.identifier("obj"), "prop")
-        XCTAssertEqual(stringifyExpression(fieldAccess), "obj.prop")
+        #expect(stringifyExpression(fieldAccess) == "obj.prop")
 
         // Test array access
         let arrayAccess = FeLangCore.Expression.arrayAccess(.identifier("arr"), .literal(.integer(0)))
-        XCTAssertEqual(stringifyExpression(arrayAccess), "arr[0]")
+        #expect(stringifyExpression(arrayAccess) == "arr[0]")
     }
 
     // MARK: - Visitable Protocol Tests
 
-    func testVisitableProtocolConformance() {
+    @Test func visitableProtocolConformance() {
         let visitor = ExpressionVisitor<String>(
             visitLiteral: { _ in "literal" },
             visitIdentifier: { _ in "identifier" },
@@ -207,15 +208,15 @@ final class ExpressionVisitorTests: XCTestCase {
         let expr = Expression.literal(.integer(42))
 
         // Test accept method
-        XCTAssertEqual(expr.accept(visitor), "literal")
+        #expect(expr.accept(visitor) == "literal")
 
         // Test convenience method
-        XCTAssertEqual(expr.visit(with: visitor), "literal")
+        #expect(expr.visit(with: visitor) == "literal")
     }
 
     // MARK: - Type Counting Visitor Test
 
-    func testTypeCountingVisitor() {
+    @Test func typeCountingVisitor() {
         // Create a manual recursive visitor for counting node types
         func countExpressionTypes(_ expr: FeLangCore.Expression) -> [String: Int] {
             switch expr {
@@ -277,15 +278,15 @@ final class ExpressionVisitorTests: XCTestCase {
                                           .functionCall("func", [.identifier("y")]))
 
         let counts = countExpressionTypes(complexExpr)
-        XCTAssertEqual(counts["binary"], 2)
-        XCTAssertEqual(counts["identifier"], 2)
-        XCTAssertEqual(counts["literal"], 1)
-        XCTAssertEqual(counts["function_call"], 1)
+        #expect(counts["binary"] == 2)
+        #expect(counts["identifier"] == 2)
+        #expect(counts["literal"] == 1)
+        #expect(counts["function_call"] == 1)
     }
 
     // MARK: - Performance Test
 
-    func testVisitorPerformance() {
+    @Test func visitorPerformance() {
         // Create a manual recursive counter for performance testing
         func countNodes(_ expr: FeLangCore.Expression) -> Int {
             switch expr {
@@ -312,8 +313,8 @@ final class ExpressionVisitorTests: XCTestCase {
             expr = .binary(.add, expr, .literal(.integer(1)))
         }
 
-        measure {
-            _ = countNodes(expr)
-        }
+        // Swift Testing doesn't have a built-in measure, so we'll validate the functionality
+        let nodeCount = countNodes(expr)
+        #expect(nodeCount == 201) // 1 initial + 100 * 2 (binary + literal) = 201
     }
 }
