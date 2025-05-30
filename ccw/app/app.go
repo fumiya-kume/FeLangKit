@@ -80,7 +80,8 @@ func NewCCWApp() (*CCWApp, error) {
 		DebugMode:  ccwConfig.DebugMode,
 	}
 
-	uiManager := ui.NewUIManager(ccwConfig.UI.Theme, ccwConfig.UI.Animations, ccwConfig.DebugMode)
+	// Create UI manager with Bubble Tea enabled by default
+	uiManager := ui.NewUIManager(ccwConfig.UI.Theme, true, ccwConfig.DebugMode) // Force animations=true for Bubble Tea
 
 	// Initialize commit generator
 	commitGenerator := &commit.CommitMessageGenerator{}

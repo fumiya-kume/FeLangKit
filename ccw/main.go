@@ -7,6 +7,7 @@ import (
 
 	"ccw/app"
 	"ccw/config"
+	"ccw/ui"
 )
 
 func main() {
@@ -22,6 +23,21 @@ func main() {
 		return
 	case "list":
 		app.HandleListCommand()
+		return
+	case "--demo-ui":
+		ui.RunBubbleTeaDemo()
+		return
+	case "--test-colors":
+		ui.TestColorThemes()
+		return
+	case "--detect-terminal":
+		ui.ShowTerminalDetectionInfo()
+		return
+	case "--demo-logs":
+		ui.RunLogViewerDemo()
+		return
+	case "--console":
+		handleConsoleMode()
 		return
 	case "--init-config":
 		handleInitConfig()
@@ -142,6 +158,30 @@ func handleTraceMode() {
 	defer ccwApp.Cleanup()
 	
 	if err := ccwApp.ExecuteWorkflowWithRecovery(issueURL); err != nil {
+		log.Fatalf("Workflow failed: %v", err)
+	}
+}
+
+// handleConsoleMode forces console mode for the workflow
+func handleConsoleMode() {
+	if len(os.Args) < 3 {
+		fmt.Println("Error: --console requires an issue URL")
+		app.PrintUsage()
+		os.Exit(1)
+	}
+	
+	// Set environment variable to force console mode
+	os.Setenv("CCW_CONSOLE_MODE", "true")
+	
+	issueURL := os.Args[2]
+	
+	ccwApp, err := app.NewCCWApp()
+	if err != nil {
+		log.Fatalf("Failed to initialize application: %v", err)
+	}
+	defer ccwApp.Cleanup()
+	
+	if err := ccwApp.ExecuteWorkflow(issueURL); err != nil {
 		log.Fatalf("Workflow failed: %v", err)
 	}
 }
