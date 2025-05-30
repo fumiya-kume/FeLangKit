@@ -52,6 +52,18 @@ step() {
     echo -e "${PURPLE}[STEP]${NC} $1"
 }
 
+show_loading() {
+    local message="$1"
+    local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local i=0
+    
+    while true; do
+        printf "\r${CYAN}[${spinner[i]}]${NC} %s" "$message"
+        i=$(( (i + 1) % ${#spinner[@]} ))
+        sleep 0.1
+    done
+}
+
 cleanup() {
     log "Cleanup initiated..."
     if [[ -n "$ISSUE_DATA_FILE" && -f "$ISSUE_DATA_FILE" ]]; then
@@ -361,7 +373,21 @@ EOF
     # Launch Claude Code with the context as initial input and JSON format
     info "Launching Claude Code with issue context and JSON output format..."
     info "Note: You may see a trust prompt - select 'Yes, proceed' to continue"
-    if ! claude --format json < "$input_file"; then
+    
+    # Start loading animation in background
+    show_loading "Processing with Claude Code" &
+    local loading_pid=$!
+    
+    # Launch Claude Code
+    if claude --format json < "$input_file" 2>/dev/null; then
+        kill $loading_pid 2>/dev/null
+        wait $loading_pid 2>/dev/null
+        echo -e "\r\033[K" # Clear loading line
+        success "Claude Code session completed successfully"
+    else
+        kill $loading_pid 2>/dev/null
+        wait $loading_pid 2>/dev/null
+        echo -e "\r\033[K" # Clear loading line
         error "Claude Code session failed or was interrupted"
         exit 1
     fi
@@ -422,7 +448,21 @@ EOF
     
     # Launch Claude Code with the error context as initial input and JSON format
     info "Launching Claude Code with validation error context and JSON output format..."
-    if ! claude --format json < "$input_file"; then
+    
+    # Start loading animation in background
+    show_loading "Fixing validation errors with Claude Code" &
+    local loading_pid=$!
+    
+    # Launch Claude Code
+    if claude --format json < "$input_file" 2>/dev/null; then
+        kill $loading_pid 2>/dev/null
+        wait $loading_pid 2>/dev/null
+        echo -e "\r\033[K" # Clear loading line
+        success "Claude Code error-fixing session completed successfully"
+    else
+        kill $loading_pid 2>/dev/null
+        wait $loading_pid 2>/dev/null
+        echo -e "\r\033[K" # Clear loading line
         error "Claude Code session failed or was interrupted"
         exit 1
     fi
@@ -570,7 +610,15 @@ Return ONLY the JSON object, no additional text or markdown formatting."
     local pr_output_file="${WORKTREE_PATH}/.claude-pr-output.json"
     
     info "Launching Claude Code to generate JSON PR description..."
+    
+    # Start loading animation in background
+    show_loading "Generating PR description with Claude Code" &
+    local loading_pid=$!
+    
     if claude < "$pr_input_file" > "$pr_output_file" 2>/dev/null; then
+        kill $loading_pid 2>/dev/null
+        wait $loading_pid 2>/dev/null
+        echo -e "\r\033[K" # Clear loading line
         # Validate that we got valid JSON
         if jq . "$pr_output_file" >/dev/null 2>&1; then
             success "PR description generated successfully"
@@ -581,6 +629,9 @@ Return ONLY the JSON object, no additional text or markdown formatting."
             return 1
         fi
     else
+        kill $loading_pid 2>/dev/null
+        wait $loading_pid 2>/dev/null
+        echo -e "\r\033[K" # Clear loading line
         warn "Claude Code PR description generation failed, using fallback format"
         return 1
     fi
@@ -643,7 +694,15 @@ Return ONLY the commit message text, no additional formatting or markdown."
     local commit_output_file="${WORKTREE_PATH}/.claude-commit-output.txt"
     
     info "Launching Claude Code to generate conventional commit message..."
+    
+    # Start loading animation in background
+    show_loading "Generating commit message with Claude Code" &
+    local loading_pid=$!
+    
     if claude < "$commit_input_file" > "$commit_output_file" 2>/dev/null; then
+        kill $loading_pid 2>/dev/null
+        wait $loading_pid 2>/dev/null
+        echo -e "\r\033[K" # Clear loading line
         # Validate that we got a reasonable commit message
         local generated_message=$(cat "$commit_output_file")
         if [[ -n "$generated_message" ]] && [[ ${#generated_message} -gt 10 ]]; then
@@ -654,6 +713,9 @@ Return ONLY the commit message text, no additional formatting or markdown."
             return 1
         fi
     else
+        kill $loading_pid 2>/dev/null
+        wait $loading_pid 2>/dev/null
+        echo -e "\r\033[K" # Clear loading line
         warn "Claude Code commit message generation failed, using fallback"
         return 1
     fi
