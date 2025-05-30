@@ -18,6 +18,7 @@ ISSUE_DATA_FILE=""
 ANALYSIS_FILE=""
 BRANCH_NAME=""
 WORKTREE_PATH=""
+DEBUG_MODE="${DEBUG_MODE:-false}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -46,6 +47,24 @@ warn() {
 
 info() {
     echo -e "${CYAN}[INFO]${NC} $1"
+}
+
+debug() {
+    if [[ "$DEBUG_MODE" == "true" ]]; then
+        echo -e "${PURPLE}[DEBUG]${NC} $1" >&2
+    fi
+}
+
+error_debug() {
+    local message="$1"
+    local error_file="$2"
+    error "$message"
+    if [[ -n "$error_file" && -f "$error_file" && -s "$error_file" ]]; then
+        echo -e "${RED}[ERROR DETAILS]${NC}" >&2
+        echo "--- Error Output ---" >&2
+        cat "$error_file" >&2
+        echo "--- End Error Output ---" >&2
+    fi
 }
 
 step() {
@@ -311,9 +330,19 @@ run_with_loading() {
     shift 2
     local command=("$@")
     
+    debug "Running command: ${command[*]}"
+    
     # Start loading animation in background
     show_loading "$message" &
     local loading_pid=$!
+    
+    # Create temporary error file if none provided
+    local temp_error_file=""
+    local error_file="$output_file"
+    if [[ -z "$output_file" ]]; then
+        temp_error_file=$(mktemp)
+        error_file="$temp_error_file"
+    fi
     
     # Run the command
     local exit_code=0
@@ -324,7 +353,7 @@ run_with_loading() {
             exit_code=$?
         fi
     else
-        if "${command[@]}" >/dev/null 2>&1; then
+        if "${command[@]}" > "$temp_error_file" 2>&1; then
             exit_code=0
         else
             exit_code=$?
@@ -338,9 +367,15 @@ run_with_loading() {
     
     if [[ $exit_code -eq 0 ]]; then
         success "$message completed"
+        debug "Command succeeded: ${command[*]}"
     else
-        error "$message failed (exit code: $exit_code)"
-        return $exit_code
+        error_debug "$message failed (exit code: $exit_code)" "$error_file"
+        debug "Failed command: ${command[*]}"
+    fi
+    
+    # Clean up temporary error file
+    if [[ -n "$temp_error_file" ]]; then
+        rm -f "$temp_error_file"
     fi
     
     return $exit_code
@@ -424,6 +459,10 @@ Prerequisites:
 Options:
   -h, --help    Show this help message
   --cleanup     Remove all existing worktrees (use with caution)
+  --debug       Enable debug mode with verbose error output
+
+Environment Variables:
+  DEBUG_MODE    Set to 'true' to enable debug output (default: false)
 EOF
 }
 
@@ -599,8 +638,11 @@ create_worktree() {
         exit 1
     fi
     
-    # Fetch latest changes
-    run_with_loading "Fetching latest changes from origin" "" git fetch origin
+    # Fetch latest changes with timeout to prevent hanging
+    if ! run_with_loading "Fetching latest changes from origin" "" timeout 30 git fetch origin; then
+        warn "Git fetch timed out after 30 seconds, proceeding without fetch..."
+        info "This may indicate network issues or repository authentication problems"
+    fi
     
     # Create new worktree from master (without -b to avoid branch conflicts)
     if ! run_with_loading "Creating new git worktree" "" git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" origin/master; then
@@ -746,13 +788,42 @@ EOF
     info "Issue context has been saved to: $context_file"
     info "Auto-launching Claude Code with prompt..."
     
-    # Launch Claude Code with the context message pre-loaded
-    printf "%s\n" "$context_message" | claude
-    if [[ $? -eq 0 ]]; then
-        success "Claude Code session completed successfully"
-    else
+    # Try to launch Claude Code interactively
+    info "Attempting to launch Claude Code..."
+    echo
+    warn "If you see raw mode errors, please manually run Claude Code:"
+    echo "  cd $WORKTREE_PATH"
+    echo "  claude"
+    echo "Then paste the context from: $context_file"
+    echo
+    
+    # Try launching Claude Code with input redirection that might work
+    if exec < /dev/tty; then
+        printf "%s\n" "$context_message" | claude
         local exit_code=$?
-        error "Claude Code session failed or was interrupted (exit code: $exit_code)"
+        if [[ $exit_code -eq 0 ]]; then
+            success "Claude Code session completed successfully"
+        else
+            error "Claude Code session failed or was interrupted (exit code: $exit_code)"
+            echo
+            warn "You can continue manually by running:"
+            echo "  cd $WORKTREE_PATH"
+            echo "  claude"
+            echo "Then implement the changes and run the validation manually."
+            exit 1
+        fi
+    else
+        error "Cannot launch Claude Code in interactive mode"
+        echo
+        info "Please run Claude Code manually:"
+        echo "  cd $WORKTREE_PATH"
+        echo "  claude"
+        echo
+        info "Then paste this context:"
+        echo "$context_message"
+        echo
+        info "After implementation, return to this directory and run validation:"
+        echo "  swiftlint lint --fix && swiftlint lint && swift build && swift test"
         exit 1
     fi
     
@@ -1454,24 +1525,45 @@ main() {
     echo
     
     # Handle command line arguments
-    case "${1:-}" in
-        -h|--help)
-            usage
-            exit 0
-            ;;
-        --cleanup)
-            cleanup_all_worktrees
-            exit 0
-            ;;
-        "")
-            error "Missing GitHub issue URL"
-            usage
-            exit 1
-            ;;
-        *)
-            local issue_url="$1"
-            ;;
-    esac
+    local issue_url=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            --cleanup)
+                cleanup_all_worktrees
+                exit 0
+                ;;
+            --debug)
+                DEBUG_MODE="true"
+                info "Debug mode enabled"
+                shift
+                ;;
+            -*)
+                error "Unknown option: $1"
+                usage
+                exit 1
+                ;;
+            *)
+                if [[ -z "$issue_url" ]]; then
+                    issue_url="$1"
+                else
+                    error "Multiple URLs provided. Only one issue URL is allowed."
+                    usage
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$issue_url" ]]; then
+        error "Missing GitHub issue URL"
+        usage
+        exit 1
+    fi
     
     # Validate inputs
     validate_url "$issue_url"
