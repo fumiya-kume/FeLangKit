@@ -24,6 +24,9 @@ func main() {
 	case "list":
 		app.HandleListCommand()
 		return
+	case "doctor":
+		app.HandleDoctorCommand()
+		return
 	case "--demo-ui":
 		ui.RunBubbleTeaDemo()
 		return
