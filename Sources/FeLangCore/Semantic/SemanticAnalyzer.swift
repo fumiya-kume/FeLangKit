@@ -132,7 +132,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         case .forStatement(let stmt):
             collectSymbolsFromForStatement(stmt)
         case .block(let statements):
-            symbolTable.pushScope(kind: .block)
+            _ = symbolTable.pushScope(kind: .block)
             for stmt in statements {
                 collectSymbolsFromStatement(stmt)
             }
@@ -205,7 +205,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         }
 
         // Create function scope and collect parameters and local variables
-        let functionScope = symbolTable.pushScope(kind: .function(name: decl.name, returnType: returnType))
+        _ = symbolTable.pushScope(kind: .function(name: decl.name, returnType: returnType))
 
         // Declare parameters
         for param in decl.parameters {
@@ -256,7 +256,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         }
 
         // Create procedure scope and collect parameters and local variables
-        symbolTable.pushScope(kind: .procedure(name: decl.name))
+        _ = symbolTable.pushScope(kind: .procedure(name: decl.name))
 
         // Declare parameters
         for param in decl.parameters {
@@ -289,7 +289,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
     private func collectSymbolsFromIfStatement(_ stmt: IfStatement) {
         // Push block scope for then body
-        symbolTable.pushScope(kind: .block)
+        _ = symbolTable.pushScope(kind: .block)
         for thenStmt in stmt.thenBody {
             collectSymbolsFromStatement(thenStmt)
         }
@@ -297,7 +297,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
         // Push block scope for each elseif body
         for elseIf in stmt.elseIfs {
-            symbolTable.pushScope(kind: .block)
+            _ = symbolTable.pushScope(kind: .block)
             for elseIfStmt in elseIf.body {
                 collectSymbolsFromStatement(elseIfStmt)
             }
@@ -306,7 +306,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
         // Push block scope for else body if present
         if let elseBody = stmt.elseBody {
-            symbolTable.pushScope(kind: .block)
+            _ = symbolTable.pushScope(kind: .block)
             for elseStmt in elseBody {
                 collectSymbolsFromStatement(elseStmt)
             }
@@ -315,7 +315,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     }
 
     private func collectSymbolsFromWhileStatement(_ stmt: WhileStatement) {
-        symbolTable.pushScope(kind: .loop)
+        _ = symbolTable.pushScope(kind: .loop)
         for bodyStmt in stmt.body {
             collectSymbolsFromStatement(bodyStmt)
         }
@@ -325,7 +325,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     private func collectSymbolsFromForStatement(_ stmt: ForStatement) {
         switch stmt {
         case .range(let rangeFor):
-            symbolTable.pushScope(kind: .loop)
+            _ = symbolTable.pushScope(kind: .loop)
 
             // Declare loop variable
             let position = SourcePosition(line: 0, column: 0, offset: 0)
@@ -347,7 +347,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             symbolTable.popScope()
 
         case .forEach(let forEach):
-            symbolTable.pushScope(kind: .loop)
+            _ = symbolTable.pushScope(kind: .loop)
 
             // Declare loop variable (type will be inferred in type checking pass)
             let position = SourcePosition(line: 0, column: 0, offset: 0)
@@ -407,7 +407,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         case .procedureDeclaration(let decl):
             typeCheckProcedureDeclaration(decl)
         case .block(let statements):
-            symbolTable.pushScope(kind: .block)
+            _ = symbolTable.pushScope(kind: .block)
             for stmt in statements {
                 typeCheckStatement(stmt)
             }
@@ -501,7 +501,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             errorReporter.collect(.typeMismatch(expected: .boolean, actual: conditionType, position: position))
         }
 
-        symbolTable.pushScope(kind: .block)
+        _ = symbolTable.pushScope(kind: .block)
         for thenStmt in stmt.thenBody {
             typeCheckStatement(thenStmt)
         }
@@ -514,7 +514,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 errorReporter.collect(.typeMismatch(expected: .boolean, actual: elseIfConditionType, position: position))
             }
 
-            symbolTable.pushScope(kind: .block)
+            _ = symbolTable.pushScope(kind: .block)
             for elseIfStmt in elseIf.body {
                 typeCheckStatement(elseIfStmt)
             }
@@ -522,7 +522,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         }
 
         if let elseBody = stmt.elseBody {
-            symbolTable.pushScope(kind: .block)
+            _ = symbolTable.pushScope(kind: .block)
             for elseStmt in elseBody {
                 typeCheckStatement(elseStmt)
             }
@@ -537,7 +537,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             errorReporter.collect(.typeMismatch(expected: .boolean, actual: conditionType, position: position))
         }
 
-        symbolTable.pushScope(kind: .loop)
+        _ = symbolTable.pushScope(kind: .loop)
         for bodyStmt in stmt.body {
             typeCheckStatement(bodyStmt)
         }
@@ -568,7 +568,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 }
             }
 
-            symbolTable.pushScope(kind: .loop)
+            _ = symbolTable.pushScope(kind: .loop)
 
             // Re-declare loop variable in type checking scope
             let position = SourcePosition(line: 0, column: 0, offset: 0)
@@ -601,7 +601,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 elementType = .error
             }
 
-            symbolTable.pushScope(kind: .loop)
+            _ = symbolTable.pushScope(kind: .loop)
 
             // Re-declare loop variable with correct type in type checking scope
             let position = SourcePosition(line: 0, column: 0, offset: 0)
@@ -654,7 +654,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
     private func typeCheckFunctionDeclaration(_ decl: FunctionDeclaration) {
         let returnType = decl.returnType.map(convertDataTypeToFeType)
-        symbolTable.pushScope(kind: .function(name: decl.name, returnType: returnType))
+        _ = symbolTable.pushScope(kind: .function(name: decl.name, returnType: returnType))
 
         // Re-declare parameters in the new scope
         let position = SourcePosition(line: 0, column: 0, offset: 0)
@@ -692,7 +692,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     }
 
     private func typeCheckProcedureDeclaration(_ decl: ProcedureDeclaration) {
-        symbolTable.pushScope(kind: .procedure(name: decl.name))
+        _ = symbolTable.pushScope(kind: .procedure(name: decl.name))
 
         // Re-declare parameters in the new scope
         let position = SourcePosition(line: 0, column: 0, offset: 0)
@@ -797,6 +797,16 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             } else if (leftType.isCompatible(with: .real) || leftType.isCompatible(with: .integer)) &&
                       (rightType.isCompatible(with: .real) || rightType.isCompatible(with: .integer)) {
                 return .real
+            } else if operatorType == .add && (leftType.isCompatible(with: .string) || rightType.isCompatible(with: .string)) {
+                // String concatenation with + operator
+                if (leftType.isCompatible(with: .string) || leftType.isCompatible(with: .character)) &&
+                   (rightType.isCompatible(with: .string) || rightType.isCompatible(with: .character)) {
+                    return .string
+                } else {
+                    let position = SourcePosition(line: 0, column: 0, offset: 0)
+                    errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+                    return .error
+                }
             } else {
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
                 errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
@@ -959,6 +969,17 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 break
             }
         }
+
+        // Post-validation checks for unused variables and functions
+        if config.enableUnusedWarnings {
+            validateUnusedSymbols()
+        }
+    }
+
+    private func validateUnusedSymbols() {
+        // This will be handled by the error reporter during finalization
+        // The symbol table already tracks usage, so unused symbols will be
+        // converted to warnings in the error reporter's finalize method
     }
 
     private func validateStatement(_ statement: Statement) {
@@ -981,7 +1002,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         case .procedureDeclaration(let decl):
             validateProcedureDeclaration(decl)
         case .block(let statements):
-            symbolTable.pushScope(kind: .block)
+            _ = symbolTable.pushScope(kind: .block)
             for stmt in statements {
                 validateStatement(stmt)
             }
@@ -1007,14 +1028,14 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     }
 
     private func validateIfStatement(_ stmt: IfStatement) {
-        symbolTable.pushScope(kind: .block)
+        _ = symbolTable.pushScope(kind: .block)
         for thenStmt in stmt.thenBody {
             validateStatement(thenStmt)
         }
         symbolTable.popScope()
 
         for elseIf in stmt.elseIfs {
-            symbolTable.pushScope(kind: .block)
+            _ = symbolTable.pushScope(kind: .block)
             for elseIfStmt in elseIf.body {
                 validateStatement(elseIfStmt)
             }
@@ -1022,7 +1043,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         }
 
         if let elseBody = stmt.elseBody {
-            symbolTable.pushScope(kind: .block)
+            _ = symbolTable.pushScope(kind: .block)
             for elseStmt in elseBody {
                 validateStatement(elseStmt)
             }
@@ -1031,7 +1052,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     }
 
     private func validateWhileStatement(_ stmt: WhileStatement) {
-        symbolTable.pushScope(kind: .loop)
+        _ = symbolTable.pushScope(kind: .loop)
         for bodyStmt in stmt.body {
             validateStatement(bodyStmt)
         }
@@ -1041,13 +1062,13 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     private func validateForStatement(_ stmt: ForStatement) {
         switch stmt {
         case .range(let rangeFor):
-            symbolTable.pushScope(kind: .loop)
+            _ = symbolTable.pushScope(kind: .loop)
             for bodyStmt in rangeFor.body {
                 validateStatement(bodyStmt)
             }
             symbolTable.popScope()
         case .forEach(let forEach):
-            symbolTable.pushScope(kind: .loop)
+            _ = symbolTable.pushScope(kind: .loop)
             for bodyStmt in forEach.body {
                 validateStatement(bodyStmt)
             }
@@ -1057,7 +1078,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
     private func validateFunctionDeclaration(_ decl: FunctionDeclaration) {
         let returnType = decl.returnType.map(convertDataTypeToFeType)
-        symbolTable.pushScope(kind: .function(name: decl.name, returnType: returnType))
+        _ = symbolTable.pushScope(kind: .function(name: decl.name, returnType: returnType))
 
         // Re-declare parameters in the new scope
         let position = SourcePosition(line: 0, column: 0, offset: 0)
@@ -1077,11 +1098,24 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             collectSymbolsFromVariableDeclaration(localVar)
         }
 
+        // Validate function body and check for return statements
         var hasReturnStatement = false
-        for stmt in decl.body {
+        var hasUnreachableCode = false
+        for (index, stmt) in decl.body.enumerated() {
+            if hasUnreachableCode {
+                // Code after return statement is unreachable
+                errorReporter.collect(SemanticError.unreachableCode(position: position))
+                break
+            }
+
             validateStatement(stmt)
+
             if case .returnStatement = stmt {
                 hasReturnStatement = true
+                // Mark that subsequent statements are unreachable
+                if index < decl.body.count - 1 {
+                    hasUnreachableCode = true
+                }
             }
         }
 
@@ -1090,11 +1124,26 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             errorReporter.collect(.missingReturnStatement(function: decl.name, position: position))
         }
 
+        // Validate parameter uniqueness
+        let paramNames = decl.parameters.map { $0.name }
+        let uniqueParamNames = Set(paramNames)
+        if paramNames.count != uniqueParamNames.count {
+            // Find duplicate parameter
+            var seen: Set<String> = []
+            for paramName in paramNames {
+                if seen.contains(paramName) {
+                    errorReporter.collect(.variableAlreadyDeclared(paramName, position: position))
+                    break
+                }
+                seen.insert(paramName)
+            }
+        }
+
         symbolTable.popScope()
     }
 
     private func validateProcedureDeclaration(_ decl: ProcedureDeclaration) {
-        symbolTable.pushScope(kind: .procedure(name: decl.name))
+        _ = symbolTable.pushScope(kind: .procedure(name: decl.name))
 
         // Re-declare parameters in the new scope
         let position = SourcePosition(line: 0, column: 0, offset: 0)
@@ -1114,8 +1163,38 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             collectSymbolsFromVariableDeclaration(localVar)
         }
 
-        for stmt in decl.body {
+        // Validate procedure body
+        var hasUnreachableCode = false
+        for (index, stmt) in decl.body.enumerated() {
+            if hasUnreachableCode {
+                // Code after return statement is unreachable
+                errorReporter.collect(SemanticError.unreachableCode(position: position))
+                break
+            }
+
             validateStatement(stmt)
+
+            if case .returnStatement = stmt {
+                // Mark that subsequent statements are unreachable
+                if index < decl.body.count - 1 {
+                    hasUnreachableCode = true
+                }
+            }
+        }
+
+        // Validate parameter uniqueness
+        let paramNames = decl.parameters.map { $0.name }
+        let uniqueParamNames = Set(paramNames)
+        if paramNames.count != uniqueParamNames.count {
+            // Find duplicate parameter
+            var seen: Set<String> = []
+            for paramName in paramNames {
+                if seen.contains(paramName) {
+                    errorReporter.collect(.variableAlreadyDeclared(paramName, position: position))
+                    break
+                }
+                seen.insert(paramName)
+            }
         }
 
         symbolTable.popScope()

@@ -750,6 +750,178 @@ final class SemanticAnalyzerTests: XCTestCase {
         XCTAssertTrue(result.errors.isEmpty)
     }
 
+    // MARK: - Enhanced Type Compatibility Tests
+
+    func testStringConcatenationWithPlusOperator() {
+        let statements = [
+            Statement.variableDeclaration(VariableDeclaration(
+                name: "result",
+                type: .string,
+                initialValue: .binary(.add, .literal(.string("Hello")), .literal(.string(" World")))
+            ))
+        ]
+
+        let result = analyzer.analyze(statements)
+        XCTAssertTrue(result.isSuccessful)
+        XCTAssertTrue(result.errors.isEmpty)
+    }
+
+    func testCharacterToStringCompatibility() {
+        let statements = [
+            Statement.variableDeclaration(VariableDeclaration(
+                name: "message",
+                type: .string,
+                initialValue: .literal(.character("A"))
+            ))
+        ]
+
+        let result = analyzer.analyze(statements)
+        XCTAssertTrue(result.isSuccessful)
+        XCTAssertTrue(result.errors.isEmpty)
+    }
+
+    func testCharacterStringConcatenation() {
+        let statements = [
+            Statement.variableDeclaration(VariableDeclaration(
+                name: "result",
+                type: .string,
+                initialValue: .binary(.add, .literal(.character("H")), .literal(.string("ello")))
+            ))
+        ]
+
+        let result = analyzer.analyze(statements)
+        XCTAssertTrue(result.isSuccessful)
+        XCTAssertTrue(result.errors.isEmpty)
+    }
+
+    // MARK: - Enhanced Validation Tests
+
+    func testDuplicateParameterNames() {
+        let statements = [
+            Statement.functionDeclaration(FunctionDeclaration(
+                name: "testFunc",
+                parameters: [
+                    Parameter(name: "param", type: .integer),
+                    Parameter(name: "param", type: .real) // Duplicate name
+                ],
+                returnType: .integer,
+                localVariables: [],
+                body: [
+                    Statement.returnStatement(ReturnStatement(expression: .literal(.integer(1))))
+                ]
+            ))
+        ]
+
+        let result = analyzer.analyze(statements)
+        XCTAssertFalse(result.isSuccessful)
+        XCTAssertEqual(result.errors.count, 1)
+
+        if case .variableAlreadyDeclared(let name, _) = result.errors[0] {
+            XCTAssertEqual(name, "param")
+        } else {
+            XCTFail("Expected variable already declared error")
+        }
+    }
+
+    func testUnreachableCodeAfterReturn() {
+        let statements = [
+            Statement.functionDeclaration(FunctionDeclaration(
+                name: "testFunc",
+                parameters: [],
+                returnType: .integer,
+                localVariables: [],
+                body: [
+                    Statement.returnStatement(ReturnStatement(expression: .literal(.integer(1)))),
+                    Statement.expressionStatement(.literal(.integer(42))) // Unreachable
+                ]
+            ))
+        ]
+
+        let result = analyzer.analyze(statements)
+        XCTAssertFalse(result.isSuccessful)
+        XCTAssertEqual(result.errors.count, 1)
+
+        if case .unreachableCode = result.errors[0] {
+            // Expected
+        } else {
+            XCTFail("Expected unreachable code error")
+        }
+    }
+
+    func testArrayTypeCompatibility() {
+        let statements = [
+            Statement.variableDeclaration(VariableDeclaration(
+                name: "intArray",
+                type: .array(.integer),
+                initialValue: nil
+            )),
+            Statement.variableDeclaration(VariableDeclaration(
+                name: "stringArray",
+                type: .array(.string),
+                initialValue: .identifier("intArray") // Integer array assigned to string array (incompatible)
+            ))
+        ]
+
+        let result = analyzer.analyze(statements)
+        XCTAssertFalse(result.isSuccessful)
+        XCTAssertEqual(result.errors.count, 1)
+
+        if case .typeMismatch(let expected, let actual, _) = result.errors[0] {
+            XCTAssertEqual(expected, .array(elementType: .string, dimensions: []))
+            XCTAssertEqual(actual, .array(elementType: .integer, dimensions: []))
+        } else {
+            XCTFail("Expected type mismatch error")
+        }
+    }
+
+    // MARK: - Integration Tests
+
+    func testComplexSemanticAnalysis() {
+        let statements = [
+            Statement.functionDeclaration(FunctionDeclaration(
+                name: "calculateSum",
+                parameters: [
+                    Parameter(name: "numbers", type: .array(.integer)),
+                    Parameter(name: "count", type: .integer)
+                ],
+                returnType: .integer,
+                localVariables: [
+                    VariableDeclaration(name: "sum", type: .integer, initialValue: .literal(.integer(0))),
+                    VariableDeclaration(name: "i", type: .integer, initialValue: nil)
+                ],
+                body: [
+                    Statement.forStatement(.range(ForStatement.RangeFor(
+                        variable: "i",
+                        start: .literal(.integer(0)),
+                        end: .identifier("count"),
+                        step: nil,
+                        body: [
+                            Statement.assignment(.variable("sum", .binary(.add,
+                                .identifier("sum"),
+                                .arrayAccess(.identifier("numbers"), .identifier("i"))
+                            )))
+                        ]
+                    ))),
+                    Statement.returnStatement(ReturnStatement(expression: .identifier("sum")))
+                ]
+            )),
+            Statement.variableDeclaration(VariableDeclaration(
+                name: "testArray",
+                type: .array(.integer),
+                initialValue: nil
+            )),
+            Statement.variableDeclaration(VariableDeclaration(
+                name: "result",
+                type: .integer,
+                initialValue: .functionCall("calculateSum", [.identifier("testArray"), .literal(.integer(5))])
+            ))
+        ]
+
+        let result = analyzer.analyze(statements)
+        XCTAssertTrue(result.isSuccessful)
+        XCTAssertTrue(result.errors.isEmpty)
+    }
+
     // MARK: - Performance Tests
 
     func testAnalysisPerformance() {
