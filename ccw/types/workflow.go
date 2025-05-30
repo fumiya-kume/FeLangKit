@@ -18,14 +18,16 @@ type WorktreeConfig struct {
 }
 
 type ClaudeContext struct {
-	IssueData        *Issue                     `json:"issue_data"`
-	WorktreeConfig   *WorktreeConfig           `json:"worktree_config"`
-	ProjectPath      string                     `json:"project_path"`
-	ValidationErrors []ValidationError         `json:"validation_errors,omitempty"`
-	IsRetry          bool                      `json:"is_retry"`
-	RetryAttempt     int                       `json:"retry_attempt"`
-	MaxRetries       int                       `json:"max_retries"`
-	TaskType         string                    `json:"task_type"` // "implementation" or "pr_description"
+	IssueData         *Issue                     `json:"issue_data"`
+	WorktreeConfig    *WorktreeConfig           `json:"worktree_config"`
+	ProjectPath       string                     `json:"project_path"`
+	ValidationErrors  []ValidationError         `json:"validation_errors,omitempty"`
+	IsRetry           bool                      `json:"is_retry"`
+	RetryAttempt      int                       `json:"retry_attempt"`
+	MaxRetries        int                       `json:"max_retries"`
+	TaskType          string                    `json:"task_type"` // "implementation", "pr_description", "comment_addressing"
+	PRCommentAnalysis *PRCommentAnalysis        `json:"pr_comment_analysis,omitempty"`
+	PRURL             string                    `json:"pr_url,omitempty"`
 }
 
 type PRDescriptionRequest struct {
