@@ -247,6 +247,7 @@ The project includes a complete VS Code dev container configuration for consiste
 - **Create commits, branches, and push changes** as needed for user requests
 - **Create pull requests** using `gh pr create` when asked
 - **Run all git operations** (add, commit, push, merge) when appropriate
+- **Use merge commits by default** instead of squash merge: `gh pr merge --merge`
 - **claude.sh is available** for automated GitHub issue processing but is not required
 - **Direct execution preferred** when user explicitly requests git/GitHub operations
 
