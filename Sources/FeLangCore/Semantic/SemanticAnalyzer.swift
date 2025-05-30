@@ -145,7 +145,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
     private func collectSymbolsFromVariableDeclaration(_ decl: VariableDeclaration) {
         let feType = convertDataTypeToFeType(decl.type)
-        let position = SourcePosition(line: 0, column: 0, offset: 0) // TODO: Add real position tracking
+        let position = getPosition(for: decl)
         let isInitialized = decl.initialValue != nil
 
         let result = symbolTable.declare(
@@ -163,7 +163,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
     private func collectSymbolsFromConstantDeclaration(_ decl: ConstantDeclaration) {
         let feType = convertDataTypeToFeType(decl.type)
-        let position = SourcePosition(line: 0, column: 0, offset: 0) // TODO: Add real position tracking
+        let position = getPosition(for: decl)
 
         let result = symbolTable.declare(
             name: decl.name,
@@ -179,7 +179,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     }
 
     private func collectSymbolsFromFunctionDeclaration(_ decl: FunctionDeclaration) {
-        let position = SourcePosition(line: 0, column: 0, offset: 0)
+        let position = getPosition(for: decl)
         let returnType = decl.returnType.map(convertDataTypeToFeType)
         let paramTypes = decl.parameters.map { convertDataTypeToFeType($0.type) }
         let functionType = FeType.function(parameters: paramTypes, returnType: returnType)
@@ -427,7 +427,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         let actualType = inferExpressionType(initialValue)
 
         if !actualType.canAssignTo(expectedType) {
-            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            let position = getPosition(for: decl)
             errorReporter.collect(.typeMismatch(expected: expectedType, actual: actualType, position: position))
         }
     }
@@ -437,7 +437,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         let actualType = inferExpressionType(decl.initialValue)
 
         if !actualType.canAssignTo(expectedType) {
-            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            let position = getPosition(for: decl)
             errorReporter.collect(.typeMismatch(expected: expectedType, actual: actualType, position: position))
         }
     }
@@ -791,24 +791,27 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
         switch operatorType {
         case .add, .subtract, .multiply, .divide:
-            // Arithmetic operators
-            if leftType.isCompatible(with: .integer) && rightType.isCompatible(with: .integer) {
-                return .integer
-            } else if (leftType.isCompatible(with: .real) || leftType.isCompatible(with: .integer)) &&
-                      (rightType.isCompatible(with: .real) || rightType.isCompatible(with: .integer)) {
-                return .real
-            } else if operatorType == .add && (leftType.isCompatible(with: .string) || rightType.isCompatible(with: .string)) {
-                // String concatenation with + operator
-                if (leftType.isCompatible(with: .string) || leftType.isCompatible(with: .character)) &&
-                   (rightType.isCompatible(with: .string) || rightType.isCompatible(with: .character)) {
+            // Handle addition specially for string concatenation
+            if operatorType == .add && (leftType.isStringConcatenable() || rightType.isStringConcatenable()) {
+                if leftType.isStringConcatenable() && rightType.isStringConcatenable() {
                     return .string
                 } else {
-                    let position = SourcePosition(line: 0, column: 0, offset: 0)
+                    let position = SourcePosition(line: 1, column: 1, offset: 0)
                     errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
                     return .error
                 }
+            }
+
+            // Arithmetic operators
+            if leftType.isNumeric() && rightType.isNumeric() {
+                // Promote to real if either operand is real
+                if leftType.isCompatible(with: .real) || rightType.isCompatible(with: .real) {
+                    return .real
+                } else {
+                    return .integer
+                }
             } else {
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
+                let position = SourcePosition(line: 1, column: 1, offset: 0)
                 errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
                 return .error
             }
@@ -1220,6 +1223,38 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         case .record(let name):
             return .record(name: name, fields: [:])
         }
+    }
+
+    /// Extract source position from AST nodes where available
+    private func getPosition(for declaration: VariableDeclaration) -> SourcePosition {
+        // TODO: When AST nodes have position information, extract it here
+        // For now, return a default position
+        return SourcePosition(line: 1, column: 1, offset: 0)
+    }
+
+    private func getPosition(for declaration: ConstantDeclaration) -> SourcePosition {
+        // TODO: When AST nodes have position information, extract it here
+        return SourcePosition(line: 1, column: 1, offset: 0)
+    }
+
+    private func getPosition(for declaration: FunctionDeclaration) -> SourcePosition {
+        // TODO: When AST nodes have position information, extract it here
+        return SourcePosition(line: 1, column: 1, offset: 0)
+    }
+
+    private func getPosition(for declaration: ProcedureDeclaration) -> SourcePosition {
+        // TODO: When AST nodes have position information, extract it here
+        return SourcePosition(line: 1, column: 1, offset: 0)
+    }
+
+    private func getPosition(for statement: Statement) -> SourcePosition {
+        // TODO: When AST nodes have position information, extract it here
+        return SourcePosition(line: 1, column: 1, offset: 0)
+    }
+
+    private func getPosition(for expression: Expression) -> SourcePosition {
+        // TODO: When AST nodes have position information, extract it here
+        return SourcePosition(line: 1, column: 1, offset: 0)
     }
 
     private func incrementNestingDepth() {

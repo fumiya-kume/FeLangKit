@@ -103,8 +103,8 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
             return true
         case (.integer, .real), (.real, .integer):
             return true // Numeric types are compatible
-        case (.character, .string):
-            return true // Character can be assigned to string
+        case (.character, .string), (.string, .character):
+            return true // Character and string are compatible for operations
         case (.array(let elementType1, let dimensions1), .array(let elementType2, let dimensions2)):
             return elementType1.isCompatible(with: elementType2) && dimensions1 == dimensions2
         case (.record(let name1, let fields1), .record(let name2, let fields2)):
@@ -113,6 +113,30 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
             return params1.count == params2.count &&
                    zip(params1, params2).allSatisfy { $0.0.isCompatible(with: $0.1) } &&
                    compatibleReturnTypes(returnType1, returnType2)
+        default:
+            return false
+        }
+    }
+
+    /// Check if this type can be used in string concatenation operations
+    public func isStringConcatenable() -> Bool {
+        switch self {
+        case .string, .character:
+            return true
+        case .error, .unknown:
+            return true // For error recovery
+        default:
+            return false
+        }
+    }
+
+    /// Check if this type can be used in numeric operations
+    public func isNumeric() -> Bool {
+        switch self {
+        case .integer, .real:
+            return true
+        case .error, .unknown:
+            return true // For error recovery
         default:
             return false
         }
@@ -132,6 +156,15 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
         case (.array(let srcElement, let srcDims), .array(let targetElement, let targetDims)):
             // Arrays must have compatible element types and same dimensions
             return srcElement.canAssignTo(targetElement) && srcDims == targetDims
+        case (.function(let srcParams, let srcReturn), .function(let targetParams, let targetReturn)):
+            // Function types must have compatible signatures
+            guard srcParams.count == targetParams.count else { return false }
+            let paramsCompatible = zip(srcParams, targetParams).allSatisfy { param1, param2 in
+                // Parameters are contravariant - target can accept broader types
+                param2.canAssignTo(param1)
+            }
+            let returnCompatible = compatibleReturnTypes(srcReturn, targetReturn)
+            return paramsCompatible && returnCompatible
         default:
             return self.isCompatible(with: target)
         }
