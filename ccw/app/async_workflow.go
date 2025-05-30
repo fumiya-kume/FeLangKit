@@ -10,11 +10,11 @@ import (
 
 // getConsoleChar returns console-safe characters based on CI environment
 func getConsoleChar(fancy, simple string) string {
-	if os.Getenv("CCW_CONSOLE_MODE") == "true" || 
-	   os.Getenv("CI") == "true" || 
-	   os.Getenv("GITHUB_ACTIONS") == "true" ||
-	   os.Getenv("GITLAB_CI") == "true" ||
-	   os.Getenv("JENKINS_URL") != "" {
+	if os.Getenv("CCW_CONSOLE_MODE") == "true" ||
+		os.Getenv("CI") == "true" ||
+		os.Getenv("GITHUB_ACTIONS") == "true" ||
+		os.Getenv("GITLAB_CI") == "true" ||
+		os.Getenv("JENKINS_URL") != "" {
 		return simple
 	}
 	return fancy
@@ -57,10 +57,10 @@ func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.I
 	startTime := time.Now()
 	ticker := time.NewTicker(5 * time.Second) // Less frequent updates for shorter task
 	defer ticker.Stop()
-	
+
 	// Timer display channel
 	timerDone := make(chan bool, 1)
-	
+
 	// Start timer display goroutine
 	go func() {
 		for {
@@ -74,13 +74,13 @@ func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.I
 			}
 		}
 	}()
-	
+
 	// Wait for completion or timeout
 	select {
 	case summaryResult := <-summaryResultChan:
 		// Stop timer display
 		timerDone <- true
-		
+
 		elapsed := time.Since(startTime).Round(time.Second)
 		if summaryResult.Error != nil {
 			app.ui.Warning(fmt.Sprintf("Implementation summary generation failed after %s: %v", elapsed.String(), summaryResult.Error))
@@ -93,7 +93,7 @@ func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.I
 	case <-time.After(30 * time.Second):
 		// Stop timer display
 		timerDone <- true
-		
+
 		elapsed := time.Since(startTime).Round(time.Second)
 		warningIcon := getConsoleChar("⚠️", "[WARNING]")
 		app.ui.Warning(fmt.Sprintf("%s Implementation summary generation timed out after %s", warningIcon, elapsed.String()))
@@ -101,14 +101,13 @@ func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.I
 	}
 }
 
-
 // pushChangesToRemote pushes branch changes to remote repository
 func (app *CCWApp) pushChangesToRemote(branchName, worktreePath string) error {
 	app.debugStep("step7", "Pushing changes to remote", map[string]interface{}{
 		"branch_name":   branchName,
 		"worktree_path": worktreePath,
 	})
-	
+
 	app.ui.Info("Pushing changes...")
 	if err := app.gitOps.PushBranch(worktreePath, branchName); err != nil {
 		app.logger.Error("workflow", "Failed to push branch", map[string]interface{}{
@@ -118,7 +117,7 @@ func (app *CCWApp) pushChangesToRemote(branchName, worktreePath string) error {
 		})
 		return fmt.Errorf("failed to push changes: %w", err)
 	}
-	
+
 	app.debugStep("step7", "Branch pushed successfully", nil)
 	return nil
 }
@@ -160,10 +159,10 @@ func (app *CCWApp) waitForPRDescription(prDescResultChan <-chan types.PRDescript
 	startTime := time.Now()
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
-	
+
 	// Timer display channel
 	timerDone := make(chan bool, 1)
-	
+
 	// Start timer display goroutine
 	go func() {
 		for {
@@ -177,13 +176,13 @@ func (app *CCWApp) waitForPRDescription(prDescResultChan <-chan types.PRDescript
 			}
 		}
 	}()
-	
+
 	// Wait for completion or timeout
 	select {
 	case prDescResult := <-prDescResultChan:
 		// Stop timer display
 		timerDone <- true
-		
+
 		elapsed := time.Since(startTime).Round(time.Second)
 		if prDescResult.Error != nil {
 			app.ui.Warning(fmt.Sprintf("PR description generation failed after %s: %v", elapsed.String(), prDescResult.Error))
@@ -196,7 +195,7 @@ func (app *CCWApp) waitForPRDescription(prDescResultChan <-chan types.PRDescript
 	case <-time.After(2 * time.Minute): // Longer timeout for PR description
 		// Stop timer display
 		timerDone <- true
-		
+
 		elapsed := time.Since(startTime).Round(time.Second)
 		warningIcon := getConsoleChar("⚠️", "[WARNING]")
 		app.ui.Warning(fmt.Sprintf("%s PR description generation timed out after %s, using fallback", warningIcon, elapsed.String()))
@@ -209,10 +208,10 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 	loadingIcon := getConsoleChar("⏳", "[CREATING]")
 	app.ui.Info(fmt.Sprintf("%s Creating pull request...", loadingIcon))
 	prRequest := &types.PRRequest{
-		Title: fmt.Sprintf("Resolve #%d: %s", issue.Number, issue.Title),
-		Body:  prDescription,
-		Head:  branchName,
-		Base:  "master", // or "main"
+		Title:               fmt.Sprintf("Resolve #%d: %s", issue.Number, issue.Title),
+		Body:                prDescription,
+		Head:                branchName,
+		Base:                "master", // or "main"
 		MaintainerCanModify: true,
 	}
 
@@ -225,14 +224,14 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 			app.ui.UpdateProgress("pr_creation", "failed")
 			return fmt.Errorf("failed to create PR: %w", prResult.Error)
 		}
-		
+
 		app.ui.UpdateProgress("pr_creation", "completed")
 		successIcon := getConsoleChar("✅", "[SUCCESS]")
 		app.ui.Success(fmt.Sprintf("%s Pull request created: %s", successIcon, prResult.PullRequest.HTMLURL))
-		
+
 		// Step 5: Monitor CI checks (async, optional)
 		app.monitorCIChecks(prResult.PullRequest.HTMLURL)
-		
+
 	case <-time.After(1 * time.Minute):
 		app.ui.UpdateProgress("pr_creation", "failed")
 		return fmt.Errorf("PR creation timed out")
@@ -241,10 +240,10 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 	app.ui.UpdateProgress("complete", "completed")
 	celebrationIcon := getConsoleChar("🎉", "[COMPLETE]")
 	app.ui.Success(fmt.Sprintf("%s Async workflow completed successfully!", celebrationIcon))
-	
+
 	// Cleanup worktree
 	app.cleanupWorktree(worktreePath)
-	
+
 	return nil
 }
 
@@ -253,7 +252,7 @@ func (app *CCWApp) monitorCIChecks(prURL string) {
 	loadingIcon := getConsoleChar("⏳", "[MONITORING]")
 	app.ui.Info(fmt.Sprintf("%s Monitoring CI checks...", loadingIcon))
 	ciResultChan := app.prManager.MonitorPRChecksAsync(prURL, 5*time.Minute)
-	
+
 	select {
 	case ciResult := <-ciResultChan:
 		if ciResult.Error != nil {
@@ -271,7 +270,7 @@ func (app *CCWApp) cleanupWorktree(worktreePath string) {
 	app.debugStep("step8", "Cleaning up worktree", map[string]interface{}{
 		"worktree_path": worktreePath,
 	})
-	
+
 	app.ui.Info("Cleaning up worktree...")
 	if err := app.gitOps.RemoveWorktree(worktreePath); err != nil {
 		app.logger.Error("workflow", "Failed to cleanup worktree", map[string]interface{}{

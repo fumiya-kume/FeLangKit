@@ -33,7 +33,7 @@ func (lb *LogBuffer) AddEntry(entry types.LogEntry) {
 	defer lb.mutex.Unlock()
 
 	lb.entries = append(lb.entries, entry)
-	
+
 	// Keep only the last maxSize entries
 	if len(lb.entries) > lb.maxSize {
 		lb.entries = lb.entries[len(lb.entries)-lb.maxSize:]
@@ -44,7 +44,7 @@ func (lb *LogBuffer) AddEntry(entry types.LogEntry) {
 func (lb *LogBuffer) GetEntries() []types.LogEntry {
 	lb.mutex.RLock()
 	defer lb.mutex.RUnlock()
-	
+
 	// Return a copy to avoid race conditions
 	entries := make([]types.LogEntry, len(lb.entries))
 	copy(entries, lb.entries)
@@ -55,7 +55,7 @@ func (lb *LogBuffer) GetEntries() []types.LogEntry {
 func (lb *LogBuffer) GetEntriesAfter(after time.Time) []types.LogEntry {
 	lb.mutex.RLock()
 	defer lb.mutex.RUnlock()
-	
+
 	var filtered []types.LogEntry
 	for _, entry := range lb.entries {
 		if entry.Timestamp.After(after) {
@@ -74,14 +74,14 @@ func (lb *LogBuffer) Clear() {
 
 // LogViewerModel represents the log viewer component
 type LogViewerModel struct {
-	viewport     viewport.Model
-	buffer       *LogBuffer
-	width        int
-	height       int
-	showLevel    map[string]bool
-	autoScroll   bool
-	lastUpdate   time.Time
-	filterTerm   string
+	viewport   viewport.Model
+	buffer     *LogBuffer
+	width      int
+	height     int
+	showLevel  map[string]bool
+	autoScroll bool
+	lastUpdate time.Time
+	filterTerm string
 }
 
 // NewLogViewerModel creates a new log viewer model
@@ -135,7 +135,7 @@ func (m LogViewerModel) Update(msg tea.Msg) (LogViewerModel, tea.Cmd) {
 	case LogUpdateMsg:
 		// Update log content
 		m.updateLogContent()
-		
+
 		// Schedule next update
 		return m, tea.Tick(time.Millisecond*500, func(t time.Time) tea.Msg {
 			return LogUpdateMsg{}
@@ -197,7 +197,7 @@ func (m LogViewerModel) View() string {
 	header := m.renderHeader()
 	content := m.viewport.View()
 	footer := m.renderFooter()
-	
+
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		content,
@@ -208,7 +208,7 @@ func (m LogViewerModel) View() string {
 // renderHeader renders the log viewer header
 func (m LogViewerModel) renderHeader() string {
 	title := headerStyle.Render("📋 Live Logs")
-	
+
 	// Show active filters
 	var filters []string
 	for level, active := range m.showLevel {
@@ -227,9 +227,9 @@ func (m LogViewerModel) renderHeader() string {
 			filters = append(filters, style.Render(level))
 		}
 	}
-	
+
 	filterInfo := fmt.Sprintf("Showing: %s", strings.Join(filters, " "))
-	
+
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		title,
 		lipgloss.NewStyle().Width(m.width-lipgloss.Width(title)-lipgloss.Width(filterInfo)).Render(""),
@@ -246,15 +246,15 @@ func (m LogViewerModel) renderFooter() string {
 		"c: clear",
 		"d/i/w/e: toggle debug/info/warn/error",
 	}
-	
+
 	scrollInfo := fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100)
 	if m.autoScroll {
 		scrollInfo += " (auto)"
 	}
-	
+
 	controlsText := subtleStyle.Render(strings.Join(controls, " • "))
 	scrollText := subtleStyle.Render(scrollInfo)
-	
+
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		controlsText,
 		lipgloss.NewStyle().Width(m.width-lipgloss.Width(controlsText)-lipgloss.Width(scrollText)).Render(""),
@@ -273,32 +273,32 @@ func (m *LogViewerModel) updateLogContent() {
 	if len(entries) == 0 {
 		entries = m.buffer.GetEntries() // Get all if none recent
 	}
-	
+
 	var lines []string
 	for _, entry := range entries {
 		if !m.showLevel[entry.Level] {
 			continue
 		}
-		
+
 		line := m.formatLogEntry(entry)
 		lines = append(lines, line)
 	}
-	
+
 	content := strings.Join(lines, "\n")
 	m.viewport.SetContent(content)
-	
+
 	// Auto-scroll to bottom if enabled
 	if m.autoScroll {
 		m.viewport.GotoBottom()
 	}
-	
+
 	m.lastUpdate = time.Now()
 }
 
 // formatLogEntry formats a single log entry for display
 func (m LogViewerModel) formatLogEntry(entry types.LogEntry) string {
 	timestamp := entry.Timestamp.Format("15:04:05")
-	
+
 	// Style based on log level
 	var levelStyle lipgloss.Style
 	switch entry.Level {
@@ -313,18 +313,18 @@ func (m LogViewerModel) formatLogEntry(entry types.LogEntry) string {
 	default:
 		levelStyle = subtleStyle
 	}
-	
+
 	// Format: [15:04:05] LEVEL [component] message
 	levelText := levelStyle.Render(fmt.Sprintf("%-5s", entry.Level))
 	componentText := subtleStyle.Render(fmt.Sprintf("[%s]", entry.Component))
-	
+
 	// Truncate long messages to fit viewport
 	maxMessageWidth := m.viewport.Width - 25 // Account for timestamp, level, component
 	message := entry.Message
 	if len(message) > maxMessageWidth {
 		message = message[:maxMessageWidth-3] + "..."
 	}
-	
+
 	return fmt.Sprintf("%s %s %s %s",
 		subtleStyle.Render(timestamp),
 		levelText,

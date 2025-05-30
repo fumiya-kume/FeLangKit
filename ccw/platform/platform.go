@@ -14,17 +14,17 @@ import (
 
 // Platform detection and capabilities
 type PlatformInfo struct {
-	OS                string
-	Arch              string
-	SupportsColor     bool
-	SupportsUnicode   bool
-	DefaultShell      string
-	PathSeparator     string
-	LineEnding        string
-	TempDir           string
-	HomeDir           string
-	ExecutableExt     string
-	MaxPathLength     int
+	OS              string
+	Arch            string
+	SupportsColor   bool
+	SupportsUnicode bool
+	DefaultShell    string
+	PathSeparator   string
+	LineEnding      string
+	TempDir         string
+	HomeDir         string
+	ExecutableExt   string
+	MaxPathLength   int
 }
 
 // Get current platform information

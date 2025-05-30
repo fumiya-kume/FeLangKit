@@ -59,7 +59,7 @@ func NewLogger(sessionID string, enableFile bool) (*Logger, error) {
 
 		logFileName := fmt.Sprintf("ccw-%s.log", sessionID)
 		logFilePath := filepath.Join(logDir, logFileName)
-		
+
 		file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open log file: %w", err)
@@ -150,7 +150,7 @@ func (l *Logger) outputToConsole(entry types.LogEntry) {
 	if uiLogFunc != nil {
 		uiLogFunc(entry)
 	}
-	
+
 	// Also output to console (can be disabled when UI is active)
 	if !uiModeActive {
 		if l.enableJSON {
@@ -159,7 +159,7 @@ func (l *Logger) outputToConsole(entry types.LogEntry) {
 			}
 		} else {
 			timestamp := entry.Timestamp.Format("2006-01-02 15:04:05")
-			fmt.Printf("[%s] %s [%s] %s: %s\n", 
+			fmt.Printf("[%s] %s [%s] %s: %s\n",
 				timestamp, entry.Level, entry.Component, entry.SessionID, entry.Message)
 		}
 	}
@@ -178,7 +178,7 @@ func (l *Logger) outputToFile(entry types.LogEntry) {
 		}
 	} else {
 		timestamp := entry.Timestamp.Format("2006-01-02 15:04:05")
-		output = fmt.Sprintf("[%s] %s [%s] %s: %s\n", 
+		output = fmt.Sprintf("[%s] %s [%s] %s: %s\n",
 			timestamp, entry.Level, entry.Component, entry.SessionID, entry.Message)
 	}
 

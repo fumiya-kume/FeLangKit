@@ -21,7 +21,7 @@ func CreateGitCommand(args []string, workingDir string) *exec.Cmd {
 func CreateGitCommandWithTimeout(args []string, workingDir string, timeout time.Duration) *exec.Cmd {
 	ctx, _ := context.WithTimeout(context.Background(), timeout)
 	var cmd *exec.Cmd
-	
+
 	switch runtime.GOOS {
 	case "windows":
 		// On Windows, ensure git.exe is used
@@ -47,35 +47,35 @@ func CreateGitCommandWithTimeout(args []string, workingDir string, timeout time.
 		// Unix systems
 		cmd = exec.CommandContext(ctx, "git", args...)
 	}
-	
+
 	if workingDir != "" {
 		cmd.Dir = workingDir
 	}
-	
+
 	return cmd
 }
 
 // ExecuteGitCommandWithRetry executes git command with retry logic
 func ExecuteGitCommandWithRetry(args []string, workingDir string) error {
 	config := GetDefaultGitConfig()
-	
+
 	for attempt := 1; attempt <= config.RetryAttempts; attempt++ {
 		cmd := CreateGitCommandWithTimeout(args, workingDir, config.Timeout)
 		err := cmd.Run()
-		
+
 		if err == nil {
 			return nil // Success
 		}
-		
+
 		// Check if this is a timeout or network error that might benefit from retry
 		if attempt < config.RetryAttempts && isRetryableError(err) {
 			time.Sleep(config.RetryDelay)
 			continue
 		}
-		
+
 		return fmt.Errorf("git command failed after %d attempts: %w", attempt, err)
 	}
-	
+
 	return nil
 }
 
@@ -84,7 +84,7 @@ func isRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
-	
+
 	errStr := strings.ToLower(err.Error())
 	retryablePatterns := []string{
 		"timeout",
@@ -94,13 +94,13 @@ func isRetryableError(err error) bool {
 		"temporary failure",
 		"could not read from remote repository",
 	}
-	
+
 	for _, pattern := range retryablePatterns {
 		if strings.Contains(errStr, pattern) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

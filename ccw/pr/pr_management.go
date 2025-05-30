@@ -67,7 +67,7 @@ func (pm *PRManager) CreatePullRequest(req *types.PRRequest, worktreePath string
 	outputStr := strings.TrimSpace(string(output))
 	lines := strings.Split(outputStr, "\n")
 	var prURL string
-	
+
 	for _, line := range lines {
 		if strings.Contains(line, "github.com") && strings.Contains(line, "/pull/") {
 			prURL = strings.TrimSpace(line)
@@ -112,7 +112,7 @@ func (pm *PRManager) MonitorPRChecksAsync(prURL string, timeout time.Duration) <
 	return resultChan
 }
 
-// MonitorPRChecks monitors PR CI checks synchronously  
+// MonitorPRChecks monitors PR CI checks synchronously
 func (pm *PRManager) MonitorPRChecks(prURL string, timeout time.Duration) (*types.CIStatus, error) {
 	// Create command with timeout
 	cmdCtx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -127,23 +127,23 @@ func (pm *PRManager) MonitorPRChecks(prURL string, timeout time.Duration) (*type
 
 	// Parse the output to determine status
 	outputStr := strings.TrimSpace(string(output))
-	
+
 	// Basic parsing - in production this would be more sophisticated
 	status := &types.CIStatus{
 		LastUpdated: time.Now(),
 		URL:         prURL,
 	}
 
-	if strings.Contains(strings.ToLower(outputStr), "success") || 
-	   strings.Contains(strings.ToLower(outputStr), "passing") {
+	if strings.Contains(strings.ToLower(outputStr), "success") ||
+		strings.Contains(strings.ToLower(outputStr), "passing") {
 		status.Status = "success"
 		status.Conclusion = "success"
 	} else if strings.Contains(strings.ToLower(outputStr), "fail") ||
-			  strings.Contains(strings.ToLower(outputStr), "error") {
+		strings.Contains(strings.ToLower(outputStr), "error") {
 		status.Status = "failure"
 		status.Conclusion = "failure"
 	} else if strings.Contains(strings.ToLower(outputStr), "pending") ||
-			  strings.Contains(strings.ToLower(outputStr), "running") {
+		strings.Contains(strings.ToLower(outputStr), "running") {
 		status.Status = "pending"
 		status.Conclusion = "pending"
 	} else {

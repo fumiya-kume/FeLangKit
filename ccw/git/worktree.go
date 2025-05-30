@@ -36,7 +36,7 @@ func (g *GitOperations) CreateWorktree(branchName, worktreePath string) error {
 	// Create git worktree using cross-platform command with timeout
 	cmd := createGitCommandWithTimeout([]string{"worktree", "add", "-b", branchName, worktreePath, "HEAD"}, g.basePath, g.getTimeout())
 	cmd.Dir = g.basePath
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to create git worktree: %w\nOutput: %s", err, string(output))
@@ -49,7 +49,7 @@ func (g *GitOperations) CreateWorktree(branchName, worktreePath string) error {
 func (g *GitOperations) RemoveWorktree(worktreePath string) error {
 	cmd := exec.Command("git", "worktree", "remove", worktreePath, "--force")
 	cmd.Dir = g.basePath
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to remove git worktree: %w\nOutput: %s", err, string(output))
@@ -69,7 +69,7 @@ func (g *GitOperations) ListWorktrees() ([]string, error) {
 
 	lines := strings.Split(string(output), "\n")
 	var worktrees []string
-	
+
 	for _, line := range lines {
 		if strings.HasPrefix(line, "worktree ") {
 			worktreePath := strings.TrimPrefix(line, "worktree ")
@@ -116,7 +116,7 @@ func (g *GitOperations) GetChangedFiles(worktreePath string) ([]string, error) {
 func (g *GitOperations) PushBranch(worktreePath, branchName string) error {
 	cmd := exec.Command("git", "push", "-u", "origin", branchName)
 	cmd.Dir = worktreePath
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to push branch: %w\nOutput: %s", err, string(output))
@@ -140,7 +140,7 @@ func (g *GitOperations) CleanupOrphanedBranches() error {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "origin/issue-") {
 			branchName := strings.TrimPrefix(line, "origin/")
-			
+
 			// Delete the remote branch
 			deleteCmd := exec.Command("git", "push", "origin", "--delete", branchName)
 			deleteCmd.Dir = g.basePath
@@ -154,12 +154,11 @@ func (g *GitOperations) CleanupOrphanedBranches() error {
 	return nil
 }
 
-
 // Check for branch conflicts
 func (g *GitOperations) CheckBranchConflicts(branchName string) error {
 	cmd := exec.Command("git", "show-ref", "--verify", "--quiet", fmt.Sprintf("refs/heads/%s", branchName))
 	cmd.Dir = g.basePath
-	
+
 	if err := cmd.Run(); err == nil {
 		// Branch exists, need to handle conflict
 		return fmt.Errorf("branch %s already exists", branchName)

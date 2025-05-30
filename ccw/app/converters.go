@@ -10,7 +10,7 @@ func ConvertValidationResult(gitResult *git.ValidationResult) *types.ValidationR
 	if gitResult == nil {
 		return nil
 	}
-	
+
 	return &types.ValidationResult{
 		Success:     gitResult.Success,
 		LintResult:  convertLintResult(gitResult.LintResult),

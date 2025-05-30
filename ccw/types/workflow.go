@@ -18,14 +18,14 @@ type WorktreeConfig struct {
 }
 
 type ClaudeContext struct {
-	IssueData        *Issue                     `json:"issue_data"`
-	WorktreeConfig   *WorktreeConfig           `json:"worktree_config"`
-	ProjectPath      string                     `json:"project_path"`
-	ValidationErrors []ValidationError         `json:"validation_errors,omitempty"`
-	IsRetry          bool                      `json:"is_retry"`
-	RetryAttempt     int                       `json:"retry_attempt"`
-	MaxRetries       int                       `json:"max_retries"`
-	TaskType         string                    `json:"task_type"` // "implementation" or "pr_description"
+	IssueData        *Issue            `json:"issue_data"`
+	WorktreeConfig   *WorktreeConfig   `json:"worktree_config"`
+	ProjectPath      string            `json:"project_path"`
+	ValidationErrors []ValidationError `json:"validation_errors,omitempty"`
+	IsRetry          bool              `json:"is_retry"`
+	RetryAttempt     int               `json:"retry_attempt"`
+	MaxRetries       int               `json:"max_retries"`
+	TaskType         string            `json:"task_type"` // "implementation" or "pr_description"
 }
 
 type PRDescriptionRequest struct {
@@ -36,15 +36,15 @@ type PRDescriptionRequest struct {
 }
 
 type Config struct {
-	WorktreeBase         string             `json:"worktree_base"`
-	MaxRetries           int                `json:"max_retries"`
-	ClaudeTimeout        string             `json:"claude_timeout"`
-	DebugMode            bool               `json:"debug_mode"`
-	ThemeName            string             `json:"theme_name"`
-	AnimationsEnabled    bool               `json:"animations_enabled"`
-	PerformanceConfig    *PerformanceConfig `json:"performance_config,omitempty"`
-	GitTimeout           string             `json:"git_timeout,omitempty"`
-	GitRetryAttempts     int                `json:"git_retry_attempts,omitempty"`
+	WorktreeBase      string             `json:"worktree_base"`
+	MaxRetries        int                `json:"max_retries"`
+	ClaudeTimeout     string             `json:"claude_timeout"`
+	DebugMode         bool               `json:"debug_mode"`
+	ThemeName         string             `json:"theme_name"`
+	AnimationsEnabled bool               `json:"animations_enabled"`
+	PerformanceConfig *PerformanceConfig `json:"performance_config,omitempty"`
+	GitTimeout        string             `json:"git_timeout,omitempty"`
+	GitRetryAttempts  int                `json:"git_retry_attempts,omitempty"`
 }
 
 // Workflow and progress tracking models

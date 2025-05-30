@@ -37,13 +37,13 @@ type WorktreeConfig struct {
 
 // ValidationResult represents the result of code quality validation
 type ValidationResult struct {
-	Success     bool                      `json:"success"`
-	LintResult  *LintResult               `json:"lint_result,omitempty"`
-	BuildResult *BuildResult              `json:"build_result,omitempty"`
-	TestResult  *TestResult               `json:"test_result,omitempty"`
-	Errors      []types.ValidationError   `json:"errors,omitempty"`
-	Duration    time.Duration             `json:"duration"`
-	Timestamp   time.Time                 `json:"timestamp"`
+	Success     bool                    `json:"success"`
+	LintResult  *LintResult             `json:"lint_result,omitempty"`
+	BuildResult *BuildResult            `json:"build_result,omitempty"`
+	TestResult  *TestResult             `json:"test_result,omitempty"`
+	Errors      []types.ValidationError `json:"errors,omitempty"`
+	Duration    time.Duration           `json:"duration"`
+	Timestamp   time.Time               `json:"timestamp"`
 }
 
 // LintResult represents SwiftLint execution results
@@ -71,7 +71,6 @@ type TestResult struct {
 	Failed    int    `json:"failed"`
 }
 
-
 // QualityValidator handles code quality validation
 type QualityValidator struct {
 	swiftlintEnabled bool
@@ -89,14 +88,14 @@ type Issue struct {
 // CommitMessageGenerator handles AI-powered commit message generation
 type CommitMessageGenerator struct {
 	claudeIntegration interface{}
-	config           interface{}
+	config            interface{}
 }
 
 // GenerateEnhancedCommitMessage creates an AI-powered commit message
 func (cmg *CommitMessageGenerator) GenerateEnhancedCommitMessage(worktreePath string, issue *Issue) (string, error) {
 	// For now, return a simple commit message
 	// TODO: Implement AI-powered commit message generation
-	return fmt.Sprintf("feat: implement solution for issue #%d\n\n%s\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>", 
+	return fmt.Sprintf("feat: implement solution for issue #%d\n\n%s\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
 		issue.Number, issue.Title), nil
 }
 
@@ -110,23 +109,23 @@ type ChangePattern struct {
 
 // CommitAnalysis contains information about changes for commit message generation
 type CommitAnalysis struct {
-	ModifiedFiles   []string            `json:"modified_files"`
-	AddedFiles      []string            `json:"added_files"`
-	DeletedFiles    []string            `json:"deleted_files"`
-	DiffSummary     string              `json:"diff_summary"`
-	FileTypes       map[string]int      `json:"file_types"`
-	ChangeCategory  string              `json:"change_category"`
-	Scope           string              `json:"scope"`
-	IssueContext    *Issue              `json:"issue_context,omitempty"`
-	ChangePatterns  []ChangePattern     `json:"change_patterns"`
-	CommitMetadata  CommitMetadata      `json:"commit_metadata"`
+	ModifiedFiles  []string        `json:"modified_files"`
+	AddedFiles     []string        `json:"added_files"`
+	DeletedFiles   []string        `json:"deleted_files"`
+	DiffSummary    string          `json:"diff_summary"`
+	FileTypes      map[string]int  `json:"file_types"`
+	ChangeCategory string          `json:"change_category"`
+	Scope          string          `json:"scope"`
+	IssueContext   *Issue          `json:"issue_context,omitempty"`
+	ChangePatterns []ChangePattern `json:"change_patterns"`
+	CommitMetadata CommitMetadata  `json:"commit_metadata"`
 }
 
 // CommitMetadata contains additional context for commit generation
 type CommitMetadata struct {
-	Author        string    `json:"author"`
-	Timestamp     time.Time `json:"timestamp"`
-	BranchName    string    `json:"branch_name"`
-	IssueNumber   int       `json:"issue_number,omitempty"`
-	WorktreePath  string    `json:"worktree_path"`
+	Author       string    `json:"author"`
+	Timestamp    time.Time `json:"timestamp"`
+	BranchName   string    `json:"branch_name"`
+	IssueNumber  int       `json:"issue_number,omitempty"`
+	WorktreePath string    `json:"worktree_path"`
 }

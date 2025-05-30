@@ -141,7 +141,7 @@ func GetDefaultPerformanceConfig() *PerformanceConfig {
 func (po *PerformanceOptimizer) GetOptimalRefreshInterval() time.Duration {
 	po.mutex.RLock()
 	defer po.mutex.RUnlock()
-	
+
 	if po.adaptiveController != nil {
 		return po.adaptiveController.currentInterval
 	}
@@ -157,20 +157,20 @@ func (po *PerformanceOptimizer) GetPerformanceStats() *PerformanceMetrics {
 func (po *PerformanceOptimizer) DetectContentChange(content string) (bool, float64) {
 	po.mutex.Lock()
 	defer po.mutex.Unlock()
-	
+
 	if po.changeDetector == nil {
 		return true, 1.0 // Always update if no detector
 	}
-	
+
 	// Simple change detection based on content hash
 	currentHash := po.calculateContentHash(content)
 	hasChanged := currentHash != po.changeDetector.lastHash
-	
+
 	if hasChanged {
 		po.changeDetector.lastContent = content
 		po.changeDetector.lastHash = currentHash
 		po.changeDetector.changeHistory = append(po.changeDetector.changeHistory, time.Now())
-		
+
 		// Keep only recent changes (last 10 seconds)
 		cutoff := time.Now().Add(-10 * time.Second)
 		filtered := make([]time.Time, 0)
@@ -180,10 +180,10 @@ func (po *PerformanceOptimizer) DetectContentChange(content string) (bool, float
 			}
 		}
 		po.changeDetector.changeHistory = filtered
-		
+
 		return true, 1.0
 	}
-	
+
 	return false, 0.0
 }
 
@@ -199,7 +199,7 @@ func (po *PerformanceOptimizer) calculateContentHash(content string) string {
 func (po *PerformanceOptimizer) AccessibleMetrics() *PerformanceMetrics {
 	po.mutex.RLock()
 	defer po.mutex.RUnlock()
-	
+
 	// Create a copy to avoid race conditions
 	metricsCopy := *po.Metrics
 	return &metricsCopy
@@ -209,13 +209,13 @@ func (po *PerformanceOptimizer) AccessibleMetrics() *PerformanceMetrics {
 func (pm *PerformanceMetrics) String() string {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
-	
+
 	// Handle the case where MinRenderTime is uninitialized (1 hour default)
 	minRenderTime := pm.MinRenderTime
 	if minRenderTime >= time.Hour {
 		minRenderTime = 0 // Show 0 if no renders have occurred
 	}
-	
+
 	return fmt.Sprintf("PerformanceStats{TotalRenders:%d, SkippedRenders:%d, AvgRenderTime:%s, MaxRenderTime:%s, MinRenderTime:%s, ChangeRate:%.2f, OptLevel:%d, Adjustments:%d}",
 		pm.TotalRenders,
 		pm.SkippedRenders,

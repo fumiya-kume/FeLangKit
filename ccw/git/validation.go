@@ -114,7 +114,7 @@ func (qv *QualityValidator) runSwiftLint(projectPath string) (*LintResult, error
 	cmd := exec.Command("swiftlint", "lint")
 	cmd.Dir = projectPath
 	output, err := cmd.CombinedOutput()
-	
+
 	result.Output = string(output)
 	result.Success = err == nil
 
@@ -131,9 +131,9 @@ func (qv *QualityValidator) runSwiftLint(projectPath string) (*LintResult, error
 				}
 			}
 		}
-		
+
 		// Return detailed error with command context
-		return result, fmt.Errorf("swiftlint validation failed: %w\nOutput: %s\nFix attempt output: %s", 
+		return result, fmt.Errorf("swiftlint validation failed: %w\nOutput: %s\nFix attempt output: %s",
 			err, string(output), string(fixOutput))
 	}
 
@@ -196,7 +196,7 @@ func (qv *QualityValidator) runTests(projectPath string) (*TestResult, error) {
 	}
 
 	if err != nil {
-		return result, fmt.Errorf("swift test failed: %w\nOutput: %s\nTest results: %d passed, %d failed", 
+		return result, fmt.Errorf("swift test failed: %w\nOutput: %s\nTest results: %d passed, %d failed",
 			err, string(output), result.Passed, result.Failed)
 	}
 

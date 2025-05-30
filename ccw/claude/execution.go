@@ -25,14 +25,14 @@ func (ci *ClaudeIntegration) RunWithContext(ctx *types.ClaudeContext) error {
 		return fmt.Errorf("failed to write Claude context file: %w", err)
 	}
 	defer os.Remove(contextFile)
-	
+
 	// Create enhanced markdown context file (.claude-context.md)
 	mdContextFile := filepath.Join(ctx.ProjectPath, ".claude-context.md")
 	mdContent, err := ci.generateMarkdownContext(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to generate markdown context: %w", err)
 	}
-	
+
 	if err := os.WriteFile(mdContextFile, []byte(mdContent), 0644); err != nil {
 		return fmt.Errorf("failed to write markdown context file: %w", err)
 	}
@@ -61,7 +61,7 @@ func (ci *ClaudeIntegration) RunWithContext(ctx *types.ClaudeContext) error {
 		cmd.Stdin = strings.NewReader(claudeInput)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		
+
 		return cmd.Run()
 	} else {
 		// Non-interactive mode for retries
@@ -70,7 +70,7 @@ func (ci *ClaudeIntegration) RunWithContext(ctx *types.ClaudeContext) error {
 		if err != nil {
 			return fmt.Errorf("Claude Code execution failed: %w\nOutput: %s", err, string(output))
 		}
-		
+
 		fmt.Printf("Claude Code output:\n%s\n", string(output))
 		return nil
 	}
@@ -101,7 +101,7 @@ After making changes, run the validation sequence:
 swiftlint lint --fix && swiftlint lint && swift build && swift test
 
 Priority: Fix errors completely to pass validation on this attempt.
-`, 
+`,
 			ctx.RetryAttempt,
 			ctx.MaxRetries,
 			formatValidationErrorsDetailed(ctx.ValidationErrors),
@@ -122,7 +122,7 @@ Worktree Branch: %s
 
 Please implement the requested changes and run the complete validation sequence:
 swiftlint lint --fix && swiftlint lint && swift build && swift test
-`, 
+`,
 			ctx.IssueData.Number,
 			ctx.IssueData.Title,
 			ctx.IssueData.Body,
@@ -137,7 +137,7 @@ func formatValidationErrors(errors []types.ValidationError) string {
 	if len(errors) == 0 {
 		return "None"
 	}
-	
+
 	var errorStrings []string
 	for _, err := range errors {
 		errorStrings = append(errorStrings, fmt.Sprintf("- %s: %s", err.Type, err.Message))
@@ -150,25 +150,25 @@ func formatValidationErrorsDetailed(errors []types.ValidationError) string {
 	if len(errors) == 0 {
 		return "✅ No validation errors found."
 	}
-	
+
 	// Group errors by type
 	errorsByType := make(map[string][]types.ValidationError)
 	for _, err := range errors {
 		errorsByType[err.Type] = append(errorsByType[err.Type], err)
 	}
-	
+
 	var output strings.Builder
-	
+
 	for errorType, errs := range errorsByType {
 		output.WriteString(fmt.Sprintf("━━━ %s ERRORS (%d) ━━━\n", strings.ToUpper(errorType), len(errs)))
-		
+
 		for i, err := range errs {
 			output.WriteString(fmt.Sprintf("%d. ", i+1))
 			if err.File != "" && err.Line > 0 {
 				output.WriteString(fmt.Sprintf("📁 %s:%d\n", err.File, err.Line))
 			}
 			output.WriteString(fmt.Sprintf("   💬 %s\n", err.Message))
-			
+
 			// Add detailed cause information if available
 			if err.Cause != nil {
 				if err.Cause.Command != "" {
@@ -195,7 +195,7 @@ func formatValidationErrorsDetailed(errors []types.ValidationError) string {
 					}
 				}
 			}
-			
+
 			if err.Recoverable {
 				output.WriteString("   🔧 Recoverable: YES\n")
 			} else {
@@ -204,21 +204,21 @@ func formatValidationErrorsDetailed(errors []types.ValidationError) string {
 			output.WriteString("\n")
 		}
 	}
-	
+
 	// Add helpful recovery suggestions
 	output.WriteString("🔍 RECOVERY SUGGESTIONS:\n")
-	
+
 	if _, hasLint := errorsByType["lint"]; hasLint {
 		output.WriteString("• SwiftLint: Run 'swiftlint lint --fix' first, then manually fix remaining issues\n")
 	}
-	
+
 	if _, hasBuild := errorsByType["build"]; hasBuild {
 		output.WriteString("• Build: Check imports, types, and syntax. Look for compilation errors in output\n")
 	}
-	
+
 	if _, hasTest := errorsByType["test"]; hasTest {
 		output.WriteString("• Tests: Check test logic, assertions, and test data. Run individual tests to isolate issues\n")
 	}
-	
+
 	return output.String()
 }
