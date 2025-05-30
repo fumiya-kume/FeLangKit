@@ -340,6 +340,23 @@ public final class SymbolTable: @unchecked Sendable {
         return unusedSymbols
     }
 
+    /// Reset the symbol table to initial state.
+    public func reset() {
+        lock.lock()
+        defer { lock.unlock() }
+
+        scopes.removeAll()
+        scopeStack.removeAll()
+        currentScopeId = "global"
+        nextScopeId = 1
+
+        // Create global scope and add built-in functions
+        let globalScope = Scope(name: "global", kind: .global)
+        scopes["global"] = globalScope
+        scopeStack.append("global")
+        addBuiltinFunctions()
+    }
+
     // MARK: - Helper Methods
 
     private func generateScopeName(for kind: ScopeKind) -> String {

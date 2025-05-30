@@ -253,7 +253,6 @@ public enum NumberParsingStrategies {
         }
 
         let position = TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
-        let start = index
         var lexeme = ""
 
         // Collect what looks like a number, even if malformed
