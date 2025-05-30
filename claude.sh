@@ -1017,7 +1017,7 @@ generate_pr_description() {
     local files_modified=$(git diff --name-status "master..HEAD" | grep "^M" | cut -f2)
     
     # Create context message for Claude Code
-    local pr_context_message="I need you to generate a JSON-formatted PR description for the following GitHub issue implementation:
+    local pr_context_message="I need you to generate a well-structured Markdown PR description for the following GitHub issue implementation:
 
 **Issue #${ISSUE_NUMBER}: $issue_title**
 
@@ -1045,24 +1045,42 @@ $files_modified
 - ✅ Build successful
 - ✅ All tests passed
 
-Please generate a PR description in the JSON format specified in CLAUDE.md. The description should include:
-1. Summary of changes made
-2. Background context explaining why this implementation was needed
-3. Decision rationale for the approach chosen
-4. Implementation details and key changes
-5. Testing coverage and validation steps
-6. Impact assessment including any breaking changes
+Please generate a comprehensive Markdown PR description with the following sections:
 
-Return ONLY the JSON object, no additional text or markdown formatting."
+## Summary
+Brief overview of the changes made
+
+## Background
+- **Motivation:** Why this change was needed
+- **Problem Statement:** What issue this solves
+- **Decision Rationale:** Why this approach was chosen over alternatives
+
+## Implementation
+- **Approach:** High-level implementation strategy
+- **Key Changes:** List of major changes made
+- **Files Modified:** List of modified/created files
+- **Design Decisions:** Important design choices and their reasoning
+
+## Testing
+- **Test Coverage:** Description of tests added/updated
+- **Validation Steps:** Steps taken to validate the implementation
+- **Quality Checks:** SwiftLint, build, test results
+
+## Impact
+- **Breaking Changes:** Any breaking changes (or 'None')
+- **Performance Impact:** Expected performance implications
+- **Future Considerations:** How this enables future work
+
+Return ONLY the Markdown content, no additional formatting or comments."
 
     # Create temporary input file for Claude Code PR description generation
     local pr_input_file="${WORKTREE_PATH}/.claude-pr-input.txt"
     echo "$pr_context_message" > "$pr_input_file"
     
     # Create temporary output file to capture Claude Code response
-    local pr_output_file="${WORKTREE_PATH}/.claude-pr-output.json"
+    local pr_output_file="${WORKTREE_PATH}/.claude-pr-output.md"
     
-    info "Launching Claude Code to generate JSON PR description..."
+    info "Launching Claude Code to generate Markdown PR description..."
     
     # Start loading animation in background
     show_loading "Generating PR description with Claude Code" &
@@ -1070,51 +1088,28 @@ Return ONLY the JSON object, no additional text or markdown formatting."
     
     local claude_pr_error_file="${WORKTREE_PATH}/.claude-pr-error.log"
     
-    if timeout 180 claude --print --output-format json < "$pr_input_file" > "$pr_output_file" 2> "$claude_pr_error_file"; then
+    if timeout 180 claude --print < "$pr_input_file" > "$pr_output_file" 2> "$claude_pr_error_file"; then
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
         
-        # Extract the actual JSON content from Claude Code response
-        local extracted_json_file="${WORKTREE_PATH}/.claude-pr-extracted.json"
-        
-        # Try to extract JSON from the 'result' field and strip the "json\n" prefix
-        if jq -r '.result' "$pr_output_file" 2>/dev/null | sed 's/^json[[:space:]]*//g' > "$extracted_json_file" && [[ -s "$extracted_json_file" ]]; then
-            # Check if the extracted and cleaned result is valid JSON
-            if jq . "$extracted_json_file" >/dev/null 2>&1; then
+        # Check if we got a reasonable Markdown output
+        if [[ -s "$pr_output_file" ]]; then
+            local generated_content=$(cat "$pr_output_file")
+            if [[ -n "$generated_content" ]] && [[ ${#generated_content} -gt 50 ]]; then
                 success "PR description generated successfully"
-                cat "$extracted_json_file"
-                rm -f "$extracted_json_file"
+                cat "$pr_output_file"
                 return 0
             fi
         fi
         
-        # If that didn't work, try to extract just the JSON object from the result field
-        if jq -r '.result' "$pr_output_file" 2>/dev/null | grep -o '{.*}' > "$extracted_json_file" && [[ -s "$extracted_json_file" ]]; then
-            if jq . "$extracted_json_file" >/dev/null 2>&1; then
-                success "PR description generated successfully"
-                cat "$extracted_json_file"
-                rm -f "$extracted_json_file"
-                return 0
-            fi
-        fi
-        
-        # Final fallback - check if the whole response is valid JSON
-        if jq . "$pr_output_file" >/dev/null 2>&1; then
-            success "PR description generated successfully"
-            cat "$pr_output_file"
-            rm -f "$extracted_json_file"
-            return 0
-        fi
-        
-        # All extraction methods failed
-        warn "Claude Code output is not valid JSON, falling back to default format"
-        echo "Failed to generate valid JSON PR description. Using fallback format."
+        # If output is too short or empty, fall back to default
+        warn "Claude Code output is too short or empty, falling back to default format"
+        echo "Failed to generate valid Markdown PR description. Using fallback format."
         if [[ -s "$claude_pr_error_file" ]]; then
             error "Claude Code PR generation error output:"
             cat "$claude_pr_error_file"
         fi
-        rm -f "$extracted_json_file"
         return 1
     else
         local exit_code=$?
