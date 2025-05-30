@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Claude Worktree - Parallel Claude Code development with git worktree
 # Usage: ./claude-worktree.sh <github-issue-url>
@@ -8,6 +8,9 @@
 # development workflow including PR creation and CI monitoring.
 
 set -euo pipefail
+
+# ヘッダー行数（変更しやすいよう先頭で定義）
+HEADER_LINE_COUNT=8
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
@@ -80,6 +83,116 @@ CURRENT_STEP=0
 CURRENT_ACTIVITY=""
 STEP_DETAILS=()
 START_TIME=""
+HEADER_UPDATE_PID=""
+
+# ヘッダー描画関数
+draw_header() {
+    local current_time=$(date '+%Y-%m-%d %H:%M:%S')
+    local terminal_width=$(tput cols)
+    local border_line=$(printf '%*s' "$terminal_width" '' | tr ' ' '=')
+    
+    # カーソル位置を保存
+    tput sc
+    
+    # 画面左上へ移動
+    tput cup 0 0
+    
+    # Calculate elapsed time
+    local elapsed_time=""
+    if [[ -n "$START_TIME" ]]; then
+        local current_timestamp=$(date +%s)
+        local elapsed=$((current_timestamp - START_TIME))
+        local minutes=$((elapsed / 60))
+        local seconds=$((elapsed % 60))
+        elapsed_time=$(printf "⏱️  %02d:%02d" "$minutes" "$seconds")
+    fi
+    
+    # ヘッダー内容を表示
+    printf "%-${terminal_width}s" "🚀 FeLangKit Claude Worktree - ${ISSUE_TITLE:-'Loading...'}"
+    tput cup 1 0
+    printf "%-${terminal_width}s" "📅 Started: $(date -r ${START_TIME:-$(date +%s)} '+%Y-%m-%d %H:%M:%S') | Current: $current_time | $elapsed_time"
+    tput cup 2 0
+    printf "%-${terminal_width}s" "🌿 Branch: ${BRANCH_NAME:-'N/A'} | 📝 Issue: ${ISSUE_DESCRIPTION:-'N/A'}"
+    tput cup 3 0
+    
+    # Draw workflow steps in compact form
+    local step_line="🔄 Steps: "
+    for i in "${!WORKFLOW_STEPS[@]}"; do
+        local step="${WORKFLOW_STEPS[i]}"
+        local status_icon=""
+        
+        if [[ $i -lt $CURRENT_STEP ]]; then
+            status_icon="✓"
+        elif [[ $i -eq $CURRENT_STEP ]]; then
+            status_icon="►"
+        else
+            status_icon="○"
+        fi
+        
+        step_line+="$status_icon"
+        if [[ $i -lt $((${#WORKFLOW_STEPS[@]} - 1)) ]]; then
+            step_line+=" "
+        fi
+    done
+    
+    printf "%-${terminal_width}s" "$step_line"
+    tput cup 4 0
+    
+    # Current activity line
+    if [[ -n "$CURRENT_ACTIVITY" ]]; then
+        printf "%-${terminal_width}s" "💡 Activity: $CURRENT_ACTIVITY"
+    else
+        printf "%-${terminal_width}s" "💡 Activity: ${STEP_DETAILS[CURRENT_STEP]:-'Ready'}"
+    fi
+    tput cup 5 0
+    printf "%-${terminal_width}s" ""
+    tput cup 6 0
+    printf "%s" "$border_line"
+    tput cup 7 0
+    printf "%-${terminal_width}s" "📋 Output Log:"
+    
+    # カーソル位置を復元
+    tput rc
+}
+
+# スクロール領域設定関数
+enable_scroll_region() {
+    local terminal_height=$(tput lines)
+    local scroll_bottom=$((terminal_height - 1))
+    
+    # 初期ヘッダー描画
+    draw_header
+    
+    # スクロール領域を設定（ヘッダー行数以降を scroll 可能に）
+    tput csr $HEADER_LINE_COUNT $scroll_bottom
+    
+    # ログ出力開始位置へカーソル移動
+    tput cup $HEADER_LINE_COUNT 0
+    
+    # カーソルを非表示
+    tput civis
+}
+
+# 終了時クリーンアップ関数
+cleanup_terminal() {
+    local terminal_height=$(tput lines)
+    local scroll_bottom=$((terminal_height - 1))
+    
+    # ヘッダー更新プロセスを終了
+    if [[ -n "$HEADER_UPDATE_PID" ]]; then
+        kill $HEADER_UPDATE_PID 2>/dev/null || true
+        wait $HEADER_UPDATE_PID 2>/dev/null || true
+    fi
+    
+    # スクロール領域をリセット
+    tput csr 0 $scroll_bottom
+    
+    # カーソルを再表示
+    tput cnorm
+    
+    echo
+    echo "🏁 Terminal cleanup completed at $(date '+%Y-%m-%d %H:%M:%S')"
+}
 
 init_status_box() {
     local issue_title="$1"
@@ -122,117 +235,30 @@ init_status_box() {
     CURRENT_ACTIVITY=""
     START_TIME=$(date +%s)
     
-    # Calculate box dimensions
-    local title_len=${#ISSUE_TITLE}
-    local desc_len=${#ISSUE_DESCRIPTION}
-    local branch_len=$((${#branch_name} + 9)) # "Branch: " prefix
-    local max_width=$((title_len > desc_len ? title_len : desc_len))
-    max_width=$((max_width > branch_len ? max_width : branch_len))
-    max_width=$((max_width > 80 ? max_width : 80))  # Increased min width for details
-    max_width=$((max_width + 4)) # padding
+    # Initialize terminal display
+    enable_scroll_region
     
-    # Draw status box
-    draw_status_box "$max_width"
-}
-
-draw_status_box() {
-    local width="$1"
-    local border_line=$(printf "╔%*s╗" $((width-2)) "" | tr ' ' '═')
-    local empty_line=$(printf "║%*s║" $((width-2)) "")
-    
-    # Calculate elapsed time
-    local elapsed_time=""
-    if [[ -n "$START_TIME" ]]; then
-        local current_time=$(date +%s)
-        local elapsed=$((current_time - START_TIME))
-        local minutes=$((elapsed / 60))
-        local seconds=$((elapsed % 60))
-        elapsed_time=$(printf "⏱️  %02d:%02d" "$minutes" "$seconds")
-    fi
-    
-    # Clear previous status box area without moving cursor to top
-    if [[ $STATUS_BOX_LINES -gt 0 ]]; then
-        for ((i=0; i<STATUS_BOX_LINES; i++)); do
-            echo -ne "\033[K\033[A" # Clear line and move up
+    # Start background header update process
+    (
+        while true; do
+            sleep 2
+            draw_header
         done
-    fi
-    
-    STATUS_BOX_LINES=0
-    echo -e "${BLUE}$border_line${NC}"; ((STATUS_BOX_LINES++))
-    echo -e "${BLUE}║${NC} ${GREEN}${ISSUE_TITLE}$(printf "%*s" $((width-4-${#ISSUE_TITLE})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
-    echo -e "${BLUE}║${NC} ${YELLOW}${ISSUE_DESCRIPTION}$(printf "%*s" $((width-4-${#ISSUE_DESCRIPTION})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
-    
-    # Branch and elapsed time line
-    local branch_info="Branch: ${CYAN}${BRANCH_NAME}${NC}"
-    local branch_info_len=$((9 + ${#BRANCH_NAME}))  # "Branch: " + branch name
-    local elapsed_info_len=0
-    if [[ -n "$elapsed_time" ]]; then
-        elapsed_info_len=${#elapsed_time}
-        local spacing=$((width - 4 - branch_info_len - elapsed_info_len))
-        echo -e "${BLUE}║${NC} ${branch_info}$(printf "%*s" "$spacing" "")${PURPLE}${elapsed_time}${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
-    else
-        echo -e "${BLUE}║${NC} ${branch_info}$(printf "%*s" $((width-4-branch_info_len)) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
-    fi
-    
-    echo -e "${BLUE}║$(printf "%*s" $((width-2)) "")║${NC}"; ((STATUS_BOX_LINES++))
-    
-    # Draw workflow steps
-    for i in "${!WORKFLOW_STEPS[@]}"; do
-        local step="${WORKFLOW_STEPS[i]}"
-        local status_icon=""
-        local color=""
-        
-        if [[ $i -lt $CURRENT_STEP ]]; then
-            status_icon="✓"
-            color="${GREEN}"
-        elif [[ $i -eq $CURRENT_STEP ]]; then
-            status_icon="►"
-            color="${YELLOW}"
-        else
-            status_icon="○"
-            color="${NC}"  # Use default color instead of undefined GRAY
-        fi
-        
-        echo -e "${BLUE}║${NC} ${color}${status_icon} ${step}$(printf "%*s" $((width-6-${#step})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
-    done
-    
-    # Show current activity if set
-    if [[ -n "$CURRENT_ACTIVITY" ]]; then
-        echo -e "${BLUE}║$(printf "%*s" $((width-2)) "")║${NC}"; ((STATUS_BOX_LINES++))
-        local activity_text="  💡 ${CURRENT_ACTIVITY}"
-        echo -e "${BLUE}║${NC} ${CYAN}${activity_text}$(printf "%*s" $((width-4-${#activity_text})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
-    fi
-    
-    # Show current step detail if available
-    if [[ $CURRENT_STEP -lt ${#STEP_DETAILS[@]} ]]; then
-        echo -e "${BLUE}║$(printf "%*s" $((width-2)) "")║${NC}"; ((STATUS_BOX_LINES++))
-        local detail_text="  ${STEP_DETAILS[CURRENT_STEP]}"
-        echo -e "${BLUE}║${NC} ${NC}${detail_text}$(printf "%*s" $((width-4-${#detail_text})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
-    fi
-    
-    echo -e "${BLUE}║$(printf "%*s" $((width-2)) "")║${NC}"; ((STATUS_BOX_LINES++))
-    local bottom_line=$(printf "╚%*s╝" $((width-2)) "" | tr ' ' '═')
-    echo -e "${BLUE}$bottom_line${NC}"; ((STATUS_BOX_LINES++))
-    
-    # Move cursor below status box
-    echo
+    ) &
+    HEADER_UPDATE_PID=$!
 }
 
 update_step() {
     local step_number="$1"
     CURRENT_STEP="$step_number"
     CURRENT_ACTIVITY=""  # Clear activity when step changes
-    # Use calculated width for proper formatting
-    local width=$((${#ISSUE_TITLE} > 80 ? ${#ISSUE_TITLE} + 4 : 84))
-    draw_status_box "$width"
+    # Header will be updated automatically by background process
 }
 
 update_activity() {
     local activity="$1"
     CURRENT_ACTIVITY="$activity"
-    # Use calculated width for proper formatting
-    local width=$((${#ISSUE_TITLE} > 80 ? ${#ISSUE_TITLE} + 4 : 84))
-    draw_status_box "$width"
+    # Header will be updated automatically by background process
 }
 
 update_step_with_activity() {
@@ -240,9 +266,7 @@ update_step_with_activity() {
     local activity="$2"
     CURRENT_STEP="$step_number"
     CURRENT_ACTIVITY="$activity"
-    # Use calculated width for proper formatting
-    local width=$((${#ISSUE_TITLE} > 80 ? ${#ISSUE_TITLE} + 4 : 84))
-    draw_status_box "$width"
+    # Header will be updated automatically by background process
 }
 
 draw_progress_bar() {
@@ -404,6 +428,9 @@ show_loading() {
 }
 
 cleanup() {
+    # Clean up terminal first
+    cleanup_terminal
+    
     log "Cleanup initiated..."
     if [[ -n "$ISSUE_DATA_FILE" && -f "$ISSUE_DATA_FILE" ]]; then
         rm -f "$ISSUE_DATA_FILE"
@@ -430,7 +457,7 @@ cleanup() {
     fi
 }
 
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 usage() {
     cat << EOF
