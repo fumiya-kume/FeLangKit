@@ -514,12 +514,26 @@ $(jq -r '.body // "No description provided"' "$ISSUE_DATA_FILE")
 **Labels:** $(jq -r '.labels | join(", ")' "$ISSUE_DATA_FILE")
 **Branch:** $BRANCH_NAME
 
+## Quality Requirements
 Please implement this according to the project's coding standards and ensure:
-1. All existing tests continue to pass
-2. SwiftLint validation passes
-3. Code builds successfully
+1. **SwiftLint validation passes** - Run \`swiftlint lint\` frequently during development
+2. **Code builds successfully** - Run \`swift build\` to verify compilation
+3. **All tests pass** - Run \`swift test\` to ensure functionality
 4. Add appropriate tests for new functionality
 5. Follow the established architecture patterns
+
+## Development Workflow
+During implementation, please run these commands frequently:
+- \`swiftlint lint --fix\` - Auto-fix style issues
+- \`swiftlint lint\` - Check for remaining issues
+- \`swift build\` - Verify code compiles
+- \`swift test\` - Run the test suite
+
+## Quality Command Sequence
+For comprehensive validation, run:
+\`\`\`bash
+swiftlint lint --fix && swiftlint lint && swift build && swift test
+\`\`\`
 
 After implementation, please:
 1. Create appropriate commits with conventional commit messages
@@ -591,10 +605,27 @@ launch_claude_code_with_errors() {
 
 $validation_errors
 
-Please fix these issues and ensure:
-1. SwiftLint validation passes (\`swiftlint lint\`)
-2. Code builds successfully (\`swift build\`)
-3. All tests pass (\`swift test\`)
+## Fix These Issues
+Please fix these issues and ensure quality standards are met.
+
+## Development Workflow
+During fixes, please run these commands frequently:
+- \`swiftlint lint --fix\` - Auto-fix style issues  
+- \`swiftlint lint\` - Check for remaining issues
+- \`swift build\` - Verify code compiles
+- \`swift test\` - Run the test suite
+
+## Quality Command Sequence
+For comprehensive validation, run:
+\`\`\`bash
+swiftlint lint --fix && swiftlint lint && swift build && swift test
+\`\`\`
+
+## Requirements
+Ensure all of the following pass:
+1. **SwiftLint validation passes** - \`swiftlint lint\` should show no errors
+2. **Code builds successfully** - \`swift build\` should complete without errors
+3. **All tests pass** - \`swift test\` should show all tests passing
 4. Follow the established architecture patterns
 
 After fixing the issues, I'll run validation again automatically."
