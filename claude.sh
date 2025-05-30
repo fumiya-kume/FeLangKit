@@ -9,8 +9,9 @@
 
 set -euo pipefail
 
-# ヘッダー行数（変更しやすいよう先頭で定義）
-HEADER_LINE_COUNT=8
+# ヘッダー行数（動的に計算される）
+HEADER_LINE_COUNT=0
+CALCULATED_HEADER_LINES=0
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
@@ -84,18 +85,12 @@ CURRENT_ACTIVITY=""
 STEP_DETAILS=()
 START_TIME=""
 HEADER_UPDATE_PID=""
+HEADER_CONTENT=()
 
-# ヘッダー描画関数
-draw_header() {
+# ヘッダー内容を計算する関数
+calculate_header_content() {
     local current_time=$(date '+%Y-%m-%d %H:%M:%S')
     local terminal_width=$(tput cols)
-    local border_line=$(printf '%*s' "$terminal_width" '' | tr ' ' '=')
-    
-    # カーソル位置を保存
-    tput sc
-    
-    # 画面左上へ移動
-    tput cup 0 0
     
     # Calculate elapsed time
     local elapsed_time=""
@@ -107,49 +102,113 @@ draw_header() {
         elapsed_time=$(printf "⏱️  %02d:%02d" "$minutes" "$seconds")
     fi
     
-    # ヘッダー内容を表示
-    printf "%-${terminal_width}s" "🚀 FeLangKit Claude Worktree - ${ISSUE_TITLE:-'Loading...'}"
-    tput cup 1 0
-    printf "%-${terminal_width}s" "📅 Started: $(date -r ${START_TIME:-$(date +%s)} '+%Y-%m-%d %H:%M:%S') | Current: $current_time | $elapsed_time"
-    tput cup 2 0
-    printf "%-${terminal_width}s" "🌿 Branch: ${BRANCH_NAME:-'N/A'} | 📝 Issue: ${ISSUE_DESCRIPTION:-'N/A'}"
-    tput cup 3 0
+    # Prepare header content lines
+    HEADER_CONTENT=()
     
-    # Draw workflow steps in compact form
-    local step_line="🔄 Steps: "
-    for i in "${!WORKFLOW_STEPS[@]}"; do
-        local step="${WORKFLOW_STEPS[i]}"
-        local status_icon=""
-        
-        if [[ $i -lt $CURRENT_STEP ]]; then
-            status_icon="✓"
-        elif [[ $i -eq $CURRENT_STEP ]]; then
-            status_icon="►"
-        else
-            status_icon="○"
-        fi
-        
-        step_line+="$status_icon"
-        if [[ $i -lt $((${#WORKFLOW_STEPS[@]} - 1)) ]]; then
-            step_line+=" "
-        fi
-    done
+    # Top border
+    HEADER_CONTENT+=("$(printf '╔%*s╗' $((terminal_width-2)) '' | tr ' ' '═')")
     
-    printf "%-${terminal_width}s" "$step_line"
-    tput cup 4 0
+    # Title line
+    local title_text="🚀 FeLangKit Claude Worktree - ${ISSUE_TITLE:-'Loading...'}"
+    HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$title_text")")
     
-    # Current activity line
-    if [[ -n "$CURRENT_ACTIVITY" ]]; then
-        printf "%-${terminal_width}s" "💡 Activity: $CURRENT_ACTIVITY"
-    else
-        printf "%-${terminal_width}s" "💡 Activity: ${STEP_DETAILS[CURRENT_STEP]:-'Ready'}"
+    # Time info line
+    local time_text="📅 Started: $(date -r ${START_TIME:-$(date +%s)} '+%Y-%m-%d %H:%M:%S') | Current: $current_time"
+    if [[ -n "$elapsed_time" ]]; then
+        time_text="$time_text | $elapsed_time"
     fi
-    tput cup 5 0
-    printf "%-${terminal_width}s" ""
-    tput cup 6 0
-    printf "%s" "$border_line"
-    tput cup 7 0
-    printf "%-${terminal_width}s" "📋 Output Log:"
+    HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$time_text")")
+    
+    # Branch and issue line
+    local branch_text="🌿 Branch: ${BRANCH_NAME:-'N/A'} | 📝 Issue: ${ISSUE_DESCRIPTION:-'N/A'}"
+    HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$branch_text")")
+    
+    # Separator line
+    HEADER_CONTENT+=("$(printf '║%*s║' $((terminal_width-2)) '' | tr ' ' '─')")
+    
+    # Workflow steps - each step on its own line for better readability
+    if [[ ${#WORKFLOW_STEPS[@]} -gt 0 ]]; then
+        local steps_header="🔄 Workflow Steps:"
+        HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$steps_header")")
+        
+        for i in "${!WORKFLOW_STEPS[@]}"; do
+            local step="${WORKFLOW_STEPS[i]}"
+            local status_icon=""
+            local color_prefix=""
+            local color_suffix=""
+            
+            if [[ $i -lt $CURRENT_STEP ]]; then
+                status_icon="✅"
+                color_prefix="${GREEN}"
+                color_suffix="${NC}"
+            elif [[ $i -eq $CURRENT_STEP ]]; then
+                status_icon="🔵"
+                color_prefix="${YELLOW}"
+                color_suffix="${NC}"
+            else
+                status_icon="⚪"
+                color_prefix=""
+                color_suffix=""
+            fi
+            
+            local step_text="  $((i+1)). $status_icon $step"
+            HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$step_text")")
+        done
+    fi
+    
+    # Add separator before activity section
+    if [[ -n "$CURRENT_ACTIVITY" ]] || [[ $CURRENT_STEP -lt ${#STEP_DETAILS[@]} && -n "${STEP_DETAILS[CURRENT_STEP]}" ]]; then
+        HEADER_CONTENT+=("$(printf '║%*s║' $((terminal_width-2)) '' | tr ' ' '─')")
+    fi
+    
+    # Current activity line (only if there's activity)
+    if [[ -n "$CURRENT_ACTIVITY" ]]; then
+        local activity_text="💡 Current Activity: $CURRENT_ACTIVITY"
+        HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$activity_text")")
+    elif [[ $CURRENT_STEP -lt ${#STEP_DETAILS[@]} && -n "${STEP_DETAILS[CURRENT_STEP]}" ]]; then
+        local activity_text="💡 Current Activity: ${STEP_DETAILS[CURRENT_STEP]}"
+        HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$activity_text")")
+    fi
+    
+    # Bottom border
+    HEADER_CONTENT+=("$(printf '╚%*s╝' $((terminal_width-2)) '' | tr ' ' '═')")
+    
+    # Output log separator
+    HEADER_CONTENT+=("📋 Output Log:")
+    HEADER_CONTENT+=("")  # Empty line for spacing
+    
+    # Update calculated header line count
+    CALCULATED_HEADER_LINES=${#HEADER_CONTENT[@]}
+}
+
+# ヘッダー描画関数
+draw_header() {
+    # Calculate header content first
+    calculate_header_content
+    
+    # カーソル位置を保存
+    tput sc
+    
+    # 画面左上へ移動して描画
+    tput cup 0 0
+    
+    # Draw each line of the header
+    for i in "${!HEADER_CONTENT[@]}"; do
+        local line="${HEADER_CONTENT[i]}"
+        tput cup $i 0
+        
+        # Color the border lines
+        if [[ "$line" =~ ^╔.*╗$ ]] || [[ "$line" =~ ^╚.*╝$ ]]; then
+            printf "${BLUE}%s${NC}" "$line"
+        elif [[ "$line" =~ ^║.*║$ ]]; then
+            printf "${BLUE}%s${NC}" "$line"
+        else
+            printf "%s" "$line"
+        fi
+        
+        # Clear rest of line
+        tput el
+    done
     
     # カーソル位置を復元
     tput rc
@@ -160,10 +219,11 @@ enable_scroll_region() {
     local terminal_height=$(tput lines)
     local scroll_bottom=$((terminal_height - 1))
     
-    # 初期ヘッダー描画
+    # 初期ヘッダー描画して行数を計算
     draw_header
+    HEADER_LINE_COUNT=$CALCULATED_HEADER_LINES
     
-    # スクロール領域を設定（ヘッダー行数以降を scroll 可能に）
+    # スクロール領域を設定（動的に計算されたヘッダー行数以降を scroll 可能に）
     tput csr $HEADER_LINE_COUNT $scroll_bottom
     
     # ログ出力開始位置へカーソル移動
@@ -190,7 +250,17 @@ cleanup_terminal() {
     # カーソルを再表示
     tput cnorm
     
-    echo
+    # Clear header area
+    if [[ $CALCULATED_HEADER_LINES -gt 0 ]]; then
+        for ((i=0; i<CALCULATED_HEADER_LINES; i++)); do
+            tput cup $i 0
+            tput el
+        done
+    fi
+    
+    # Move cursor to top
+    tput cup 0 0
+    
     echo "🏁 Terminal cleanup completed at $(date '+%Y-%m-%d %H:%M:%S')"
 }
 
@@ -241,8 +311,19 @@ init_status_box() {
     # Start background header update process
     (
         while true; do
-            sleep 2
+            sleep 1
+            # Only redraw if the content might have changed
+            local old_header_lines=$CALCULATED_HEADER_LINES
             draw_header
+            
+            # If header size changed, update scroll region
+            if [[ $CALCULATED_HEADER_LINES -ne $old_header_lines ]]; then
+                local terminal_height=$(tput lines)
+                local scroll_bottom=$((terminal_height - 1))
+                HEADER_LINE_COUNT=$CALCULATED_HEADER_LINES
+                tput csr $HEADER_LINE_COUNT $scroll_bottom
+                tput cup $HEADER_LINE_COUNT 0
+            fi
         done
     ) &
     HEADER_UPDATE_PID=$!
