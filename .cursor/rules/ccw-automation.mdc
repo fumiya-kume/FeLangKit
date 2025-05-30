@@ -1,0 +1,102 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# CCW (Claude Code Workflow) Automation
+
+## Overview
+CCW provides automated GitHub issue processing with intelligent error recovery. See [ccw/DEBUG.md](mdc:ccw/DEBUG.md) for comprehensive debugging documentation.
+
+## Quick Commands
+
+### Issue Processing
+```bash
+# Basic issue processing
+ccw https://github.com/owner/repo/issues/123
+
+# With debug logging
+ccw --debug https://github.com/owner/repo/issues/123
+
+# Full trace mode for crash investigation
+ccw --trace https://github.com/owner/repo/issues/123
+```
+
+### Environment Variables
+```bash
+export DEBUG_MODE=true
+export VERBOSE_MODE=true
+export CCW_LOG_FILE=true
+```
+
+## Debug and Crash Recovery
+
+### Log Locations
+- **Main logs**: `.ccw/logs/ccw-{session-id}.log`
+- **Crash reports**: `.ccw/crashes/crash-{session-id}.json`
+- **Error store**: `.ccw/logs/errors.json`
+
+### Debug Modes
+1. **`--debug`**: Basic debugging with detailed logging
+2. **`--verbose`**: Includes GitHub API responses and git outputs
+3. **`--trace`**: Full function tracing with stack traces
+
+### Crash Investigation
+When CCW crashes during PR creation:
+1. Check crash report in `.ccw/crashes/`
+2. Review error logs for GitHub API issues
+3. Verify authentication: `gh auth status`
+4. Check branch conflicts and permissions
+
+## Workflow Steps
+
+### Automated Process
+1. **Issue Extraction**: Parse GitHub issue URL
+2. **GitHub API**: Fetch issue data and repository info
+3. **Worktree Creation**: Create isolated git worktree
+4. **Context Preparation**: Load project structure and documentation
+5. **Claude Code Execution**: AI-powered code implementation
+6. **Validation**: SwiftLint, build, and test verification
+7. **Git Operations**: Commit, push, and PR creation
+8. **CI Monitoring**: Watch GitHub Actions until completion
+
+### Error Recovery
+- Automatic retry loop with intelligent error fixing
+- SwiftLint auto-fix integration
+- Build error diagnosis and resolution
+- Test failure analysis and corrections
+
+## Integration with FeLangKit
+
+### Pre-requisites
+```bash
+brew install gh jq swiftlint
+gh auth login
+```
+
+### Quality Gates
+- SwiftLint compliance per [.swiftlint.yml](mdc:.swiftlint.yml)
+- Successful Swift build: `swift build`
+- All tests passing: `swift test`
+- No breaking changes to public APIs
+
+### PR Standards
+- Title format: "Resolve #123: [Issue Title]"
+- Comprehensive task list with checkboxes
+- Context recap and implementation summary
+- "Generated with Cursor-Agent" footer
+
+## Troubleshooting
+
+### Common Issues
+- **PR Creation Failures**: Check GitHub permissions and branch conflicts
+- **Authentication Errors**: Verify `gh auth status` and token permissions
+- **Build Failures**: Review SwiftLint errors and dependency issues
+- **Test Failures**: Check test data and golden file mismatches
+
+### Performance Impact
+- Debug mode: ~5% overhead
+- Verbose mode: ~10-15% overhead  
+- Trace mode: ~20-25% overhead
+
+Use debug modes only when investigating issues.
