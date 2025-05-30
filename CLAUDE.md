@@ -320,3 +320,50 @@ When creating pull requests (handled automatically by claude.sh), the descriptio
 ## Repository Workflow Notes
 
 - master branch can't push directly, you have to create branch before commit. and then you can create PR
+
+## ⚠️ Critical Automation Warnings & Best Practices
+
+### Claude Code CLI Usage
+- **NEVER use non-existent flags**: `claude --format json` doesn't exist and will cause process hangs
+- **Correct interactive mode**: Use `claude` for interactive sessions
+- **Correct non-interactive**: Use `claude --print` for automated output
+- **JSON output**: Use `claude --print --output-format json` when JSON format is needed
+- **Timeout protection**: Always use `timeout` command for automated Claude Code invocations to prevent infinite hangs
+
+### Process Management & Hanging Prevention
+- **Interactive vs Non-Interactive**: Don't try to pipe input to interactive Claude Code sessions - this causes indefinite hanging
+- **Background Process Cleanup**: Always kill background processes (loading spinners) and wait for them to prevent zombie processes
+- **Input Redirection**: When redirecting input to commands, ensure the command expects non-interactive input
+- **Loading Animations**: Use background processes for loading animations but always clean them up properly
+
+### Git Worktree & Branch Management
+- **Branch Protection**: Direct pushes to master are blocked - always create feature branches
+- **Worktree Isolation**: Use git worktrees for parallel development to avoid conflicts
+- **Cleanup Strategy**: Always clean up temporary files, worktrees, and background processes
+- **Commit Standards**: Follow conventional commit format with scope and issue references
+
+### Error Handling & User Experience
+- **Timeout Mechanisms**: Implement timeouts for all network operations and external command calls
+- **Progress Visualization**: Provide visual feedback for operations that take more than a few seconds
+- **Error Context**: Capture and display meaningful error messages with context
+- **Graceful Degradation**: Provide fallback options when automated processes fail
+
+### Quality Workflow Integration
+- **Continuous Validation**: Run `swiftlint lint --fix && swiftlint lint && swift build && swift test` frequently during development
+- **Real-time Feedback**: Integrate quality checks into the development workflow, not just at the end
+- **Loading Indicators**: Provide visual feedback during quality checks to improve user experience
+- **Context-Aware Prompts**: Include specific command examples and workflow guidance in Claude Code context messages
+
+### Automation Script Development
+- **Status Box Updates**: Implement real-time progress tracking with visual status indicators
+- **Activity Tracking**: Show current operation being performed with detailed progress information
+- **Progress Bars**: Use visual progress bars for operations with known durations
+- **Comprehensive Loading**: Add loading indicators to all operations (API calls, git operations, validation) for better UX
+
+### Common Pitfalls to Avoid
+1. **Claude CLI Flag Errors**: Using invalid flags like `--format json` causes silent failures
+2. **Process Hanging**: Mixing interactive and non-interactive modes without proper handling
+3. **Missing Timeouts**: Operations without timeouts can hang indefinitely in automation
+4. **Poor UX**: Lack of visual feedback during long-running operations confuses users
+5. **Incomplete Cleanup**: Not cleaning up background processes and temporary files
+6. **Manual Confirmations**: Automation scripts should minimize or eliminate manual prompts
