@@ -437,9 +437,14 @@ func (ui *UIManager) GetAnimations() bool {
 }
 
 // Enhanced UI methods that can use Bubble Tea
-// Note: Enhanced methods are defined in bubbletea_manager.go to avoid circular dependencies
+// Note: Enhanced methods now use the unified CCWApp
 
-// GetBubbleTeaManager creates a new Bubble Tea manager for this UI
+// GetCCWApp creates a new unified CCW application
+func (ui *UIManager) GetCCWApp() *CCWApp {
+	return NewCCWApp(ui)
+}
+
+// GetBubbleTeaManager creates a new Bubble Tea manager for this UI (legacy compatibility)
 func (ui *UIManager) GetBubbleTeaManager() *BubbleTeaManager {
 	return NewBubbleTeaManager(ui)
 }
@@ -451,7 +456,7 @@ func (ui *UIManager) ShouldUseBubbleTea() bool {
 		return false
 	}
 	
-	// Default to Bubble Tea if terminal supports it
-	btm := NewBubbleTeaManager(ui)
-	return btm.CanRunInteractive()
+	// Use the unified app to check compatibility
+	app := NewCCWApp(ui)
+	return app.CanRunInteractive()
 }

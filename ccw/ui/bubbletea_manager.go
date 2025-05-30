@@ -175,64 +175,20 @@ func (btm *BubbleTeaManager) CanRunInteractive() bool {
 
 // Enhanced UIManager methods that integrate with Bubble Tea
 
-// DisplayIssueSelectionEnhanced shows issue selection with Bubble Tea if available
+// DisplayIssueSelectionEnhanced shows issue selection using the unified CCW app
 func (ui *UIManager) DisplayIssueSelectionEnhanced(issues []*types.Issue) ([]*types.Issue, error) {
-	btm := NewBubbleTeaManager(ui)
-	
-	if btm.CanRunInteractive() && ui.GetAnimations() {
-		return btm.DisplayIssueSelectionInteractive(issues)
-	}
-	
-	// Fallback to original line-mode selection
-	return ui.DisplayIssueSelection(issues)
+	app := NewCCWApp(ui)
+	return app.RunIssueSelection(issues)
 }
 
-// DisplayProgressEnhanced shows progress tracking with Bubble Tea if available
+// DisplayProgressEnhanced shows progress tracking using the unified CCW app
 func (ui *UIManager) DisplayProgressEnhanced(steps []types.WorkflowStep) error {
-	btm := NewBubbleTeaManager(ui)
-	
-	if btm.CanRunInteractive() && ui.GetAnimations() {
-		return btm.DisplayProgressInteractive(steps)
-	}
-	
-	// Fallback to original progress display
-	ui.InitializeProgress()
-	ui.DisplayProgressHeaderWithBackground()
-	return nil
+	app := NewCCWApp(ui)
+	return app.RunProgressTracking(steps)
 }
 
-// RunMainMenuEnhanced shows main menu with Bubble Tea if available
+// RunMainMenuEnhanced shows main menu using the unified CCW app
 func (ui *UIManager) RunMainMenuEnhanced() error {
-	btm := NewBubbleTeaManager(ui)
-	
-	if btm.CanRunInteractive() && ui.GetAnimations() {
-		return btm.RunInteractiveMenu()
-	}
-	
-	// Fallback to simple menu
-	options := []string{
-		"Select Issues to Process",
-		"View Repository Issues", 
-		"Start Workflow",
-		"Exit",
-	}
-	
-	choice, err := btm.RunSimpleMenu(options, "CCW - Claude Code Worktree")
-	if err != nil {
-		return err
-	}
-	
-	switch choice {
-	case 0:
-		ui.Info("Issue selection mode selected")
-	case 1:
-		ui.Info("Repository view mode selected")
-	case 2:
-		ui.Info("Starting workflow...")
-	case 3:
-		ui.Info("Exiting...")
-		os.Exit(0)
-	}
-	
-	return nil
+	app := NewCCWApp(ui)
+	return app.RunMainMenu()
 }
