@@ -24,7 +24,7 @@ BRANCH_NAME=""
 WORKTREE_PATH=""
 DEBUG_MODE="${DEBUG_MODE:-false}"
 
-# Colors for output
+# Colors for output (Basic ANSI colors)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -32,6 +32,257 @@ BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
+
+# Bash version compatibility check (will be initialized after logging functions)
+BASH_VERSION_MAJOR=${BASH_VERSION%%.*}
+BASH_SUPPORTS_ASSOC_ARRAYS=false
+
+# Terminal capability detection
+TERMINAL_CAPABILITIES=()
+
+detect_terminal_capabilities() {
+    TERMINAL_CAPABILITIES=()
+    
+    # Color support detection
+    local colors=$(tput colors 2>/dev/null || echo "0")
+    if [[ $colors -ge 256 ]]; then
+        TERMINAL_CAPABILITIES+=("256color")
+    elif [[ $colors -ge 8 ]]; then
+        TERMINAL_CAPABILITIES+=("8color")
+    fi
+    
+    # Unicode support detection
+    if [[ "$LANG" =~ UTF-8 ]] && [[ "$TERM" != "dumb" ]]; then
+        TERMINAL_CAPABILITIES+=("unicode")
+    fi
+    
+    # Advanced terminal features
+    if tput cup >/dev/null 2>&1; then
+        TERMINAL_CAPABILITIES+=("cursor_positioning")
+    fi
+    
+    if tput csr >/dev/null 2>&1; then
+        TERMINAL_CAPABILITIES+=("scroll_region")
+    fi
+    
+    debug "Terminal capabilities detected: ${TERMINAL_CAPABILITIES[*]}"
+}
+
+# Check if terminal supports specific capability
+has_capability() {
+    local capability="$1"
+    for cap in "${TERMINAL_CAPABILITIES[@]}"; do
+        if [[ "$cap" == "$capability" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Initialize color themes with bash compatibility
+init_color_themes() {
+    if [[ "$BASH_SUPPORTS_ASSOC_ARRAYS" == "true" ]]; then
+        # Bash 4.0+ with associative arrays
+        # Default theme (enhanced basic colors)
+        THEME_COLORS[primary]="${BLUE}"
+        THEME_COLORS[success]="${GREEN}"
+        THEME_COLORS[warning]="${YELLOW}"
+        THEME_COLORS[error]="${RED}"
+        THEME_COLORS[info]="${CYAN}"
+        THEME_COLORS[accent]="${PURPLE}"
+        THEME_COLORS[muted]="\033[38;5;240m"
+        THEME_COLORS[bright]="\033[1m"
+        
+        # Enhanced colors for 256-color terminals
+        if has_capability "256color"; then
+            THEME_COLORS[primary]="\033[38;5;39m"     # Bright blue
+            THEME_COLORS[success]="\033[38;5;46m"     # Bright green  
+            THEME_COLORS[warning]="\033[38;5;226m"    # Bright yellow
+            THEME_COLORS[error]="\033[38;5;196m"      # Bright red
+            THEME_COLORS[info]="\033[38;5;51m"        # Bright cyan
+            THEME_COLORS[accent]="\033[38;5;129m"     # Bright purple
+            THEME_COLORS[muted]="\033[38;5;240m"      # Gray
+            THEME_COLORS[highlight]="\033[38;5;220m"  # Gold
+            THEME_COLORS[border]="\033[38;5;75m"      # Light blue
+        fi
+        
+        # Text styles
+        THEME_STYLES[bold]="\033[1m"
+        THEME_STYLES[dim]="\033[2m"
+        THEME_STYLES[italic]="\033[3m"
+        THEME_STYLES[underline]="\033[4m"
+        THEME_STYLES[blink]="\033[5m"
+        THEME_STYLES[reverse]="\033[7m"
+    else
+        # Bash 3.x fallback - use direct variables
+        THEME_COLOR_PRIMARY="${BLUE}"
+        THEME_COLOR_SUCCESS="${GREEN}"
+        THEME_COLOR_WARNING="${YELLOW}"
+        THEME_COLOR_ERROR="${RED}"
+        THEME_COLOR_INFO="${CYAN}"
+        THEME_COLOR_ACCENT="${PURPLE}"
+        THEME_COLOR_MUTED="\033[38;5;240m"
+        THEME_COLOR_BORDER="${BLUE}"
+        
+        THEME_STYLE_BOLD="\033[1m"
+        THEME_STYLE_DIM="\033[2m"
+        THEME_STYLE_ITALIC="\033[3m"
+        
+        # Enhanced colors for 256-color terminals
+        if has_capability "256color"; then
+            THEME_COLOR_PRIMARY="\033[38;5;39m"
+            THEME_COLOR_SUCCESS="\033[38;5;46m"
+            THEME_COLOR_WARNING="\033[38;5;226m"
+            THEME_COLOR_ERROR="\033[38;5;196m"
+            THEME_COLOR_INFO="\033[38;5;51m"
+            THEME_COLOR_ACCENT="\033[38;5;129m"
+            THEME_COLOR_BORDER="\033[38;5;75m"
+        fi
+    fi
+    
+    debug "Color themes initialized for terminal with capabilities: ${TERMINAL_CAPABILITIES[*]}"
+}
+
+# Helper function to get theme colors with bash compatibility
+get_theme_color() {
+    local color_name="$1"
+    
+    if [[ "$BASH_SUPPORTS_ASSOC_ARRAYS" == "true" ]]; then
+        echo "${THEME_COLORS[$color_name]}"
+    else
+        case "$color_name" in
+            "primary") echo "$THEME_COLOR_PRIMARY" ;;
+            "success") echo "$THEME_COLOR_SUCCESS" ;;
+            "warning") echo "$THEME_COLOR_WARNING" ;;
+            "error") echo "$THEME_COLOR_ERROR" ;;
+            "info") echo "$THEME_COLOR_INFO" ;;
+            "accent") echo "$THEME_COLOR_ACCENT" ;;
+            "muted") echo "$THEME_COLOR_MUTED" ;;
+            "border") echo "$THEME_COLOR_BORDER" ;;
+            *) echo "${BLUE}" ;;
+        esac
+    fi
+}
+
+# Helper function to get theme styles with bash compatibility  
+get_theme_style() {
+    local style_name="$1"
+    
+    if [[ "$BASH_SUPPORTS_ASSOC_ARRAYS" == "true" ]]; then
+        echo "${THEME_STYLES[$style_name]}"
+    else
+        case "$style_name" in
+            "bold") echo "$THEME_STYLE_BOLD" ;;
+            "dim") echo "$THEME_STYLE_DIM" ;;
+            "italic") echo "$THEME_STYLE_ITALIC" ;;
+            *) echo "" ;;
+        esac
+    fi
+}
+
+# Theme selection and loading
+load_theme() {
+    local theme_name="${1:-$(get_config_value "theme" "default")}"
+    
+    case "$theme_name" in
+        "minimal")
+            # Minimal theme - reduced visual elements
+            THEME_COLORS[primary]="${BLUE}"
+            THEME_COLORS[border]="${BLUE}"
+            HEADER_CONFIG[border_style]="single"
+            ;;
+        "modern")
+            # Modern theme - enhanced colors and styles
+            if has_capability "256color"; then
+                THEME_COLORS[primary]="\033[38;5;75m"
+                THEME_COLORS[success]="\033[38;5;82m"
+                THEME_COLORS[border]="\033[38;5;75m"
+                THEME_COLORS[accent]="\033[38;5;213m"
+            fi
+            HEADER_CONFIG[border_style]="double"
+            ;;
+        "compact")
+            # Compact theme - space-efficient
+            HEADER_CONFIG[border_style]="single"
+            HEADER_CONFIG[show_extended_info]="false"
+            ;;
+        *)
+            # Default theme already loaded
+            ;;
+    esac
+    
+    debug "Theme loaded: $theme_name"
+}
+
+# Get border characters based on style
+get_border_chars() {
+    local style="${1:-$(get_config_value "border_style" "double")}"
+    
+    case "$style" in
+        "single")
+            echo "┌─┐│└─┘├┤┬┴┼"
+            ;;
+        "double")
+            echo "╔═╗║╚═╝╠╣╦╩╬"
+            ;;
+        "rounded")
+            echo "╭─╮│╰─╯├┤┬┴┼"
+            ;;
+        "thick")
+            echo "┏━┓┃┗━┛┣┫┳┻╋"
+            ;;
+        *)
+            echo "╔═╗║╚═╝╠╣╦╩╬"
+            ;;
+    esac
+}
+
+# Enhanced status icons with better visual hierarchy
+get_status_icon() {
+    local status="${1:-pending}"
+    
+    case "$status" in
+        "pending"|"waiting") echo "⏳" ;;
+        "in_progress"|"running") echo "🔄" ;;
+        "completed"|"success") echo "✅" ;;
+        "error"|"failed") echo "❌" ;;
+        "warning") echo "⚠️" ;;
+        "skipped") echo "⏭️" ;;
+        "cancelled") echo "🚫" ;;
+        *) echo "🔵" ;;
+    esac
+}
+
+# Initialize header configuration with bash compatibility
+init_header_config() {
+    # Initialize bash compatibility first
+    init_bash_compatibility
+    
+    if [[ "$BASH_SUPPORTS_ASSOC_ARRAYS" == "true" ]]; then
+        # Default configuration with environment variable overrides
+        HEADER_CONFIG[theme]="${HEADER_THEME:-default}"
+        HEADER_CONFIG[update_interval]="${HEADER_UPDATE_INTERVAL:-1}"
+        HEADER_CONFIG[show_system_metrics]="${HEADER_SHOW_METRICS:-false}"
+        HEADER_CONFIG[animation_enabled]="${HEADER_ANIMATIONS:-true}"
+        HEADER_CONFIG[color_mode]="${HEADER_COLOR_MODE:-auto}"
+        HEADER_CONFIG[border_style]="${HEADER_BORDER_STYLE:-double}"
+        HEADER_CONFIG[layout]="${HEADER_LAYOUT:-auto}"
+        HEADER_CONFIG[show_extended_info]="${HEADER_SHOW_EXTENDED_INFO:-true}"
+        HEADER_CONFIG[flicker_reduction]="${HEADER_FLICKER_REDUCTION:-true}"
+        HEADER_CONFIG[buffer_updates]="${HEADER_BUFFER_UPDATES:-true}"
+        HEADER_CONFIG[differential_updates]="${HEADER_DIFFERENTIAL_UPDATES:-true}"
+        
+        debug "Header configuration initialized: theme=${HEADER_CONFIG[theme]}, border=${HEADER_CONFIG[border_style]}"
+    else
+        # Fallback configuration for bash 3.x
+        HEADER_THEME_VAR="${HEADER_THEME:-default}"
+        HEADER_UPDATE_INTERVAL_VAR="${HEADER_UPDATE_INTERVAL:-1}"
+        HEADER_BORDER_STYLE_VAR="${HEADER_BORDER_STYLE:-double}"
+        HEADER_FLICKER_REDUCTION_VAR="${HEADER_FLICKER_REDUCTION:-true}"
+        
+        debug "Header configuration initialized (compatibility mode): theme=$HEADER_THEME_VAR"
+    fi
+}
 
 log() {
     echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
@@ -75,6 +326,26 @@ step() {
     echo -e "${PURPLE}[STEP]${NC} $1"
 }
 
+# Initialize bash compatibility after logging functions are available
+init_bash_compatibility() {
+    if [[ $BASH_VERSION_MAJOR -ge 4 ]]; then
+        BASH_SUPPORTS_ASSOC_ARRAYS=true
+        # Enhanced Color Schemes and Theme System (Bash 4.0+)
+        if ! declare -A THEME_COLORS 2>/dev/null; then
+            warn "Failed to initialize associative arrays. Using compatibility mode."
+            BASH_SUPPORTS_ASSOC_ARRAYS=false
+        fi
+        if [[ "$BASH_SUPPORTS_ASSOC_ARRAYS" == "true" ]]; then
+            declare -A THEME_STYLES  
+            declare -A HEADER_CONFIG
+        fi
+    else
+        # Fallback for older bash versions (3.x)
+        warn "Bash 4.0+ required for full header enhancements. Using compatibility mode."
+        BASH_SUPPORTS_ASSOC_ARRAYS=false
+    fi
+}
+
 # Global status variables
 STATUS_BOX_LINES=0
 ISSUE_TITLE=""
@@ -87,10 +358,298 @@ START_TIME=""
 HEADER_UPDATE_PID=""
 HEADER_CONTENT=()
 
-# ヘッダー内容を計算する関数
+# Flicker reduction system variables
+HEADER_CACHE=()
+HEADER_HASH_CACHE=""
+LAST_UPDATE_TIME=0
+UPDATE_NEEDED=false
+HEADER_DIRTY_LINES=()
+TERMINAL_BUFFER=""
+BUFFER_ENABLED=true
+LAST_TERMINAL_WIDTH=0
+LAST_TERMINAL_HEIGHT=0
+
+# Advanced flicker reduction system
+init_flicker_reduction() {
+    HEADER_CACHE=()
+    HEADER_HASH_CACHE=""
+    LAST_UPDATE_TIME=$(date +%s)
+    UPDATE_NEEDED=false
+    HEADER_DIRTY_LINES=()
+    LAST_TERMINAL_WIDTH=$(tput cols 2>/dev/null || echo "80")
+    LAST_TERMINAL_HEIGHT=$(tput lines 2>/dev/null || echo "24")
+    
+    debug "Flicker reduction system initialized"
+}
+
+# Generate content hash for change detection
+generate_content_hash() {
+    local content="$1"
+    # Simple hash function for bash compatibility
+    echo "$content" | cksum | cut -d' ' -f1 2>/dev/null || echo "${#content}"
+}
+
+# Check if header content has actually changed
+has_header_changed() {
+    local current_hash
+    local content_string=""
+    
+    # Build content string from current state
+    content_string="${ISSUE_TITLE}|${BRANCH_NAME}|${CURRENT_STEP}|${CURRENT_ACTIVITY}"
+    content_string="${content_string}|$(date '+%H:%M')" # Only check minute-level changes
+    content_string="${content_string}|$(tput cols 2>/dev/null)x$(tput lines 2>/dev/null)"
+    
+    current_hash=$(generate_content_hash "$content_string")
+    
+    if [[ "$current_hash" != "$HEADER_HASH_CACHE" ]]; then
+        HEADER_HASH_CACHE="$current_hash"
+        UPDATE_NEEDED=true
+        debug "Header content changed, update needed"
+        return 0
+    fi
+    
+    UPDATE_NEEDED=false
+    return 1
+}
+
+# Check if terminal size has changed
+has_terminal_size_changed() {
+    local current_width=$(tput cols 2>/dev/null || echo "80")
+    local current_height=$(tput lines 2>/dev/null || echo "24")
+    
+    if [[ "$current_width" != "$LAST_TERMINAL_WIDTH" ]] || [[ "$current_height" != "$LAST_TERMINAL_HEIGHT" ]]; then
+        LAST_TERMINAL_WIDTH="$current_width"
+        LAST_TERMINAL_HEIGHT="$current_height"
+        debug "Terminal size changed: ${current_width}x${current_height}"
+        return 0
+    fi
+    
+    return 1
+}
+
+# Optimized line update - only update if line content changed
+update_line_if_changed() {
+    local line_number="$1"
+    local new_content="$2"
+    local force_update="${3:-false}"
+    
+    # Check if this line needs updating
+    if [[ "$force_update" == "true" ]] || [[ "${HEADER_CACHE[$line_number]}" != "$new_content" ]]; then
+        # Save cursor position
+        tput sc 2>/dev/null
+        
+        # Move to line and update
+        tput cup $line_number 0 2>/dev/null
+        printf "%s" "$new_content"
+        tput el 2>/dev/null  # Clear rest of line
+        
+        # Restore cursor position  
+        tput rc 2>/dev/null
+        
+        # Update cache
+        HEADER_CACHE[$line_number]="$new_content"
+        
+        debug "Updated line $line_number"
+        return 0
+    fi
+    
+    return 1
+}
+
+# Batch update multiple lines efficiently
+batch_update_lines() {
+    local updates=("$@")
+    local i=0
+    
+    # Disable cursor for smoother updates
+    tput civis 2>/dev/null
+    
+    # Save cursor position once
+    tput sc 2>/dev/null
+    
+    while [[ $i -lt ${#updates[@]} ]]; do
+        local line_num="${updates[i]}"
+        local content="${updates[i+1]}"
+        
+        if [[ "${HEADER_CACHE[$line_num]}" != "$content" ]]; then
+            tput cup $line_num 0 2>/dev/null
+            printf "%s" "$content"
+            tput el 2>/dev/null
+            HEADER_CACHE[$line_num]="$content"
+        fi
+        
+        i=$((i + 2))
+    done
+    
+    # Restore cursor and visibility
+    tput rc 2>/dev/null
+    tput cnorm 2>/dev/null
+}
+
+# Throttled update system - prevents too frequent updates
+should_update_now() {
+    local current_time=$(date +%s)
+    local min_interval=$(get_config_value "update_interval" "1")
+    
+    # Convert to integer for bash compatibility
+    min_interval=${min_interval%.*}
+    if [[ $min_interval -lt 1 ]]; then
+        min_interval=1
+    fi
+    
+    local time_since_last=$((current_time - LAST_UPDATE_TIME))
+    
+    if [[ $time_since_last -ge $min_interval ]]; then
+        LAST_UPDATE_TIME=$current_time
+        return 0
+    fi
+    
+    return 1
+}
+
+# Get configuration value with bash compatibility
+get_config_value() {
+    local key="$1"
+    local default="$2"
+    
+    if [[ "$BASH_SUPPORTS_ASSOC_ARRAYS" == "true" ]]; then
+        echo "${HEADER_CONFIG[$key]:-$default}"
+    else
+        case "$key" in
+            "theme") echo "${HEADER_THEME_VAR:-$default}" ;;
+            "update_interval") echo "${HEADER_UPDATE_INTERVAL_VAR:-$default}" ;;
+            "border_style") echo "${HEADER_BORDER_STYLE_VAR:-$default}" ;;
+            "flicker_reduction") echo "${HEADER_FLICKER_REDUCTION_VAR:-$default}" ;;
+            "layout") echo "${HEADER_LAYOUT_VAR:-$default}" ;;
+            "max_text_width") echo "${HEADER_MAX_TEXT_WIDTH_VAR:-$default}" ;;
+            "show_extended_info") echo "${HEADER_SHOW_EXTENDED_INFO_VAR:-$default}" ;;
+            "show_branch_info") echo "${HEADER_SHOW_BRANCH_INFO_VAR:-$default}" ;;
+            "workflow_display") echo "${HEADER_WORKFLOW_DISPLAY_VAR:-$default}" ;;
+            *) echo "$default" ;;
+        esac
+    fi
+}
+
+# Safe config value setter for bash 3.x compatibility
+set_config_value() {
+    local key="$1"
+    local value="$2"
+    
+    if [[ "$BASH_SUPPORTS_ASSOC_ARRAYS" == "true" ]]; then
+        HEADER_CONFIG[$key]="$value"
+    else
+        case "$key" in
+            "theme") HEADER_THEME_VAR="$value" ;;
+            "update_interval") HEADER_UPDATE_INTERVAL_VAR="$value" ;;
+            "border_style") HEADER_BORDER_STYLE_VAR="$value" ;;
+            "flicker_reduction") HEADER_FLICKER_REDUCTION_VAR="$value" ;;
+            "layout") HEADER_LAYOUT_VAR="$value" ;;
+            "max_text_width") HEADER_MAX_TEXT_WIDTH_VAR="$value" ;;
+            "show_extended_info") HEADER_SHOW_EXTENDED_INFO_VAR="$value" ;;
+            "show_branch_info") HEADER_SHOW_BRANCH_INFO_VAR="$value" ;;
+            "workflow_display") HEADER_WORKFLOW_DISPLAY_VAR="$value" ;;
+        esac
+    fi
+}
+
+# Smart text wrapping and truncation
+smart_text_wrap() {
+    local text="$1"
+    local max_width="$2"
+    
+    if [[ ${#text} -le $max_width ]]; then
+        echo "$text"
+        return
+    fi
+    
+    # Smart truncation at word boundaries
+    local truncated=$(echo "$text" | cut -c1-$((max_width-3)))
+    local last_space=$(echo "$truncated" | grep -o '.*[[:space:]]' | head -1 | wc -c)
+    
+    if [[ $last_space -gt $((max_width / 2)) ]]; then
+        truncated=$(echo "$text" | cut -c1-$((last_space-1)))
+    fi
+    
+    echo "${truncated}..."
+}
+
+# Responsive layout calculation based on terminal size
+calculate_responsive_layout() {
+    local terminal_width=$(tput cols)
+    local terminal_height=$(tput lines)
+    
+    # Layout configurations for different screen sizes
+    if [[ $terminal_width -lt 60 ]]; then
+        # Very compact layout for very small terminals
+        set_config_value "layout" "minimal"
+        set_config_value "max_text_width" "30"
+        set_config_value "show_extended_info" "false"
+        set_config_value "show_branch_info" "false"
+        set_config_value "workflow_display" "minimal"
+    elif [[ $terminal_width -lt 80 ]]; then
+        # Compact layout for small terminals
+        set_config_value "layout" "compact"
+        set_config_value "max_text_width" "50"
+        set_config_value "show_extended_info" "false"
+        set_config_value "show_branch_info" "true"
+        set_config_value "workflow_display" "compact"
+    elif [[ $terminal_width -lt 120 ]]; then
+        # Standard layout
+        set_config_value "layout" "standard"
+        set_config_value "max_text_width" "70"
+        set_config_value "show_extended_info" "true"
+        set_config_value "show_branch_info" "true"
+        set_config_value "workflow_display" "full"
+    else
+        # Extended layout for wide terminals
+        set_config_value "layout" "extended"
+        set_config_value "max_text_width" "90"
+        set_config_value "show_extended_info" "true"
+        set_config_value "show_branch_info" "true"
+        set_config_value "workflow_display" "full"
+        set_config_value "show_system_metrics" "${HEADER_SHOW_METRICS:-false}"
+    fi
+    
+    # Adjust workflow display based on height
+    if [[ $terminal_height -lt 15 ]]; then
+        set_config_value "workflow_display" "minimal"
+        set_config_value "show_extended_info" "false"
+    elif [[ $terminal_height -lt 20 ]]; then
+        set_config_value "workflow_display" "compact"
+    else
+        set_config_value "workflow_display" "full"
+    fi
+    
+    debug "Responsive layout calculated: $(get_config_value "layout" "standard") (${terminal_width}x${terminal_height})"
+}
+
+# Enhanced header content calculation with responsive design
 calculate_header_content() {
     local current_time=$(date '+%Y-%m-%d %H:%M:%S')
     local terminal_width=$(tput cols)
+    
+    # Calculate responsive layout first
+    calculate_responsive_layout
+    
+    # Get border characters for current theme
+    local border_chars=$(get_border_chars "$(get_config_value "border_style" "double")")
+    local top_left="${border_chars:0:1}"
+    local top_right="${border_chars:2:1}"
+    local bottom_left="${border_chars:4:1}"
+    local bottom_right="${border_chars:6:1}"
+    local vertical="${border_chars:3:1}"
+    local horizontal="${border_chars:1:1}"
+    local horizontal_sep="${border_chars:7:1}"
+    
+    # Calculate content width for text based on responsive layout
+    local content_width=$((terminal_width - 4))
+    local max_text_width="$(get_config_value "max_text_width" "70")"
+    
+    # Adjust for very small terminals
+    if [[ $content_width -lt 20 ]]; then
+        content_width=20
+        max_text_width=15
+    fi
     
     # Calculate elapsed time
     local elapsed_time=""
@@ -105,113 +664,337 @@ calculate_header_content() {
     # Prepare header content lines
     HEADER_CONTENT=()
     
-    # Top border
-    HEADER_CONTENT+=("$(printf '╔%*s╗' $((terminal_width-2)) '' | tr ' ' '═')")
+    # Top border with enhanced colors
+    local top_border_color="$(get_theme_color "border")"
+    HEADER_CONTENT+=("${top_border_color}$(printf '%s%*s%s' "$top_left" $((terminal_width-2)) '' "$top_right" | tr ' ' "$horizontal")${NC}")
     
-    # Title line
-    local title_text="🚀 FeLangKit Claude Worktree - ${ISSUE_TITLE:-'Loading...'}"
-    HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$title_text")")
-    
-    # Time info line
-    local time_text="📅 Started: $(date -r ${START_TIME:-$(date +%s)} '+%Y-%m-%d %H:%M:%S') | Current: $current_time"
-    if [[ -n "$elapsed_time" ]]; then
-        time_text="$time_text | $elapsed_time"
+    # Title line with responsive styling
+    local title_text=""
+    if [[ "$(get_config_value "layout" "standard")" == "minimal" ]]; then
+        title_text="🚀 $(smart_text_wrap "${ISSUE_TITLE:-'Loading...'}" $((max_text_width - 5)))"
+    elif [[ "$(get_config_value "layout" "standard")" == "compact" ]]; then
+        title_text="🚀 $(get_theme_style "bold")FeLangKit${NC} - $(smart_text_wrap "${ISSUE_TITLE:-'Loading...'}" $((max_text_width - 15)))"
+    else
+        title_text="🚀 $(get_theme_style "bold")FeLangKit Claude Worktree${NC} - $(smart_text_wrap "${ISSUE_TITLE:-'Loading...'}" $((max_text_width - 25)))"
     fi
-    HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$time_text")")
+    HEADER_CONTENT+=("${top_border_color}${vertical}${NC} $(printf '%-*s' $content_width "$title_text") ${top_border_color}${vertical}${NC}")
     
-    # Branch and issue line
-    local branch_text="🌿 Branch: ${BRANCH_NAME:-'N/A'} | 📝 Issue: ${ISSUE_DESCRIPTION:-'N/A'}"
-    HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$branch_text")")
+    # Time info line with responsive formatting
+    local time_icon="$(get_theme_color "info")📅${NC}"
+    local time_text=""
+    
+    if [[ "$(get_config_value "layout" "standard")" == "minimal" ]]; then
+        # Minimal: just show elapsed time
+        if [[ -n "$elapsed_time" ]]; then
+            time_text="$time_icon $(get_theme_color "accent")$elapsed_time${NC}"
+        else
+            time_text="$time_icon $(get_theme_color "primary")$(date '+%H:%M:%S')${NC}"
+        fi
+    elif [[ "$(get_config_value "layout" "standard")" == "compact" ]]; then
+        # Compact: current time and elapsed
+        time_text="$time_icon $(get_theme_color "primary")$(date '+%H:%M:%S')${NC}"
+        if [[ -n "$elapsed_time" ]]; then
+            time_text="$time_text | $(get_theme_color "accent")$elapsed_time${NC}"
+        fi
+    else
+        # Standard/Extended: full time info
+        local start_time_formatted=$(date -r ${START_TIME:-$(date +%s)} '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "N/A")
+        time_text="$time_icon Started: $(get_theme_color "muted")$start_time_formatted${NC} | Current: $(get_theme_color "primary")$current_time${NC}"
+        if [[ -n "$elapsed_time" ]]; then
+            time_text="$time_text | $(get_theme_color "accent")$elapsed_time${NC}"
+        fi
+        
+        # Fallback to compact format if too long
+        local time_text_plain=$(echo "$time_text" | sed 's/\x1b\[[0-9;]*m//g')
+        if [[ ${#time_text_plain} -gt $content_width ]]; then
+            time_text="$time_icon $(get_theme_color "primary")$current_time${NC}"
+            if [[ -n "$elapsed_time" ]]; then
+                time_text="$time_text | $(get_theme_color "accent")$elapsed_time${NC}"
+            fi
+        fi
+    fi
+    HEADER_CONTENT+=("${top_border_color}${vertical}${NC} $(printf '%-*s' $content_width "$time_text") ${top_border_color}${vertical}${NC}")
+    
+    # Branch and issue line with responsive display
+    if [[ "$(get_config_value "show_branch_info" "true")" == "true" ]]; then
+        local branch_icon="$(get_theme_color "success")🌿${NC}"
+        local issue_icon="$(get_theme_color "info")📝${NC}"
+        local branch_text=""
+        
+        if [[ "$(get_config_value "layout" "standard")" == "minimal" ]]; then
+            # Minimal: just branch name
+            local branch_name=$(smart_text_wrap "${BRANCH_NAME:-'N/A'}" $((max_text_width - 10)))
+            branch_text="$branch_icon $(get_theme_color "accent")$branch_name${NC}"
+        elif [[ "$(get_config_value "layout" "standard")" == "compact" ]]; then
+            # Compact: branch and short issue
+            local branch_name=$(smart_text_wrap "${BRANCH_NAME:-'N/A'}" 20)
+            local issue_desc=$(smart_text_wrap "${ISSUE_DESCRIPTION:-'N/A'}" 25)
+            branch_text="$branch_icon $(get_theme_color "accent")$branch_name${NC} | $issue_icon $(get_theme_color "muted")$issue_desc${NC}"
+        else
+            # Standard/Extended: full branch and issue info
+            local branch_name=$(smart_text_wrap "${BRANCH_NAME:-'N/A'}" 25)
+            local issue_desc=$(smart_text_wrap "${ISSUE_DESCRIPTION:-'N/A'}" 40)
+            branch_text="$branch_icon Branch: $(get_theme_color "accent")$branch_name${NC} | $issue_icon Issue: $(get_theme_color "muted")$issue_desc${NC}"
+        fi
+        
+        HEADER_CONTENT+=("${top_border_color}${vertical}${NC} $(printf '%-*s' $content_width "$branch_text") ${top_border_color}${vertical}${NC}")
+    fi
     
     # Separator line
-    HEADER_CONTENT+=("$(printf '║%*s║' $((terminal_width-2)) '' | tr ' ' '─')")
+    HEADER_CONTENT+=("${top_border_color}$(printf '%s%*s%s' "$vertical" $((terminal_width-2)) '' "$vertical" | tr ' ' "$horizontal_sep")${NC}")
     
-    # Workflow steps - each step on its own line for better readability
+    # Workflow steps with responsive display
     if [[ ${#WORKFLOW_STEPS[@]} -gt 0 ]]; then
-        local steps_header="🔄 Workflow Steps:"
-        HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$steps_header")")
+        local workflow_display="$(get_config_value "workflow_display" "full")"
         
-        for i in "${!WORKFLOW_STEPS[@]}"; do
-            local step="${WORKFLOW_STEPS[i]}"
-            local status_icon=""
-            local color_prefix=""
-            local color_suffix=""
-            
-            if [[ $i -lt $CURRENT_STEP ]]; then
-                status_icon="✅"
-                color_prefix="${GREEN}"
-                color_suffix="${NC}"
-            elif [[ $i -eq $CURRENT_STEP ]]; then
-                status_icon="🔵"
-                color_prefix="${YELLOW}"
-                color_suffix="${NC}"
-            else
-                status_icon="⚪"
-                color_prefix=""
-                color_suffix=""
+        if [[ "$workflow_display" == "minimal" ]]; then
+            # Minimal: show only current step
+            if [[ $CURRENT_STEP -lt ${#WORKFLOW_STEPS[@]} ]]; then
+                local current_step_text="${WORKFLOW_STEPS[CURRENT_STEP]}"
+                local status_icon="$(get_status_icon "in_progress")"
+                local step_text="$(get_theme_color "primary")$((CURRENT_STEP + 1))/${#WORKFLOW_STEPS[@]}${NC} $status_icon $(get_theme_color "warning")$(get_theme_style "bold")$(smart_text_wrap "$current_step_text" $((max_text_width - 8)))${NC}"
+                HEADER_CONTENT+=("${top_border_color}${vertical}${NC} $(printf '%-*s' $content_width "$step_text") ${top_border_color}${vertical}${NC}")
             fi
             
-            local step_text="  $((i+1)). $status_icon $step"
-            HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$step_text")")
-        done
+        elif [[ "$workflow_display" == "compact" ]]; then
+            # Compact: show progress bar and current step
+            local progress_bar=""
+            local completed_steps=$CURRENT_STEP
+            local total_steps=${#WORKFLOW_STEPS[@]}
+            local bar_width=20
+            local filled=0
+            if [[ $total_steps -gt 0 ]]; then
+                filled=$((completed_steps * bar_width / total_steps))
+            fi
+            
+            for ((j=0; j<filled; j++)); do
+                progress_bar+="${THEME_COLORS[success]}█${NC}"
+            done
+            for ((j=filled; j<bar_width; j++)); do
+                progress_bar+="░"
+            done
+            
+            local progress_text="${THEME_COLORS[primary]}Progress:${NC} [$progress_bar] ${THEME_COLORS[accent]}$completed_steps/$total_steps${NC}"
+            HEADER_CONTENT+=("${top_border_color}${vertical}${NC} $(printf '%-*s' $content_width "$progress_text") ${top_border_color}${vertical}${NC}")
+            
+            # Current step
+            if [[ $CURRENT_STEP -lt ${#WORKFLOW_STEPS[@]} ]]; then
+                local current_step_text="${WORKFLOW_STEPS[CURRENT_STEP]}"
+                local status_icon="$(get_status_icon "in_progress")"
+                local step_text="${THEME_COLORS[primary]}Current:${NC} $status_icon ${THEME_COLORS[warning]}${THEME_STYLES[bold]}$(smart_text_wrap "$current_step_text" $((max_text_width - 12)))${NC}"
+                HEADER_CONTENT+=("${top_border_color}${vertical}${NC} $(printf '%-*s' $content_width "$step_text") ${top_border_color}${vertical}${NC}")
+            fi
+            
+        else
+            # Full: show all steps with status
+            local steps_header="$(get_theme_color "primary")🔄 $(get_theme_style "bold")Workflow Steps:${NC}"
+            HEADER_CONTENT+=("${top_border_color}${vertical}${NC} $(printf '%-*s' $content_width "$steps_header") ${top_border_color}${vertical}${NC}")
+            
+            # Limit number of steps shown in standard mode for better height management
+            local max_steps_to_show=${#WORKFLOW_STEPS[@]}
+            if [[ "$(get_config_value "layout" "standard")" == "standard" ]] && [[ ${#WORKFLOW_STEPS[@]} -gt 5 ]]; then
+                max_steps_to_show=5
+            fi
+            
+            for i in "${!WORKFLOW_STEPS[@]}"; do
+                if [[ $i -ge $max_steps_to_show ]]; then
+                    break
+                fi
+                
+                local step="${WORKFLOW_STEPS[i]}"
+                local status_icon=""
+                local step_color=""
+                local step_style=""
+                
+                if [[ $i -lt $CURRENT_STEP ]]; then
+                    status_icon="$(get_status_icon "completed")"
+                    step_color="${THEME_COLORS[success]}"
+                    step_style="${THEME_STYLES[dim]}"
+                elif [[ $i -eq $CURRENT_STEP ]]; then
+                    status_icon="$(get_status_icon "in_progress")"
+                    step_color="${THEME_COLORS[warning]}"
+                    step_style="${THEME_STYLES[bold]}"
+                else
+                    status_icon="$(get_status_icon "pending")"
+                    step_color="${THEME_COLORS[muted]}"
+                    step_style=""
+                fi
+                
+                local step_text="  ${THEME_COLORS[primary]}$((i+1)).${NC} $status_icon ${step_color}${step_style}$(smart_text_wrap "$step" $((max_text_width - 8)))${NC}"
+                HEADER_CONTENT+=("${top_border_color}${vertical}${NC} $(printf '%-*s' $content_width "$step_text") ${top_border_color}${vertical}${NC}")
+            done
+            
+            # Show remaining steps count if truncated
+            if [[ $max_steps_to_show -lt ${#WORKFLOW_STEPS[@]} ]]; then
+                local remaining=$((${#WORKFLOW_STEPS[@]} - max_steps_to_show))
+                local remaining_text="  ${THEME_COLORS[muted]}... and $remaining more steps${NC}"
+                HEADER_CONTENT+=("${top_border_color}${vertical}${NC} $(printf '%-*s' $content_width "$remaining_text") ${top_border_color}${vertical}${NC}")
+            fi
+        fi
     fi
     
     # Add separator before activity section
     if [[ -n "$CURRENT_ACTIVITY" ]] || [[ $CURRENT_STEP -lt ${#STEP_DETAILS[@]} && -n "${STEP_DETAILS[CURRENT_STEP]}" ]]; then
-        HEADER_CONTENT+=("$(printf '║%*s║' $((terminal_width-2)) '' | tr ' ' '─')")
+        HEADER_CONTENT+=("${top_border_color}$(printf '%s%*s%s' "$vertical" $((terminal_width-2)) '' "$vertical" | tr ' ' "$horizontal_sep")${NC}")
     fi
     
-    # Current activity line (only if there's activity)
+    # Current activity line with enhanced styling
     if [[ -n "$CURRENT_ACTIVITY" ]]; then
-        local activity_text="💡 Current Activity: $CURRENT_ACTIVITY"
-        HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$activity_text")")
+        local activity_icon="${THEME_COLORS[accent]}💡${NC}"
+        local activity_text="$activity_icon ${THEME_STYLES[bold]}Current Activity:${NC} ${THEME_COLORS[primary]}$(smart_text_wrap "$CURRENT_ACTIVITY" $((max_text_width - 20)))${NC}"
+        HEADER_CONTENT+=("${top_border_color}${vertical}${NC} $(printf '%-*s' $content_width "$activity_text") ${top_border_color}${vertical}${NC}")
     elif [[ $CURRENT_STEP -lt ${#STEP_DETAILS[@]} && -n "${STEP_DETAILS[CURRENT_STEP]}" ]]; then
-        local activity_text="💡 Current Activity: ${STEP_DETAILS[CURRENT_STEP]}"
-        HEADER_CONTENT+=("$(printf '║ %-*s ║' $((terminal_width-4)) "$activity_text")")
+        local activity_icon="${THEME_COLORS[accent]}💡${NC}"
+        local activity_text="$activity_icon ${THEME_STYLES[bold]}Current Activity:${NC} ${THEME_COLORS[primary]}$(smart_text_wrap "${STEP_DETAILS[CURRENT_STEP]}" $((max_text_width - 20)))${NC}"
+        HEADER_CONTENT+=("${top_border_color}${vertical}${NC} $(printf '%-*s' $content_width "$activity_text") ${top_border_color}${vertical}${NC}")
     fi
     
     # Bottom border
-    HEADER_CONTENT+=("$(printf '╚%*s╝' $((terminal_width-2)) '' | tr ' ' '═')")
+    HEADER_CONTENT+=("${top_border_color}$(printf '%s%*s%s' "$bottom_left" $((terminal_width-2)) '' "$bottom_right" | tr ' ' "$horizontal")${NC}")
     
-    # Output log separator
-    HEADER_CONTENT+=("📋 Output Log:")
+    # Output log separator with enhanced styling
+    HEADER_CONTENT+=("${THEME_COLORS[info]}📋 ${THEME_STYLES[bold]}Output Log:${NC}")
     HEADER_CONTENT+=("")  # Empty line for spacing
     
     # Update calculated header line count
     CALCULATED_HEADER_LINES=${#HEADER_CONTENT[@]}
 }
 
-# ヘッダー描画関数
+# Enhanced header drawing function with flicker reduction
 draw_header() {
+    # Only proceed if terminal supports cursor positioning
+    if ! has_capability "cursor_positioning"; then
+        return 0
+    fi
+    
+    # Check if flicker reduction is enabled
+    local flicker_reduction=$(get_config_value "flicker_reduction" "true")
+    
+    if [[ "$flicker_reduction" == "true" ]]; then
+        draw_header_optimized
+    else
+        draw_header_legacy
+    fi
+}
+
+# Legacy header drawing (original method)
+draw_header_legacy() {
     # Calculate header content first
     calculate_header_content
     
-    # カーソル位置を保存
-    tput sc
+    # Save cursor position
+    tput sc 2>/dev/null
     
-    # 画面左上へ移動して描画
-    tput cup 0 0
+    # Move to top-left and draw
+    tput cup 0 0 2>/dev/null
     
-    # Draw each line of the header
+    # Draw each line of the header (colors are already embedded in content)
     for i in "${!HEADER_CONTENT[@]}"; do
         local line="${HEADER_CONTENT[i]}"
-        tput cup $i 0
+        tput cup $i 0 2>/dev/null
         
-        # Color the border lines
-        if [[ "$line" =~ ^╔.*╗$ ]] || [[ "$line" =~ ^╚.*╝$ ]]; then
-            printf "${BLUE}%s${NC}" "$line"
-        elif [[ "$line" =~ ^║.*║$ ]]; then
-            printf "${BLUE}%s${NC}" "$line"
-        else
-            printf "%s" "$line"
-        fi
+        # Print the line (with embedded colors)
+        printf "%s" "$line"
         
-        # Clear rest of line
-        tput el
+        # Clear rest of line to prevent artifacts
+        tput el 2>/dev/null
     done
     
-    # カーソル位置を復元
-    tput rc
+    # Restore cursor position
+    tput rc 2>/dev/null
+}
+
+# Optimized header drawing with flicker reduction
+draw_header_optimized() {
+    # Check if we should skip this update
+    if ! should_update_now && ! has_header_changed && ! has_terminal_size_changed; then
+        debug "Skipping header update - no changes detected"
+        return 0
+    fi
+    
+    # Calculate header content
+    calculate_header_content
+    
+    # Disable cursor for smoother updates
+    tput civis 2>/dev/null
+    
+    # Save cursor position once
+    tput sc 2>/dev/null
+    
+    local updates_needed=false
+    local update_batch=()
+    
+    # Check each line for changes
+    for i in "${!HEADER_CONTENT[@]}"; do
+        local line="${HEADER_CONTENT[i]}"
+        
+        # Check if this line needs updating
+        if [[ "${HEADER_CACHE[$i]}" != "$line" ]]; then
+            update_batch+=("$i" "$line")
+            updates_needed=true
+        fi
+    done
+    
+    # Apply updates if needed
+    if [[ "$updates_needed" == "true" ]]; then
+        debug "Updating ${#update_batch[@]}/2 header lines"
+        
+        # Batch update all changed lines
+        local i=0
+        while [[ $i -lt ${#update_batch[@]} ]]; do
+            local line_num="${update_batch[i]}"
+            local content="${update_batch[i+1]}"
+            
+            # Move to line and update
+            tput cup $line_num 0 2>/dev/null
+            printf "%s" "$content"
+            tput el 2>/dev/null
+            
+            # Update cache
+            HEADER_CACHE[$line_num]="$content"
+            
+            i=$((i + 2))
+        done
+    fi
+    
+    # Clear any extra lines if header got smaller
+    local old_line_count=${#HEADER_CACHE[@]}
+    local new_line_count=${#HEADER_CONTENT[@]}
+    
+    if [[ $old_line_count -gt $new_line_count ]]; then
+        for (( i=new_line_count; i<old_line_count; i++ )); do
+            tput cup $i 0 2>/dev/null
+            tput el 2>/dev/null
+            unset HEADER_CACHE[$i]
+        done
+    fi
+    
+    # Restore cursor and visibility
+    tput rc 2>/dev/null
+    tput cnorm 2>/dev/null
+    
+    debug "Header update completed"
+}
+
+# Fallback header display for limited terminals
+fallback_header_display() {
+    local border="========================================"
+    echo "$border"
+    echo "FeLangKit Claude Worktree"
+    echo "Issue: ${ISSUE_TITLE:-'Loading...'}"
+    echo "Branch: ${BRANCH_NAME:-'N/A'}"
+    echo "Step: $((CURRENT_STEP + 1))/${#WORKFLOW_STEPS[@]} - ${WORKFLOW_STEPS[CURRENT_STEP]:-'N/A'}"
+    if [[ -n "$CURRENT_ACTIVITY" ]]; then
+        echo "Activity: $CURRENT_ACTIVITY"
+    fi
+    if [[ -n "$START_TIME" ]]; then
+        local elapsed=$(($(date +%s) - START_TIME))
+        local minutes=$((elapsed / 60))
+        local seconds=$((elapsed % 60))
+        printf "Elapsed: %02d:%02d\n" "$minutes" "$seconds"
+    fi
+    echo "$border"
+    echo
 }
 
 # スクロール領域設定関数
@@ -269,24 +1052,32 @@ init_status_box() {
     local issue_body="$2"
     local branch_name="$3"
     
+    # Initialize enhanced header system
+    detect_terminal_capabilities
+    init_header_config
+    init_color_themes
+    init_flicker_reduction
+    load_theme "$(get_config_value "theme" "default")"
+    
     # Store issue information
     ISSUE_TITLE="$issue_title"
-    # Truncate description to first line or first 80 chars
-    ISSUE_DESCRIPTION=$(echo "$issue_body" | head -n1 | cut -c1-80)
+    # Smart truncation with enhanced text handling
+    ISSUE_DESCRIPTION=$(smart_text_wrap "$issue_body" 80)
     if [[ ${#issue_body} -gt 80 ]]; then
+        ISSUE_DESCRIPTION=$(echo "$issue_body" | head -n1 | cut -c1-77)
         ISSUE_DESCRIPTION="${ISSUE_DESCRIPTION}..."
     fi
     
-    # Define workflow steps
+    # Define workflow steps with enhanced icons
     WORKFLOW_STEPS=(
-        "🔧 Setting up worktree"
-        "📋 Fetching issue data" 
-        "🧠 Generating analysis"
-        "⚡ Running Claude Code"
-        "✅ Validating implementation"
-        "📝 Creating pull request"
-        "🔍 Monitoring CI checks"
-        "🎉 Workflow complete"
+        "Setting up worktree"
+        "Fetching issue data" 
+        "Generating analysis"
+        "Running Claude Code"
+        "Validating implementation"
+        "Creating pull request"
+        "Monitoring CI checks"
+        "Workflow complete"
     )
     
     # Define step details for current activity display
@@ -305,28 +1096,89 @@ init_status_box() {
     CURRENT_ACTIVITY=""
     START_TIME=$(date +%s)
     
-    # Initialize terminal display
-    enable_scroll_region
-    
-    # Start background header update process
-    (
-        while true; do
-            sleep 1
-            # Only redraw if the content might have changed
-            local old_header_lines=$CALCULATED_HEADER_LINES
-            draw_header
+    # Initialize terminal display with fallback
+    if has_capability "scroll_region" && has_capability "cursor_positioning"; then
+        enable_scroll_region
+        
+        # Start background header update process with optimized flicker reduction
+        local update_interval=$(get_config_value "update_interval" "1")
+        local flicker_reduction=$(get_config_value "flicker_reduction" "true")
+        
+        (
+            # Initialize update tracking
+            local last_header_lines=$CALCULATED_HEADER_LINES
+            local update_count=0
+            local skip_count=0
             
-            # If header size changed, update scroll region
-            if [[ $CALCULATED_HEADER_LINES -ne $old_header_lines ]]; then
-                local terminal_height=$(tput lines)
-                local scroll_bottom=$((terminal_height - 1))
-                HEADER_LINE_COUNT=$CALCULATED_HEADER_LINES
-                tput csr $HEADER_LINE_COUNT $scroll_bottom
-                tput cup $HEADER_LINE_COUNT 0
-            fi
-        done
-    ) &
-    HEADER_UPDATE_PID=$!
+            while true; do
+                sleep 0.5  # Check more frequently but update smartly
+                
+                # Increment counters
+                update_count=$((update_count + 1))
+                
+                # Only attempt update if enough time has passed or critical change detected
+                local force_update=false
+                if [[ $((update_count * 5)) -ge $((update_interval * 10)) ]]; then
+                    force_update=true
+                    update_count=0
+                fi
+                
+                # Check for critical changes that require immediate update
+                if has_terminal_size_changed || [[ "$CURRENT_STEP" != "${PREV_CURRENT_STEP:-}" ]]; then
+                    force_update=true
+                    debug "Critical change detected, forcing update"
+                fi
+                
+                # Store previous state for change detection
+                PREV_CURRENT_STEP="$CURRENT_STEP"
+                
+                if [[ "$flicker_reduction" == "true" ]]; then
+                    # Smart update with flicker reduction
+                    if [[ "$force_update" == "true" ]] || has_header_changed; then
+                        local old_header_lines=$CALCULATED_HEADER_LINES
+                        draw_header_optimized
+                        
+                        # Update scroll region if header size changed
+                        if [[ $CALCULATED_HEADER_LINES -ne $old_header_lines ]]; then
+                            local terminal_height=$(tput lines 2>/dev/null || echo "24")
+                            local scroll_bottom=$((terminal_height - 1))
+                            HEADER_LINE_COUNT=$CALCULATED_HEADER_LINES
+                            if has_capability "scroll_region"; then
+                                tput csr $HEADER_LINE_COUNT $scroll_bottom 2>/dev/null
+                                tput cup $HEADER_LINE_COUNT 0 2>/dev/null
+                            fi
+                        fi
+                    else
+                        skip_count=$((skip_count + 1))
+                        if [[ $((skip_count % 20)) -eq 0 ]]; then
+                            debug "Skipped $skip_count header updates (no changes)"
+                        fi
+                    fi
+                else
+                    # Legacy update mode
+                    if [[ "$force_update" == "true" ]]; then
+                        local old_header_lines=$CALCULATED_HEADER_LINES
+                        draw_header_legacy
+                        
+                        if [[ $CALCULATED_HEADER_LINES -ne $old_header_lines ]]; then
+                            local terminal_height=$(tput lines 2>/dev/null || echo "24")
+                            local scroll_bottom=$((terminal_height - 1))
+                            HEADER_LINE_COUNT=$CALCULATED_HEADER_LINES
+                            if has_capability "scroll_region"; then
+                                tput csr $HEADER_LINE_COUNT $scroll_bottom 2>/dev/null
+                                tput cup $HEADER_LINE_COUNT 0 2>/dev/null
+                            fi
+                        fi
+                    fi
+                fi
+            done
+        ) &
+        HEADER_UPDATE_PID=$!
+    else
+        # Fallback for terminals without advanced capabilities
+        info "Terminal capabilities limited, using basic header display"
+        fallback_header_display
+    fi
 }
 
 update_step() {
@@ -350,83 +1202,214 @@ update_step_with_activity() {
     # Header will be updated automatically by background process
 }
 
-draw_progress_bar() {
+# Enhanced progress bar with animations and better visual design
+draw_enhanced_progress_bar() {
     local current="$1"
     local total="$2"
-    local width="${3:-50}"
+    local width="${3:-40}"
     local label="${4:-Progress}"
+    local style="${5:-gradient}"
     
-    # Calculate percentage and filled length
-    local percentage=$((current * 100 / total))
-    local filled=$((current * width / total))
+    # Ensure we have valid numbers
+    if [[ ! "$current" =~ ^[0-9]+$ ]] || [[ ! "$total" =~ ^[0-9]+$ ]] || [[ $total -eq 0 ]]; then
+        return 1
+    fi
+    
+    # Calculate percentage and filled length with zero-division protection
+    local percentage=0
+    local filled=0
+    if [[ $total -gt 0 ]]; then
+        percentage=$((current * 100 / total))
+        filled=$((current * width / total))
+    fi
     local remaining=$((width - filled))
     
-    # Create progress bar components
-    local filled_bar=""
-    local empty_bar=""
+    # Enhanced progress characters based on style
+    local progress_chars=("▏" "▎" "▍" "▌" "▋" "▊" "▉" "█")
+    local empty_char="░"
+    local filled_char="█"
     
-    # Fill the bar
-    for ((i=0; i<filled; i++)); do
-        filled_bar+="█"
-    done
+    # Color selection based on progress and theme
+    local progress_color
+    if [[ $percentage -lt 25 ]]; then
+        progress_color="${THEME_COLORS[error]:-${RED}}"
+    elif [[ $percentage -lt 50 ]]; then
+        progress_color="${THEME_COLORS[warning]:-${YELLOW}}"
+    elif [[ $percentage -lt 75 ]]; then
+        progress_color="${THEME_COLORS[info]:-${CYAN}}"
+    else
+        progress_color="${THEME_COLORS[success]:-${GREEN}}"
+    fi
     
+    # Build progress bar based on style
+    local bar=""
+    if [[ "$style" == "gradient" ]]; then
+        # Gradient style with smooth transitions
+        for ((i=0; i<filled; i++)); do
+            local intensity=0
+            if [[ $filled -gt 0 ]]; then
+                intensity=$((i * 7 / filled))
+            fi
+            if [[ $intensity -ge 7 ]]; then intensity=7; fi
+            bar+="${progress_color}${progress_chars[intensity]}${NC}"
+        done
+    else
+        # Standard style
+        for ((i=0; i<filled; i++)); do
+            bar+="${progress_color}${filled_char}${NC}"
+        done
+    fi
+    
+    # Add empty section
     for ((i=0; i<remaining; i++)); do
-        empty_bar+="░"
+        bar+="${THEME_COLORS[muted]:-}${empty_char}${NC}"
     done
     
-    # Format time remaining
-    local time_remaining=$((total - current))
-    local minutes=$((time_remaining / 60))
-    local seconds=$((time_remaining % 60))
-    local time_str=$(printf "%02d:%02d" "$minutes" "$seconds")
+    # Format with enhanced styling
+    local info_icon="${THEME_COLORS[info]}ℹ${NC}"
+    printf "\r%s ${THEME_STYLES[bold]}%s:${NC} [%s] ${THEME_COLORS[accent]}%3d%%${NC}" \
+           "$info_icon" "$label" "$bar" "$percentage"
     
-    # Print progress bar with colors
-    printf "\r${CYAN}[INFO]${NC} %s: [${GREEN}%s${NC}${empty_bar}] %3d%% | %s remaining    \n" \
-           "$label" "$filled_bar" "$percentage" "$time_str"
+    # Add time information if this is a timed progress
+    if [[ -n "${6:-}" ]]; then
+        local elapsed="$6"
+        local eta=""
+        if [[ $current -gt 0 ]] && [[ $percentage -lt 100 ]] && [[ $elapsed -gt 0 ]]; then
+            local rate=$((current * 100 / elapsed))
+            if [[ $rate -gt 0 ]] && [[ $percentage -gt 0 ]]; then
+                local eta_seconds=$(((100 - percentage) * elapsed / percentage))
+                local eta_minutes=$((eta_seconds / 60))
+                eta_seconds=$((eta_seconds % 60))
+                eta=$(printf " | ETA: %02d:%02d" "$eta_minutes" "$eta_seconds")
+            fi
+        fi
+        printf " | ${THEME_COLORS[muted]}Elapsed: %02d:%02d%s${NC}" \
+               $((elapsed / 60)) $((elapsed % 60)) "$eta"
+    fi
+    
+    printf "\n"
 }
 
-show_progress_with_spinner() {
+# Backward compatibility wrapper
+draw_progress_bar() {
+    draw_enhanced_progress_bar "$@"
+}
+
+# Enhanced spinner with multiple animation styles
+show_enhanced_spinner() {
     local message="$1"
-    local duration="$2"  # Total duration in seconds
-    local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local duration="${2:-0}"  # Total duration in seconds (0 = indefinite)
+    local style="${3:-braille}"
+    local show_progress="${4:-true}"
+    
+    # Animation styles
+    local braille_spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local dots_spinner=('⠁' '⠂' '⠄' '⡀' '⢀' '⠠' '⠐' '⠈')
+    local arrow_spinner=('↖' '↗' '↘' '↙')
+    local clock_spinner=('🕐' '🕑' '🕒' '🕓' '🕔' '🕕' '🕖' '🕗' '🕘' '🕙' '🕚' '🕛')
+    local bounce_spinner=('⠁' '⠈' '⠐' '⠠' '⢀' '⡀' '⠄' '⠂')
+    
+    # Select spinner based on style and terminal capabilities
+    local spinner_chars=()
+    case "$style" in
+        "dots")
+            spinner_chars=("${dots_spinner[@]}")
+            ;;
+        "arrow")
+            spinner_chars=("${arrow_spinner[@]}")
+            ;;
+        "clock")
+            if has_capability "unicode"; then
+                spinner_chars=("${clock_spinner[@]}")
+            else
+                spinner_chars=("${braille_spinner[@]}")
+            fi
+            ;;
+        "bounce")
+            spinner_chars=("${bounce_spinner[@]}")
+            ;;
+        *)
+            spinner_chars=("${braille_spinner[@]}")
+            ;;
+    esac
+    
     local i=0
     local elapsed=0
     local start_time=$(date +%s)
+    local cycle_time=0.15  # Animation speed
     
-    while [[ $elapsed -lt $duration ]]; do
+    while true; do
         local current_time=$(date +%s)
         elapsed=$((current_time - start_time))
         
-        # Show spinner + progress bar
-        local percentage=$((elapsed * 100 / duration))
-        local filled=$((elapsed * 30 / duration))
-        local remaining=$((30 - filled))
+        # Check if we should stop (for timed operations)
+        if [[ $duration -gt 0 ]] && [[ $elapsed -ge $duration ]]; then
+            break
+        fi
         
-        local filled_bar=""
-        local empty_bar=""
+        # Build spinner display
+        local spinner_icon="${THEME_COLORS[accent]}${spinner_chars[i]}${NC}"
+        local display_text="$spinner_icon ${THEME_STYLES[bold]}$message${NC}"
         
-        for ((j=0; j<filled; j++)); do
-            filled_bar+="█"
-        done
+        # Add progress bar for timed operations
+        if [[ $duration -gt 0 ]] && [[ "$show_progress" == "true" ]]; then
+            local percentage=$((elapsed * 100 / duration))
+            local bar_width=25
+            local filled=$((elapsed * bar_width / duration))
+            local remaining=$((bar_width - filled))
+            
+            local progress_bar=""
+            for ((j=0; j<filled; j++)); do
+                progress_bar+="${THEME_COLORS[success]}█${NC}"
+            done
+            for ((j=0; j<remaining; j++)); do
+                progress_bar+="${THEME_COLORS[muted]}░${NC}"
+            done
+            
+            local time_remaining=$((duration - elapsed))
+            local minutes=$((time_remaining / 60))
+            local seconds=$((time_remaining % 60))
+            local time_str=$(printf "%02d:%02d" "$minutes" "$seconds")
+            
+            display_text="$display_text [${progress_bar}] ${THEME_COLORS[accent]}${percentage}%%${NC} | ${THEME_COLORS[muted]}${time_str} remaining${NC}"
+        else
+            # Add elapsed time for indefinite operations
+            local minutes=$((elapsed / 60))
+            local seconds=$((elapsed % 60))
+            local time_str=$(printf "%02d:%02d" "$minutes" "$seconds")
+            display_text="$display_text ${THEME_COLORS[muted]}[${time_str}]${NC}"
+        fi
         
-        for ((j=0; j<remaining; j++)); do
-            empty_bar+="░"
-        done
+        printf "\r%s          " "$display_text"
         
-        local time_remaining=$((duration - elapsed))
-        local minutes=$((time_remaining / 60))
-        local seconds=$((time_remaining % 60))
-        local time_str=$(printf "%02d:%02d" "$minutes" "$seconds")
-        
-        printf "\r${CYAN}[${spinner[i]}]${NC} %s [${GREEN}%s${NC}${empty_bar}] %3d%% | %s remaining" \
-               "$message" "$filled_bar" "$percentage" "$time_str"
-        
-        i=$(( (i + 1) % ${#spinner[@]} ))
-        sleep 0.5
+        i=$(( (i + 1) % ${#spinner_chars[@]} ))
+        sleep "$cycle_time"
     done
     
-    # Final state
-    printf "\r${CYAN}[✓]${NC} %s [${GREEN}████████████████████████████████${NC}] 100%% | Complete!     \n" "$message"
+    # Final state for completed operations
+    if [[ $duration -gt 0 ]]; then
+        local success_icon="${THEME_COLORS[success]}✓${NC}"
+        local final_bar=""
+        for ((j=0; j<25; j++)); do
+            final_bar+="${THEME_COLORS[success]}█${NC}"
+        done
+        printf "\r%s ${THEME_STYLES[bold]}%s${NC} [%s] ${THEME_COLORS[success]}100%% | Complete!${NC}     \n" \
+               "$success_icon" "$message" "$final_bar"
+    fi
+}
+
+# Enhanced loading function with better visual feedback
+show_loading() {
+    local message="$1"
+    local style="${2:-braille}"
+    
+    # Use the enhanced spinner for indefinite loading
+    show_enhanced_spinner "$message" 0 "$style" "false"
+}
+
+# Backward compatibility wrappers
+show_progress_with_spinner() {
+    show_enhanced_spinner "$1" "$2" "braille" "true"
 }
 
 run_with_loading() {
@@ -570,7 +1553,21 @@ Options:
   --debug       Enable debug mode with verbose error output
 
 Environment Variables:
-  DEBUG_MODE    Set to 'true' to enable debug output (default: false)
+  DEBUG_MODE                Set to 'true' to enable debug output (default: false)
+  
+Header Customization:
+  HEADER_THEME             Header theme: default, minimal, modern, compact (default: default)
+  HEADER_UPDATE_INTERVAL   Header refresh interval in seconds (default: 1)
+  HEADER_SHOW_METRICS      Show system metrics: true/false (default: false)
+  HEADER_ANIMATIONS        Enable animations: true/false (default: true)
+  HEADER_COLOR_MODE        Color mode: auto, always, never (default: auto)
+  HEADER_BORDER_STYLE      Border style: single, double, rounded, thick (default: double)
+  HEADER_LAYOUT            Layout mode: auto, compact, standard, extended (default: auto)
+  
+Flicker Reduction:
+  HEADER_FLICKER_REDUCTION Advanced flicker reduction: true/false (default: true)
+  HEADER_BUFFER_UPDATES    Enable update buffering: true/false (default: true)
+  HEADER_DIFFERENTIAL_UPDATES  Only update changed content: true/false (default: true)
 EOF
 }
 

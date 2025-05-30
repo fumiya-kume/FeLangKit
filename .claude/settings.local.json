@@ -44,7 +44,15 @@
       "Bash(pgrep:*)",
       "Bash(pkill:*)",
       "Bash(timeout 3 sleep 5)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(./test_header.sh:*)",
+      "Bash(bash:*)",
+      "Bash(/Users/kuu/ghq/github.com/fumiya-kume/FeLangKit/test-header-enhancements.sh)",
+      "Bash(/Users/kuu/ghq/github.com/fumiya-kume/FeLangKit/simple-header-test.sh)",
+      "Bash(/Users/kuu/ghq/github.com/fumiya-kume/FeLangKit/flicker-reduction-test.sh)",
+      "Bash(/Users/kuu/ghq/github.com/fumiya-kume/FeLangKit/simple-flicker-test.sh)",
+      "Bash(/Users/kuu/ghq/github.com/fumiya-kume/FeLangKit/division-test.sh)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   },
