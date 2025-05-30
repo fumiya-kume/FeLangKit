@@ -251,6 +251,29 @@ func (ui *UIManager) DisplayHeader() {
 
 // Display validation results with visual formatting
 func (ui *UIManager) DisplayValidationResults(result *types.ValidationResult) {
+	// Check if we should use Bubble Tea for interactive display
+	if ui.ShouldUseBubbleTea() {
+		ui.ShowValidationResultsInteractive(result)
+		return
+	}
+	
+	// Fallback to console mode display
+	ui.displayValidationResultsConsole(result)
+}
+
+// ShowValidationResultsInteractive displays validation results using Bubble Tea
+func (ui *UIManager) ShowValidationResultsInteractive(result *types.ValidationResult) {
+	btm := ui.GetBubbleTeaManager()
+	err := btm.RunValidationResults(result)
+	if err != nil {
+		ui.Error(fmt.Sprintf("Failed to display interactive validation results: %v", err))
+		// Fallback to console mode
+		ui.displayValidationResultsConsole(result)
+	}
+}
+
+// displayValidationResultsConsole displays validation results in console mode
+func (ui *UIManager) displayValidationResultsConsole(result *types.ValidationResult) {
 	title := ui.getConsoleChar("🔍 Validation Results", "Validation Results")
 	separator := ui.getConsoleChar("─", "-")
 	

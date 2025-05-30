@@ -22,20 +22,22 @@ const (
 	StateIssueSelection
 	StateProgressTracking
 	StateLogViewer
+	StateValidationResults
 	StateCompleted
 )
 
 // Main application model
 type AppModel struct {
-	state           AppState
-	mainMenu        MainMenuModel
-	issueSelection  IssueSelectionModel
-	progressTracker ProgressModel
-	logViewer       LogViewerModel
-	windowSize      tea.WindowSizeMsg
-	ui             *UIManager
-	showLogs        bool
-	logsPanelWidth  int
+	state              AppState
+	mainMenu           MainMenuModel
+	issueSelection     IssueSelectionModel
+	progressTracker    ProgressModel
+	logViewer          LogViewerModel
+	validationResults  ValidationModel
+	windowSize         tea.WindowSizeMsg
+	ui                 *UIManager
+	showLogs           bool
+	logsPanelWidth     int
 }
 
 // Main menu model
@@ -220,6 +222,13 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.state = StateLogViewer
 			}
+		case "ctrl+v":
+			// Toggle validation results viewer
+			if m.state == StateValidationResults {
+				m.state = StateMainMenu
+			} else {
+				m.state = StateValidationResults
+			}
 		case "tab":
 			// Toggle logs panel
 			m.showLogs = !m.showLogs
@@ -250,6 +259,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progressTracker, cmd = m.updateProgress(msg)
 	case StateLogViewer:
 		m.logViewer, cmd = m.logViewer.Update(msg)
+	case StateValidationResults:
+		var updatedModel tea.Model
+		updatedModel, cmd = m.validationResults.Update(msg)
+		m.validationResults = updatedModel.(ValidationModel)
 	}
 
 	// Always update log viewer in background for live updates
@@ -273,6 +286,8 @@ func (m AppModel) View() string {
 		mainContent = m.viewProgress()
 	case StateLogViewer:
 		return m.logViewer.View()
+	case StateValidationResults:
+		return m.validationResults.View()
 	case StateCompleted:
 		mainContent = "Workflow completed! Press 'q' to quit.\n"
 	default:
@@ -335,6 +350,7 @@ func (m AppModel) layoutWithLogs(mainContent string) string {
 func (m AppModel) createStatusBar() string {
 	controls := []string{
 		"Ctrl+L: Full log view",
+		"Ctrl+V: Validation results",
 		"Tab: Toggle logs",
 		"Ctrl+C/Q: Quit",
 	}
@@ -378,6 +394,8 @@ func (m AppModel) getStateName() string {
 		return "Progress"
 	case StateLogViewer:
 		return "Logs"
+	case StateValidationResults:
+		return "Validation"
 	case StateCompleted:
 		return "Complete"
 	default:
@@ -614,4 +632,9 @@ func SendProgressComplete() tea.Cmd {
 	return func() tea.Msg {
 		return ProgressCompleteMsg{}
 	}
+}
+
+// Set validation results
+func (m *AppModel) SetValidationResults(result *types.ValidationResult) {
+	m.validationResults = NewValidationModel(result, m.ui)
 }

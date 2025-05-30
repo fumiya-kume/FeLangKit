@@ -1,31 +1,27 @@
 {
-  "number": 149,
-  "title": "Migrate VisitableTests from XCTest to Swift Testing",
-  "body": "# Migrate VisitableTests from XCTest to Swift Testing\n\n## Overview\nMigrate `Tests/FeLangCoreTests/Visitor/VisitableTests.swift` from XCTest to Swift Testing framework for consistency with the modernized test suite.\n\n## Current Status\n- **Framework**: XCTest (legacy)\n- **Test Count**: 7 test methods\n- **Test Class**: `VisitableTests: XCTestCase`\n\n## Test Coverage Areas\nThe file contains tests for the Visitable protocol compliance:\n- **Protocol Conformance**: Ensuring types properly implement Visitable\n- **Visitor Acceptance**: Verifying accept() method implementations\n- **Visitor Dispatch**: Testing proper visitor method routing\n- **Type Safety**: Ensuring type-safe visitor interactions\n- **Interface Consistency**: Verifying consistent visitor pattern usage\n\n## Migration Requirements\n\n### 1. Framework Conversion\n- [ ] Replace `import XCTest` with `import Testing`\n- [ ] Convert `final class VisitableTests: XCTestCase` to `@Suite(\"Visitable Tests\") struct VisitableTests`\n- [ ] No setUp/tearDown methods to handle (stateless tests)\n\n### 2. Test Method Migration\n- [ ] Convert all 7 `func test*()` methods to `@Test func *()` format\n- [ ] Replace XCTest assertions with Swift Testing equivalents:\n  - `XCTAssertEqual()` → `#expect()`\n  - `XCTAssertTrue()` → `#expect()`\n  - `XCTAssertNoThrow()` → No throws expectation\n\n### 3. Protocol Verification\n- [ ] Ensure Visitable protocol compliance tests remain accurate\n- [ ] Verify visitor dispatch functionality is maintained\n- [ ] Confirm type safety enforcement works correctly\n\n## Validation Steps\n- [ ] Run `swift test --filter VisitableTests` to ensure all tests pass\n- [ ] Verify Visitable protocol behavior remains consistent\n- [ ] Run `swiftlint lint --fix \u0026\u0026 swiftlint lint` to ensure code quality\n- [ ] Confirm visitor pattern interface integrity\n\n## Example Migration Pattern\n**Before (XCTest):**\n```swift\nfunc testExpressionVisitableConformance() {\n    let expr = Expression.identifier(\"test\")\n    let visitor = MockExpressionVisitor()\n    \n    XCTAssertNoThrow(expr.accept(visitor))\n    XCTAssertTrue(visitor.wasVisited)\n}\n```\n\n**After (Swift Testing):**\n```swift\n@Test func expressionVisitableConformance() {\n    let expr = Expression.identifier(\"test\")\n    let visitor = MockExpressionVisitor()\n    \n    expr.accept(visitor)\n    #expect(visitor.wasVisited)\n}\n```\n\n## Success Criteria\n- [ ] All 7 test methods successfully migrated\n- [ ] Zero test failures after migration\n- [ ] Visitable protocol functionality preserved\n- [ ] Code passes SwiftLint validation\n\n---\n**Priority**: Low  \n**Effort**: 1 hour",
+  "number": 199,
+  "title": "Create Bubble Tea model for validation results display",
+  "body": "## Description\nReplace `DisplayValidationResults()` static display with an interactive Bubble Tea model.\n\n## Current Problem\n- `DisplayValidationResults()` uses direct `fmt.Printf` for output\n- Static display with no interactivity\n- Mixed icon/fallback logic scattered in function\n- No keyboard navigation or expansion capabilities\n\n## Tasks\n- [ ] Create `ValidationModel` struct with validation results\n- [ ] Implement `tea.Model` interface (Init, Update, View)\n- [ ] Use `viewport.Model` for scrollable content\n- [ ] Add keyboard navigation (up/down, expand/collapse details)\n- [ ] Style with lipgloss for consistent theming\n- [ ] Replace `DisplayValidationResults()` calls with new model\n\n## Files to Create\n- `ccw/ui/validation_model.go`\n\n## Files to Modify\n- `ccw/ui/terminal_ui.go` (replace `DisplayValidationResults()`)\n- `ccw/ui/bubbletea_models.go` (add state for validation)\n\n## Acceptance Criteria\n- [ ] Interactive validation results with keyboard navigation\n- [ ] Expandable/collapsible sections for lint/build/test results\n- [ ] Consistent styling with existing Bubble Tea models\n- [ ] No direct `fmt.Printf` usage for validation display\n- [ ] Support for both console and interactive modes\n\n## Dependencies\nNone - can be implemented independently.",
   "state": "open",
-  "url": "https://api.github.com/repos/fumiya-kume/FeLangKit/issues/149",
-  "html_url": "https://github.com/fumiya-kume/FeLangKit/issues/149",
+  "url": "https://api.github.com/repos/fumiya-kume/FeLangKit/issues/199",
+  "html_url": "https://github.com/fumiya-kume/FeLangKit/issues/199",
   "labels": [
     {
       "name": "enhancement",
       "color": "a2eeef"
     },
     {
-      "name": "good first issue",
-      "color": "7057ff"
-    },
-    {
-      "name": "testing",
+      "name": "ui",
       "color": "ededed"
     },
     {
-      "name": "swift-testing",
+      "name": "bubble-tea",
       "color": "ededed"
     }
   ],
   "assignees": [],
-  "created_at": "2025-05-30T05:25:28Z",
-  "updated_at": "2025-05-30T05:25:28Z",
+  "created_at": "2025-05-30T14:53:19Z",
+  "updated_at": "2025-05-30T14:53:19Z",
   "repository": {
     "name": "",
     "full_name": "",

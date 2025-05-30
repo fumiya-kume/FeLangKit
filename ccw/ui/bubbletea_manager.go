@@ -125,6 +125,29 @@ func (btm *BubbleTeaManager) Quit() {
 	}
 }
 
+// RunValidationResults runs the validation results display
+func (btm *BubbleTeaManager) RunValidationResults(result *types.ValidationResult) error {
+	// Enable UI mode to redirect logs to UI buffer
+	logging.SetUIMode(true)
+	defer logging.SetUIMode(false)
+	
+	// Set validation results in our model
+	btm.model.SetValidationResults(result)
+	
+	// Set state to validation results
+	btm.model.state = StateValidationResults
+	
+	// Run the program
+	btm.program = tea.NewProgram(*btm.model, tea.WithAltScreen())
+	
+	_, err := btm.program.Run()
+	if err != nil {
+		return fmt.Errorf("error running validation results: %w", err)
+	}
+	
+	return nil
+}
+
 // RunSimpleMenu runs a simple menu selection (non-Bubble Tea fallback)
 func (btm *BubbleTeaManager) RunSimpleMenu(options []string, title string) (int, error) {
 	fmt.Printf("\n%s\n", title)
