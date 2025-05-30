@@ -96,7 +96,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
     /// Reset the analyzer for reuse.
     public func reset() {
-        symbolTable = SymbolTable()
+        symbolTable.reset()
         errorReporter.reset()
         currentNestingDepth = 0
     }

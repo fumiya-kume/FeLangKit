@@ -505,7 +505,5 @@ public final class SemanticErrorReporter: @unchecked Sendable {
         case .tooManyErrors:
             return "tooManyErrors" // Special key for this error type
         }
-
-        return "\(position.line):\(position.column)"
     }
 }
