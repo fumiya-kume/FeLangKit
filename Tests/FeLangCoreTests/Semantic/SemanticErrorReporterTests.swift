@@ -22,7 +22,7 @@ final class SemanticErrorReporterTests: XCTestCase {
 
     func testCollectSingleError() {
         let reporter = SemanticErrorReporter()
-        let error = SemanticError.undeclaredVariable("x", at: sourcePosition)
+        let error = SemanticError.undeclaredVariable("x", position: sourcePosition)
 
         reporter.collect(error)
 
@@ -39,9 +39,9 @@ final class SemanticErrorReporterTests: XCTestCase {
     func testCollectMultipleErrors() {
         let reporter = SemanticErrorReporter()
         let errors = [
-            SemanticError.undeclaredVariable("x", at: sourcePosition),
-            SemanticError.undeclaredVariable("y", at: SourcePosition(line: 2, column: 1, offset: 10)),
-            SemanticError.typeMismatch(expected: .integer, actual: .string, at: SourcePosition(line: 3, column: 1, offset: 20))
+            SemanticError.undeclaredVariable("x", position: sourcePosition),
+            SemanticError.undeclaredVariable("y", position: SourcePosition(line: 2, column: 1, offset: 10)),
+            SemanticError.typeMismatch(expected: .integer, actual: .string, position: SourcePosition(line: 3, column: 1, offset: 20))
         ]
 
         reporter.collect(errors)
@@ -55,7 +55,7 @@ final class SemanticErrorReporterTests: XCTestCase {
 
     func testCollectSingleWarning() {
         let reporter = SemanticErrorReporter()
-        let warning = SemanticWarning.unusedVariable("x", at: sourcePosition)
+        let warning = SemanticWarning.unusedVariable("x", position: sourcePosition)
 
         reporter.collect(warning)
 
@@ -71,8 +71,8 @@ final class SemanticErrorReporterTests: XCTestCase {
     func testCollectMultipleWarnings() {
         let reporter = SemanticErrorReporter()
         let warnings = [
-            SemanticWarning.unusedVariable("x", at: sourcePosition),
-            SemanticWarning.unusedFunction("foo", at: SourcePosition(line: 2, column: 1, offset: 10))
+            SemanticWarning.unusedVariable("x", position: sourcePosition),
+            SemanticWarning.unusedFunction("foo", position: SourcePosition(line: 2, column: 1, offset: 10))
         ]
 
         reporter.collect(warnings)
@@ -134,8 +134,8 @@ final class SemanticErrorReporterTests: XCTestCase {
         let reporter = SemanticErrorReporter(config: config)
 
         // Same error at same position should be deduplicated
-        let error1 = SemanticError.undeclaredVariable("x", at: sourcePosition)
-        let error2 = SemanticError.undeclaredVariable("y", at: sourcePosition) // Different variable, same position
+        let error1 = SemanticError.undeclaredVariable("x", position: sourcePosition)
+        let error2 = SemanticError.undeclaredVariable("y", position: sourcePosition) // Different variable, same position
 
         reporter.collect(error1)
         reporter.collect(error2)
@@ -151,8 +151,8 @@ final class SemanticErrorReporterTests: XCTestCase {
         let reporter = SemanticErrorReporter(config: config)
 
         // Same position, different errors
-        let error1 = SemanticError.undeclaredVariable("x", at: sourcePosition)
-        let error2 = SemanticError.undeclaredVariable("y", at: sourcePosition)
+        let error1 = SemanticError.undeclaredVariable("x", position: sourcePosition)
+        let error2 = SemanticError.undeclaredVariable("y", position: sourcePosition)
 
         reporter.collect(error1)
         reporter.collect(error2)
@@ -170,8 +170,8 @@ final class SemanticErrorReporterTests: XCTestCase {
         let pos1 = SourcePosition(line: 1, column: 1, offset: 0)
         let pos2 = SourcePosition(line: 2, column: 1, offset: 10)
 
-        let error1 = SemanticError.undeclaredVariable("x", at: pos1)
-        let error2 = SemanticError.undeclaredVariable("x", at: pos2)
+        let error1 = SemanticError.undeclaredVariable("x", position: pos1)
+        let error2 = SemanticError.undeclaredVariable("x", position: pos2)
 
         reporter.collect(error1)
         reporter.collect(error2)
@@ -189,7 +189,7 @@ final class SemanticErrorReporterTests: XCTestCase {
         let reporter = SemanticErrorReporter(config: config)
 
         for index in 1...5 {
-            let error = SemanticError.undeclaredVariable("var\(index)", at: SourcePosition(line: index, column: 1, offset: index * 10))
+            let error = SemanticError.undeclaredVariable("var\(index)", position: SourcePosition(line: index, column: 1, offset: index * 10))
             reporter.collect(error)
         }
 
@@ -213,7 +213,7 @@ final class SemanticErrorReporterTests: XCTestCase {
         let config = SemanticErrorReportingConfig(maxErrorCount: 0)
         let reporter = SemanticErrorReporter(config: config)
 
-        let error = SemanticError.undeclaredVariable("x", at: sourcePosition)
+        let error = SemanticError.undeclaredVariable("x", position: sourcePosition)
         reporter.collect(error)
 
         XCTAssertEqual(reporter.errorCount, 1) // Should add "too many errors" error immediately
@@ -274,8 +274,8 @@ final class SemanticErrorReporterTests: XCTestCase {
 
     func testFinalizationPreventsMoreCollections() {
         let reporter = SemanticErrorReporter()
-        let error1 = SemanticError.undeclaredVariable("x", at: sourcePosition)
-        let error2 = SemanticError.undeclaredVariable("y", at: SourcePosition(line: 2, column: 1, offset: 10))
+        let error1 = SemanticError.undeclaredVariable("x", position: sourcePosition)
+        let error2 = SemanticError.undeclaredVariable("y", position: SourcePosition(line: 2, column: 1, offset: 10))
 
         reporter.collect(error1)
         let result1 = reporter.finalize(with: symbolTable)
@@ -291,7 +291,7 @@ final class SemanticErrorReporterTests: XCTestCase {
 
     func testMultipleFinalizationCalls() {
         let reporter = SemanticErrorReporter()
-        let error = SemanticError.undeclaredVariable("x", at: sourcePosition)
+        let error = SemanticError.undeclaredVariable("x", position: sourcePosition)
 
         reporter.collect(error)
 
@@ -307,8 +307,8 @@ final class SemanticErrorReporterTests: XCTestCase {
 
     func testReset() {
         let reporter = SemanticErrorReporter()
-        let error = SemanticError.undeclaredVariable("x", at: sourcePosition)
-        let warning = SemanticWarning.unusedVariable("y", at: sourcePosition)
+        let error = SemanticError.undeclaredVariable("x", position: sourcePosition)
+        let warning = SemanticWarning.unusedVariable("y", position: sourcePosition)
 
         reporter.collect(error)
         reporter.collect(warning)
@@ -332,7 +332,7 @@ final class SemanticErrorReporterTests: XCTestCase {
 
     func testResetAfterFinalization() {
         let reporter = SemanticErrorReporter()
-        let error = SemanticError.undeclaredVariable("x", at: sourcePosition)
+        let error = SemanticError.undeclaredVariable("x", position: sourcePosition)
 
         reporter.collect(error)
         _ = reporter.finalize(with: symbolTable)
@@ -340,7 +340,7 @@ final class SemanticErrorReporterTests: XCTestCase {
         reporter.reset()
 
         // Should be able to collect new errors after reset
-        let newError = SemanticError.undeclaredVariable("z", at: SourcePosition(line: 3, column: 1, offset: 20))
+        let newError = SemanticError.undeclaredVariable("z", position: SourcePosition(line: 3, column: 1, offset: 20))
         reporter.collect(newError)
 
         XCTAssertEqual(reporter.errorCount, 1)
@@ -363,7 +363,7 @@ final class SemanticErrorReporterTests: XCTestCase {
             group.enter()
             queue.async {
                 let position = SourcePosition(line: index + 1, column: 1, offset: index * 10)
-                let error = SemanticError.undeclaredVariable("var\(index)", at: position)
+                let error = SemanticError.undeclaredVariable("var\(index)", position: position)
                 reporter.collect(error)
                 group.leave()
             }
@@ -388,7 +388,7 @@ final class SemanticErrorReporterTests: XCTestCase {
             group.enter()
             queue.async {
                 let position = SourcePosition(line: index + 1, column: 1, offset: index * 10)
-                let warning = SemanticWarning.unusedVariable("var\(index)", at: position)
+                let warning = SemanticWarning.unusedVariable("var\(index)", position: position)
                 reporter.collect(warning)
                 group.leave()
             }
@@ -422,9 +422,9 @@ final class SemanticErrorReporterTests: XCTestCase {
         let reporter = SemanticErrorReporter(config: config)
 
         // Add multiple errors at same position to trigger both deduplication and limit
-        let error1 = SemanticError.undeclaredVariable("x", at: sourcePosition)
-        let error2 = SemanticError.undeclaredVariable("y", at: sourcePosition)
-        let error3 = SemanticError.undeclaredVariable("z", at: SourcePosition(line: 2, column: 1, offset: 10))
+        let error1 = SemanticError.undeclaredVariable("x", position: sourcePosition)
+        let error2 = SemanticError.undeclaredVariable("y", position: sourcePosition)
+        let error3 = SemanticError.undeclaredVariable("z", position: SourcePosition(line: 2, column: 1, offset: 10))
 
         reporter.collect(error1)
         reporter.collect(error2) // Should be deduplicated

@@ -67,7 +67,7 @@ struct SymbolTableTests {
         )
 
         switch secondResult {
-        case .failure(.variableAlreadyDeclared("x", at: _)):
+        case .failure(.variableAlreadyDeclared("x", position: _)):
             // Expected
             break
         default:
@@ -185,7 +185,7 @@ struct SymbolTableTests {
         #expect(symbol?.isUsed == false)
 
         // Mark as used
-        let result = symbolTable.markAsUsed("x", at: position)
+        let result = symbolTable.markAsUsed("x", position: position)
         switch result {
         case .success:
             // Expected
@@ -212,7 +212,7 @@ struct SymbolTableTests {
         #expect(symbol?.isInitialized == false)
 
         // Mark as initialized
-        let result = symbolTable.markAsInitialized("x", at: position)
+        let result = symbolTable.markAsInitialized("x", position: position)
         switch result {
         case .success:
             // Expected
@@ -232,9 +232,9 @@ struct SymbolTableTests {
         let position = SourcePosition(line: 1, column: 1, offset: 0)
 
         // Try to mark nonexistent symbol as used
-        let usedResult = symbolTable.markAsUsed("nonexistent", at: position)
+        let usedResult = symbolTable.markAsUsed("nonexistent", position: position)
         switch usedResult {
-        case .failure(.undeclaredVariable("nonexistent", at: _)):
+        case .failure(.undeclaredVariable("nonexistent", position: _)):
             // Expected
             break
         default:
@@ -242,9 +242,9 @@ struct SymbolTableTests {
         }
 
         // Try to mark nonexistent symbol as initialized
-        let initResult = symbolTable.markAsInitialized("nonexistent", at: position)
+        let initResult = symbolTable.markAsInitialized("nonexistent", position: position)
         switch initResult {
-        case .failure(.undeclaredVariable("nonexistent", at: _)):
+        case .failure(.undeclaredVariable("nonexistent", position: _)):
             // Expected
             break
         default:
@@ -337,7 +337,7 @@ struct SymbolTableTests {
         _ = symbolTable.declare(name: "unused_var", type: .string, kind: .variable, position: position)
 
         // Mark one as used
-        _ = symbolTable.markAsUsed("used_var", at: position)
+        _ = symbolTable.markAsUsed("used_var", position: position)
 
         let unusedSymbols = symbolTable.getUnusedSymbols()
         let unusedNames = Set(unusedSymbols.map { $0.name })
@@ -399,7 +399,7 @@ struct SymbolTableTests {
 
         // Add some symbols and scopes
         _ = symbolTable.declare(name: "test_var", type: .integer, kind: .variable, position: position)
-        _ = symbolTable.markAsUsed("test_var", at: position)
+        _ = symbolTable.markAsUsed("test_var", position: position)
 
         _ = symbolTable.pushScope(kind: .function(name: "test_func", returnType: .string))
         _ = symbolTable.declare(name: "param", type: .integer, kind: .parameter, position: position, isInitialized: true)

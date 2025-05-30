@@ -3,44 +3,44 @@ import Foundation
 /// Errors that can occur during semantic analysis.
 public enum SemanticError: Error, Equatable, Sendable {
     // Type-related errors
-    case typeMismatch(expected: FeType, actual: FeType, at: SourcePosition)
-    case incompatibleTypes(FeType, FeType, operation: String, at: SourcePosition)
-    case unknownType(String, at: SourcePosition)
-    case invalidTypeConversion(from: FeType, to: FeType, at: SourcePosition)
+    case typeMismatch(expected: FeType, actual: FeType, position: SourcePosition)
+    case incompatibleTypes(FeType, FeType, operation: String, position: SourcePosition)
+    case unknownType(String, position: SourcePosition)
+    case invalidTypeConversion(from: FeType, targetType: FeType, position: SourcePosition)
 
     // Variable/scope-related errors
-    case undeclaredVariable(String, at: SourcePosition)
-    case variableAlreadyDeclared(String, at: SourcePosition)
-    case variableNotInitialized(String, at: SourcePosition)
-    case constantReassignment(String, at: SourcePosition)
-    case invalidAssignmentTarget(at: SourcePosition)
+    case undeclaredVariable(String, position: SourcePosition)
+    case variableAlreadyDeclared(String, position: SourcePosition)
+    case variableNotInitialized(String, position: SourcePosition)
+    case constantReassignment(String, position: SourcePosition)
+    case invalidAssignmentTarget(position: SourcePosition)
 
     // Function-related errors
-    case undeclaredFunction(String, at: SourcePosition)
-    case functionAlreadyDeclared(String, at: SourcePosition)
-    case incorrectArgumentCount(function: String, expected: Int, actual: Int, at: SourcePosition)
-    case argumentTypeMismatch(function: String, paramIndex: Int, expected: FeType, actual: FeType, at: SourcePosition)
-    case missingReturnStatement(function: String, at: SourcePosition)
-    case returnTypeMismatch(function: String, expected: FeType, actual: FeType, at: SourcePosition)
-    case voidFunctionReturnsValue(function: String, at: SourcePosition)
+    case undeclaredFunction(String, position: SourcePosition)
+    case functionAlreadyDeclared(String, position: SourcePosition)
+    case incorrectArgumentCount(function: String, expected: Int, actual: Int, position: SourcePosition)
+    case argumentTypeMismatch(function: String, paramIndex: Int, expected: FeType, actual: FeType, position: SourcePosition)
+    case missingReturnStatement(function: String, position: SourcePosition)
+    case returnTypeMismatch(function: String, expected: FeType, actual: FeType, position: SourcePosition)
+    case voidFunctionReturnsValue(function: String, position: SourcePosition)
 
     // Control flow errors
-    case unreachableCode(at: SourcePosition)
-    case breakOutsideLoop(at: SourcePosition)
-    case returnOutsideFunction(at: SourcePosition)
+    case unreachableCode(position: SourcePosition)
+    case breakOutsideLoop(position: SourcePosition)
+    case returnOutsideFunction(position: SourcePosition)
 
     // Array/indexing errors
-    case invalidArrayAccess(at: SourcePosition)
-    case arrayIndexTypeMismatch(expected: FeType, actual: FeType, at: SourcePosition)
-    case invalidArrayDimension(at: SourcePosition)
+    case invalidArrayAccess(position: SourcePosition)
+    case arrayIndexTypeMismatch(expected: FeType, actual: FeType, position: SourcePosition)
+    case invalidArrayDimension(position: SourcePosition)
 
     // Record/field errors
-    case undeclaredField(fieldName: String, recordType: String, at: SourcePosition)
-    case invalidFieldAccess(at: SourcePosition)
+    case undeclaredField(fieldName: String, recordType: String, position: SourcePosition)
+    case invalidFieldAccess(position: SourcePosition)
 
     // Analysis limitations
-    case cyclicDependency([String], at: SourcePosition)
-    case analysisDepthExceeded(at: SourcePosition)
+    case cyclicDependency([String], position: SourcePosition)
+    case analysisDepthExceeded(position: SourcePosition)
     case tooManyErrors(count: Int)
 }
 
@@ -103,14 +103,14 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
             return true
         case (.integer, .real), (.real, .integer):
             return true // Numeric types are compatible
-        case (.array(let e1, let d1), .array(let e2, let d2)):
-            return e1.isCompatible(with: e2) && d1 == d2
-        case (.record(let n1, let f1), .record(let n2, let f2)):
-            return n1 == n2 && f1 == f2
-        case (.function(let p1, let r1), .function(let p2, let r2)):
-            return p1.count == p2.count &&
-                   zip(p1, p2).allSatisfy { $0.0.isCompatible(with: $0.1) } &&
-                   compatibleReturnTypes(r1, r2)
+        case (.array(let elementType1, let dimensions1), .array(let elementType2, let dimensions2)):
+            return elementType1.isCompatible(with: elementType2) && dimensions1 == dimensions2
+        case (.record(let name1, let fields1), .record(let name2, let fields2)):
+            return name1 == name2 && fields1 == fields2
+        case (.function(let params1, let returnType1), .function(let params2, let returnType2)):
+            return params1.count == params2.count &&
+                   zip(params1, params2).allSatisfy { $0.0.isCompatible(with: $0.1) } &&
+                   compatibleReturnTypes(returnType1, returnType2)
         default:
             return false
         }
@@ -130,12 +130,12 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
         }
     }
 
-    private func compatibleReturnTypes(_ r1: FeType?, _ r2: FeType?) -> Bool {
-        switch (r1, r2) {
+    private func compatibleReturnTypes(_ returnType1: FeType?, _ returnType2: FeType?) -> Bool {
+        switch (returnType1, returnType2) {
         case (.none, .none):
             return true
-        case (.some(let t1), .some(let t2)):
-            return t1.isCompatible(with: t2)
+        case (.some(let type1), .some(let type2)):
+            return type1.isCompatible(with: type2)
         default:
             return false
         }
@@ -145,28 +145,28 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
 extension SemanticError: LocalizedError {
     public var errorDescription: String? {
         switch self {
-        case .typeMismatch(let expected, let actual, let pos):
-            return "Type mismatch at \(pos): expected '\(expected)', got '\(actual)'"
-        case .incompatibleTypes(let t1, let t2, let op, let pos):
-            return "Incompatible types '\(t1)' and '\(t2)' for operation '\(op)' at \(pos)"
-        case .unknownType(let name, let pos):
-            return "Unknown type '\(name)' at \(pos)"
-        case .invalidTypeConversion(let from, let to, let pos):
-            return "Invalid type conversion from '\(from)' to '\(to)' at \(pos)"
-        case .undeclaredVariable(let name, let pos):
-            return "Undeclared variable '\(name)' at \(pos)"
-        case .variableAlreadyDeclared(let name, let pos):
-            return "Variable '\(name)' already declared at \(pos)"
-        case .variableNotInitialized(let name, let pos):
-            return "Variable '\(name)' used before initialization at \(pos)"
-        case .constantReassignment(let name, let pos):
-            return "Cannot reassign constant '\(name)' at \(pos)"
-        case .invalidAssignmentTarget(let pos):
-            return "Invalid assignment target at \(pos)"
-        case .undeclaredFunction(let name, let pos):
-            return "Undeclared function '\(name)' at \(pos)"
-        case .functionAlreadyDeclared(let name, let pos):
-            return "Function '\(name)' already declared at \(pos)"
+        case .typeMismatch(let expected, let actual, let position):
+            return "Type mismatch at \(position): expected '\(expected)', got '\(actual)'"
+        case .incompatibleTypes(let type1, let type2, let operation, let position):
+            return "Incompatible types '\(type1)' and '\(type2)' for operation '\(operation)' at \(position)"
+        case .unknownType(let name, let position):
+            return "Unknown type '\(name)' at \(position)"
+        case .invalidTypeConversion(let from, let targetType, let position):
+            return "Invalid type conversion from '\(from)' to '\(targetType)' at \(position)"
+        case .undeclaredVariable(let name, let position):
+            return "Undeclared variable '\(name)' at \(position)"
+        case .variableAlreadyDeclared(let name, let position):
+            return "Variable '\(name)' already declared at \(position)"
+        case .variableNotInitialized(let name, let position):
+            return "Variable '\(name)' used before initialization at \(position)"
+        case .constantReassignment(let name, let position):
+            return "Cannot reassign constant '\(name)' at \(position)"
+        case .invalidAssignmentTarget(let position):
+            return "Invalid assignment target at \(position)"
+        case .undeclaredFunction(let name, let position):
+            return "Undeclared function '\(name)' at \(position)"
+        case .functionAlreadyDeclared(let name, let position):
+            return "Function '\(name)' already declared at \(position)"
         case .incorrectArgumentCount:
             return "Function argument count error"
         case .argumentTypeMismatch:
@@ -177,26 +177,26 @@ extension SemanticError: LocalizedError {
             return "Return type mismatch"
         case .voidFunctionReturnsValue:
             return "Void function returns value"
-        case .unreachableCode(let pos):
-            return "Unreachable code at \(pos)"
-        case .breakOutsideLoop(let pos):
-            return "Break statement outside loop at \(pos)"
-        case .returnOutsideFunction(let pos):
-            return "Return statement outside function at \(pos)"
-        case .invalidArrayAccess(let pos):
-            return "Invalid array access at \(pos)"
-        case .arrayIndexTypeMismatch(let expected, let actual, let pos):
-            return "Array index type mismatch: expected '\(expected)', got '\(actual)' at \(pos)"
-        case .invalidArrayDimension(let pos):
-            return "Invalid array dimension at \(pos)"
+        case .unreachableCode(let position):
+            return "Unreachable code at \(position)"
+        case .breakOutsideLoop(let position):
+            return "Break statement outside loop at \(position)"
+        case .returnOutsideFunction(let position):
+            return "Return statement outside function at \(position)"
+        case .invalidArrayAccess(let position):
+            return "Invalid array access at \(position)"
+        case .arrayIndexTypeMismatch(let expected, let actual, let position):
+            return "Array index type mismatch: expected '\(expected)', got '\(actual)' at \(position)"
+        case .invalidArrayDimension(let position):
+            return "Invalid array dimension at \(position)"
         case .undeclaredField:
             return "Undeclared field error"
-        case .invalidFieldAccess(let pos):
-            return "Invalid field access at \(pos)"
+        case .invalidFieldAccess(let position):
+            return "Invalid field access at \(position)"
         case .cyclicDependency:
             return "Cyclic dependency detected"
-        case .analysisDepthExceeded(let pos):
-            return "Analysis depth exceeded at \(pos)"
+        case .analysisDepthExceeded(let position):
+            return "Analysis depth exceeded at \(position)"
         case .tooManyErrors:
             return "Too many semantic errors, stopping analysis"
         }
@@ -240,29 +240,29 @@ public struct SemanticAnalysisResult: Sendable {
 
 /// Warnings that can occur during semantic analysis.
 public enum SemanticWarning: Equatable, Sendable {
-    case unusedVariable(String, at: SourcePosition)
-    case unusedFunction(String, at: SourcePosition)
-    case unreachableCode(at: SourcePosition)
-    case implicitTypeConversion(from: FeType, to: FeType, at: SourcePosition)
-    case shadowedVariable(String, at: SourcePosition)
-    case inefficientOperation(description: String, at: SourcePosition)
+    case unusedVariable(String, position: SourcePosition)
+    case unusedFunction(String, position: SourcePosition)
+    case unreachableCode(position: SourcePosition)
+    case implicitTypeConversion(from: FeType, targetType: FeType, position: SourcePosition)
+    case shadowedVariable(String, position: SourcePosition)
+    case inefficientOperation(description: String, position: SourcePosition)
 }
 
 extension SemanticWarning {
     public var description: String {
         switch self {
-        case .unusedVariable(let name, let pos):
-            return "Unused variable '\(name)' at \(pos)"
-        case .unusedFunction(let name, let pos):
-            return "Unused function '\(name)' at \(pos)"
-        case .unreachableCode(let pos):
-            return "Unreachable code at \(pos)"
-        case .implicitTypeConversion(let from, let to, let pos):
-            return "Implicit type conversion from '\(from)' to '\(to)' at \(pos)"
-        case .shadowedVariable(let name, let pos):
-            return "Variable '\(name)' shadows variable in outer scope at \(pos)"
-        case .inefficientOperation(let desc, let pos):
-            return "Inefficient operation: \(desc) at \(pos)"
+        case .unusedVariable(let name, let position):
+            return "Unused variable '\(name)' at \(position)"
+        case .unusedFunction(let name, let position):
+            return "Unused function '\(name)' at \(position)"
+        case .unreachableCode(let position):
+            return "Unreachable code at \(position)"
+        case .implicitTypeConversion(let from, let targetType, let position):
+            return "Implicit type conversion from '\(from)' to '\(targetType)' at \(position)"
+        case .shadowedVariable(let name, let position):
+            return "Variable '\(name)' shadows variable in outer scope at \(position)"
+        case .inefficientOperation(let description, let position):
+            return "Inefficient operation: \(description) at \(position)"
         }
     }
 }
@@ -409,10 +409,10 @@ public final class SemanticErrorReporter: @unchecked Sendable {
                 switch symbol.kind {
                 case .variable, .constant, .parameter:
                     // Convert unused variables/constants/parameters to warnings
-                    warnings.append(.unusedVariable(symbol.name, at: symbol.position))
+                    warnings.append(.unusedVariable(symbol.name, position: symbol.position))
                 case .function, .procedure:
                     // Convert unused functions/procedures to warnings
-                    warnings.append(.unusedFunction(symbol.name, at: symbol.position))
+                    warnings.append(.unusedFunction(symbol.name, position: symbol.position))
                 default:
                     // Skip other symbol types (e.g., types) that don't need unused warnings
                     break
@@ -468,33 +468,33 @@ public final class SemanticErrorReporter: @unchecked Sendable {
         let position: SourcePosition
 
         switch error {
-        case .typeMismatch(_, _, let pos),
-             .incompatibleTypes(_, _, _, let pos),
-             .unknownType(_, let pos),
-             .invalidTypeConversion(_, _, let pos),
-             .undeclaredVariable(_, let pos),
-             .variableAlreadyDeclared(_, let pos),
-             .variableNotInitialized(_, let pos),
-             .constantReassignment(_, let pos),
-             .invalidAssignmentTarget(let pos),
-             .undeclaredFunction(_, let pos),
-             .functionAlreadyDeclared(_, let pos),
-             .incorrectArgumentCount(_, _, _, let pos),
-             .argumentTypeMismatch(_, _, _, _, let pos),
-             .missingReturnStatement(_, let pos),
-             .returnTypeMismatch(_, _, _, let pos),
-             .voidFunctionReturnsValue(_, let pos),
-             .unreachableCode(let pos),
-             .breakOutsideLoop(let pos),
-             .returnOutsideFunction(let pos),
-             .invalidArrayAccess(let pos),
-             .arrayIndexTypeMismatch(_, _, let pos),
-             .invalidArrayDimension(let pos),
-             .undeclaredField(_, _, let pos),
-             .invalidFieldAccess(let pos),
-             .cyclicDependency(_, let pos),
-             .analysisDepthExceeded(let pos):
-            position = pos
+        case .typeMismatch(_, _, let position),
+             .incompatibleTypes(_, _, _, let position),
+             .unknownType(_, let position),
+             .invalidTypeConversion(_, _, let position),
+             .undeclaredVariable(_, let position),
+             .variableAlreadyDeclared(_, let position),
+             .variableNotInitialized(_, let position),
+             .constantReassignment(_, let position),
+             .invalidAssignmentTarget(let position),
+             .undeclaredFunction(_, let position),
+             .functionAlreadyDeclared(_, let position),
+             .incorrectArgumentCount(_, _, _, let position),
+             .argumentTypeMismatch(_, _, _, _, let position),
+             .missingReturnStatement(_, let position),
+             .returnTypeMismatch(_, _, _, let position),
+             .voidFunctionReturnsValue(_, let position),
+             .unreachableCode(let position),
+             .breakOutsideLoop(let position),
+             .returnOutsideFunction(let position),
+             .invalidArrayAccess(let position),
+             .arrayIndexTypeMismatch(_, _, let position),
+             .invalidArrayDimension(let position),
+             .undeclaredField(_, _, let position),
+             .invalidFieldAccess(let position),
+             .cyclicDependency(_, let position),
+             .analysisDepthExceeded(let position):
+            return "\(position.line):\(position.column)"
         case .tooManyErrors:
             return "tooManyErrors" // Special key for this error type
         }
