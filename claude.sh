@@ -58,6 +58,9 @@ ISSUE_TITLE=""
 ISSUE_DESCRIPTION=""
 WORKFLOW_STEPS=()
 CURRENT_STEP=0
+CURRENT_ACTIVITY=""
+STEP_DETAILS=()
+START_TIME=""
 
 init_status_box() {
     local issue_title="$1"
@@ -83,7 +86,22 @@ init_status_box() {
         "🔍 Monitoring CI checks"
         "🎉 Workflow complete"
     )
+    
+    # Define step details for current activity display
+    STEP_DETAILS=(
+        "Creating isolated development environment"
+        "Retrieving GitHub issue information and context"
+        "Preparing implementation strategy and context"
+        "Executing automated implementation with Claude"
+        "Running SwiftLint, build, and test validation"
+        "Generating PR description and creating pull request"
+        "Monitoring CI pipeline and test execution"
+        "All tasks completed successfully"
+    )
+    
     CURRENT_STEP=0
+    CURRENT_ACTIVITY=""
+    START_TIME=$(date +%s)
     
     # Calculate box dimensions
     local title_len=${#ISSUE_TITLE}
@@ -91,7 +109,7 @@ init_status_box() {
     local branch_len=$((${#branch_name} + 9)) # "Branch: " prefix
     local max_width=$((title_len > desc_len ? title_len : desc_len))
     max_width=$((max_width > branch_len ? max_width : branch_len))
-    max_width=$((max_width > 60 ? max_width : 60))
+    max_width=$((max_width > 80 ? max_width : 80))  # Increased min width for details
     max_width=$((max_width + 4)) # padding
     
     # Draw status box
@@ -103,6 +121,16 @@ draw_status_box() {
     local border_line=$(printf "╔%*s╗" $((width-2)) "" | tr ' ' '═')
     local empty_line=$(printf "║%*s║" $((width-2)) "")
     
+    # Calculate elapsed time
+    local elapsed_time=""
+    if [[ -n "$START_TIME" ]]; then
+        local current_time=$(date +%s)
+        local elapsed=$((current_time - START_TIME))
+        local minutes=$((elapsed / 60))
+        local seconds=$((elapsed % 60))
+        elapsed_time=$(printf "⏱️  %02d:%02d" "$minutes" "$seconds")
+    fi
+    
     # Save cursor position and clear area
     echo -ne "\033[s" # Save cursor
     echo -ne "\033[H" # Move to top
@@ -111,7 +139,19 @@ draw_status_box() {
     echo -e "${BLUE}$border_line${NC}"; ((STATUS_BOX_LINES++))
     echo -e "${BLUE}║${NC} ${GREEN}${ISSUE_TITLE}$(printf "%*s" $((width-4-${#ISSUE_TITLE})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
     echo -e "${BLUE}║${NC} ${YELLOW}${ISSUE_DESCRIPTION}$(printf "%*s" $((width-4-${#ISSUE_DESCRIPTION})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
-    echo -e "${BLUE}║${NC} Branch: ${CYAN}${BRANCH_NAME}$(printf "%*s" $((width-13-${#BRANCH_NAME})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
+    
+    # Branch and elapsed time line
+    local branch_info="Branch: ${CYAN}${BRANCH_NAME}${NC}"
+    local branch_info_len=$((9 + ${#BRANCH_NAME}))  # "Branch: " + branch name
+    local elapsed_info_len=0
+    if [[ -n "$elapsed_time" ]]; then
+        elapsed_info_len=${#elapsed_time}
+        local spacing=$((width - 4 - branch_info_len - elapsed_info_len))
+        echo -e "${BLUE}║${NC} ${branch_info}$(printf "%*s" "$spacing" "")${PURPLE}${elapsed_time}${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
+    else
+        echo -e "${BLUE}║${NC} ${branch_info}$(printf "%*s" $((width-4-branch_info_len)) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
+    fi
+    
     echo -e "${BLUE}║$(printf "%*s" $((width-2)) "")║${NC}"; ((STATUS_BOX_LINES++))
     
     # Draw workflow steps
@@ -134,6 +174,20 @@ draw_status_box() {
         echo -e "${BLUE}║${NC} ${color}${status_icon} ${step}$(printf "%*s" $((width-6-${#step})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
     done
     
+    # Show current activity if set
+    if [[ -n "$CURRENT_ACTIVITY" ]]; then
+        echo -e "${BLUE}║$(printf "%*s" $((width-2)) "")║${NC}"; ((STATUS_BOX_LINES++))
+        local activity_text="  💡 ${CURRENT_ACTIVITY}"
+        echo -e "${BLUE}║${NC} ${CYAN}${activity_text}$(printf "%*s" $((width-4-${#activity_text})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
+    fi
+    
+    # Show current step detail if available
+    if [[ $CURRENT_STEP -lt ${#STEP_DETAILS[@]} ]]; then
+        echo -e "${BLUE}║$(printf "%*s" $((width-2)) "")║${NC}"; ((STATUS_BOX_LINES++))
+        local detail_text="  ${STEP_DETAILS[CURRENT_STEP]}"
+        echo -e "${BLUE}║${NC} ${NC}${detail_text}$(printf "%*s" $((width-4-${#detail_text})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
+    fi
+    
     echo -e "${BLUE}║$(printf "%*s" $((width-2)) "")║${NC}"; ((STATUS_BOX_LINES++))
     local bottom_line=$(printf "╚%*s╝" $((width-2)) "" | tr ' ' '═')
     echo -e "${BLUE}$bottom_line${NC}"; ((STATUS_BOX_LINES++))
@@ -146,7 +200,22 @@ draw_status_box() {
 update_step() {
     local step_number="$1"
     CURRENT_STEP="$step_number"
-    draw_status_box 66
+    CURRENT_ACTIVITY=""  # Clear activity when step changes
+    draw_status_box 90
+}
+
+update_activity() {
+    local activity="$1"
+    CURRENT_ACTIVITY="$activity"
+    draw_status_box 90
+}
+
+update_step_with_activity() {
+    local step_number="$1"
+    local activity="$2"
+    CURRENT_STEP="$step_number"
+    CURRENT_ACTIVITY="$activity"
+    draw_status_box 90
 }
 
 show_loading() {
@@ -560,6 +629,8 @@ EOF
     error "Validation errors detected! Auto-launching Claude Code to fix them."
     info "Error context has been saved to: $context_file"
     
+    update_activity "Fixing validation errors with Claude Code"
+    
     # Launch Claude Code with the error context message pre-loaded
     printf "%s\n" "$error_context_message" | claude
     if [[ $? -eq 0 ]]; then
@@ -578,6 +649,7 @@ EOF
 
 validate_implementation() {
     step "Validating implementation..."
+    update_activity "Running comprehensive validation checks"
     
     cd "$WORKTREE_PATH"
     
@@ -606,6 +678,7 @@ validate_implementation() {
     
     # Run quality checks if SwiftLint is available
     if command -v swiftlint &> /dev/null; then
+        update_activity "Running SwiftLint code quality checks"
         log "Running SwiftLint validation..."
         if ! swiftlint lint --fix; then
             warn "SwiftLint auto-fix applied changes"
@@ -622,6 +695,7 @@ validate_implementation() {
     fi
     
     # Build the project
+    update_activity "Building project with Swift Package Manager"
     log "Building project..."
     local build_output
     if ! build_output=$(swift build 2>&1); then
@@ -633,6 +707,7 @@ validate_implementation() {
     fi
     
     # Run tests
+    update_activity "Running comprehensive test suite"
     log "Running tests..."
     local test_output
     if ! test_output=$(swift test 2>&1); then
@@ -1167,8 +1242,11 @@ main() {
     
     # Execute workflow
     validate_prerequisites
+    update_activity "Creating isolated development environment"
     create_worktree
     update_step 1  # Setting up worktree completed
+    
+    update_activity "Retrieving GitHub issue data"
     fetch_issue_data "$issue_url"
     
     # Initialize status box after fetching issue data
@@ -1177,8 +1255,10 @@ main() {
     init_status_box "$issue_title" "$issue_body" "$BRANCH_NAME"
     
     update_step 2  # Fetching issue data completed
+    update_activity "Preparing implementation strategy"
     generate_analysis
     update_step 3  # Generating analysis completed
+    update_activity "Launching Claude Code for implementation"
     launch_claude_code
     update_step 4  # Running Claude Code completed
     
@@ -1190,10 +1270,12 @@ main() {
         if validate_implementation; then
             # Validation successful - proceed with PR creation
             update_step 5  # Validating implementation completed
+            update_activity "Creating pull request and pushing changes"
             push_and_create_pr
             update_step 6  # Creating pull request completed
+            update_activity "Monitoring CI pipeline execution"
             update_step 7  # Monitoring CI checks completed
-            update_step 8  # Workflow complete
+            update_step_with_activity 8 "All tasks completed successfully!"  # Workflow complete
             success "Workflow completed successfully!"
             echo
             info "Next steps:"
