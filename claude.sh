@@ -82,6 +82,12 @@ cleanup() {
         rm -f "${WORKTREE_PATH}/.claude-pr-output.json"
         rm -f "${WORKTREE_PATH}/.claude-commit-input.txt"
         rm -f "${WORKTREE_PATH}/.claude-commit-output.txt"
+        rm -f "${WORKTREE_PATH}/.claude-output.log"
+        rm -f "${WORKTREE_PATH}/.claude-error.log"
+        rm -f "${WORKTREE_PATH}/.claude-error-output.log"
+        rm -f "${WORKTREE_PATH}/.claude-error-stderr.log"
+        rm -f "${WORKTREE_PATH}/.claude-pr-error.log"
+        rm -f "${WORKTREE_PATH}/.claude-commit-error.log"
     fi
 }
 
@@ -379,16 +385,35 @@ EOF
     local loading_pid=$!
     
     # Launch Claude Code
-    if claude --format json < "$input_file" 2>/dev/null; then
+    local claude_output_file="${WORKTREE_PATH}/.claude-output.log"
+    local claude_error_file="${WORKTREE_PATH}/.claude-error.log"
+    
+    if claude --format json < "$input_file" > "$claude_output_file" 2> "$claude_error_file"; then
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
         success "Claude Code session completed successfully"
+        
+        # Show any output from Claude Code
+        if [[ -s "$claude_output_file" ]]; then
+            info "Claude Code output:"
+            cat "$claude_output_file"
+        fi
     else
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
         error "Claude Code session failed or was interrupted"
+        
+        # Show error details
+        if [[ -s "$claude_error_file" ]]; then
+            error "Claude Code error output:"
+            cat "$claude_error_file"
+        fi
+        if [[ -s "$claude_output_file" ]]; then
+            info "Claude Code output before failure:"
+            cat "$claude_output_file"
+        fi
         exit 1
     fi
     
@@ -454,16 +479,35 @@ EOF
     local loading_pid=$!
     
     # Launch Claude Code
-    if claude --format json < "$input_file" 2>/dev/null; then
+    local claude_output_file="${WORKTREE_PATH}/.claude-error-output.log"
+    local claude_error_file="${WORKTREE_PATH}/.claude-error-stderr.log"
+    
+    if claude --format json < "$input_file" > "$claude_output_file" 2> "$claude_error_file"; then
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
         success "Claude Code error-fixing session completed successfully"
+        
+        # Show any output from Claude Code
+        if [[ -s "$claude_output_file" ]]; then
+            info "Claude Code error-fixing output:"
+            cat "$claude_output_file"
+        fi
     else
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
-        error "Claude Code session failed or was interrupted"
+        error "Claude Code error-fixing session failed or was interrupted"
+        
+        # Show error details
+        if [[ -s "$claude_error_file" ]]; then
+            error "Claude Code error-fixing error output:"
+            cat "$claude_error_file"
+        fi
+        if [[ -s "$claude_output_file" ]]; then
+            info "Claude Code error-fixing output before failure:"
+            cat "$claude_output_file"
+        fi
         exit 1
     fi
     
@@ -615,7 +659,9 @@ Return ONLY the JSON object, no additional text or markdown formatting."
     show_loading "Generating PR description with Claude Code" &
     local loading_pid=$!
     
-    if claude < "$pr_input_file" > "$pr_output_file" 2>/dev/null; then
+    local claude_pr_error_file="${WORKTREE_PATH}/.claude-pr-error.log"
+    
+    if claude < "$pr_input_file" > "$pr_output_file" 2> "$claude_pr_error_file"; then
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
@@ -626,6 +672,10 @@ Return ONLY the JSON object, no additional text or markdown formatting."
         else
             warn "Claude Code output is not valid JSON, falling back to default format"
             echo "Failed to generate valid JSON PR description. Using fallback format."
+            if [[ -s "$claude_pr_error_file" ]]; then
+                error "Claude Code PR generation error output:"
+                cat "$claude_pr_error_file"
+            fi
             return 1
         fi
     else
@@ -633,6 +683,10 @@ Return ONLY the JSON object, no additional text or markdown formatting."
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
         warn "Claude Code PR description generation failed, using fallback format"
+        if [[ -s "$claude_pr_error_file" ]]; then
+            error "Claude Code PR generation error output:"
+            cat "$claude_pr_error_file"
+        fi
         return 1
     fi
     
@@ -699,7 +753,9 @@ Return ONLY the commit message text, no additional formatting or markdown."
     show_loading "Generating commit message with Claude Code" &
     local loading_pid=$!
     
-    if claude < "$commit_input_file" > "$commit_output_file" 2>/dev/null; then
+    local claude_commit_error_file="${WORKTREE_PATH}/.claude-commit-error.log"
+    
+    if claude < "$commit_input_file" > "$commit_output_file" 2> "$claude_commit_error_file"; then
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
@@ -710,6 +766,10 @@ Return ONLY the commit message text, no additional formatting or markdown."
             echo "$generated_message"
         else
             warn "Claude Code generated empty or too short commit message, using fallback"
+            if [[ -s "$claude_commit_error_file" ]]; then
+                error "Claude Code commit generation error output:"
+                cat "$claude_commit_error_file"
+            fi
             return 1
         fi
     else
@@ -717,6 +777,10 @@ Return ONLY the commit message text, no additional formatting or markdown."
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
         warn "Claude Code commit message generation failed, using fallback"
+        if [[ -s "$claude_commit_error_file" ]]; then
+            error "Claude Code commit generation error output:"
+            cat "$claude_commit_error_file"
+        fi
         return 1
     fi
     
