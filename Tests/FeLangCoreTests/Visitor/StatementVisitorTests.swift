@@ -1,11 +1,12 @@
-import XCTest
+import Testing
 @testable import FeLangCore
 
-final class StatementVisitorTests: XCTestCase {
+@Suite("StatementVisitor Tests")
+struct StatementVisitorTests {
 
     // MARK: - Basic Visitor Tests
 
-    func testVisitIfStatement() {
+    @Test func visitIfStatement() {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { ifStmt in "if(\(ifStmt.condition))" },
             visitWhileStatement: { _ in "while" },
@@ -28,11 +29,11 @@ final class StatementVisitorTests: XCTestCase {
         let stmt = Statement.ifStatement(ifStmt)
 
         let result = visitor.visit(stmt)
-        XCTAssertTrue(result.hasPrefix("if("))
-        XCTAssertTrue(result.contains("boolean(true)"))
+        #expect(result.hasPrefix("if("))
+        #expect(result.contains("boolean(true)"))
     }
 
-    func testVisitWhileStatement() {
+    @Test func visitWhileStatement() {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { whileStmt in "while(\(whileStmt.condition))" },
@@ -55,11 +56,11 @@ final class StatementVisitorTests: XCTestCase {
         let stmt = Statement.whileStatement(whileStmt)
 
         let result = visitor.visit(stmt)
-        XCTAssertTrue(result.hasPrefix("while("))
-        XCTAssertTrue(result.contains("boolean(true)"))
+        #expect(result.hasPrefix("while("))
+        #expect(result.contains("boolean(true)"))
     }
 
-    func testVisitForStatement() {
+    @Test func visitForStatement() {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
@@ -90,7 +91,7 @@ final class StatementVisitorTests: XCTestCase {
         )
         let stmt = Statement.forStatement(.range(rangeFor))
 
-        XCTAssertEqual(visitor.visit(stmt), "for_range(i)")
+        #expect(visitor.visit(stmt) == "for_range(i)")
 
         let forEach = ForStatement.ForEachLoop(
             variable: "item",
@@ -99,10 +100,10 @@ final class StatementVisitorTests: XCTestCase {
         )
         let forEachStmt = Statement.forStatement(.forEach(forEach))
 
-        XCTAssertEqual(visitor.visit(forEachStmt), "for_each(item)")
+        #expect(visitor.visit(forEachStmt) == "for_each(item)")
     }
 
-    func testVisitAssignment() {
+    @Test func visitAssignment() {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
@@ -126,17 +127,17 @@ final class StatementVisitorTests: XCTestCase {
         )
 
         let varAssignment = Statement.assignment(.variable("x", .literal(.integer(42))))
-        XCTAssertEqual(visitor.visit(varAssignment), "assign_var(x)")
+        #expect(visitor.visit(varAssignment) == "assign_var(x)")
 
         let arrayAssignment = Statement.assignment(.arrayElement(
             Assignment.ArrayAccess(array: .identifier("arr"), index: .literal(.integer(0))),
             .literal(.integer(42))
         ))
         let result = visitor.visit(arrayAssignment)
-        XCTAssertTrue(result.hasPrefix("assign_array("))
+        #expect(result.hasPrefix("assign_array("))
     }
 
-    func testVisitDeclarations() {
+    @Test func visitDeclarations() {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
@@ -157,14 +158,14 @@ final class StatementVisitorTests: XCTestCase {
             type: .integer,
             initialValue: .literal(.integer(42))
         ))
-        XCTAssertEqual(visitor.visit(varDecl), "var(x)")
+        #expect(visitor.visit(varDecl) == "var(x)")
 
         let constDecl = Statement.constantDeclaration(ConstantDeclaration(
             name: "PI",
             type: .real,
             initialValue: .literal(.real(3.14))
         ))
-        XCTAssertEqual(visitor.visit(constDecl), "const(PI)")
+        #expect(visitor.visit(constDecl) == "const(PI)")
 
         let funcDecl = Statement.functionDeclaration(FunctionDeclaration(
             name: "add",
@@ -172,17 +173,17 @@ final class StatementVisitorTests: XCTestCase {
             returnType: .integer,
             body: [.returnStatement(ReturnStatement(expression: .literal(.integer(0))))]
         ))
-        XCTAssertEqual(visitor.visit(funcDecl), "func(add)")
+        #expect(visitor.visit(funcDecl) == "func(add)")
 
         let procDecl = Statement.procedureDeclaration(ProcedureDeclaration(
             name: "print",
             parameters: [],
             body: [.breakStatement]
         ))
-        XCTAssertEqual(visitor.visit(procDecl), "proc(print)")
+        #expect(visitor.visit(procDecl) == "proc(print)")
     }
 
-    func testVisitOtherStatements() {
+    @Test func visitOtherStatements() {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
@@ -206,25 +207,25 @@ final class StatementVisitorTests: XCTestCase {
 
         let returnStmt = Statement.returnStatement(ReturnStatement(expression: .literal(.integer(42))))
         let result1 = visitor.visit(returnStmt)
-        XCTAssertTrue(result1.hasPrefix("return("))
-        XCTAssertTrue(result1.contains("integer(42)"))
+        #expect(result1.hasPrefix("return("))
+        #expect(result1.contains("integer(42)"))
 
         let returnVoid = Statement.returnStatement(ReturnStatement())
-        XCTAssertEqual(visitor.visit(returnVoid), "return(void)")
+        #expect(visitor.visit(returnVoid) == "return(void)")
 
         let exprStmt = Statement.expressionStatement(.literal(.integer(42)))
         let result2 = visitor.visit(exprStmt)
-        XCTAssertTrue(result2.hasPrefix("expr_stmt("))
+        #expect(result2.hasPrefix("expr_stmt("))
 
-        XCTAssertEqual(visitor.visit(.breakStatement), "break")
+        #expect(visitor.visit(.breakStatement) == "break")
 
         let block = Statement.block([.breakStatement, .breakStatement])
-        XCTAssertEqual(visitor.visit(block), "block(2)")
+        #expect(visitor.visit(block) == "block(2)")
     }
 
     // MARK: - Manual Recursive Visitor Test
 
-    func testManualRecursiveVisitor() {
+    @Test func manualRecursiveVisitor() {
         // Create a manual recursive visitor for basic statement stringification
         func stringifyStatement(_ stmt: Statement) -> String {
             switch stmt {
@@ -281,12 +282,12 @@ final class StatementVisitorTests: XCTestCase {
         }
 
         // Test simple statements
-        XCTAssertEqual(stringifyStatement(.breakStatement), "break")
+        #expect(stringifyStatement(.breakStatement) == "break")
 
         let assignment = Statement.assignment(.variable("x", .literal(.integer(42))))
         let result1 = stringifyStatement(assignment)
-        XCTAssertTrue(result1.contains("x = "))
-        XCTAssertTrue(result1.contains("integer(42)"))
+        #expect(result1.contains("x = "))
+        #expect(result1.contains("integer(42)"))
 
         // Test nested statements
         let ifStmt = IfStatement(
@@ -295,14 +296,14 @@ final class StatementVisitorTests: XCTestCase {
         )
         let ifStatement = Statement.ifStatement(ifStmt)
         let result2 = stringifyStatement(ifStatement)
-        XCTAssertTrue(result2.hasPrefix("if ("))
-        XCTAssertTrue(result2.contains("break"))
-        XCTAssertTrue(result2.contains("x = "))
+        #expect(result2.hasPrefix("if ("))
+        #expect(result2.contains("break"))
+        #expect(result2.contains("x = "))
     }
 
     // MARK: - Visitable Protocol Tests
 
-    func testVisitableProtocolConformance() {
+    @Test func visitableProtocolConformance() {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
@@ -321,15 +322,15 @@ final class StatementVisitorTests: XCTestCase {
         let stmt = Statement.breakStatement
 
         // Test accept method
-        XCTAssertEqual(stmt.accept(visitor), "break")
+        #expect(stmt.accept(visitor) == "break")
 
         // Test convenience method
-        XCTAssertEqual(stmt.visit(with: visitor), "break")
+        #expect(stmt.visit(with: visitor) == "break")
     }
 
     // MARK: - Statement Type Counting Visitor
 
-    func testStatementTypeCountingVisitor() {
+    @Test func statementTypeCountingVisitor() {
         // Simplified test using StatementVisitor to avoid complexity issues
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
@@ -347,19 +348,19 @@ final class StatementVisitorTests: XCTestCase {
         )
 
         // Test simple statements
-        XCTAssertEqual(visitor.visit(.breakStatement), "break")
+        #expect(visitor.visit(.breakStatement) == "break")
 
         let assignment = Statement.assignment(.variable("x", .literal(.integer(42))))
-        XCTAssertEqual(visitor.visit(assignment), "assignment")
+        #expect(visitor.visit(assignment) == "assignment")
 
         // Test block with multiple statements
         let block = Statement.block([.breakStatement, assignment, .breakStatement])
-        XCTAssertEqual(visitor.visit(block), "block")
+        #expect(visitor.visit(block) == "block")
     }
 
     // MARK: - Performance Test
 
-    func testVisitorPerformance() {
+    @Test func visitorPerformance() {
         // Create a manual recursive counter for performance testing
         func countStatements(_ stmt: Statement) -> Int {
             switch stmt {
@@ -395,8 +396,6 @@ final class StatementVisitorTests: XCTestCase {
         }
         let deepBlock = Statement.block(statements)
 
-        measure {
-            _ = countStatements(deepBlock)
-        }
+        _ = countStatements(deepBlock)
     }
 }

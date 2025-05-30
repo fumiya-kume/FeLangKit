@@ -1,10 +1,2 @@
 {
   "base_path": ".",
-  "branch_name": "issue-147-20250530-234331",
-  "worktree_path": "issue-147-20250530-234331",
-  "issue_number": 147,
-  "created_at": "2025-05-30T23:43:31.790215+09:00",
-  "owner": "fumiya-kume",
-  "repository": "FeLangKit",
-  "issue_url": "https://github.com/fumiya-kume/FeLangKit/issues/147"
-}
