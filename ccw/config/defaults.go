@@ -64,6 +64,16 @@ func GetDefaultCCWConfig() *CCWConfig {
 			Context:               "",
 			EnhancedCommitMessage: true,
 		},
+		
+		ValidationRecovery: ValidationRecoveryConfiguration{
+			Enabled:               true,
+			MaxAttempts:           3,
+			RecoveryTimeout:       "600s",
+			DelayBetweenAttempts:  "10s",
+			RecoverableErrorTypes: []string{"lint", "build", "test"},
+			AutoFixEnabled:        true,
+			VerboseOutput:         false,
+		},
 	}
 }
 

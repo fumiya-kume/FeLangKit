@@ -91,43 +91,69 @@ func (ui *UIManager) displayProgressHeader() {
 		return
 	}
 
-	// Clear previous header
-	fmt.Print("\033[2J\033[H") // Clear screen and move cursor to top
-	
-	// Display main header
-	ui.DisplayHeader()
-	
-	// Display progress
-	fmt.Println(ui.accentColor("┌─ Workflow Progress ─────────────────────────────────────────┐"))
-	
-	for i, step := range ui.progressTracker.Steps {
-		icon := ui.getStepIcon(step.Status)
-		statusColor := ui.getStepColor(step.Status)
-		stepNum := fmt.Sprintf("%d/%d", i+1, ui.progressTracker.TotalSteps)
+	if ui.isConsoleMode() {
+		// Console mode: simple text-based progress
+		ui.DisplayHeader()
 		
-		line := fmt.Sprintf("│ %s %s %-20s %s",
-			stepNum,
-			icon,
-			step.Name,
-			statusColor(step.Description))
+		fmt.Println(ui.accentColor("=== Workflow Progress ==="))
 		
-		// Pad to fit width
-		padding := 62 - len(stripAnsiCodes(line))
-		if padding > 0 {
-			line += strings.Repeat(" ", padding)
+		for i, step := range ui.progressTracker.Steps {
+			icon := ui.getStepIconConsole(step.Status)
+			statusColor := ui.getStepColor(step.Status)
+			stepNum := fmt.Sprintf("[%d/%d]", i+1, ui.progressTracker.TotalSteps)
+			
+			fmt.Printf("%s %s %s - %s\n",
+				stepNum,
+				icon,
+				step.Name,
+				statusColor(step.Description))
 		}
-		line += " │"
 		
-		fmt.Println(ui.accentColor(line))
+		// Display elapsed time
+		elapsed := time.Since(ui.progressTracker.StartTime).Round(time.Second)
+		fmt.Printf("Elapsed: %s\n", elapsed.String())
+		fmt.Println(ui.accentColor("========================"))
+		fmt.Println()
+	} else {
+		// Interactive mode: fancy Unicode progress
+		// Clear previous header
+		fmt.Print("\033[2J\033[H") // Clear screen and move cursor to top
+		
+		// Display main header
+		ui.DisplayHeader()
+		
+		// Display progress
+		fmt.Println(ui.accentColor("┌─ Workflow Progress ─────────────────────────────────────────┐"))
+		
+		for i, step := range ui.progressTracker.Steps {
+			icon := ui.getStepIcon(step.Status)
+			statusColor := ui.getStepColor(step.Status)
+			stepNum := fmt.Sprintf("%d/%d", i+1, ui.progressTracker.TotalSteps)
+			
+			line := fmt.Sprintf("│ %s %s %-20s %s",
+				stepNum,
+				icon,
+				step.Name,
+				statusColor(step.Description))
+			
+			// Pad to fit width
+			padding := 62 - len(stripAnsiCodes(line))
+			if padding > 0 {
+				line += strings.Repeat(" ", padding)
+			}
+			line += " │"
+			
+			fmt.Println(ui.accentColor(line))
+		}
+		
+		// Display elapsed time
+		elapsed := time.Since(ui.progressTracker.StartTime).Round(time.Second)
+		timeLine := fmt.Sprintf("│ Elapsed: %-49s │", elapsed.String())
+		fmt.Println(ui.accentColor(timeLine))
+		
+		fmt.Println(ui.accentColor("└─────────────────────────────────────────────────────────────┘"))
+		fmt.Println()
 	}
-	
-	// Display elapsed time
-	elapsed := time.Since(ui.progressTracker.StartTime).Round(time.Second)
-	timeLine := fmt.Sprintf("│ Elapsed: %-49s │", elapsed.String())
-	fmt.Println(ui.accentColor(timeLine))
-	
-	fmt.Println(ui.accentColor("└─────────────────────────────────────────────────────────────┘"))
-	fmt.Println()
 }
 
 // Get step icon based on status
@@ -141,6 +167,20 @@ func (ui *UIManager) getStepIcon(status string) string {
 		return ui.errorColorFunc("❌")
 	default: // pending
 		return ui.infoColor("⏳")
+	}
+}
+
+// Get console-safe step icon based on status
+func (ui *UIManager) getStepIconConsole(status string) string {
+	switch status {
+	case "completed":
+		return ui.successColor("[DONE]")
+	case "in_progress":
+		return ui.primaryColor("[RUNNING]")
+	case "failed":
+		return ui.errorColorFunc("[FAILED]")
+	default: // pending
+		return ui.infoColor("[PENDING]")
 	}
 }
 

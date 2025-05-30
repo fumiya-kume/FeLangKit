@@ -16,6 +16,18 @@ import (
 	"ccw/ui"
 )
 
+// getConsoleCharCmd returns console-safe characters based on CI environment
+func getConsoleCharCmd(fancy, simple string) string {
+	if os.Getenv("CCW_CONSOLE_MODE") == "true" || 
+	   os.Getenv("CI") == "true" || 
+	   os.Getenv("GITHUB_ACTIONS") == "true" ||
+	   os.Getenv("GITLAB_CI") == "true" ||
+	   os.Getenv("JENKINS_URL") != "" {
+		return simple
+	}
+	return fancy
+}
+
 // HandleListCommand processes the list command with argument parsing
 func HandleListCommand() {
 	var repoURL string
@@ -152,7 +164,8 @@ func shouldUseBubbleTeaForDoctor() bool {
 
 // runConsoleDoctorCommand runs the original console-based doctor command
 func runConsoleDoctorCommand() {
-	fmt.Println("🩺 CCW Doctor - System Diagnostic")
+	title := getConsoleCharCmd("🩺 CCW Doctor - System Diagnostic", "CCW Doctor - System Diagnostic")
+	fmt.Println(title)
 	fmt.Println("==================================")
 	fmt.Println()
 
@@ -161,13 +174,15 @@ func runConsoleDoctorCommand() {
 	// Load current configuration to display settings
 	ccwConfig, configErr := config.LoadConfiguration()
 
+	checkIcon := getConsoleCharCmd("✓", "[CHECK]")
+	
 	// Check Go version
-	fmt.Print("✓ Checking Go version... ")
+	fmt.Printf("%s Checking Go version... ", checkIcon)
 	goVersion := runtime.Version()
 	fmt.Printf("%s\n", goVersion)
 
 	// Check Git availability
-	fmt.Print("✓ Checking Git availability... ")
+	fmt.Printf("%s Checking Git availability... ", checkIcon)
 	if checkCommandAvailable("git") {
 		if gitVersion := getCommandVersion("git", "--version"); gitVersion != "" {
 			fmt.Printf("%s\n", gitVersion)
@@ -175,12 +190,13 @@ func runConsoleDoctorCommand() {
 			fmt.Println("available")
 		}
 	} else {
-		fmt.Println("❌ NOT FOUND")
+		errorIcon := getConsoleCharCmd("❌", "[ERROR]")
+		fmt.Printf("%s NOT FOUND\n", errorIcon)
 		allGood = false
 	}
 
 	// Check GitHub CLI availability
-	fmt.Print("✓ Checking GitHub CLI (gh)... ")
+	fmt.Printf("%s Checking GitHub CLI (gh)... ", checkIcon)
 	if checkCommandAvailable("gh") {
 		if ghVersion := getCommandVersion("gh", "--version"); ghVersion != "" {
 			fmt.Printf("%s\n", strings.Split(ghVersion, "\n")[0])
@@ -188,20 +204,22 @@ func runConsoleDoctorCommand() {
 			fmt.Println("available")
 		}
 	} else {
-		fmt.Println("❌ NOT FOUND")
+		errorIcon := getConsoleCharCmd("❌", "[ERROR]")
+		fmt.Printf("%s NOT FOUND\n", errorIcon)
 		allGood = false
 	}
 
 	// Check Claude Code availability
-	fmt.Print("✓ Checking Claude Code CLI... ")
+	fmt.Printf("%s Checking Claude Code CLI... ", checkIcon)
 	if checkCommandAvailable("claude") {
 		fmt.Println("available")
 	} else {
-		fmt.Println("⚠️  NOT FOUND (optional)")
+		warningIcon := getConsoleCharCmd("⚠️", "[WARNING]")
+		fmt.Printf("%s NOT FOUND (optional)\n", warningIcon)
 	}
 
 	// Check SwiftLint availability (for Swift projects)
-	fmt.Print("✓ Checking SwiftLint... ")
+	fmt.Printf("%s Checking SwiftLint... ", checkIcon)
 	if checkCommandAvailable("swiftlint") {
 		if swiftlintVersion := getCommandVersion("swiftlint", "--version"); swiftlintVersion != "" {
 			fmt.Printf("%s\n", swiftlintVersion)
@@ -209,11 +227,12 @@ func runConsoleDoctorCommand() {
 			fmt.Println("available")
 		}
 	} else {
-		fmt.Println("⚠️  NOT FOUND (optional for Swift projects)")
+		warningIcon := getConsoleCharCmd("⚠️", "[WARNING]")
+		fmt.Printf("%s NOT FOUND (optional for Swift projects)\n", warningIcon)
 	}
 
 	// Check current directory is a Git repository
-	fmt.Print("✓ Checking Git repository... ")
+	fmt.Printf("%s Checking Git repository... ", checkIcon)
 	if isGitRepository() {
 		if repoURL, err := github.GetCurrentRepoURL(); err == nil {
 			fmt.Printf("valid (%s)\n", repoURL)
@@ -221,12 +240,13 @@ func runConsoleDoctorCommand() {
 			fmt.Println("valid (local)")
 		}
 	} else {
-		fmt.Println("❌ Current directory is not a Git repository")
+		errorIcon := getConsoleCharCmd("❌", "[ERROR]")
+		fmt.Printf("%s Current directory is not a Git repository\n", errorIcon)
 		allGood = false
 	}
 
 	// Check environment variables
-	fmt.Print("✓ Checking environment... ")
+	fmt.Printf("%s Checking environment... ", checkIcon)
 	envIssues := []string{}
 	
 	if os.Getenv("GITHUB_TOKEN") == "" && os.Getenv("GH_TOKEN") == "" {
@@ -234,26 +254,30 @@ func runConsoleDoctorCommand() {
 	}
 	
 	if len(envIssues) > 0 {
-		fmt.Printf("⚠️  %s\n", strings.Join(envIssues, ", "))
+		warningIcon := getConsoleCharCmd("⚠️", "[WARNING]")
+		fmt.Printf("%s %s\n", warningIcon, strings.Join(envIssues, ", "))
 	} else {
 		fmt.Println("good")
 	}
 
 	// Check CCW configuration
-	fmt.Print("✓ Checking CCW configuration... ")
+	fmt.Printf("%s Checking CCW configuration... ", checkIcon)
 	if _, err := os.Stat("ccw.yaml"); err == nil {
 		fmt.Println("ccw.yaml found")
 	} else if _, err := os.Stat("ccw.json"); err == nil {
 		fmt.Println("ccw.json found")
 	} else {
-		fmt.Println("⚠️  no config file (will use defaults)")
+		warningIcon := getConsoleCharCmd("⚠️", "[WARNING]")
+		fmt.Printf("%s no config file (will use defaults)\n", warningIcon)
 	}
 
 	// UI Configuration Section
 	fmt.Println()
-	fmt.Println("🎨 UI Configuration:")
+	uiConfigTitle := getConsoleCharCmd("🎨 UI Configuration:", "UI Configuration:")
+	fmt.Println(uiConfigTitle)
 	if configErr != nil {
-		fmt.Println("   ⚠️  Could not load configuration, showing detected values")
+		warningIcon := getConsoleCharCmd("⚠️", "[WARNING]")
+		fmt.Printf("   %s Could not load configuration, showing detected values\n", warningIcon)
 	}
 	
 	// Console mode detection
@@ -348,7 +372,8 @@ func runConsoleDoctorCommand() {
 
 	// System information
 	fmt.Println()
-	fmt.Println("📊 System Information:")
+	systemInfoTitle := getConsoleCharCmd("📊 System Information:", "System Information:")
+	fmt.Println(systemInfoTitle)
 	fmt.Printf("   OS: %s %s\n", runtime.GOOS, runtime.GOARCH)
 	fmt.Printf("   CPUs: %d\n", runtime.NumCPU())
 	
@@ -359,7 +384,8 @@ func runConsoleDoctorCommand() {
 	// Configuration summary
 	if ccwConfig != nil {
 		fmt.Println()
-		fmt.Println("⚙️ Current Configuration:")
+		configTitle := getConsoleCharCmd("⚙️ Current Configuration:", "Current Configuration:")
+		fmt.Println(configTitle)
 		fmt.Printf("   Debug Mode: %v\n", ccwConfig.DebugMode)
 		fmt.Printf("   Worktree Base: %s\n", ccwConfig.WorktreeBase)
 		fmt.Printf("   Max Retries: %d\n", ccwConfig.MaxRetries)
@@ -383,15 +409,18 @@ func runConsoleDoctorCommand() {
 	// Summary
 	fmt.Println()
 	if allGood {
-		fmt.Println("🎉 All critical dependencies are available!")
+		successIcon := getConsoleCharCmd("🎉", "[SUCCESS]")
+		fmt.Printf("%s All critical dependencies are available!\n", successIcon)
 		fmt.Println("   CCW should work correctly in this environment.")
 	} else {
-		fmt.Println("❌ Some critical dependencies are missing.")
+		errorIcon := getConsoleCharCmd("❌", "[ERROR]")
+		fmt.Printf("%s Some critical dependencies are missing.\n", errorIcon)
 		fmt.Println("   Please install missing tools before using CCW.")
 	}
 	
 	fmt.Println()
-	fmt.Println("💡 Tips:")
+	tipsIcon := getConsoleCharCmd("💡", "[TIPS]")
+	fmt.Printf("%s Tips:\n", tipsIcon)
 	fmt.Println("   - Install GitHub CLI: brew install gh")
 	fmt.Println("   - Install Claude Code: https://claude.ai/code")
 	fmt.Println("   - Install SwiftLint: brew install swiftlint")

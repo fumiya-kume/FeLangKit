@@ -24,6 +24,7 @@ type ClaudeContext struct {
 	ValidationErrors []ValidationError         `json:"validation_errors,omitempty"`
 	IsRetry          bool                      `json:"is_retry"`
 	RetryAttempt     int                       `json:"retry_attempt"`
+	MaxRetries       int                       `json:"max_retries"`
 	TaskType         string                    `json:"task_type"` // "implementation" or "pr_description"
 }
 
