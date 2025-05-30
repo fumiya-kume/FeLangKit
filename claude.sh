@@ -358,10 +358,10 @@ EOF
     local input_file="${WORKTREE_PATH}/.claude-input.txt"
     echo "$context_message" > "$input_file"
     
-    # Launch Claude Code with the context as initial input
-    info "Launching Claude Code with issue context..."
+    # Launch Claude Code with the context as initial input and JSON format
+    info "Launching Claude Code with issue context and JSON output format..."
     info "Note: You may see a trust prompt - select 'Yes, proceed' to continue"
-    if ! claude < "$input_file"; then
+    if ! claude --format json < "$input_file"; then
         error "Claude Code session failed or was interrupted"
         exit 1
     fi
@@ -420,9 +420,9 @@ EOF
     local input_file="${WORKTREE_PATH}/.claude-error-input.txt"
     echo "$error_context_message" > "$input_file"
     
-    # Launch Claude Code with the error context as initial input
-    info "Launching Claude Code with validation error context..."
-    if ! claude < "$input_file"; then
+    # Launch Claude Code with the error context as initial input and JSON format
+    info "Launching Claude Code with validation error context and JSON output format..."
+    if ! claude --format json < "$input_file"; then
         error "Claude Code session failed or was interrupted"
         exit 1
     fi
@@ -734,21 +734,14 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
             fi
             success "Commit created automatically"
         else
-            echo
-            read -p "Re-launch Claude Code to complete implementation? (y/N): " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                warn "Launching Claude Code again..."
-                launch_claude_code_with_errors
-                
-                # After Claude Code session, recheck for commits
-                commits_ahead=$(git rev-list --count "master..HEAD" 2>/dev/null || echo "0")
-                if [[ "$commits_ahead" -eq 0 ]]; then
-                    error "Still no commits after re-launching Claude Code"
-                    exit 1
-                fi
-            else
-                info "Exiting without creating PR"
+            # Auto-select option 2: Re-launch Claude Code
+            warn "Auto-selecting option 2: Re-launching Claude Code to complete implementation..."
+            launch_claude_code_with_errors
+            
+            # After Claude Code session, recheck for commits
+            commits_ahead=$(git rev-list --count "master..HEAD" 2>/dev/null || echo "0")
+            if [[ "$commits_ahead" -eq 0 ]]; then
+                error "Still no commits after re-launching Claude Code"
                 exit 1
             fi
         fi
@@ -999,7 +992,7 @@ main() {
                 info "Remaining attempts: $((max_retries - retry_count))"
                 echo
                 
-                # Launch Claude Code with error context
+                # Launch Claude Code with error context and JSON format
                 launch_claude_code_with_errors
                 
                 # Continue to next iteration for validation retry
