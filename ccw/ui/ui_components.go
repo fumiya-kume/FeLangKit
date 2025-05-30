@@ -116,8 +116,8 @@ func (ui *UIManager) displayProgressHeader() {
 		fmt.Println()
 	} else {
 		// Interactive mode: fancy Unicode progress
-		// Clear previous header
-		fmt.Print("\033[2J\033[H") // Clear screen and move cursor to top
+		// Use proper screen clearing method
+		ui.ClearScreen()
 		
 		// Display main header
 		ui.DisplayHeader()
@@ -440,18 +440,10 @@ func (ui *UIManager) calculateContentHash(content string) string {
 }
 
 // Render header with flicker reduction techniques
+// Note: This method is deprecated in favor of Bubble Tea rendering
 func (ui *UIManager) renderHeaderWithFlickerReduction(content string) {
-	// Save cursor position
-	fmt.Print("\033[s")
-	
-	// Move to top of screen
-	fmt.Print("\033[H")
-	
-	// Output content
+	// Direct output without cursor manipulation - Bubble Tea handles positioning
 	fmt.Print(content)
-	
-	// Restore cursor position
-	fmt.Print("\033[u")
 }
 
 // Update header if content has changed (with performance optimization)

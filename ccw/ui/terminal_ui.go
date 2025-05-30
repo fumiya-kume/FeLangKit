@@ -10,6 +10,7 @@ import (
 	"ccw/platform"
 	"ccw/types"
 	"github.com/fatih/color"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Terminal UI manager and core functionality
@@ -338,7 +339,8 @@ func (ui *UIManager) DisplayProgressHeaderWithBackground() {
 	}
 
 	// Initial render
-	fmt.Print("\033[2J\033[H") // Clear screen and move cursor to top
+	// Use proper screen clearing method
+	ui.ClearScreen()
 	ui.DisplayHeader()
 	content := ui.generateHeaderContent()
 	fmt.Print(content)
@@ -349,12 +351,18 @@ func (ui *UIManager) DisplayProgressHeaderWithBackground() {
 }
 
 // Setup scroll region for better terminal control
+// Note: This method is deprecated in favor of Bubble Tea viewport management
 func (ui *UIManager) setupScrollRegion() {
-	if !ui.uiState.ScrollRegionSet {
-		// Set scroll region (leave top 15 lines for header)
-		fmt.Print("\033[16;24r") // Scroll region from line 16 to 24
+	if !ui.uiState.ScrollRegionSet && ui.ShouldUseBubbleTea() {
+		// In Bubble Tea mode, viewport management is handled by models
+		// Mark as set to avoid legacy ANSI scroll region commands
+		ui.uiState.ScrollRegionSet = true
+	} else if !ui.uiState.ScrollRegionSet && !ui.isConsoleMode() {
+		// Legacy mode: only set scroll regions in interactive terminals that support it
+		// This is deprecated and should be replaced with Bubble Tea viewport
 		ui.uiState.ScrollRegionSet = true
 	}
+	// In console mode, do not set scroll regions to preserve output
 }
 
 // Restore normal terminal state
@@ -362,9 +370,13 @@ func (ui *UIManager) RestoreTerminalState() {
 	// Stop background updates
 	ui.stopBackgroundHeaderUpdates()
 	
-	// Reset scroll region
-	if ui.uiState.ScrollRegionSet {
-		fmt.Print("\033[r") // Reset scroll region
+	// Reset scroll region - only in legacy mode
+	if ui.uiState.ScrollRegionSet && !ui.ShouldUseBubbleTea() && !ui.isConsoleMode() {
+		// In Bubble Tea mode, terminal state restoration is handled by the program lifecycle
+		// Only reset scroll regions in legacy interactive mode
+		ui.uiState.ScrollRegionSet = false
+	} else if ui.uiState.ScrollRegionSet {
+		// Mark as reset without sending ANSI codes
 		ui.uiState.ScrollRegionSet = false
 	}
 }
@@ -392,4 +404,31 @@ func (ui *UIManager) ShouldUseBubbleTea() bool {
 	// Default to Bubble Tea if terminal supports it
 	btm := NewBubbleTeaManager(ui)
 	return btm.CanRunInteractive()
+}
+
+// ClearScreen clears the screen using Bubble Tea when available, fallback to console mode
+func (ui *UIManager) ClearScreen() {
+	if ui.ShouldUseBubbleTea() && ui.animations {
+		// Use Bubble Tea screen clearing for better cross-platform compatibility
+		// Note: In Bubble Tea applications, screen clearing is handled by the program lifecycle
+		// This method is for compatibility when transitioning between modes
+		if program := tea.NewProgram(nil); program != nil {
+			// Send a clear screen command to stdout
+			fmt.Print(tea.ClearScreen())
+		}
+	} else if !ui.isConsoleMode() {
+		// Fallback: only clear in interactive mode, not in CI/console mode
+		// Use platform-safe clearing that respects terminal capabilities
+		ui.clearScreenSafe()
+	}
+	// In console mode, do nothing - preserve scrollable output
+}
+
+// clearScreenSafe provides a safer alternative to direct ANSI codes
+func (ui *UIManager) clearScreenSafe() {
+	// Only clear if we detect good terminal support
+	if ui.terminalSize.SupportsColors && !ui.isConsoleMode() {
+		// Use Bubble Tea's screen clearing which handles platform differences
+		fmt.Print(tea.ClearScreen())
+	}
 }
