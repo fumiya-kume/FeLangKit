@@ -177,18 +177,18 @@ func (btm *BubbleTeaManager) CanRunInteractive() bool {
 
 // DisplayIssueSelectionEnhanced shows issue selection using the unified CCW app
 func (ui *UIManager) DisplayIssueSelectionEnhanced(issues []*types.Issue) ([]*types.Issue, error) {
-	app := NewCCWApp(ui)
+	app := ui.GetCCWApp()
 	return app.RunIssueSelection(issues)
 }
 
 // DisplayProgressEnhanced shows progress tracking using the unified CCW app
 func (ui *UIManager) DisplayProgressEnhanced(steps []types.WorkflowStep) error {
-	app := NewCCWApp(ui)
+	app := ui.GetCCWApp()
 	return app.RunProgressTracking(steps)
 }
 
 // RunMainMenuEnhanced shows main menu using the unified CCW app
 func (ui *UIManager) RunMainMenuEnhanced() error {
-	app := NewCCWApp(ui)
+	app := ui.GetCCWApp()
 	return app.RunMainMenu()
 }

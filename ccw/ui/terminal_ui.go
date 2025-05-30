@@ -457,6 +457,6 @@ func (ui *UIManager) ShouldUseBubbleTea() bool {
 	}
 	
 	// Use the unified app to check compatibility
-	app := NewCCWApp(ui)
+	app := ui.GetCCWApp()
 	return app.CanRunInteractive()
 }
