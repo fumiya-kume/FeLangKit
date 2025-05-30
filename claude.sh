@@ -946,19 +946,48 @@ Return ONLY the JSON object, no additional text or markdown formatting."
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
         echo -e "\r\033[K" # Clear loading line
-        # Validate that we got valid JSON
+        
+        # Extract the actual JSON content from Claude Code response
+        local extracted_json_file="${WORKTREE_PATH}/.claude-pr-extracted.json"
+        
+        # Try to extract JSON from the 'result' field and strip the "json\n" prefix
+        if jq -r '.result' "$pr_output_file" 2>/dev/null | sed 's/^json[[:space:]]*//g' > "$extracted_json_file" && [[ -s "$extracted_json_file" ]]; then
+            # Check if the extracted and cleaned result is valid JSON
+            if jq . "$extracted_json_file" >/dev/null 2>&1; then
+                success "PR description generated successfully"
+                cat "$extracted_json_file"
+                rm -f "$extracted_json_file"
+                return 0
+            fi
+        fi
+        
+        # If that didn't work, try to extract just the JSON object from the result field
+        if jq -r '.result' "$pr_output_file" 2>/dev/null | grep -o '{.*}' > "$extracted_json_file" && [[ -s "$extracted_json_file" ]]; then
+            if jq . "$extracted_json_file" >/dev/null 2>&1; then
+                success "PR description generated successfully"
+                cat "$extracted_json_file"
+                rm -f "$extracted_json_file"
+                return 0
+            fi
+        fi
+        
+        # Final fallback - check if the whole response is valid JSON
         if jq . "$pr_output_file" >/dev/null 2>&1; then
             success "PR description generated successfully"
             cat "$pr_output_file"
-        else
-            warn "Claude Code output is not valid JSON, falling back to default format"
-            echo "Failed to generate valid JSON PR description. Using fallback format."
-            if [[ -s "$claude_pr_error_file" ]]; then
-                error "Claude Code PR generation error output:"
-                cat "$claude_pr_error_file"
-            fi
-            return 1
+            rm -f "$extracted_json_file"
+            return 0
         fi
+        
+        # All extraction methods failed
+        warn "Claude Code output is not valid JSON, falling back to default format"
+        echo "Failed to generate valid JSON PR description. Using fallback format."
+        if [[ -s "$claude_pr_error_file" ]]; then
+            error "Claude Code PR generation error output:"
+            cat "$claude_pr_error_file"
+        fi
+        rm -f "$extracted_json_file"
+        return 1
     else
         local exit_code=$?
         kill $loading_pid 2>/dev/null
