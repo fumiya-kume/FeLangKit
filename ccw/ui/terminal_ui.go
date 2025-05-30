@@ -10,6 +10,7 @@ import (
 	"ccw/platform"
 	"ccw/types"
 	"github.com/fatih/color"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Terminal UI manager and core functionality
@@ -249,8 +250,36 @@ func (ui *UIManager) DisplayHeader() {
 	fmt.Print("\n")
 }
 
-// Display validation results with visual formatting
+// DisplayValidationResults shows validation results using the appropriate display method
 func (ui *UIManager) DisplayValidationResults(result *types.ValidationResult) {
+	if ui.ShouldUseBubbleTea() {
+		ui.DisplayValidationResultsInteractive(result)
+	} else {
+		ui.DisplayValidationResultsStatic(result)
+	}
+}
+
+// DisplayValidationResultsInteractive shows validation results using interactive Bubble Tea model
+func (ui *UIManager) DisplayValidationResultsInteractive(result *types.ValidationResult) {
+	// Create validation model
+	width, height := 80, 24 // Default size, will be updated by window size
+	if termSize := ui.getTerminalSize(); termSize.Width > 0 && termSize.Height > 0 {
+		width, height = termSize.Width, termSize.Height
+	}
+	
+	model := NewValidationModel(result, width, height)
+	
+	// Run the interactive program
+	program := tea.NewProgram(model, tea.WithAltScreen())
+	if _, err := program.Run(); err != nil {
+		// Fallback to static display if interactive mode fails
+		ui.Error(fmt.Sprintf("Failed to run interactive validation display: %v", err))
+		ui.DisplayValidationResultsStatic(result)
+	}
+}
+
+// DisplayValidationResultsStatic shows validation results with static visual formatting
+func (ui *UIManager) DisplayValidationResultsStatic(result *types.ValidationResult) {
 	title := ui.getConsoleChar("🔍 Validation Results", "Validation Results")
 	separator := ui.getConsoleChar("─", "-")
 	
