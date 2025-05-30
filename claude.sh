@@ -483,15 +483,16 @@ EOF
     local input_file="${WORKTREE_PATH}/.claude-input.txt"
     echo "$context_message" > "$input_file"
     
-    # Launch Claude Code interactively
+    # Launch Claude Code with automatic prompt execution
     info "Launching Claude Code with issue context..."
     info "Note: You may see a trust prompt - select 'Yes, proceed' to continue"
     echo
     info "Issue context has been saved to: $context_file"
-    info "Auto-launching Claude Code..."
+    info "Auto-launching Claude Code with prompt..."
     
-    # Launch Claude Code interactively (auto-launch)
-    if claude; then
+    # Launch Claude Code with the context message pre-loaded
+    printf "%s\n" "$context_message" | claude
+    if [[ $? -eq 0 ]]; then
         success "Claude Code session completed successfully"
     else
         local exit_code=$?
@@ -553,14 +554,15 @@ EOF
     local input_file="${WORKTREE_PATH}/.claude-error-input.txt"
     echo "$error_context_message" > "$input_file"
     
-    # Launch Claude Code interactively to fix errors
+    # Launch Claude Code with error context pre-loaded
     info "Launching Claude Code with validation error context..."
     echo
     error "Validation errors detected! Auto-launching Claude Code to fix them."
     info "Error context has been saved to: $context_file"
     
-    # Launch Claude Code interactively (auto-launch)
-    if claude; then
+    # Launch Claude Code with the error context message pre-loaded
+    printf "%s\n" "$error_context_message" | claude
+    if [[ $? -eq 0 ]]; then
         success "Claude Code error-fixing session completed successfully"
     else
         local exit_code=$?
