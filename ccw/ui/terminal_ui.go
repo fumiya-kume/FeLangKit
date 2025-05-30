@@ -188,13 +188,14 @@ func (ui *UIManager) InitializeProgress() {
 			{ID: "analysis", Name: "Generating analysis", Description: "Preparing implementation context", Status: "pending"},
 			{ID: "implementation", Name: "Running Claude Code", Description: "Automated implementation process", Status: "pending"},
 			{ID: "validation", Name: "Validating implementation", Description: "Running quality checks", Status: "pending"},
+			{ID: "commit", Name: "Committing changes", Description: "Creating git commit with all changes", Status: "pending"},
 			{ID: "pr_generation", Name: "Generating PR description", Description: "Creating comprehensive PR description", Status: "pending"},
 			{ID: "pr_creation", Name: "Creating pull request", Description: "Submitting PR to GitHub", Status: "pending"},
 			{ID: "complete", Name: "Workflow complete", Description: "Process finished successfully", Status: "pending"},
 		},
 		CurrentStep: 0,
 		StartTime:   time.Now(),
-		TotalSteps:  8,
+		TotalSteps:  9,
 	}
 }
 

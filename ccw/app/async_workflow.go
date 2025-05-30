@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"ccw/commit"
 	"ccw/types"
 )
 
@@ -22,28 +21,11 @@ func (app *CCWApp) ExecuteAsyncPRWorkflow(issue *types.Issue, worktreePath, bran
 	// Start implementation summary generation (async)
 	summaryResultChan := app.claudeIntegration.GenerateImplementationSummaryAsync(worktreePath)
 
-	// Start commit message generation (async)
-	issueForCommit := &commit.Issue{
-		Number: issue.Number,
-		Title:  issue.Title,
-		Body:   issue.Body,
-	}
-	commitResultChan := app.commitGenerator.GenerateEnhancedCommitMessageAsync(worktreePath, issueForCommit)
-
 	// Display progress while waiting for async operations
 	app.ui.Info("⏳ Generating implementation summary...")
-	app.ui.Info("⏳ Creating commit message...")
 
 	// Wait for implementation summary with timeout
 	implementationSummary := app.waitForImplementationSummary(summaryResultChan)
-	
-	// Wait for commit message with timeout
-	commitMessage := app.waitForCommitMessage(commitResultChan, issue)
-	
-	// Use commit message for future commits (could be saved or used later)
-	app.debugStep("commit_message", "Generated commit message", map[string]interface{}{
-		"message": commitMessage,
-	})
 
 	app.ui.UpdateProgress("analysis", "completed")
 
@@ -73,22 +55,6 @@ func (app *CCWApp) waitForImplementationSummary(summaryResultChan <-chan types.I
 	}
 }
 
-// waitForCommitMessage waits for commit message with timeout
-func (app *CCWApp) waitForCommitMessage(commitResultChan <-chan commit.CommitMessageResult, issue *types.Issue) string {
-	select {
-	case commitResult := <-commitResultChan:
-		if commitResult.Error != nil {
-			app.ui.Warning(fmt.Sprintf("Commit message generation failed: %v", commitResult.Error))
-			return fmt.Sprintf("feat: %s\n\nResolves #%d", issue.Title, issue.Number)
-		} else {
-			app.ui.Success("✅ Commit message generated")
-			return commitResult.Message
-		}
-	case <-time.After(30 * time.Second):
-		app.ui.Warning("⚠️ Commit message generation timed out")
-		return fmt.Sprintf("feat: %s\n\nResolves #%d", issue.Title, issue.Number)
-	}
-}
 
 // pushChangesToRemote pushes branch changes to remote repository
 func (app *CCWApp) pushChangesToRemote(branchName, worktreePath string) error {

@@ -124,3 +124,31 @@ func (g *Operations) SyncWithUpstream(worktreePath string) error {
 
 	return nil
 }
+
+// CommitChanges stages all changes and creates a commit with the provided message
+func (g *Operations) CommitChanges(worktreePath, commitMessage string) error {
+	// Stage all changes
+	addCmd := CreateGitCommand([]string{"add", "."}, worktreePath)
+	if err := addCmd.Run(); err != nil {
+		return fmt.Errorf("failed to stage changes: %w", err)
+	}
+
+	// Check if there are any changes to commit
+	statusCmd := CreateGitCommand([]string{"status", "--porcelain"}, worktreePath)
+	output, err := statusCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to check for changes: %w", err)
+	}
+	
+	if strings.TrimSpace(string(output)) == "" {
+		return fmt.Errorf("no changes to commit")
+	}
+
+	// Create commit with the provided message
+	commitCmd := CreateGitCommand([]string{"commit", "-m", commitMessage}, worktreePath)
+	if err := commitCmd.Run(); err != nil {
+		return fmt.Errorf("failed to create commit: %w", err)
+	}
+
+	return nil
+}

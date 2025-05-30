@@ -80,16 +80,24 @@ CCW_ANIMATIONS=false ccw <url>         # Disable animations
 
 ## Workflow
 
-CCW follows an 8-step automated workflow with real-time progress tracking:
+CCW follows a 9-step automated workflow with real-time progress tracking:
 
 1. **Setting up worktree**: Creates isolated git worktree with unique branch name
 2. **Fetching issue data**: Retrieves comprehensive issue information using `gh api`
 3. **Generating analysis**: Prepares implementation context and strategy
 4. **Running Claude Code**: Launches automated implementation with issue context
 5. **Validating implementation**: Runs comprehensive quality checks (SwiftLint, build, tests)
-6. **Generating PR description**: Creates AI-powered comprehensive PR description
-7. **Creating pull request**: Submits PR with enhanced description using `gh pr create`
-8. **Workflow complete**: Cleanup and success reporting with next steps
+6. **Committing changes**: **REQUIRED STEP** - Creates git commit with all changes before PR creation
+7. **Generating PR description**: Creates AI-powered comprehensive PR description
+8. **Creating pull request**: Submits PR with enhanced description using `gh pr create`
+9. **Workflow complete**: Cleanup and success reporting with next steps
+
+### ⚠️ Critical Workflow Requirements
+
+- **Step 6 is mandatory**: Git commit must be completed **before** creating the pull request
+- **Synchronous operation**: Commit step cannot be run in parallel with PR creation
+- **All changes must be staged**: Ensure all implementation changes are committed
+- **Conventional commit format**: Follow project standards for commit messages
 
 ### Enhanced Features
 - **Smart Change Detection**: Only runs validation when actual changes are detected
