@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"ccw/types"
@@ -170,8 +171,8 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 		successIcon := getConsoleChar("✅", "[SUCCESS]")
 		app.ui.Success(fmt.Sprintf("%s Pull request created: %s", successIcon, prResult.PullRequest.HTMLURL))
 		
-		// Step 5: Monitor CI checks (async, optional)
-		app.monitorCIChecks(prResult.PullRequest.HTMLURL)
+		// Step 5: Monitor CI checks with proper Goroutine implementation
+		app.monitorCIChecksWithGoroutines(prResult.PullRequest.HTMLURL)
 		
 	case <-time.After(1 * time.Minute):
 		app.ui.UpdateProgress("pr_creation", "failed")
@@ -188,22 +189,121 @@ func (app *CCWApp) createAndMonitorPR(issue *types.Issue, prDescription, branchN
 	return nil
 }
 
-// monitorCIChecks monitors CI checks asynchronously
-func (app *CCWApp) monitorCIChecks(prURL string) {
+// monitorCIChecksWithGoroutines monitors CI checks with proper Goroutine implementation
+func (app *CCWApp) monitorCIChecksWithGoroutines(prURL string) {
 	loadingIcon := getConsoleChar("⏳", "[MONITORING]")
-	app.ui.Info(fmt.Sprintf("%s Monitoring CI checks...", loadingIcon))
-	ciResultChan := app.prManager.MonitorPRChecksAsync(prURL, 5*time.Minute)
+	app.ui.Info(fmt.Sprintf("%s Starting continuous CI monitoring...", loadingIcon))
+	
+	// Create channels for real-time updates
+	updateChan := make(chan types.CIWatchUpdate, 10)
+	
+	// Start CI monitoring with Goroutines
+	resultChan := app.prManager.WatchPRChecksWithGoroutine(prURL, updateChan)
+	
+	// Handle real-time CI updates in a separate Goroutine
+	go app.handleCIUpdates(updateChan)
+	
+	// Wait for final result
+	select {
+	case result := <-resultChan:
+		if result.Error != nil {
+			app.ui.Warning(fmt.Sprintf("CI monitoring encountered an error: %v", result.Error))
+			// Try to recover or provide fallback
+			app.handleCIMonitoringFailure(prURL, result.Error)
+		} else {
+			successIcon := getConsoleChar("✅", "[SUCCESS]")
+			app.ui.Success(fmt.Sprintf("%s CI monitoring completed successfully", successIcon))
+			
+			if result.Status != nil {
+				if result.Status.IsCompleted && !result.Status.IsFailed {
+					app.ui.Success(fmt.Sprintf("All CI checks passed! Final status: %s", result.Status.Conclusion))
+				} else if result.Status.IsFailed {
+					app.ui.Warning(fmt.Sprintf("Some CI checks failed. Final status: %s", result.Status.Conclusion))
+					// Attempt CI failure recovery
+					app.handleCIFailureRecovery(prURL, result.Status)
+				}
+			}
+		}
+	case <-time.After(35 * time.Minute): // Extended timeout for proper CI monitoring
+		warningIcon := getConsoleChar("⚠️", "[WARNING]")
+		app.ui.Warning(fmt.Sprintf("%s CI monitoring timed out after 35 minutes", warningIcon))
+	}
+}
+
+// handleCIUpdates processes real-time CI status updates
+func (app *CCWApp) handleCIUpdates(updateChan <-chan types.CIWatchUpdate) {
+	for update := range updateChan {
+		switch update.Type {
+		case "status":
+			if update.Status != nil {
+				spinnerIcon := getConsoleChar("🔄", "[CHECKING]")
+				app.ui.Info(fmt.Sprintf("%s CI Status: %s (%d checks)", 
+					spinnerIcon, update.Status.Status, len(update.Status.Checks)))
+				
+				// Display individual check statuses
+				for _, check := range update.Status.Checks {
+					checkIcon := getConsoleChar("⏳", "[PENDING]")
+					if check.Status == "completed" {
+						if check.Conclusion == "success" {
+							checkIcon = getConsoleChar("✅", "[PASS]")
+						} else {
+							checkIcon = getConsoleChar("❌", "[FAIL]")
+						}
+					}
+					app.ui.Info(fmt.Sprintf("  %s %s: %s", checkIcon, check.Name, check.Status))
+				}
+			}
+		case "completed":
+			celebrationIcon := getConsoleChar("🎉", "[COMPLETE]")
+			app.ui.Success(fmt.Sprintf("%s %s", celebrationIcon, update.Message))
+		case "failed":
+			errorIcon := getConsoleChar("❌", "[FAILED]")
+			app.ui.Warning(fmt.Sprintf("%s %s", errorIcon, update.Message))
+		default:
+			app.ui.Info(update.Message)
+		}
+	}
+}
+
+// handleCIMonitoringFailure handles CI monitoring failures with recovery
+func (app *CCWApp) handleCIMonitoringFailure(prURL string, err error) {
+	app.ui.Warning("Attempting to recover CI monitoring...")
+	
+	// Fallback to basic monitoring
+	ciResultChan := app.prManager.MonitorPRChecksAsync(prURL, 2*time.Minute)
 	
 	select {
 	case ciResult := <-ciResultChan:
 		if ciResult.Error != nil {
-			app.ui.Warning(fmt.Sprintf("CI monitoring failed: %v", ciResult.Error))
+			app.ui.Warning(fmt.Sprintf("Fallback CI monitoring also failed: %v", ciResult.Error))
 		} else {
-			app.ui.Info(fmt.Sprintf("CI Status: %s", ciResult.Status.Status))
+			app.ui.Info(fmt.Sprintf("Fallback CI Status: %s", ciResult.Status.Status))
 		}
-	case <-time.After(1 * time.Minute): // Short timeout for CI monitoring demo
+	case <-time.After(3 * time.Minute):
 		app.ui.Info("CI monitoring will continue in background")
 	}
+}
+
+// handleCIFailureRecovery attempts to recover from CI failures
+func (app *CCWApp) handleCIFailureRecovery(prURL string, status *types.CIWatchStatus) {
+	app.ui.Info("Analyzing CI failures for potential auto-fixes...")
+	
+	for _, check := range status.Checks {
+		if check.Conclusion == "failure" {
+			app.ui.Info(fmt.Sprintf("Failed check: %s", check.Name))
+			
+			// Identify common failure types and suggest fixes
+			if strings.Contains(strings.ToLower(check.Name), "lint") {
+				app.ui.Info("Lint failure detected - consider running SwiftLint fixes")
+			} else if strings.Contains(strings.ToLower(check.Name), "build") {
+				app.ui.Info("Build failure detected - check for compilation errors")
+			} else if strings.Contains(strings.ToLower(check.Name), "test") {
+				app.ui.Info("Test failure detected - review test results and fix failing tests")
+			}
+		}
+	}
+	
+	app.ui.Info("Manual intervention may be required to fix CI failures")
 }
 
 // cleanupWorktree removes the temporary worktree

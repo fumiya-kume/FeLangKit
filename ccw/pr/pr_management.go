@@ -1,7 +1,9 @@
 package pr
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -152,6 +154,226 @@ func (pm *PRManager) MonitorPRChecks(prURL string, timeout time.Duration) (*type
 	}
 
 	return status, nil
+}
+
+// WatchPRChecksWithGoroutine monitors PR CI checks using gh pr checks --watch
+func (pm *PRManager) WatchPRChecksWithGoroutine(prURL string, updateChan chan<- types.CIWatchUpdate) <-chan types.CIWatchResult {
+	resultChan := make(chan types.CIWatchResult, 1)
+
+	go func() {
+		defer close(resultChan)
+		defer close(updateChan)
+
+		// Send initial status update
+		updateChan <- types.CIWatchUpdate{
+			Type:    "status",
+			Message: "Starting CI monitoring...",
+		}
+
+		// Use gh pr checks --watch for continuous monitoring
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute) // 30 minute timeout
+		defer cancel()
+
+		cmd := exec.CommandContext(ctx, "gh", "pr", "checks", "--watch", prURL)
+		
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			resultChan <- types.CIWatchResult{
+				Error: fmt.Errorf("failed to create stdout pipe: %w", err),
+			}
+			return
+		}
+
+		if err := cmd.Start(); err != nil {
+			resultChan <- types.CIWatchResult{
+				Error: fmt.Errorf("failed to start gh pr checks --watch: %w", err),
+			}
+			return
+		}
+
+		scanner := bufio.NewScanner(stdout)
+		var lastStatus *types.CIWatchStatus
+
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue
+			}
+
+			// Parse the output line and update status
+			status := pm.parseWatchOutput(line, prURL)
+			if status != nil {
+				lastStatus = status
+				
+				// Send status update through channel
+				updateChan <- types.CIWatchUpdate{
+					Type:   "status",
+					Status: status,
+					Message: fmt.Sprintf("CI Status: %s", status.Status),
+				}
+
+				// Check if CI is completed
+				if status.IsCompleted {
+					updateChan <- types.CIWatchUpdate{
+						Type:    "completed",
+						Status:  status,
+						Message: "CI checks completed successfully",
+					}
+					break
+				}
+
+				// Check if CI failed
+				if status.IsFailed {
+					updateChan <- types.CIWatchUpdate{
+						Type:    "failed",
+						Status:  status,
+						Message: "CI checks failed",
+					}
+					break
+				}
+			}
+		}
+
+		// Wait for command to complete
+		err = cmd.Wait()
+		if err != nil && ctx.Err() != context.DeadlineExceeded {
+			resultChan <- types.CIWatchResult{
+				Status: lastStatus,
+				Error:  fmt.Errorf("gh pr checks --watch failed: %w", err),
+			}
+			return
+		}
+
+		resultChan <- types.CIWatchResult{
+			Status: lastStatus,
+			Error:  nil,
+		}
+	}()
+
+	return resultChan
+}
+
+// parseWatchOutput parses gh pr checks --watch output and returns CI status
+func (pm *PRManager) parseWatchOutput(line, prURL string) *types.CIWatchStatus {
+	// Try to parse as JSON first (gh outputs JSON in some cases)
+	var jsonStatus map[string]interface{}
+	if err := json.Unmarshal([]byte(line), &jsonStatus); err == nil {
+		return pm.parseJSONStatus(jsonStatus, prURL)
+	}
+
+	// Fall back to text parsing
+	return pm.parseTextStatus(line, prURL)
+}
+
+// parseJSONStatus parses JSON-formatted status from gh pr checks
+func (pm *PRManager) parseJSONStatus(data map[string]interface{}, prURL string) *types.CIWatchStatus {
+	status := &types.CIWatchStatus{
+		PRURL:       prURL,
+		LastUpdated: time.Now(),
+	}
+
+	if state, ok := data["state"].(string); ok {
+		status.Status = state
+		status.Conclusion = state
+	}
+
+	// Parse checks if available
+	if checks, ok := data["check_runs"].([]interface{}); ok {
+		for _, checkData := range checks {
+			if checkMap, ok := checkData.(map[string]interface{}); ok {
+				check := types.CheckRunWatch{
+					Name:       getStringValue(checkMap, "name"),
+					Status:     getStringValue(checkMap, "status"),
+					Conclusion: getStringValue(checkMap, "conclusion"),
+					URL:        getStringValue(checkMap, "html_url"),
+				}
+				
+				if startedAt := getStringValue(checkMap, "started_at"); startedAt != "" {
+					if t, err := time.Parse(time.RFC3339, startedAt); err == nil {
+						check.StartedAt = t
+					}
+				}
+				
+				if completedAt := getStringValue(checkMap, "completed_at"); completedAt != "" {
+					if t, err := time.Parse(time.RFC3339, completedAt); err == nil {
+						check.CompletedAt = t
+						if !check.StartedAt.IsZero() {
+							check.Duration = check.CompletedAt.Sub(check.StartedAt).String()
+						}
+					}
+				}
+				
+				status.Checks = append(status.Checks, check)
+			}
+		}
+	}
+
+	// Determine completion status
+	status.IsCompleted = pm.areAllChecksCompleted(status.Checks)
+	status.IsFailed = pm.hasFailedChecks(status.Checks)
+
+	return status
+}
+
+// parseTextStatus parses text-formatted status from gh pr checks
+func (pm *PRManager) parseTextStatus(line, prURL string) *types.CIWatchStatus {
+	status := &types.CIWatchStatus{
+		PRURL:       prURL,
+		LastUpdated: time.Now(),
+	}
+
+	lineLower := strings.ToLower(line)
+	
+	// Parse status from text output
+	if strings.Contains(lineLower, "✓") || strings.Contains(lineLower, "success") {
+		status.Status = "success"
+		status.Conclusion = "success"
+		status.IsCompleted = true
+	} else if strings.Contains(lineLower, "✗") || strings.Contains(lineLower, "fail") {
+		status.Status = "failure"
+		status.Conclusion = "failure"
+		status.IsFailed = true
+	} else if strings.Contains(lineLower, "pending") || strings.Contains(lineLower, "running") {
+		status.Status = "pending"
+		status.Conclusion = "pending"
+	} else {
+		status.Status = "unknown"
+		status.Conclusion = "unknown"
+	}
+
+	return status
+}
+
+// areAllChecksCompleted checks if all CI checks are completed
+func (pm *PRManager) areAllChecksCompleted(checks []types.CheckRunWatch) bool {
+	if len(checks) == 0 {
+		return false
+	}
+	
+	for _, check := range checks {
+		if check.Status != "completed" {
+			return false
+		}
+	}
+	return true
+}
+
+// hasFailedChecks checks if any CI checks have failed
+func (pm *PRManager) hasFailedChecks(checks []types.CheckRunWatch) bool {
+	for _, check := range checks {
+		if check.Conclusion == "failure" || check.Conclusion == "cancelled" {
+			return true
+		}
+	}
+	return false
+}
+
+// getStringValue safely extracts string value from map
+func getStringValue(data map[string]interface{}, key string) string {
+	if value, ok := data[key].(string); ok {
+		return value
+	}
+	return ""
 }
 
 // Helper function to safely parse integers

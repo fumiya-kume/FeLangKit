@@ -69,3 +69,36 @@ type CheckRun struct {
 	StartedAt   time.Time `json:"started_at"`
 	CompletedAt time.Time `json:"completed_at"`
 }
+
+// Enhanced CI monitoring types for Goroutine-based implementation
+type CIWatchStatus struct {
+	PRURL       string          `json:"pr_url"`
+	Status      string          `json:"status"`
+	Conclusion  string          `json:"conclusion"`
+	Checks      []CheckRunWatch `json:"checks"`
+	LastUpdated time.Time       `json:"last_updated"`
+	IsCompleted bool            `json:"is_completed"`
+	IsFailed    bool            `json:"is_failed"`
+}
+
+type CheckRunWatch struct {
+	Name        string    `json:"name"`
+	Status      string    `json:"status"`
+	Conclusion  string    `json:"conclusion"`
+	URL         string    `json:"html_url"`
+	StartedAt   time.Time `json:"started_at"`
+	CompletedAt time.Time `json:"completed_at"`
+	Duration    string    `json:"duration"`
+}
+
+type CIWatchResult struct {
+	Status *CIWatchStatus `json:"status"`
+	Error  error          `json:"error"`
+}
+
+type CIWatchUpdate struct {
+	Type    string         `json:"type"` // "status", "check", "completed", "failed"
+	Status  *CIWatchStatus `json:"status"`
+	Check   *CheckRunWatch `json:"check"`
+	Message string         `json:"message"`
+}
