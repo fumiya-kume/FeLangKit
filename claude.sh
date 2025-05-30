@@ -488,7 +488,7 @@ extract_issue_info() {
 fetch_issue_data() {
     local issue_url="$1"
     
-    step "Fetching GitHub issue data..."
+    log "Fetching GitHub issue data..."
     
     # Create temporary file for issue data
     local temp_file=$(mktemp)
@@ -499,6 +499,9 @@ fetch_issue_data() {
         error "Failed to fetch issue data. Check if the issue exists and you have access."
         exit 1
     fi
+    
+    # Create the worktree directory first to store issue data
+    mkdir -p "$(dirname "$ISSUE_DATA_FILE")"
     
     # Create structured issue data
     jq -n \
@@ -1419,17 +1422,19 @@ main() {
     
     # Execute workflow
     validate_prerequisites
-    update_activity "Creating isolated development environment"
-    create_worktree
-    update_step 1  # Setting up worktree completed
     
-    update_activity "Retrieving GitHub issue data"
+    # First fetch issue data to initialize status box
     fetch_issue_data "$issue_url"
     
-    # Initialize status box after fetching issue data
+    # Initialize status box with issue data
     local issue_title=$(jq -r '.title' "$ISSUE_DATA_FILE")
     local issue_body=$(jq -r '.body // ""' "$ISSUE_DATA_FILE")
     init_status_box "$issue_title" "$issue_body" "$BRANCH_NAME"
+    
+    # Now continue with worktree creation
+    update_activity "Creating isolated development environment"
+    create_worktree
+    update_step 1  # Setting up worktree completed
     
     update_step 2  # Fetching issue data completed
     update_activity "Preparing implementation strategy"
