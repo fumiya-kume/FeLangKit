@@ -216,62 +216,6 @@ func (ui *UIManager) UpdateProgressEnhanced(stepID string, status string) {
 	})
 }
 
-// Start loading animation for a specific operation
-func (ui *UIManager) startLoadingAnimation(operation string) func() {
-	if !ui.animations {
-		return func() {} // No-op if animations disabled
-	}
-
-	ui.animationMutex.Lock()
-	ui.animationRunning = true
-	ui.animationMutex.Unlock()
-
-	spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-	index := 0
-	
-	// Create a stop channel for clean shutdown
-	stopChan := make(chan bool, 1)
-
-	go func() {
-		defer func() {
-			fmt.Print("\r" + strings.Repeat(" ", 50) + "\r") // Clear line
-		}()
-		
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		
-		for {
-			select {
-			case <-stopChan:
-				return
-			case <-ticker.C:
-				ui.animationMutex.Lock()
-				running := ui.animationRunning
-				ui.animationMutex.Unlock()
-				
-				if !running {
-					return
-				}
-
-				fmt.Printf("\r%s %s %s", ui.primaryColor(spinner[index]), ui.infoColor(operation), strings.Repeat(" ", 10))
-				index = (index + 1) % len(spinner)
-			}
-		}
-	}()
-
-	return func() {
-		ui.animationMutex.Lock()
-		ui.animationRunning = false
-		ui.animationMutex.Unlock()
-		
-		// Send stop signal with timeout to prevent hanging
-		select {
-		case stopChan <- true:
-		case <-time.After(100 * time.Millisecond):
-			// Timeout - goroutine will stop on next check
-		}
-	}
-}
 
 // Start background header updates with adaptive refresh
 func (ui *UIManager) startBackgroundHeaderUpdates() {

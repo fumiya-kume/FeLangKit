@@ -8,6 +8,7 @@ import (
 	"ccw/types"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -55,6 +56,7 @@ type IssueSelectionModel struct {
 // Progress tracking model
 type ProgressModel struct {
 	progress    progress.Model
+	spinner     spinner.Model
 	steps       []types.WorkflowStep
 	currentStep int
 	startTime   time.Time
@@ -180,8 +182,12 @@ func NewAppModel(ui *UIManager) AppModel {
 
 	// Initialize progress tracker
 	prog := progress.New(progress.WithDefaultGradient())
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	progressModel := ProgressModel{
 		progress:  prog,
+		spinner:   s,
 		startTime: time.Now(),
 	}
 
@@ -203,7 +209,7 @@ func NewAppModel(ui *UIManager) AppModel {
 
 // Main application Init
 func (m AppModel) Init() tea.Cmd {
-	return nil
+	return m.progressTracker.spinner.Tick
 }
 
 // Main application Update
@@ -459,6 +465,8 @@ func (m AppModel) updateIssueSelection(msg tea.Msg) (IssueSelectionModel, tea.Cm
 
 // Progress Update
 func (m AppModel) updateProgress(msg tea.Msg) (ProgressModel, tea.Cmd) {
+	var cmds []tea.Cmd
+	
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -482,13 +490,22 @@ func (m AppModel) updateProgress(msg tea.Msg) (ProgressModel, tea.Cmd) {
 	}
 
 	// Update progress bar
-	var cmd tea.Cmd
 	if m.progressTracker.currentStep < len(m.progressTracker.steps) {
 		percent := float64(m.progressTracker.currentStep) / float64(len(m.progressTracker.steps))
-		cmd = m.progressTracker.progress.SetPercent(percent)
+		cmd := m.progressTracker.progress.SetPercent(percent)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 	}
 
-	return m.progressTracker, cmd
+	// Update spinner
+	var spinnerCmd tea.Cmd
+	m.progressTracker.spinner, spinnerCmd = m.progressTracker.spinner.Update(msg)
+	if spinnerCmd != nil {
+		cmds = append(cmds, spinnerCmd)
+	}
+
+	return m.progressTracker, tea.Batch(cmds...)
 }
 
 // Main Menu View
@@ -545,7 +562,7 @@ func (m AppModel) viewProgress() string {
 			icon = "✅"
 			statusStyle = successStyle
 		case "in_progress":
-			icon = "🔄"
+			icon = m.progressTracker.spinner.View()
 			statusStyle = infoStyle
 		case "failed":
 			icon = "❌"
