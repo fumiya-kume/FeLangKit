@@ -506,3 +506,35 @@ func (pm *PerformanceMetrics) String() string {
 		pm.AdaptiveAdjustments,
 	)
 }
+
+// Async result types for non-blocking operations
+
+// PRDescriptionResult contains the result of async PR description generation
+type PRDescriptionResult struct {
+	Description string
+	Error       error
+}
+
+// ImplementationSummaryResult contains the result of async implementation summary generation
+type ImplementationSummaryResult struct {
+	Summary string
+	Error   error
+}
+
+// AnalysisResult contains the result of async code analysis
+type AnalysisResult struct {
+	Analysis string
+	Error    error
+}
+
+// PRResult contains the result of async PR creation
+type PRResult struct {
+	PullRequest *PullRequest
+	Error       error
+}
+
+// CIStatusResult contains the result of async CI status monitoring
+type CIStatusResult struct {
+	Status *CIStatus
+	Error  error
+}

@@ -20,8 +20,25 @@ type ClaudeIntegration struct {
 	DebugMode  bool
 }
 
-// Generate AI PR description using Claude Code
-func (ci *ClaudeIntegration) GeneratePRDescription(req *types.PRDescriptionRequest) (string, error) {
+// Generate AI PR description using Claude Code (non-blocking)
+func (ci *ClaudeIntegration) GeneratePRDescriptionAsync(req *types.PRDescriptionRequest) <-chan types.PRDescriptionResult {
+	resultChan := make(chan types.PRDescriptionResult, 1)
+	
+	go func() {
+		defer close(resultChan)
+		
+		description, err := ci.generatePRDescriptionSync(req)
+		resultChan <- types.PRDescriptionResult{
+			Description: description,
+			Error:       err,
+		}
+	}()
+	
+	return resultChan
+}
+
+// Generate AI PR description using Claude Code (synchronous implementation)
+func (ci *ClaudeIntegration) generatePRDescriptionSync(req *types.PRDescriptionRequest) (string, error) {
 	// Create context file for PR description generation
 	contextFile := filepath.Join(req.WorktreeConfig.WorktreePath, ".claude-pr-context.json")
 	contextData, err := json.MarshalIndent(req, "", "  ")
@@ -162,6 +179,11 @@ Please respond with ONLY the Markdown content for the PR description, no additio
 	return description, nil
 }
 
+// Generate AI PR description using Claude Code (legacy synchronous method)
+func (ci *ClaudeIntegration) GeneratePRDescription(req *types.PRDescriptionRequest) (string, error) {
+	return ci.generatePRDescriptionSync(req)
+}
+
 // Get fallback PR description template
 func (ci *ClaudeIntegration) getFallbackPRDescription(req *types.PRDescriptionRequest) string {
 	return fmt.Sprintf(`## Summary
@@ -242,7 +264,24 @@ Co-Authored-By: Claude <noreply@anthropic.com>`,
 	)
 }
 
-// Generate implementation summary from git changes
+// Generate implementation summary from git changes (non-blocking)
+func (ci *ClaudeIntegration) GenerateImplementationSummaryAsync(worktreePath string) <-chan types.ImplementationSummaryResult {
+	resultChan := make(chan types.ImplementationSummaryResult, 1)
+	
+	go func() {
+		defer close(resultChan)
+		
+		summary, err := ci.GenerateImplementationSummary(worktreePath)
+		resultChan <- types.ImplementationSummaryResult{
+			Summary: summary,
+			Error:   err,
+		}
+	}()
+	
+	return resultChan
+}
+
+// Generate implementation summary from git changes (synchronous)
 func (ci *ClaudeIntegration) GenerateImplementationSummary(worktreePath string) (string, error) {
 	// Get git diff to analyze changes
 	cmd := exec.Command("git", "diff", "--name-status", "HEAD")

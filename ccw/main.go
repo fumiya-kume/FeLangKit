@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"ccw/claude"
+	"ccw/commit"
 	"ccw/config"
 	"ccw/git"
 	"ccw/github"
 	"ccw/logging"
+	"ccw/pr"
 	"ccw/types"
 	"ccw/ui"
 )
@@ -34,6 +36,8 @@ type CCWApp struct {
 	// Use types from packages
 	githubClient      *github.GitHubClient
 	claudeIntegration *claude.ClaudeIntegration
+	commitGenerator   *commit.CommitMessageGenerator
+	prManager         *pr.PRManager
 	ui                *ui.UIManager
 	logger            *logging.Logger
 	errorStore        *types.ErrorStore
@@ -86,6 +90,12 @@ func NewCCWApp() (*CCWApp, error) {
 
 	uiManager := ui.NewUIManager(ccwConfig.UI.Theme, ccwConfig.UI.Animations, ccwConfig.DebugMode)
 
+	// Initialize commit generator
+	commitGenerator := &commit.CommitMessageGenerator{}
+
+	// Initialize PR manager
+	prManager := pr.NewPRManager(timeout, ccwConfig.MaxRetries, ccwConfig.DebugMode)
+
 	// Initialize logger
 	enableFileLogging := ccwConfig.DebugMode || getEnvWithDefault("CCW_LOG_FILE", "false") == "true"
 	logger, err := logging.NewLogger(sessionID, enableFileLogging)
@@ -108,6 +118,8 @@ func NewCCWApp() (*CCWApp, error) {
 		validator:         validator,
 		githubClient:      githubClient,
 		claudeIntegration: claudeIntegration,
+		commitGenerator:   commitGenerator,
+		prManager:         prManager,
 		ui:                uiManager,
 		logger:            logger,
 		errorStore:        errorStore,
@@ -378,43 +390,19 @@ func (app *CCWApp) executeWorkflow(issueURL string) error {
 		app.ui.UpdateProgress("validation", "completed")
 		app.ui.Success("Implementation validation successful!")
 		
-		// Push changes using git package
-		app.debugStep("step7", "Pushing changes to remote", map[string]interface{}{
-			"branch_name":   branchName,
-			"worktree_path": worktreePath,
-		})
-		
-		app.ui.Info("Pushing changes...")
-		if err := app.gitOps.PushBranch(worktreePath, branchName); err != nil {
-			app.logger.Error("workflow", "Failed to push branch", map[string]interface{}{
-				"branch_name":   branchName,
-				"worktree_path": worktreePath,
-				"error":         err.Error(),
-			})
-			return fmt.Errorf("failed to push changes: %w", err)
+		// Convert git.ValidationResult to types.ValidationResult
+		typesValidationResult := &types.ValidationResult{
+			Success:     validationResult.Success,
+			LintResult:  convertLintResult(validationResult.LintResult),
+			BuildResult: convertBuildResult(validationResult.BuildResult),
+			TestResult:  convertTestResult(validationResult.TestResult),
+			Errors:      convertValidationErrors(validationResult.Errors),
+			Duration:    validationResult.Duration,
+			Timestamp:   validationResult.Timestamp,
 		}
 		
-		app.debugStep("step7", "Branch pushed successfully", nil)
-		
-		app.ui.UpdateProgress("complete", "completed")
-		app.ui.Success("Workflow completed successfully!")
-		
-		// Cleanup worktree using git package
-		app.debugStep("step8", "Cleaning up worktree", map[string]interface{}{
-			"worktree_path": worktreePath,
-		})
-		
-		app.ui.Info("Cleaning up worktree...")
-		if err := app.gitOps.RemoveWorktree(worktreePath); err != nil {
-			app.logger.Error("workflow", "Failed to cleanup worktree", map[string]interface{}{
-				"worktree_path": worktreePath,
-				"error":         err.Error(),
-			})
-		} else {
-			app.debugStep("step8", "Worktree cleaned up successfully", nil)
-		}
-		
-		return nil
+		// Execute async workflow for PR creation
+		return app.executeAsyncPRWorkflow(issue, worktreePath, branchName, typesValidationResult)
 	}
 
 	app.ui.Warning("Implementation validation failed")
@@ -909,4 +897,246 @@ func truncateForLog(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+// executeAsyncPRWorkflow handles the async PR creation workflow
+func (app *CCWApp) executeAsyncPRWorkflow(issue *types.Issue, worktreePath, branchName string, validationResult *types.ValidationResult) error {
+	app.debugStep("async_workflow", "Starting async PR creation workflow", map[string]interface{}{
+		"worktree_path": worktreePath,
+		"branch_name":   branchName,
+	})
+
+	// Step 1: Start async operations concurrently
+	app.ui.Info("Starting async analysis and PR generation...")
+	app.ui.UpdateProgress("analysis", "in_progress")
+
+	// Start implementation summary generation (async)
+	summaryResultChan := app.claudeIntegration.GenerateImplementationSummaryAsync(worktreePath)
+
+	// Start commit message generation (async)
+	issueForCommit := &commit.Issue{
+		Number: issue.Number,
+		Title:  issue.Title,
+		Body:   issue.Body,
+	}
+	commitResultChan := app.commitGenerator.GenerateEnhancedCommitMessageAsync(worktreePath, issueForCommit)
+
+	// Display progress while waiting for async operations
+	app.ui.Info("⏳ Generating implementation summary...")
+	app.ui.Info("⏳ Creating commit message...")
+
+	// Wait for implementation summary
+	var implementationSummary string
+	select {
+	case summaryResult := <-summaryResultChan:
+		if summaryResult.Error != nil {
+			app.ui.Warning(fmt.Sprintf("Implementation summary generation failed: %v", summaryResult.Error))
+			implementationSummary = "Implementation completed with changes."
+		} else {
+			implementationSummary = summaryResult.Summary
+			app.ui.Success("✅ Implementation summary generated")
+		}
+	case <-time.After(30 * time.Second):
+		app.ui.Warning("⚠️ Implementation summary generation timed out")
+		implementationSummary = "Implementation completed with changes."
+	}
+
+	// Wait for commit message
+	var commitMessage string
+	select {
+	case commitResult := <-commitResultChan:
+		if commitResult.Error != nil {
+			app.ui.Warning(fmt.Sprintf("Commit message generation failed: %v", commitResult.Error))
+			commitMessage = fmt.Sprintf("feat: %s\n\nResolves #%d", issue.Title, issue.Number)
+		} else {
+			commitMessage = commitResult.Message
+			app.ui.Success("✅ Commit message generated")
+		}
+	case <-time.After(30 * time.Second):
+		app.ui.Warning("⚠️ Commit message generation timed out")
+		commitMessage = fmt.Sprintf("feat: %s\n\nResolves #%d", issue.Title, issue.Number)
+	}
+	
+	// Use commit message for future commits (could be saved or used later)
+	app.debugStep("commit_message", "Generated commit message", map[string]interface{}{
+		"message": commitMessage,
+	})
+
+	app.ui.UpdateProgress("analysis", "completed")
+
+	// Step 2: Push changes using git package
+	app.debugStep("step7", "Pushing changes to remote", map[string]interface{}{
+		"branch_name":   branchName,
+		"worktree_path": worktreePath,
+	})
+	
+	app.ui.Info("Pushing changes...")
+	if err := app.gitOps.PushBranch(worktreePath, branchName); err != nil {
+		app.logger.Error("workflow", "Failed to push branch", map[string]interface{}{
+			"branch_name":   branchName,
+			"worktree_path": worktreePath,
+			"error":         err.Error(),
+		})
+		return fmt.Errorf("failed to push changes: %w", err)
+	}
+	
+	app.debugStep("step7", "Branch pushed successfully", nil)
+
+	// Step 3: Start PR description generation (async)
+	app.ui.UpdateProgress("pr_creation", "in_progress")
+	app.ui.Info("⏳ Generating PR description...")
+
+	prDescRequest := &types.PRDescriptionRequest{
+		Issue: issue,
+		WorktreeConfig: &types.WorktreeConfig{
+			BasePath:     app.worktreeConfig.BasePath,
+			BranchName:   app.worktreeConfig.BranchName,
+			WorktreePath: app.worktreeConfig.WorktreePath,
+			IssueNumber:  app.worktreeConfig.IssueNumber,
+			CreatedAt:    app.worktreeConfig.CreatedAt,
+			Owner:        app.worktreeConfig.Owner,
+			Repository:   app.worktreeConfig.Repository,
+			IssueURL:     app.worktreeConfig.IssueURL,
+		},
+		ValidationResult:      validationResult,
+		ImplementationSummary: implementationSummary,
+	}
+
+	prDescResultChan := app.claudeIntegration.GeneratePRDescriptionAsync(prDescRequest)
+
+	// Wait for PR description with progress indicator
+	var prDescription string
+	select {
+	case prDescResult := <-prDescResultChan:
+		if prDescResult.Error != nil {
+			app.ui.Warning(fmt.Sprintf("PR description generation failed: %v", prDescResult.Error))
+			prDescription = app.claudeIntegration.CreateEnhancedPRDescription(prDescRequest)
+		} else {
+			prDescription = prDescResult.Description
+			app.ui.Success("✅ PR description generated")
+		}
+	case <-time.After(2 * time.Minute): // Longer timeout for PR description
+		app.ui.Warning("⚠️ PR description generation timed out, using fallback")
+		prDescription = app.claudeIntegration.CreateEnhancedPRDescription(prDescRequest)
+	}
+
+	// Step 4: Create PR (async)
+	app.ui.Info("⏳ Creating pull request...")
+	prRequest := &types.PRRequest{
+		Title: fmt.Sprintf("Resolve #%d: %s", issue.Number, issue.Title),
+		Body:  prDescription,
+		Head:  branchName,
+		Base:  "master", // or "main"
+		MaintainerCanModify: true,
+	}
+
+	prResultChan := app.prManager.CreatePullRequestAsync(prRequest, worktreePath)
+
+	// Wait for PR creation
+	select {
+	case prResult := <-prResultChan:
+		if prResult.Error != nil {
+			app.ui.UpdateProgress("pr_creation", "failed")
+			return fmt.Errorf("failed to create PR: %w", prResult.Error)
+		}
+		
+		app.ui.UpdateProgress("pr_creation", "completed")
+		app.ui.Success(fmt.Sprintf("✅ Pull request created: %s", prResult.PullRequest.HTMLURL))
+		
+		// Step 5: Monitor CI checks (async, optional)
+		app.ui.Info("⏳ Monitoring CI checks...")
+		ciResultChan := app.prManager.MonitorPRChecksAsync(prResult.PullRequest.HTMLURL, 5*time.Minute)
+		
+		select {
+		case ciResult := <-ciResultChan:
+			if ciResult.Error != nil {
+				app.ui.Warning(fmt.Sprintf("CI monitoring failed: %v", ciResult.Error))
+			} else {
+				app.ui.Info(fmt.Sprintf("CI Status: %s", ciResult.Status.Status))
+			}
+		case <-time.After(1 * time.Minute): // Short timeout for CI monitoring demo
+			app.ui.Info("CI monitoring will continue in background")
+		}
+		
+	case <-time.After(1 * time.Minute):
+		app.ui.UpdateProgress("pr_creation", "failed")
+		return fmt.Errorf("PR creation timed out")
+	}
+
+	app.ui.UpdateProgress("complete", "completed")
+	app.ui.Success("🎉 Async workflow completed successfully!")
+	
+	// Cleanup worktree using git package
+	app.debugStep("step8", "Cleaning up worktree", map[string]interface{}{
+		"worktree_path": worktreePath,
+	})
+	
+	app.ui.Info("Cleaning up worktree...")
+	if err := app.gitOps.RemoveWorktree(worktreePath); err != nil {
+		app.logger.Error("workflow", "Failed to cleanup worktree", map[string]interface{}{
+			"worktree_path": worktreePath,
+			"error":         err.Error(),
+		})
+	} else {
+		app.debugStep("step8", "Worktree cleaned up successfully", nil)
+	}
+	
+	return nil
+}
+
+// Converter functions to map between git and types packages
+
+func convertLintResult(gitResult *git.LintResult) *types.LintResult {
+	if gitResult == nil {
+		return nil
+	}
+	return &types.LintResult{
+		Success:   gitResult.Success,
+		Output:    gitResult.Output,
+		Errors:    gitResult.Errors,
+		Warnings:  gitResult.Warnings,
+		AutoFixed: gitResult.AutoFixed,
+	}
+}
+
+func convertBuildResult(gitResult *git.BuildResult) *types.BuildResult {
+	if gitResult == nil {
+		return nil
+	}
+	return &types.BuildResult{
+		Success: gitResult.Success,
+		Output:  gitResult.Output,
+		Error:   gitResult.Error,
+	}
+}
+
+func convertTestResult(gitResult *git.TestResult) *types.TestResult {
+	if gitResult == nil {
+		return nil
+	}
+	return &types.TestResult{
+		Success:   gitResult.Success,
+		Output:    gitResult.Output,
+		TestCount: gitResult.TestCount,
+		Passed:    gitResult.Passed,
+		Failed:    gitResult.Failed,
+	}
+}
+
+func convertValidationErrors(gitErrors []git.ValidationError) []types.ValidationError {
+	if gitErrors == nil {
+		return nil
+	}
+	
+	typesErrors := make([]types.ValidationError, len(gitErrors))
+	for i, gitError := range gitErrors {
+		typesErrors[i] = types.ValidationError{
+			Type:        gitError.Type,
+			Message:     gitError.Message,
+			File:        gitError.File,
+			Line:        gitError.Line,
+			Recoverable: gitError.Recoverable,
+		}
+	}
+	return typesErrors
 }

@@ -46,7 +46,24 @@ type CommitMetadata struct {
 	WorktreePath  string    `json:"worktree_path"`
 }
 
-// GenerateEnhancedCommitMessage creates an AI-powered commit message
+// GenerateEnhancedCommitMessageAsync creates an AI-powered commit message (non-blocking)
+func (cmg *CommitMessageGenerator) GenerateEnhancedCommitMessageAsync(worktreePath string, issue *Issue) <-chan CommitMessageResult {
+	resultChan := make(chan CommitMessageResult, 1)
+	
+	go func() {
+		defer close(resultChan)
+		
+		message, err := cmg.GenerateEnhancedCommitMessage(worktreePath, issue)
+		resultChan <- CommitMessageResult{
+			Message: message,
+			Error:   err,
+		}
+	}()
+	
+	return resultChan
+}
+
+// GenerateEnhancedCommitMessage creates an AI-powered commit message (synchronous)
 func (cmg *CommitMessageGenerator) GenerateEnhancedCommitMessage(worktreePath string, issue *Issue) (string, error) {
 	// Analyze the changes
 	analysis, err := cmg.analyzeChanges(worktreePath, issue)
@@ -483,4 +500,10 @@ func createGitCommand(args []string, workDir string) *exec.Cmd {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = workDir
 	return cmd
+}
+
+// CommitMessageResult contains the result of async commit message generation
+type CommitMessageResult struct {
+	Message string
+	Error   error
 }
