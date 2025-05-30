@@ -1,234 +1,256 @@
-import XCTest
+import Testing
 @testable import FeLangCore
 
-final class PrettyPrinterTests: XCTestCase {
-
-    var printer: PrettyPrinter!
-
-    override func setUp() {
-        super.setUp()
-        printer = PrettyPrinter()
-    }
+@Suite("PrettyPrinter Tests")
+struct PrettyPrinterTests {
 
     // MARK: - Literal Tests
 
-    func testIntegerLiteral() {
+    @Test func integerLiteral() {
+        let printer = PrettyPrinter()
         let expr = Expression.literal(.integer(42))
-        XCTAssertEqual(printer.print(expr), "42")
+        #expect(printer.print(expr) == "42")
     }
 
-    func testRealLiteral() {
+    @Test func realLiteral() {
+        let printer = PrettyPrinter()
         let expr = Expression.literal(.real(3.14))
-        XCTAssertEqual(printer.print(expr), "3.14")
+        #expect(printer.print(expr) == "3.14")
     }
 
-    func testStringLiteral() {
+    @Test func stringLiteral() {
+        let printer = PrettyPrinter()
         let expr = Expression.literal(.string("hello"))
-        XCTAssertEqual(printer.print(expr), "\"hello\"")
+        #expect(printer.print(expr) == "\"hello\"")
     }
 
-    func testStringLiteralWithEscapes() {
+    @Test func stringLiteralWithEscapes() {
+        let printer = PrettyPrinter()
         let expr = Expression.literal(.string("hello\nworld\t\"test\"\\"))
-        XCTAssertEqual(printer.print(expr), "\"hello\\nworld\\t\\\"test\\\"\\\\\"")
+        #expect(printer.print(expr) == "\"hello\\nworld\\t\\\"test\\\"\\\\\"")
     }
 
-    func testCharacterLiteral() {
+    @Test func characterLiteral() {
+        let printer = PrettyPrinter()
         let expr = Expression.literal(.character("a"))
-        XCTAssertEqual(printer.print(expr), "'a'")
+        #expect(printer.print(expr) == "'a'")
     }
 
-    func testCharacterLiteralWithEscapes() {
+    @Test func characterLiteralWithEscapes() {
+        let printer = PrettyPrinter()
         let expr = Expression.literal(.character("\n"))
-        XCTAssertEqual(printer.print(expr), "'\\n'")
+        #expect(printer.print(expr) == "'\\n'")
 
         let expr2 = Expression.literal(.character("'"))
-        XCTAssertEqual(printer.print(expr2), "'\\''")
+        #expect(printer.print(expr2) == "'\\''")
 
         let expr3 = Expression.literal(.character("\\"))
-        XCTAssertEqual(printer.print(expr3), "'\\\\'")
+        #expect(printer.print(expr3) == "'\\\\'")
     }
 
-    func testBooleanLiterals() {
+    @Test func booleanLiterals() {
+        let printer = PrettyPrinter()
         let trueExpr = Expression.literal(.boolean(true))
-        XCTAssertEqual(printer.print(trueExpr), "true")
+        #expect(printer.print(trueExpr) == "true")
 
         let falseExpr = Expression.literal(.boolean(false))
-        XCTAssertEqual(printer.print(falseExpr), "false")
+        #expect(printer.print(falseExpr) == "false")
     }
 
     // MARK: - Identifier Tests
 
-    func testIdentifier() {
+    @Test func identifier() {
+        let printer = PrettyPrinter()
         let expr = Expression.identifier("variable")
-        XCTAssertEqual(printer.print(expr), "variable")
+        #expect(printer.print(expr) == "variable")
     }
 
     // MARK: - Binary Expression Tests
 
-    func testSimpleBinaryExpression() {
+    @Test func simpleBinaryExpression() {
+        let printer = PrettyPrinter()
         let expr = Expression.binary(.add, .literal(.integer(1)), .literal(.integer(2)))
-        XCTAssertEqual(printer.print(expr), "1 + 2")
+        #expect(printer.print(expr) == "1 + 2")
     }
 
-    func testBinaryExpressionWithPrecedence() {
+    @Test func binaryExpressionWithPrecedence() {
+        let printer = PrettyPrinter()
         // 1 + 2 * 3 should not have parentheses around 2 * 3
         let expr = Expression.binary(.add,
                                    .literal(.integer(1)),
                                    .binary(.multiply, .literal(.integer(2)), .literal(.integer(3))))
-        XCTAssertEqual(printer.print(expr), "1 + 2 * 3")
+        #expect(printer.print(expr) == "1 + 2 * 3")
     }
 
-    func testBinaryExpressionNeedingParentheses() {
+    @Test func binaryExpressionNeedingParentheses() {
+        let printer = PrettyPrinter()
         // (1 + 2) * 3 should have parentheses around 1 + 2
         let expr = Expression.binary(.multiply,
                                    .binary(.add, .literal(.integer(1)), .literal(.integer(2))),
                                    .literal(.integer(3)))
-        XCTAssertEqual(printer.print(expr), "(1 + 2) * 3")
+        #expect(printer.print(expr) == "(1 + 2) * 3")
     }
 
-    func testUnicodeOperators() {
+    @Test func unicodeOperators() {
+        let printer = PrettyPrinter()
         let expr1 = Expression.binary(.notEqual, .identifier("a"), .identifier("b"))
-        XCTAssertEqual(printer.print(expr1), "a ≠ b")
+        #expect(printer.print(expr1) == "a ≠ b")
 
         let expr2 = Expression.binary(.greaterEqual, .identifier("x"), .literal(.integer(5)))
-        XCTAssertEqual(printer.print(expr2), "x ≧ 5")
+        #expect(printer.print(expr2) == "x ≧ 5")
 
         let expr3 = Expression.binary(.lessEqual, .identifier("y"), .literal(.integer(10)))
-        XCTAssertEqual(printer.print(expr3), "y ≦ 10")
+        #expect(printer.print(expr3) == "y ≦ 10")
     }
 
-    func testLogicalOperators() {
+    @Test func logicalOperators() {
+        let printer = PrettyPrinter()
         let expr1 = Expression.binary(.and, .identifier("a"), .identifier("b"))
-        XCTAssertEqual(printer.print(expr1), "a and b")
+        #expect(printer.print(expr1) == "a and b")
 
         let expr2 = Expression.binary(.or, .identifier("x"), .identifier("y"))
-        XCTAssertEqual(printer.print(expr2), "x or y")
+        #expect(printer.print(expr2) == "x or y")
     }
 
     // MARK: - Unary Expression Tests
 
-    func testUnaryExpressions() {
+    @Test func unaryExpressions() {
+        let printer = PrettyPrinter()
         let notExpr = Expression.unary(.not, .identifier("flag"))
-        XCTAssertEqual(printer.print(notExpr), "notflag")
+        #expect(printer.print(notExpr) == "notflag")
 
         let plusExpr = Expression.unary(.plus, .literal(.integer(5)))
-        XCTAssertEqual(printer.print(plusExpr), "+5")
+        #expect(printer.print(plusExpr) == "+5")
 
         let minusExpr = Expression.unary(.minus, .literal(.integer(10)))
-        XCTAssertEqual(printer.print(minusExpr), "-10")
+        #expect(printer.print(minusExpr) == "-10")
     }
 
     // MARK: - Array Access Tests
 
-    func testArrayAccess() {
+    @Test func arrayAccess() {
+        let printer = PrettyPrinter()
         let expr = Expression.arrayAccess(.identifier("arr"), .literal(.integer(0)))
-        XCTAssertEqual(printer.print(expr), "arr[0]")
+        #expect(printer.print(expr) == "arr[0]")
     }
 
-    func testNestedArrayAccess() {
+    @Test func nestedArrayAccess() {
+        let printer = PrettyPrinter()
         let expr = Expression.arrayAccess(
             .arrayAccess(.identifier("matrix"), .literal(.integer(1))),
             .literal(.integer(2))
         )
-        XCTAssertEqual(printer.print(expr), "matrix[1][2]")
+        #expect(printer.print(expr) == "matrix[1][2]")
     }
 
     // MARK: - Field Access Tests
 
-    func testFieldAccess() {
+    @Test func fieldAccess() {
+        let printer = PrettyPrinter()
         let expr = Expression.fieldAccess(.identifier("person"), "name")
-        XCTAssertEqual(printer.print(expr), "person.name")
+        #expect(printer.print(expr) == "person.name")
     }
 
-    func testChainedFieldAccess() {
+    @Test func chainedFieldAccess() {
+        let printer = PrettyPrinter()
         let expr = Expression.fieldAccess(
             .fieldAccess(.identifier("person"), "address"),
             "street"
         )
-        XCTAssertEqual(printer.print(expr), "person.address.street")
+        #expect(printer.print(expr) == "person.address.street")
     }
 
     // MARK: - Function Call Tests
 
-    func testFunctionCallNoArgs() {
+    @Test func functionCallNoArgs() {
+        let printer = PrettyPrinter()
         let expr = Expression.functionCall("getValue", [])
-        XCTAssertEqual(printer.print(expr), "getValue()")
+        #expect(printer.print(expr) == "getValue()")
     }
 
-    func testFunctionCallWithArgs() {
+    @Test func functionCallWithArgs() {
+        let printer = PrettyPrinter()
         let expr = Expression.functionCall("add", [.literal(.integer(1)), .literal(.integer(2))])
-        XCTAssertEqual(printer.print(expr), "add(1, 2)")
+        #expect(printer.print(expr) == "add(1, 2)")
     }
 
-    func testFunctionCallWithComplexArgs() {
+    @Test func functionCallWithComplexArgs() {
+        let printer = PrettyPrinter()
         let expr = Expression.functionCall("calculate", [
             .binary(.add, .identifier("x"), .literal(.integer(1))),
             .functionCall("getValue", [])
         ])
-        XCTAssertEqual(printer.print(expr), "calculate(x + 1, getValue())")
+        #expect(printer.print(expr) == "calculate(x + 1, getValue())")
     }
 
     // MARK: - Assignment Statement Tests
 
-    func testVariableAssignment() {
+    @Test func variableAssignment() {
+        let printer = PrettyPrinter()
         let stmt = Statement.assignment(.variable("x", .literal(.integer(5))))
-        XCTAssertEqual(printer.print(stmt), "x ← 5")
+        #expect(printer.print(stmt) == "x ← 5")
     }
 
-    func testArrayElementAssignment() {
+    @Test func arrayElementAssignment() {
+        let printer = PrettyPrinter()
         let arrayAccess = Assignment.ArrayAccess(array: .identifier("arr"), index: .literal(.integer(0)))
         let stmt = Statement.assignment(.arrayElement(arrayAccess, .literal(.integer(10))))
-        XCTAssertEqual(printer.print(stmt), "arr[0] ← 10")
+        #expect(printer.print(stmt) == "arr[0] ← 10")
     }
 
     // MARK: - Declaration Statement Tests
 
-    func testVariableDeclaration() {
+    @Test func variableDeclaration() {
+        let printer = PrettyPrinter()
         let varDecl = VariableDeclaration(name: "x", type: .integer)
         let stmt = Statement.variableDeclaration(varDecl)
-        XCTAssertEqual(printer.print(stmt), "変数 x: 整数型")
+        #expect(printer.print(stmt) == "変数 x: 整数型")
     }
 
-    func testVariableDeclarationWithInitialValue() {
+    @Test func variableDeclarationWithInitialValue() {
+        let printer = PrettyPrinter()
         let varDecl = VariableDeclaration(name: "y", type: .real, initialValue: .literal(.real(3.14)))
         let stmt = Statement.variableDeclaration(varDecl)
-        XCTAssertEqual(printer.print(stmt), "変数 y: 実数型 ← 3.14")
+        #expect(printer.print(stmt) == "変数 y: 実数型 ← 3.14")
     }
 
-    func testConstantDeclaration() {
+    @Test func constantDeclaration() {
+        let printer = PrettyPrinter()
         let constDecl = ConstantDeclaration(name: "PI", type: .real, initialValue: .literal(.real(3.14159)))
         let stmt = Statement.constantDeclaration(constDecl)
-        XCTAssertEqual(printer.print(stmt), "定数 PI: 実数型 ← 3.14159")
+        #expect(printer.print(stmt) == "定数 PI: 実数型 ← 3.14159")
     }
 
     // MARK: - Data Type Tests
 
-    func testDataTypes() {
+    @Test func dataTypes() {
+        let printer = PrettyPrinter()
         let intDecl = VariableDeclaration(name: "i", type: .integer)
-        XCTAssertEqual(printer.print(.variableDeclaration(intDecl)), "変数 i: 整数型")
+        #expect(printer.print(.variableDeclaration(intDecl)) == "変数 i: 整数型")
 
         let realDecl = VariableDeclaration(name: "r", type: .real)
-        XCTAssertEqual(printer.print(.variableDeclaration(realDecl)), "変数 r: 実数型")
+        #expect(printer.print(.variableDeclaration(realDecl)) == "変数 r: 実数型")
 
         let charDecl = VariableDeclaration(name: "c", type: .character)
-        XCTAssertEqual(printer.print(.variableDeclaration(charDecl)), "変数 c: 文字型")
+        #expect(printer.print(.variableDeclaration(charDecl)) == "変数 c: 文字型")
 
         let stringDecl = VariableDeclaration(name: "s", type: .string)
-        XCTAssertEqual(printer.print(.variableDeclaration(stringDecl)), "変数 s: 文字列型")
+        #expect(printer.print(.variableDeclaration(stringDecl)) == "変数 s: 文字列型")
 
         let boolDecl = VariableDeclaration(name: "b", type: .boolean)
-        XCTAssertEqual(printer.print(.variableDeclaration(boolDecl)), "変数 b: 論理型")
+        #expect(printer.print(.variableDeclaration(boolDecl)) == "変数 b: 論理型")
 
         let arrayDecl = VariableDeclaration(name: "arr", type: .array(.integer))
-        XCTAssertEqual(printer.print(.variableDeclaration(arrayDecl)), "変数 arr: 配列[整数型]")
+        #expect(printer.print(.variableDeclaration(arrayDecl)) == "変数 arr: 配列[整数型]")
 
         let recordDecl = VariableDeclaration(name: "person", type: .record("Person"))
-        XCTAssertEqual(printer.print(.variableDeclaration(recordDecl)), "変数 person: レコード Person")
+        #expect(printer.print(.variableDeclaration(recordDecl)) == "変数 person: レコード Person")
     }
 
     // MARK: - Control Flow Statement Tests
 
-    func testIfStatement() {
+    @Test func ifStatement() {
+        let printer = PrettyPrinter()
         let ifStmt = IfStatement(
             condition: .binary(.greater, .identifier("x"), .literal(.integer(0))),
             thenBody: [.assignment(.variable("y", .literal(.integer(1))))]
@@ -239,10 +261,11 @@ final class PrettyPrinterTests: XCTestCase {
             y ← 1
         endif
         """
-        XCTAssertEqual(printer.print(stmt), expected)
+        #expect(printer.print(stmt) == expected)
     }
 
-    func testIfElseStatement() {
+    @Test func ifElseStatement() {
+        let printer = PrettyPrinter()
         let ifStmt = IfStatement(
             condition: .binary(.greater, .identifier("x"), .literal(.integer(0))),
             thenBody: [.assignment(.variable("y", .literal(.integer(1))))],
@@ -256,10 +279,11 @@ final class PrettyPrinterTests: XCTestCase {
             y ← -1
         endif
         """
-        XCTAssertEqual(printer.print(stmt), expected)
+        #expect(printer.print(stmt) == expected)
     }
 
-    func testIfElifElseStatement() {
+    @Test func ifElifElseStatement() {
+        let printer = PrettyPrinter()
         let elseIf = IfStatement.ElseIf(
             condition: .binary(.equal, .identifier("x"), .literal(.integer(0))),
             body: [.assignment(.variable("y", .literal(.integer(0))))]
@@ -280,10 +304,11 @@ final class PrettyPrinterTests: XCTestCase {
             y ← -1
         endif
         """
-        XCTAssertEqual(printer.print(stmt), expected)
+        #expect(printer.print(stmt) == expected)
     }
 
-    func testWhileStatement() {
+    @Test func whileStatement() {
+        let printer = PrettyPrinter()
         let whileStmt = WhileStatement(
             condition: .binary(.less, .identifier("i"), .literal(.integer(10))),
             body: [.assignment(.variable("i", .binary(.add, .identifier("i"), .literal(.integer(1)))))]
@@ -294,10 +319,11 @@ final class PrettyPrinterTests: XCTestCase {
             i ← i + 1
         endwhile
         """
-        XCTAssertEqual(printer.print(stmt), expected)
+        #expect(printer.print(stmt) == expected)
     }
 
-    func testForRangeStatement() {
+    @Test func forRangeStatement() {
+        let printer = PrettyPrinter()
         let forStmt = ForStatement.range(ForStatement.RangeFor(
             variable: "i",
             start: .literal(.integer(1)),
@@ -310,10 +336,11 @@ final class PrettyPrinterTests: XCTestCase {
             print(i)
         endfor
         """
-        XCTAssertEqual(printer.print(stmt), expected)
+        #expect(printer.print(stmt) == expected)
     }
 
-    func testForRangeWithStepStatement() {
+    @Test func forRangeWithStepStatement() {
+        let printer = PrettyPrinter()
         let forStmt = ForStatement.range(ForStatement.RangeFor(
             variable: "i",
             start: .literal(.integer(0)),
@@ -327,10 +354,11 @@ final class PrettyPrinterTests: XCTestCase {
             print(i)
         endfor
         """
-        XCTAssertEqual(printer.print(stmt), expected)
+        #expect(printer.print(stmt) == expected)
     }
 
-    func testForEachStatement() {
+    @Test func forEachStatement() {
+        let printer = PrettyPrinter()
         let forStmt = ForStatement.forEach(ForStatement.ForEachLoop(
             variable: "item",
             iterable: .identifier("items"),
@@ -342,12 +370,13 @@ final class PrettyPrinterTests: XCTestCase {
             process(item)
         endfor
         """
-        XCTAssertEqual(printer.print(stmt), expected)
+        #expect(printer.print(stmt) == expected)
     }
 
     // MARK: - Function and Procedure Declaration Tests
 
-    func testFunctionDeclaration() {
+    @Test func functionDeclaration() {
+        let printer = PrettyPrinter()
         let param = Parameter(name: "x", type: .integer)
         let funcDecl = FunctionDeclaration(
             name: "square",
@@ -361,10 +390,11 @@ final class PrettyPrinterTests: XCTestCase {
             return x * x
         endfunction
         """
-        XCTAssertEqual(printer.print(stmt), expected)
+        #expect(printer.print(stmt) == expected)
     }
 
-    func testFunctionDeclarationWithLocalVariables() {
+    @Test func functionDeclarationWithLocalVariables() {
+        let printer = PrettyPrinter()
         let param = Parameter(name: "n", type: .integer)
         let localVar = VariableDeclaration(name: "result", type: .integer, initialValue: .literal(.integer(1)))
         let funcDecl = FunctionDeclaration(
@@ -392,10 +422,11 @@ final class PrettyPrinterTests: XCTestCase {
             return result
         endfunction
         """
-        XCTAssertEqual(printer.print(stmt), expected)
+        #expect(printer.print(stmt) == expected)
     }
 
-    func testProcedureDeclaration() {
+    @Test func procedureDeclaration() {
+        let printer = PrettyPrinter()
         let param = Parameter(name: "message", type: .string)
         let procDecl = ProcedureDeclaration(
             name: "printMessage",
@@ -408,34 +439,39 @@ final class PrettyPrinterTests: XCTestCase {
             print(message)
         endprocedure
         """
-        XCTAssertEqual(printer.print(stmt), expected)
+        #expect(printer.print(stmt) == expected)
     }
 
     // MARK: - Other Statement Tests
 
-    func testReturnStatement() {
+    @Test func returnStatement() {
+        let printer = PrettyPrinter()
         let returnStmt = ReturnStatement(expression: .literal(.integer(42)))
         let stmt = Statement.returnStatement(returnStmt)
-        XCTAssertEqual(printer.print(stmt), "return 42")
+        #expect(printer.print(stmt) == "return 42")
     }
 
-    func testReturnStatementWithoutValue() {
+    @Test func returnStatementWithoutValue() {
+        let printer = PrettyPrinter()
         let returnStmt = ReturnStatement()
         let stmt = Statement.returnStatement(returnStmt)
-        XCTAssertEqual(printer.print(stmt), "return")
+        #expect(printer.print(stmt) == "return")
     }
 
-    func testBreakStatement() {
+    @Test func breakStatement() {
+        let printer = PrettyPrinter()
         let stmt = Statement.breakStatement
-        XCTAssertEqual(printer.print(stmt), "break")
+        #expect(printer.print(stmt) == "break")
     }
 
-    func testExpressionStatement() {
+    @Test func expressionStatement() {
+        let printer = PrettyPrinter()
         let stmt = Statement.expressionStatement(.functionCall("doSomething", []))
-        XCTAssertEqual(printer.print(stmt), "doSomething()")
+        #expect(printer.print(stmt) == "doSomething()")
     }
 
-    func testBlockStatement() {
+    @Test func blockStatement() {
+        let printer = PrettyPrinter()
         let block = [
             Statement.assignment(.variable("x", .literal(.integer(1)))),
             Statement.assignment(.variable("y", .literal(.integer(2))))
@@ -445,12 +481,12 @@ final class PrettyPrinterTests: XCTestCase {
         x ← 1
         y ← 2
         """
-        XCTAssertEqual(printer.print(stmt), expected)
+        #expect(printer.print(stmt) == expected)
     }
 
     // MARK: - Configuration Tests
 
-    func testCustomIndentation() {
+    @Test func customIndentation() {
         let config = PrettyPrinter.Configuration(indentSize: 2, useSpaces: true)
         let customPrinter = PrettyPrinter(configuration: config)
 
@@ -464,10 +500,10 @@ final class PrettyPrinterTests: XCTestCase {
           x ← 1
         endif
         """
-        XCTAssertEqual(customPrinter.print(stmt), expected)
+        #expect(customPrinter.print(stmt) == expected)
     }
 
-    func testTabIndentation() {
+    @Test func tabIndentation() {
         let config = PrettyPrinter.Configuration(indentSize: 1, useSpaces: false)
         let customPrinter = PrettyPrinter(configuration: config)
 
@@ -481,12 +517,13 @@ final class PrettyPrinterTests: XCTestCase {
         \tx ← 1
         endif
         """
-        XCTAssertEqual(customPrinter.print(stmt), expected)
+        #expect(customPrinter.print(stmt) == expected)
     }
 
     // MARK: - Multiple Statements Tests
 
-    func testMultipleStatements() {
+    @Test func multipleStatements() {
+        let printer = PrettyPrinter()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(name: "x", type: .integer)),
             Statement.assignment(.variable("x", .literal(.integer(5)))),
@@ -497,6 +534,6 @@ final class PrettyPrinterTests: XCTestCase {
         x ← 5
         print(x)
         """
-        XCTAssertEqual(printer.print(statements), expected)
+        #expect(printer.print(statements) == expected)
     }
 }

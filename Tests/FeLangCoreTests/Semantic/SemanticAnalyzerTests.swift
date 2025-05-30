@@ -1,22 +1,17 @@
-import XCTest
+import Testing
 @testable import FeLangCore
 
-final class SemanticAnalyzerTests: XCTestCase {
-    var analyzer: SemanticAnalyzer!
+@Suite("SemanticAnalyzer Tests")
+struct SemanticAnalyzerTests {
 
-    override func setUp() {
-        super.setUp()
-        analyzer = SemanticAnalyzer()
-    }
-
-    override func tearDown() {
-        analyzer = nil
-        super.tearDown()
+    func createAnalyzer() -> SemanticAnalyzer {
+        return SemanticAnalyzer()
     }
 
     // MARK: - Basic Variable Declaration Tests
 
-    func testVariableDeclarationWithoutInitializer() {
+    @Test func variableDeclarationWithoutInitializer() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "x",
@@ -26,11 +21,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testVariableDeclarationWithCompatibleInitializer() {
+    @Test func variableDeclarationWithCompatibleInitializer() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "x",
@@ -40,11 +36,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testVariableDeclarationWithIncompatibleInitializer() {
+    @Test func variableDeclarationWithIncompatibleInitializer() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "x",
@@ -54,18 +51,19 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .typeMismatch(let expected, let actual, _) = result.errors[0] {
-            XCTAssertEqual(expected, .integer)
-            XCTAssertEqual(actual, .string)
+            #expect(expected == .integer)
+            #expect(actual == .string)
         } else {
-            XCTFail("Expected type mismatch error")
+            Issue.record("Expected type mismatch error")
         }
     }
 
-    func testDuplicateVariableDeclaration() {
+    @Test func duplicateVariableDeclaration() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "x",
@@ -80,19 +78,20 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .variableAlreadyDeclared(let name, _) = result.errors[0] {
-            XCTAssertEqual(name, "x")
+            #expect(name == "x")
         } else {
-            XCTFail("Expected variable already declared error")
+            Issue.record("Expected variable already declared error")
         }
     }
 
     // MARK: - Constant Declaration Tests
 
-    func testConstantDeclarationWithCompatibleInitializer() {
+    @Test func constantDeclarationWithCompatibleInitializer() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.constantDeclaration(ConstantDeclaration(
                 name: "PI",
@@ -102,11 +101,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testConstantDeclarationWithIncompatibleInitializer() {
+    @Test func constantDeclarationWithIncompatibleInitializer() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.constantDeclaration(ConstantDeclaration(
                 name: "PI",
@@ -116,20 +116,21 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .typeMismatch(let expected, let actual, _) = result.errors[0] {
-            XCTAssertEqual(expected, .real)
-            XCTAssertEqual(actual, .string)
+            #expect(expected == .real)
+            #expect(actual == .string)
         } else {
-            XCTFail("Expected type mismatch error")
+            Issue.record("Expected type mismatch error")
         }
     }
 
     // MARK: - Assignment Tests
 
-    func testVariableAssignmentCompatibleType() {
+    @Test func variableAssignmentCompatibleType() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "x",
@@ -140,11 +141,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testVariableAssignmentIncompatibleType() {
+    @Test func variableAssignmentIncompatibleType() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "x",
@@ -155,34 +157,36 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .typeMismatch(let expected, let actual, _) = result.errors[0] {
-            XCTAssertEqual(expected, .integer)
-            XCTAssertEqual(actual, .string)
+            #expect(expected == .integer)
+            #expect(actual == .string)
         } else {
-            XCTFail("Expected type mismatch error")
+            Issue.record("Expected type mismatch error")
         }
     }
 
-    func testAssignmentToUndeclaredVariable() {
+    @Test func assignmentToUndeclaredVariable() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.assignment(.variable("x", .literal(.integer(42))))
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .undeclaredVariable(let name, _) = result.errors[0] {
-            XCTAssertEqual(name, "x")
+            #expect(name == "x")
         } else {
-            XCTFail("Expected undeclared variable error")
+            Issue.record("Expected undeclared variable error")
         }
     }
 
-    func testAssignmentToConstant() {
+    @Test func assignmentToConstant() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.constantDeclaration(ConstantDeclaration(
                 name: "PI",
@@ -193,19 +197,20 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .constantReassignment(let name, _) = result.errors[0] {
-            XCTAssertEqual(name, "PI")
+            #expect(name == "PI")
         } else {
-            XCTFail("Expected constant reassignment error")
+            Issue.record("Expected constant reassignment error")
         }
     }
 
     // MARK: - Expression Type Inference Tests
 
-    func testLiteralTypeInference() {
+    @Test func literalTypeInference() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.expressionStatement(.literal(.integer(42))),
             Statement.expressionStatement(.literal(.real(3.14))),
@@ -215,11 +220,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testBinaryArithmeticExpressions() {
+    @Test func binaryArithmeticExpressions() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "result",
@@ -229,11 +235,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testBinaryArithmeticWithMixedTypes() {
+    @Test func binaryArithmeticWithMixedTypes() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "result",
@@ -243,11 +250,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testBinaryComparisonExpressions() {
+    @Test func binaryComparisonExpressions() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "result",
@@ -257,11 +265,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testBinaryLogicalExpressions() {
+    @Test func binaryLogicalExpressions() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "result",
@@ -271,11 +280,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testUnaryExpressions() {
+    @Test func unaryExpressions() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "negated",
@@ -290,13 +300,14 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
     // MARK: - Function Declaration Tests
 
-    func testSimpleFunctionDeclaration() {
+    @Test func simpleFunctionDeclaration() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.functionDeclaration(FunctionDeclaration(
                 name: "add",
@@ -321,11 +332,12 @@ final class SemanticAnalyzerTests: XCTestCase {
                 print("  - \(error)")
             }
         }
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testFunctionWithMissingReturnStatement() {
+    @Test func functionWithMissingReturnStatement() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.functionDeclaration(FunctionDeclaration(
                 name: "noReturn",
@@ -339,17 +351,18 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .missingReturnStatement(let functionName, _) = result.errors[0] {
-            XCTAssertEqual(functionName, "noReturn")
+            #expect(functionName == "noReturn")
         } else {
-            XCTFail("Expected missing return statement error")
+            Issue.record("Expected missing return statement error")
         }
     }
 
-    func testProcedureDeclaration() {
+    @Test func procedureDeclaration() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.procedureDeclaration(ProcedureDeclaration(
                 name: "printValue",
@@ -364,11 +377,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testDuplicateFunctionDeclaration() {
+    @Test func duplicateFunctionDeclaration() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.functionDeclaration(FunctionDeclaration(
                 name: "test",
@@ -391,19 +405,20 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .functionAlreadyDeclared(let name, _) = result.errors[0] {
-            XCTAssertEqual(name, "test")
+            #expect(name == "test")
         } else {
-            XCTFail("Expected function already declared error")
+            Issue.record("Expected function already declared error")
         }
     }
 
     // MARK: - Function Call Tests
 
-    func testBuiltinFunctionCall() {
+    @Test func builtinFunctionCall() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "input",
@@ -413,11 +428,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testFunctionCallWithCorrectArguments() {
+    @Test func functionCallWithCorrectArguments() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.functionDeclaration(FunctionDeclaration(
                 name: "add",
@@ -441,11 +457,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testFunctionCallWithIncorrectArgumentCount() {
+    @Test func functionCallWithIncorrectArgumentCount() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.functionDeclaration(FunctionDeclaration(
                 name: "add",
@@ -465,19 +482,20 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .incorrectArgumentCount(let function, let expected, let actual, _) = result.errors[0] {
-            XCTAssertEqual(function, "add")
-            XCTAssertEqual(expected, 2)
-            XCTAssertEqual(actual, 1)
+            #expect(function == "add")
+            #expect(expected == 2)
+            #expect(actual == 1)
         } else {
-            XCTFail("Expected incorrect argument count error")
+            Issue.record("Expected incorrect argument count error")
         }
     }
 
-    func testFunctionCallWithIncorrectArgumentType() {
+    @Test func functionCallWithIncorrectArgumentType() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.functionDeclaration(FunctionDeclaration(
                 name: "add",
@@ -497,38 +515,40 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .argumentTypeMismatch(let function, let paramIndex, let expected, let actual, _) = result.errors[0] {
-            XCTAssertEqual(function, "add")
-            XCTAssertEqual(paramIndex, 1)
-            XCTAssertEqual(expected, .integer)
-            XCTAssertEqual(actual, .string)
+            #expect(function == "add")
+            #expect(paramIndex == 1)
+            #expect(expected == .integer)
+            #expect(actual == .string)
         } else {
-            XCTFail("Expected argument type mismatch error")
+            Issue.record("Expected argument type mismatch error")
         }
     }
 
-    func testUndeclaredFunctionCall() {
+    @Test func undeclaredFunctionCall() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.expressionStatement(.functionCall("unknownFunction", []))
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .undeclaredFunction(let name, _) = result.errors[0] {
-            XCTAssertEqual(name, "unknownFunction")
+            #expect(name == "unknownFunction")
         } else {
-            XCTFail("Expected undeclared function error")
+            Issue.record("Expected undeclared function error")
         }
     }
 
     // MARK: - Control Flow Tests
 
-    func testIfStatementWithBooleanCondition() {
+    @Test func ifStatementWithBooleanCondition() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.ifStatement(IfStatement(
                 condition: .literal(.boolean(true)),
@@ -539,11 +559,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testIfStatementWithNonBooleanCondition() {
+    @Test func ifStatementWithNonBooleanCondition() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.ifStatement(IfStatement(
                 condition: .literal(.integer(1)),
@@ -554,18 +575,19 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .typeMismatch(let expected, let actual, _) = result.errors[0] {
-            XCTAssertEqual(expected, .boolean)
-            XCTAssertEqual(actual, .integer)
+            #expect(expected == .boolean)
+            #expect(actual == .integer)
         } else {
-            XCTFail("Expected type mismatch error")
+            Issue.record("Expected type mismatch error")
         }
     }
 
-    func testWhileStatementWithBooleanCondition() {
+    @Test func whileStatementWithBooleanCondition() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.whileStatement(WhileStatement(
                 condition: .literal(.boolean(true)),
@@ -576,11 +598,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testForRangeStatement() {
+    @Test func forRangeStatement() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.forStatement(.range(ForStatement.RangeFor(
                 variable: "i",
@@ -594,13 +617,14 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
     // MARK: - Return Statement Tests
 
-    func testReturnStatementInFunction() {
+    @Test func returnStatementInFunction() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.functionDeclaration(FunctionDeclaration(
                 name: "getValue",
@@ -614,27 +638,29 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testReturnStatementOutsideFunction() {
+    @Test func returnStatementOutsideFunction() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.returnStatement(ReturnStatement(expression: .literal(.integer(42))))
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .returnOutsideFunction = result.errors[0] {
             // Expected
         } else {
-            XCTFail("Expected return outside function error")
+            Issue.record("Expected return outside function error")
         }
     }
 
-    func testReturnTypeMismatch() {
+    @Test func returnTypeMismatch() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.functionDeclaration(FunctionDeclaration(
                 name: "getValue",
@@ -648,21 +674,22 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .returnTypeMismatch(let function, let expected, let actual, _) = result.errors[0] {
-            XCTAssertEqual(function, "getValue")
-            XCTAssertEqual(expected, .integer)
-            XCTAssertEqual(actual, .string)
+            #expect(function == "getValue")
+            #expect(expected == .integer)
+            #expect(actual == .string)
         } else {
-            XCTFail("Expected return type mismatch error")
+            Issue.record("Expected return type mismatch error")
         }
     }
 
     // MARK: - Break Statement Tests
 
-    func testBreakStatementInLoop() {
+    @Test func breakStatementInLoop() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.whileStatement(WhileStatement(
                 condition: .literal(.boolean(true)),
@@ -673,29 +700,31 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testBreakStatementOutsideLoop() {
+    @Test func breakStatementOutsideLoop() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.breakStatement
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .breakOutsideLoop = result.errors[0] {
             // Expected
         } else {
-            XCTFail("Expected break outside loop error")
+            Issue.record("Expected break outside loop error")
         }
     }
 
     // MARK: - Scope Tests
 
-    func testVariableScope() {
+    @Test func variableScope() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "x",
@@ -714,13 +743,13 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
     // MARK: - Configuration Tests
 
-    func testAnalyzerWithStrictConfig() {
+    @Test func analyzerWithStrictConfig() {
         let strictAnalyzer = SemanticAnalyzer(config: .strict)
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
@@ -731,11 +760,11 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = strictAnalyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertFalse(result.errors.isEmpty)
+        #expect(!result.isSuccessful)
+        #expect(!result.errors.isEmpty)
     }
 
-    func testAnalyzerWithFastConfig() {
+    @Test func analyzerWithFastConfig() {
         let fastAnalyzer = SemanticAnalyzer(config: .fast)
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
@@ -746,13 +775,14 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = fastAnalyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
     // MARK: - Enhanced Type Compatibility Tests
 
-    func testStringConcatenationWithPlusOperator() {
+    @Test func stringConcatenationWithPlusOperator() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "result",
@@ -762,11 +792,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testCharacterToStringCompatibility() {
+    @Test func characterToStringCompatibility() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "message",
@@ -776,11 +807,12 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
-    func testCharacterStringConcatenation() {
+    @Test func characterStringConcatenation() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "result",
@@ -790,13 +822,14 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
     // MARK: - Enhanced Validation Tests
 
-    func testDuplicateParameterNames() {
+    @Test func duplicateParameterNames() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.functionDeclaration(FunctionDeclaration(
                 name: "testFunc",
@@ -813,17 +846,18 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .variableAlreadyDeclared(let name, _) = result.errors[0] {
-            XCTAssertEqual(name, "param")
+            #expect(name == "param")
         } else {
-            XCTFail("Expected variable already declared error")
+            Issue.record("Expected variable already declared error")
         }
     }
 
-    func testUnreachableCodeAfterReturn() {
+    @Test func unreachableCodeAfterReturn() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.functionDeclaration(FunctionDeclaration(
                 name: "testFunc",
@@ -838,17 +872,18 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .unreachableCode = result.errors[0] {
             // Expected
         } else {
-            XCTFail("Expected unreachable code error")
+            Issue.record("Expected unreachable code error")
         }
     }
 
-    func testArrayTypeCompatibility() {
+    @Test func arrayTypeCompatibility() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.variableDeclaration(VariableDeclaration(
                 name: "intArray",
@@ -863,20 +898,21 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertFalse(result.isSuccessful)
-        XCTAssertEqual(result.errors.count, 1)
+        #expect(!result.isSuccessful)
+        #expect(result.errors.count == 1)
 
         if case .typeMismatch(let expected, let actual, _) = result.errors[0] {
-            XCTAssertEqual(expected, .array(elementType: .string, dimensions: []))
-            XCTAssertEqual(actual, .array(elementType: .integer, dimensions: []))
+            #expect(expected == .array(elementType: .string, dimensions: []))
+            #expect(actual == .array(elementType: .integer, dimensions: []))
         } else {
-            XCTFail("Expected type mismatch error")
+            Issue.record("Expected type mismatch error")
         }
     }
 
     // MARK: - Integration Tests
 
-    func testComplexSemanticAnalysis() {
+    @Test func complexSemanticAnalysis() {
+        let analyzer = createAnalyzer()
         let statements = [
             Statement.functionDeclaration(FunctionDeclaration(
                 name: "calculateSum",
@@ -918,13 +954,14 @@ final class SemanticAnalyzerTests: XCTestCase {
         ]
 
         let result = analyzer.analyze(statements)
-        XCTAssertTrue(result.isSuccessful)
-        XCTAssertTrue(result.errors.isEmpty)
+        #expect(result.isSuccessful)
+        #expect(result.errors.isEmpty)
     }
 
     // MARK: - Performance Tests
 
-    func testAnalysisPerformance() {
+    @Test func analysisPerformance() {
+        let analyzer = createAnalyzer()
         // Generate a large number of statements
         var statements: [Statement] = []
         for index in 0..<1000 {
@@ -935,9 +972,7 @@ final class SemanticAnalyzerTests: XCTestCase {
             )))
         }
 
-        measure {
-            let result = analyzer.analyze(statements)
-            XCTAssertTrue(result.isSuccessful)
-        }
+        let result = analyzer.analyze(statements)
+        #expect(result.isSuccessful)
     }
 }

@@ -68,7 +68,7 @@ type CIStatus struct {
 type CheckRun struct {
 	Name        string    `json:"name"`
 	Status      string    `json:"state"`
-	Conclusion  string    `json:"conclusion"`
+	Conclusion  string    `json:"conclusion,omitempty"`
 	URL         string    `json:"link"`
 	StartedAt   time.Time `json:"startedAt"`
 	CompletedAt time.Time `json:"completedAt"`
