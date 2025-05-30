@@ -52,6 +52,103 @@ step() {
     echo -e "${PURPLE}[STEP]${NC} $1"
 }
 
+# Global status variables
+STATUS_BOX_LINES=0
+ISSUE_TITLE=""
+ISSUE_DESCRIPTION=""
+WORKFLOW_STEPS=()
+CURRENT_STEP=0
+
+init_status_box() {
+    local issue_title="$1"
+    local issue_body="$2"
+    local branch_name="$3"
+    
+    # Store issue information
+    ISSUE_TITLE="$issue_title"
+    # Truncate description to first line or first 80 chars
+    ISSUE_DESCRIPTION=$(echo "$issue_body" | head -n1 | cut -c1-80)
+    if [[ ${#issue_body} -gt 80 ]]; then
+        ISSUE_DESCRIPTION="${ISSUE_DESCRIPTION}..."
+    fi
+    
+    # Define workflow steps
+    WORKFLOW_STEPS=(
+        "🔧 Setting up worktree"
+        "📋 Fetching issue data" 
+        "🧠 Generating analysis"
+        "⚡ Running Claude Code"
+        "✅ Validating implementation"
+        "📝 Creating pull request"
+        "🔍 Monitoring CI checks"
+        "🎉 Workflow complete"
+    )
+    CURRENT_STEP=0
+    
+    # Calculate box dimensions
+    local title_len=${#ISSUE_TITLE}
+    local desc_len=${#ISSUE_DESCRIPTION}
+    local branch_len=$((${#branch_name} + 9)) # "Branch: " prefix
+    local max_width=$((title_len > desc_len ? title_len : desc_len))
+    max_width=$((max_width > branch_len ? max_width : branch_len))
+    max_width=$((max_width > 60 ? max_width : 60))
+    max_width=$((max_width + 4)) # padding
+    
+    # Draw status box
+    draw_status_box "$max_width"
+}
+
+draw_status_box() {
+    local width="$1"
+    local border_line=$(printf "╔%*s╗" $((width-2)) "" | tr ' ' '═')
+    local empty_line=$(printf "║%*s║" $((width-2)) "")
+    
+    # Save cursor position and clear area
+    echo -ne "\033[s" # Save cursor
+    echo -ne "\033[H" # Move to top
+    
+    STATUS_BOX_LINES=0
+    echo -e "${BLUE}$border_line${NC}"; ((STATUS_BOX_LINES++))
+    echo -e "${BLUE}║${NC} ${GREEN}${ISSUE_TITLE}$(printf "%*s" $((width-4-${#ISSUE_TITLE})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
+    echo -e "${BLUE}║${NC} ${YELLOW}${ISSUE_DESCRIPTION}$(printf "%*s" $((width-4-${#ISSUE_DESCRIPTION})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
+    echo -e "${BLUE}║${NC} Branch: ${CYAN}${BRANCH_NAME}$(printf "%*s" $((width-13-${#BRANCH_NAME})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
+    echo -e "${BLUE}║$(printf "%*s" $((width-2)) "")║${NC}"; ((STATUS_BOX_LINES++))
+    
+    # Draw workflow steps
+    for i in "${!WORKFLOW_STEPS[@]}"; do
+        local step="${WORKFLOW_STEPS[i]}"
+        local status_icon=""
+        local color=""
+        
+        if [[ $i -lt $CURRENT_STEP ]]; then
+            status_icon="✓"
+            color="${GREEN}"
+        elif [[ $i -eq $CURRENT_STEP ]]; then
+            status_icon="►"
+            color="${YELLOW}"
+        else
+            status_icon="○"
+            color="${NC}"  # Use default color instead of undefined GRAY
+        fi
+        
+        echo -e "${BLUE}║${NC} ${color}${status_icon} ${step}$(printf "%*s" $((width-6-${#step})) "")${BLUE}║${NC}"; ((STATUS_BOX_LINES++))
+    done
+    
+    echo -e "${BLUE}║$(printf "%*s" $((width-2)) "")║${NC}"; ((STATUS_BOX_LINES++))
+    local bottom_line=$(printf "╚%*s╝" $((width-2)) "" | tr ' ' '═')
+    echo -e "${BLUE}$bottom_line${NC}"; ((STATUS_BOX_LINES++))
+    
+    # Restore cursor position
+    echo -ne "\033[u" # Restore cursor
+    echo -ne "\033[${STATUS_BOX_LINES}B" # Move cursor below box
+}
+
+update_step() {
+    local step_number="$1"
+    CURRENT_STEP="$step_number"
+    draw_status_box 66
+}
+
 show_loading() {
     local message="$1"
     local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
@@ -386,50 +483,19 @@ EOF
     local input_file="${WORKTREE_PATH}/.claude-input.txt"
     echo "$context_message" > "$input_file"
     
-    # Launch Claude Code with the context as initial input
+    # Launch Claude Code interactively
     info "Launching Claude Code with issue context..."
     info "Note: You may see a trust prompt - select 'Yes, proceed' to continue"
+    echo
+    info "Issue context has been saved to: $context_file"
+    info "Auto-launching Claude Code..."
     
-    # Start loading animation in background
-    show_loading "Processing with Claude Code" &
-    local loading_pid=$!
-    
-    # Launch Claude Code with timeout (10 minutes for main implementation)
-    local claude_output_file="${WORKTREE_PATH}/.claude-output.log"
-    local claude_error_file="${WORKTREE_PATH}/.claude-error.log"
-    
-    if timeout 600 claude < "$input_file" > "$claude_output_file" 2> "$claude_error_file"; then
-        kill $loading_pid 2>/dev/null
-        wait $loading_pid 2>/dev/null
-        echo -e "\r\033[K" # Clear loading line
+    # Launch Claude Code interactively (auto-launch)
+    if claude; then
         success "Claude Code session completed successfully"
-        
-        # Show any output from Claude Code
-        if [[ -s "$claude_output_file" ]]; then
-            info "Claude Code output:"
-            cat "$claude_output_file"
-        fi
     else
         local exit_code=$?
-        kill $loading_pid 2>/dev/null
-        wait $loading_pid 2>/dev/null
-        echo -e "\r\033[K" # Clear loading line
-        
-        if [[ $exit_code -eq 124 ]]; then
-            error "Claude Code session timed out after 10 minutes"
-        else
-            error "Claude Code session failed or was interrupted (exit code: $exit_code)"
-        fi
-        
-        # Show error details
-        if [[ -s "$claude_error_file" ]]; then
-            error "Claude Code error output:"
-            cat "$claude_error_file"
-        fi
-        if [[ -s "$claude_output_file" ]]; then
-            info "Claude Code output before failure:"
-            cat "$claude_output_file"
-        fi
+        error "Claude Code session failed or was interrupted (exit code: $exit_code)"
         exit 1
     fi
     
@@ -487,49 +553,18 @@ EOF
     local input_file="${WORKTREE_PATH}/.claude-error-input.txt"
     echo "$error_context_message" > "$input_file"
     
-    # Launch Claude Code with the error context as initial input
+    # Launch Claude Code interactively to fix errors
     info "Launching Claude Code with validation error context..."
+    echo
+    error "Validation errors detected! Auto-launching Claude Code to fix them."
+    info "Error context has been saved to: $context_file"
     
-    # Start loading animation in background
-    show_loading "Fixing validation errors with Claude Code" &
-    local loading_pid=$!
-    
-    # Launch Claude Code with timeout (8 minutes for error fixing)
-    local claude_output_file="${WORKTREE_PATH}/.claude-error-output.log"
-    local claude_error_file="${WORKTREE_PATH}/.claude-error-stderr.log"
-    
-    if timeout 480 claude < "$input_file" > "$claude_output_file" 2> "$claude_error_file"; then
-        kill $loading_pid 2>/dev/null
-        wait $loading_pid 2>/dev/null
-        echo -e "\r\033[K" # Clear loading line
+    # Launch Claude Code interactively (auto-launch)
+    if claude; then
         success "Claude Code error-fixing session completed successfully"
-        
-        # Show any output from Claude Code
-        if [[ -s "$claude_output_file" ]]; then
-            info "Claude Code error-fixing output:"
-            cat "$claude_output_file"
-        fi
     else
         local exit_code=$?
-        kill $loading_pid 2>/dev/null
-        wait $loading_pid 2>/dev/null
-        echo -e "\r\033[K" # Clear loading line
-        
-        if [[ $exit_code -eq 124 ]]; then
-            error "Claude Code error-fixing session timed out after 8 minutes"
-        else
-            error "Claude Code error-fixing session failed or was interrupted (exit code: $exit_code)"
-        fi
-        
-        # Show error details
-        if [[ -s "$claude_error_file" ]]; then
-            error "Claude Code error-fixing error output:"
-            cat "$claude_error_file"
-        fi
-        if [[ -s "$claude_output_file" ]]; then
-            info "Claude Code error-fixing output before failure:"
-            cat "$claude_output_file"
-        fi
+        error "Claude Code error-fixing session failed or was interrupted (exit code: $exit_code)"
         exit 1
     fi
     
@@ -1131,9 +1166,19 @@ main() {
     # Execute workflow
     validate_prerequisites
     create_worktree
+    update_step 1  # Setting up worktree completed
     fetch_issue_data "$issue_url"
+    
+    # Initialize status box after fetching issue data
+    local issue_title=$(jq -r '.title' "$ISSUE_DATA_FILE")
+    local issue_body=$(jq -r '.body // ""' "$ISSUE_DATA_FILE")
+    init_status_box "$issue_title" "$issue_body" "$BRANCH_NAME"
+    
+    update_step 2  # Fetching issue data completed
     generate_analysis
+    update_step 3  # Generating analysis completed
     launch_claude_code
+    update_step 4  # Running Claude Code completed
     
     # Post-implementation workflow with retry loop
     local max_retries=3
@@ -1142,7 +1187,11 @@ main() {
     while [[ $retry_count -lt $max_retries ]]; do
         if validate_implementation; then
             # Validation successful - proceed with PR creation
+            update_step 5  # Validating implementation completed
             push_and_create_pr
+            update_step 6  # Creating pull request completed
+            update_step 7  # Monitoring CI checks completed
+            update_step 8  # Workflow complete
             success "Workflow completed successfully!"
             echo
             info "Next steps:"
