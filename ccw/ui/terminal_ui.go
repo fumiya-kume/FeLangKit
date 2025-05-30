@@ -46,6 +46,9 @@ type UIManager struct {
 	performanceOptimizer *types.PerformanceOptimizer
 	lastContentHash      string
 	renderDebouncer      *time.Timer
+	
+	// Cached instances to avoid repeated instantiation
+	cachedCCWApp *CCWApp
 }
 
 // Create new UI manager
@@ -439,9 +442,17 @@ func (ui *UIManager) GetAnimations() bool {
 // Enhanced UI methods that can use Bubble Tea
 // Note: Enhanced methods now use the unified CCWApp
 
-// GetCCWApp creates a new unified CCW application
+// GetCCWApp returns a cached unified CCW application, creating it if necessary
 func (ui *UIManager) GetCCWApp() *CCWApp {
-	return NewCCWApp(ui)
+	if ui.cachedCCWApp == nil {
+		ui.cachedCCWApp = NewCCWApp(ui)
+	}
+	return ui.cachedCCWApp
+}
+
+// ClearCCWAppCache clears the cached CCW app instance (useful when configuration changes)
+func (ui *UIManager) ClearCCWAppCache() {
+	ui.cachedCCWApp = nil
 }
 
 // GetBubbleTeaManager creates a new Bubble Tea manager for this UI (legacy compatibility)
