@@ -309,15 +309,16 @@ func (pm *PRManager) parseBasicCIStatus(output, prURL string) (*types.CIStatus, 
 		URL:         prURL,
 	}
 
-	// Basic parsing logic (existing implementation)
-	if strings.Contains(strings.ToLower(output), "success") || 
-	   strings.Contains(strings.ToLower(output), "passing") {
-		status.Status = "success"
-		status.Conclusion = "success"
-	} else if strings.Contains(strings.ToLower(output), "fail") ||
-			  strings.Contains(strings.ToLower(output), "error") {
+	// Basic parsing logic - prioritize failure keywords over success
+	outputLower := strings.ToLower(output)
+	if strings.Contains(outputLower, "fail") ||
+	   strings.Contains(outputLower, "error") {
 		status.Status = "failure"
 		status.Conclusion = "failure"
+	} else if strings.Contains(outputLower, "success") || 
+	          strings.Contains(outputLower, "passing") {
+		status.Status = "success"
+		status.Conclusion = "success"
 	} else {
 		status.Status = "pending"
 		status.Conclusion = "pending"
@@ -328,7 +329,7 @@ func (pm *PRManager) parseBasicCIStatus(output, prURL string) (*types.CIStatus, 
 
 // hasStatusChanged checks if CI status has changed significantly
 func (pm *PRManager) hasStatusChanged(last, current *types.CIStatus) bool {
-	if last == nil {
+	if last == nil || current == nil {
 		return true
 	}
 	
@@ -570,10 +571,32 @@ func parseInt(s string) int {
 	
 	// Fallback to manual parsing
 	result := 0
+	negative := false
+	started := false
+	
 	for _, char := range s {
 		if char >= '0' && char <= '9' {
-			result = result*10 + int(char-'0')
+			digit := int(char - '0')
+			
+			// Check for overflow
+			if result > (9223372036854775807-digit)/10 {
+				return 0 // Return 0 on overflow
+			}
+			
+			result = result*10 + digit
+			started = true
+		} else if char == '-' && !started {
+			negative = true
+		} else if char == '+' && !started {
+			// Continue parsing positive number
+		} else if started {
+			// Stop parsing when we hit a non-digit after starting
+			break
 		}
+	}
+	
+	if negative {
+		return -result
 	}
 	return result
 }
