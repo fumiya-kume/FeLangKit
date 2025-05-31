@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -50,6 +51,24 @@ func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
+		// Enhanced error reporting for startup failures
+		fmt.Printf("\n❌ Failed to start Claude Code: %v\n", err)
+		
+		// Provide specific troubleshooting based on error type
+		fmt.Println("\n🔍 Troubleshooting suggestions:")
+		if strings.Contains(err.Error(), "executable file not found") {
+			fmt.Println("- Claude Code CLI is not installed or not in PATH")
+			fmt.Println("- Install from: https://claude.ai/code")
+			fmt.Println("- Verify installation: claude --version")
+		} else if strings.Contains(err.Error(), "permission denied") {
+			fmt.Println("- Check file permissions for Claude Code executable")
+			fmt.Println("- Try: chmod +x $(which claude)")
+		} else {
+			fmt.Println("- Verify Claude Code is properly installed")
+			fmt.Println("- Check system PATH configuration")
+			fmt.Println("- Try: which claude")
+		}
+		
 		return fmt.Errorf("failed to start Claude Code: %w", err)
 	}
 
@@ -62,12 +81,42 @@ func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 	select {
 	case err := <-done:
 		if err != nil {
+			// Enhanced error reporting for execution failures
+			fmt.Printf("\n❌ Claude Code session failed: %v\n", err)
+			
+			// Get exit code if available
+			if exitError, ok := err.(*exec.ExitError); ok {
+				fmt.Printf("Exit code: %d\n", exitError.ExitCode())
+			}
+			
+			// Provide troubleshooting suggestions
+			fmt.Println("\n🔍 Troubleshooting suggestions:")
+			if strings.Contains(err.Error(), "authentication") {
+				fmt.Println("- Claude Code authentication may have expired")
+				fmt.Println("- Try: claude auth login")
+			} else if strings.Contains(err.Error(), "network") {
+				fmt.Println("- Network connectivity issues")
+				fmt.Println("- Check internet connection and proxy settings")
+			} else {
+				fmt.Println("- Check Claude Code logs for more details")
+				fmt.Println("- Verify your Claude Code session")
+				fmt.Println("- Try: claude --help")
+			}
+			
 			return fmt.Errorf("Claude Code session failed: %w", err)
 		}
 		return nil
 	case <-ctx.Done():
 		// Timeout occurred, terminate the process
-		cmd.Process.Kill()
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+		fmt.Printf("\n⏰ Claude Code session timed out after %v\n", c.timeout)
+		fmt.Println("\n🔍 Troubleshooting suggestions:")
+		fmt.Println("- Session took longer than expected")
+		fmt.Println("- Consider increasing timeout in configuration")
+		fmt.Println("- Check if Claude Code is waiting for input")
+		
 		return fmt.Errorf("Claude Code session timed out after %v", c.timeout)
 	}
 }
@@ -148,6 +197,20 @@ Be specific and actionable in your feedback.`, filePath)
 func CheckAvailability() error {
 	cmd := exec.Command("claude", "--version")
 	if err := cmd.Run(); err != nil {
+		fmt.Printf("\n❌ Claude Code CLI not found: %v\n", err)
+		fmt.Println("\n🔧 Installation instructions:")
+		fmt.Println("1. Visit: https://claude.ai/code")
+		fmt.Println("2. Download and install Claude Code CLI")
+		fmt.Println("3. Verify installation: claude --version")
+		fmt.Println("4. Ensure Claude Code is in your PATH")
+		
+		if strings.Contains(err.Error(), "executable file not found") {
+			fmt.Println("\n💡 Common solutions:")
+			fmt.Println("- Add Claude Code to PATH: export PATH=$PATH:/path/to/claude")
+			fmt.Println("- Restart terminal after installation")
+			fmt.Println("- Check installation location: which claude")
+		}
+		
 		return fmt.Errorf("Claude Code CLI not found. Please install it from https://claude.ai/code")
 	}
 	return nil

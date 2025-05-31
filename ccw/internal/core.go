@@ -81,7 +81,15 @@ func ProcessIssue(issueURL, mode string) {
 	}
 	saveWorktreeConfig(worktreePath, worktreeConfig)
 
-	// Step 4: Launch Claude Code
+	// Step 4: Check Claude Code availability before launching
+	ui.UpdateStatus("Checking Claude Code availability...")
+	if err := claude.CheckAvailability(); err != nil {
+		ui.ShowError("Claude Code not available", err)
+		cleanupWorktree(gitOps, worktreePath)
+		return
+	}
+	
+	// Step 5: Launch Claude Code
 	ui.UpdateStatus("Launching Claude Code...")
 	claudeContext := buildClaudeContext(issue, worktreePath)
 	
@@ -91,7 +99,7 @@ func ProcessIssue(issueURL, mode string) {
 		return
 	}
 
-	// Step 5: Check for changes
+	// Step 6: Check for changes
 	ui.UpdateStatus("Checking for changes...")
 	hasChanges, err := gitOps.HasUncommittedChanges(worktreePath)
 	if err != nil {
@@ -105,7 +113,7 @@ func ProcessIssue(issueURL, mode string) {
 		return
 	}
 
-	// Step 6: Validate changes (if enabled)
+	// Step 7: Validate changes (if enabled)
 	if config.ValidateChanges {
 		ui.UpdateStatus("Validating implementation...")
 		result, err := ValidateImplementation(worktreePath)
