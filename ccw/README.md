@@ -7,7 +7,7 @@ CCW is a Go-based automation tool that streamlines the complete GitHub issue wor
 ### ✨ Core Automation
 - **GitHub Integration**: Uses official `gh` CLI for seamless GitHub operations
 - **Git Worktree Management**: Creates isolated development environments for each issue
-- **Claude Code Integration**: Automatically launches Claude Code with issue context
+- **Claude Code Integration**: Automatically launches Claude Code with issue context and seamless permission configuration
 - **Quality Validation**: Runs SwiftLint, build, and test validation with change detection
 - **Error Recovery**: Intelligent retry logic with error context (up to 3 attempts)
 
@@ -95,7 +95,7 @@ CCW_CONSOLE_MODE=true ccw <url>        # Force CI-friendly console mode
 
 CCW follows a 9-step automated workflow with real-time progress tracking and intelligent error recovery:
 
-1. **Setting up worktree**: Creates isolated git worktree with unique branch name
+1. **Setting up worktree**: Creates isolated git worktree with unique branch name and automatic Claude Code permission configuration
 2. **Fetching issue data**: Retrieves comprehensive issue information using `gh api`
 3. **Generating analysis**: Prepares implementation context and strategy
 4. **Running Claude Code**: Launches automated implementation with issue context

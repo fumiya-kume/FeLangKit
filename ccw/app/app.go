@@ -158,3 +158,22 @@ func getEnvWithDefault(key, defaultValue string) string {
 	}
 	return defaultValue
 }
+
+// setupClaudePermissions configures Claude Code permissions for seamless automation
+func (app *CCWApp) setupClaudePermissions(worktreePath string) error {
+	// Get template path relative to CCW executable
+	templatePath := filepath.Join("ccw", ".claude-settings-template.json")
+	
+	// Try to setup permissions from template, fallback to permissive defaults
+	if err := claude.SetupPermissionsFromTemplate(worktreePath, templatePath); err != nil {
+		app.logger.Debug("claude_permissions", "Template setup failed, using permissive defaults", map[string]interface{}{
+			"template_path": templatePath,
+			"error":         err.Error(),
+		})
+		
+		// Fallback to creating permissive permissions directly
+		return claude.SetupPermissivePermissions(worktreePath)
+	}
+	
+	return nil
+}

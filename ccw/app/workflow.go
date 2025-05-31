@@ -222,6 +222,23 @@ func (app *CCWApp) setupDevelopmentEnvironment(issue *types.Issue, issueNumber i
 		"worktree_path": worktreePath,
 	})
 
+	// Setup Claude Code permissions for seamless automation
+	app.debugStep("step3_claude", "Setting up Claude Code permissions", map[string]interface{}{
+		"worktree_path": worktreePath,
+	})
+
+	if err := app.setupClaudePermissions(worktreePath); err != nil {
+		app.logger.Error("workflow", "Failed to setup Claude permissions", map[string]interface{}{
+			"worktree_path": worktreePath,
+			"error":         err.Error(),
+		})
+		// Continue anyway - this is not a critical failure
+		app.ui.Warning("Claude permissions setup failed, Claude Code may require manual permission confirmations")
+	} else {
+		app.debugStep("step3_claude", "Claude permissions configured successfully", nil)
+		app.ui.Info("✅ Claude Code permissions configured for seamless automation")
+	}
+
 	app.ui.UpdateProgress("setup", "completed")
 
 	// Save issue and worktree data
