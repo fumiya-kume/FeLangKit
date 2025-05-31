@@ -3,6 +3,8 @@ package issues
 import (
 	"fmt"
 	"strings"
+
+	"ccw/types"
 )
 
 // GitHub issue processing and workflow management
@@ -10,7 +12,7 @@ import (
 // Additional issue processing helper functions
 
 // Generate basic implementation context for issue processing
-func generateBasicImplementationContext(issueData *Issue, worktreeConfig *WorktreeConfig) string {
+func generateBasicImplementationContext(issueData *types.Issue, worktreeConfig *types.WorktreeConfig) string {
 	var md strings.Builder
 
 	// Header

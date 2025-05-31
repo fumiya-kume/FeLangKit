@@ -30,58 +30,58 @@ type PerformanceMetrics struct {
 	ContentChangeRate   float64
 	OptimizationLevel   int
 	AdaptiveAdjustments int
-	mutex               sync.RWMutex
+	Mutex               sync.RWMutex
 }
 
 type ChangeDetector struct {
-	lastContent   string
-	lastHash      string
-	changeHistory []time.Time
-	sensitivity   float64
-	minInterval   time.Duration
-	mutex         sync.RWMutex
+	LastContent   string
+	LastHash      string
+	ChangeHistory []time.Time
+	Sensitivity   float64
+	MinInterval   time.Duration
+	Mutex         sync.RWMutex
 }
 
 type AdaptiveRefreshController struct {
-	currentInterval   time.Duration
-	minInterval       time.Duration
-	maxInterval       time.Duration
-	changeVelocity    float64
-	lastAdjustment    time.Time
-	adjustmentHistory []time.Duration
-	optimizationLevel int
-	mutex             sync.RWMutex
+	CurrentInterval   time.Duration
+	MinInterval       time.Duration
+	MaxInterval       time.Duration
+	ChangeVelocity    float64
+	LastAdjustment    time.Time
+	AdjustmentHistory []time.Duration
+	OptimizationLevel int
+	Mutex             sync.RWMutex
 }
 
 type ContentCache struct {
-	cache       map[string]CachedContent
-	maxSize     int
-	ttl         time.Duration
-	hitCount    int
-	missCount   int
-	mutex       sync.RWMutex
-	lastCleanup time.Time
+	Cache       map[string]CachedContent
+	MaxSize     int
+	TTL         time.Duration
+	HitCount    int
+	MissCount   int
+	Mutex       sync.RWMutex
+	LastCleanup time.Time
 }
 
 type CachedContent struct {
-	content     string
-	hash        string
-	timestamp   time.Time
-	accessCount int
-	lastAccess  time.Time
-	size        int
+	Content     string
+	Hash        string
+	Timestamp   time.Time
+	AccessCount int
+	LastAccess  time.Time
+	Size        int
 }
 
 type PerformanceOptimizer struct {
-	config                    *PerformanceConfig
-	changeDetector            *ChangeDetector
-	adaptiveController        *AdaptiveRefreshController
-	contentCache              *ContentCache
+	Config                    *PerformanceConfig
+	ChangeDetector            *ChangeDetector
+	AdaptiveController        *AdaptiveRefreshController
+	ContentCache              *ContentCache
 	Metrics                   *PerformanceMetrics
-	mutex                     sync.RWMutex
-	isOptimizationEnabled     bool
-	lastOptimizationCheck     time.Time
-	optimizationCheckInterval time.Duration
+	Mutex                     sync.RWMutex
+	IsOptimizationEnabled     bool
+	LastOptimizationCheck     time.Time
+	OptimizationCheckInterval time.Duration
 }
 
 // PerformanceOptimizer implementation functions
@@ -89,23 +89,23 @@ type PerformanceOptimizer struct {
 // NewPerformanceOptimizer creates a new performance optimizer
 func NewPerformanceOptimizer(config *PerformanceConfig) *PerformanceOptimizer {
 	return &PerformanceOptimizer{
-		config: config,
-		changeDetector: &ChangeDetector{
-			sensitivity:   config.ChangeDetectionSensitivity,
-			minInterval:   config.MinRefreshInterval,
-			changeHistory: make([]time.Time, 0),
+		Config: config,
+		ChangeDetector: &ChangeDetector{
+			Sensitivity:   config.ChangeDetectionSensitivity,
+			MinInterval:   config.MinRefreshInterval,
+			ChangeHistory: make([]time.Time, 0),
 		},
-		adaptiveController: &AdaptiveRefreshController{
-			currentInterval:   config.MinRefreshInterval,
-			minInterval:       config.MinRefreshInterval,
-			maxInterval:       config.MaxRefreshInterval,
-			optimizationLevel: config.OptimizationLevel,
-			adjustmentHistory: make([]time.Duration, 0),
+		AdaptiveController: &AdaptiveRefreshController{
+			CurrentInterval:   config.MinRefreshInterval,
+			MinInterval:       config.MinRefreshInterval,
+			MaxInterval:       config.MaxRefreshInterval,
+			OptimizationLevel: config.OptimizationLevel,
+			AdjustmentHistory: make([]time.Duration, 0),
 		},
-		contentCache: &ContentCache{
-			cache:   make(map[string]CachedContent),
-			maxSize: config.CacheSize,
-			ttl:     config.CacheTTL,
+		ContentCache: &ContentCache{
+			Cache:   make(map[string]CachedContent),
+			MaxSize: config.CacheSize,
+			TTL:     config.CacheTTL,
 		},
 		Metrics: &PerformanceMetrics{
 			TotalRenders:      0,
@@ -116,8 +116,8 @@ func NewPerformanceOptimizer(config *PerformanceConfig) *PerformanceOptimizer {
 			ContentChangeRate: 0,
 			OptimizationLevel: config.OptimizationLevel,
 		},
-		isOptimizationEnabled:     config.EnableAdaptiveRefresh,
-		optimizationCheckInterval: 10 * time.Second,
+		IsOptimizationEnabled:     config.EnableAdaptiveRefresh,
+		OptimizationCheckInterval: 10 * time.Second,
 	}
 }
 
@@ -139,47 +139,47 @@ func GetDefaultPerformanceConfig() *PerformanceConfig {
 
 // Performance optimizer methods
 func (po *PerformanceOptimizer) GetOptimalRefreshInterval() time.Duration {
-	po.mutex.RLock()
-	defer po.mutex.RUnlock()
+	po.Mutex.RLock()
+	defer po.Mutex.RUnlock()
 
-	if po.adaptiveController != nil {
-		return po.adaptiveController.currentInterval
+	if po.AdaptiveController != nil {
+		return po.AdaptiveController.CurrentInterval
 	}
-	return po.config.MinRefreshInterval
+	return po.Config.MinRefreshInterval
 }
 
 func (po *PerformanceOptimizer) GetPerformanceStats() *PerformanceMetrics {
-	po.mutex.RLock()
-	defer po.mutex.RUnlock()
+	po.Mutex.RLock()
+	defer po.Mutex.RUnlock()
 	return po.Metrics
 }
 
 func (po *PerformanceOptimizer) DetectContentChange(content string) (bool, float64) {
-	po.mutex.Lock()
-	defer po.mutex.Unlock()
+	po.Mutex.Lock()
+	defer po.Mutex.Unlock()
 
-	if po.changeDetector == nil {
+	if po.ChangeDetector == nil {
 		return true, 1.0 // Always update if no detector
 	}
 
 	// Simple change detection based on content hash
 	currentHash := po.calculateContentHash(content)
-	hasChanged := currentHash != po.changeDetector.lastHash
+	hasChanged := currentHash != po.ChangeDetector.LastHash
 
 	if hasChanged {
-		po.changeDetector.lastContent = content
-		po.changeDetector.lastHash = currentHash
-		po.changeDetector.changeHistory = append(po.changeDetector.changeHistory, time.Now())
+		po.ChangeDetector.LastContent = content
+		po.ChangeDetector.LastHash = currentHash
+		po.ChangeDetector.ChangeHistory = append(po.ChangeDetector.ChangeHistory, time.Now())
 
 		// Keep only recent changes (last 10 seconds)
 		cutoff := time.Now().Add(-10 * time.Second)
 		filtered := make([]time.Time, 0)
-		for _, t := range po.changeDetector.changeHistory {
+		for _, t := range po.ChangeDetector.ChangeHistory {
 			if t.After(cutoff) {
 				filtered = append(filtered, t)
 			}
 		}
-		po.changeDetector.changeHistory = filtered
+		po.ChangeDetector.ChangeHistory = filtered
 
 		return true, 1.0
 	}
@@ -197,8 +197,8 @@ func (po *PerformanceOptimizer) calculateContentHash(content string) string {
 
 // AccessibleMetrics returns publicly accessible metrics
 func (po *PerformanceOptimizer) AccessibleMetrics() *PerformanceMetrics {
-	po.mutex.RLock()
-	defer po.mutex.RUnlock()
+	po.Mutex.RLock()
+	defer po.Mutex.RUnlock()
 
 	// Create a copy to avoid race conditions
 	metricsCopy := *po.Metrics
@@ -207,8 +207,8 @@ func (po *PerformanceOptimizer) AccessibleMetrics() *PerformanceMetrics {
 
 // String returns a formatted string representation of PerformanceMetrics
 func (pm *PerformanceMetrics) String() string {
-	pm.mutex.RLock()
-	defer pm.mutex.RUnlock()
+	pm.Mutex.RLock()
+	defer pm.Mutex.RUnlock()
 
 	// Handle the case where MinRenderTime is uninitialized (1 hour default)
 	minRenderTime := pm.MinRenderTime

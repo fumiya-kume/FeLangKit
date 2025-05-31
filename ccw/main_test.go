@@ -10,6 +10,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"ccw/app"
+	"ccw/github"
+	"ccw/types"
+	"ccw/ui"
 )
 
 // Test utilities
@@ -32,7 +37,7 @@ func createMockGitHubServer(t *testing.T) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.Contains(r.URL.Path, "/repos/owner/repo/issues/123"):
-			mockIssue := Issue{
+			mockIssue := types.Issue{
 				Number:    123,
 				Title:     "Test Issue",
 				Body:      "This is a test issue for unit testing",
@@ -41,19 +46,19 @@ func createMockGitHubServer(t *testing.T) *httptest.Server {
 				HTMLURL:   "https://github.com/owner/repo/issues/123",
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
-				Repository: Repository{
+				Repository: types.Repository{
 					Name:     "repo",
 					FullName: "owner/repo",
-					Owner: User{
+					Owner: types.User{
 						Login: "owner",
 						URL:   "https://api.github.com/users/owner",
 					},
 				},
-				Labels: []Label{
+				Labels: []types.Label{
 					{Name: "bug", Color: "d73a4a"},
 					{Name: "enhancement", Color: "a2eeef"},
 				},
-				Assignees: []User{
+				Assignees: []types.User{
 					{Login: "assignee1", URL: "https://api.github.com/users/assignee1"},
 				},
 			}
@@ -64,7 +69,7 @@ func createMockGitHubServer(t *testing.T) *httptest.Server {
 			}
 
 		case strings.Contains(r.URL.Path, "/repos/owner/repo/pulls"):
-			mockPR := PullRequest{
+			mockPR := types.PullRequest{
 				Number:  456,
 				URL:     "https://api.github.com/repos/owner/repo/pulls/456",
 				HTMLURL: "https://github.com/owner/repo/pull/456",
@@ -182,7 +187,7 @@ func TestGitHubClientCreatePR(t *testing.T) {
 	client := &GitHubClient{}
 
 	t.Run("Invalid repository for PR creation", func(t *testing.T) {
-		prReq := &PRRequest{
+		prReq := &types.PRRequest{
 			Title:               "Test PR",
 			Body:                "This is a test PR",
 			Head:                "feature-branch",
@@ -223,7 +228,7 @@ func TestGenerateBranchName(t *testing.T) {
 
 // TestWorktreetConfig tests worktree configuration structure
 func TestWorktreeConfig(t *testing.T) {
-	config := &WorktreeConfig{
+	config := &types.WorktreeConfig{
 		BasePath:     "/test/path",
 		BranchName:   "issue-123-20240101-abcd1234",
 		WorktreePath: "/test/path/issue-123-20240101-abcd1234",
@@ -240,7 +245,7 @@ func TestWorktreeConfig(t *testing.T) {
 		t.Fatalf("Failed to marshal worktree config: %v", err)
 	}
 
-	var unmarshaled WorktreeConfig
+	var unmarshaled types.WorktreeConfig
 	if err := json.Unmarshal(data, &unmarshaled); err != nil {
 		t.Fatalf("Failed to unmarshal worktree config: %v", err)
 	}
@@ -255,14 +260,14 @@ func TestWorktreeConfig(t *testing.T) {
 
 // MockQualityValidator for testing validation logic
 type MockQualityValidator struct {
-	swiftlintResult *LintResult
-	buildResult     *BuildResult
-	testResult      *TestResult
+	swiftlintResult *types.LintResult
+	buildResult     *types.BuildResult
+	testResult      *types.TestResult
 	shouldFail      bool
 }
 
-func (m *MockQualityValidator) ValidateImplementation(projectPath string) (*ValidationResult, error) {
-	result := &ValidationResult{
+func (m *MockQualityValidator) ValidateImplementation(projectPath string) (*types.ValidationResult, error) {
+	result := &types.ValidationResult{
 		Success:     !m.shouldFail,
 		LintResult:  m.swiftlintResult,
 		BuildResult: m.buildResult,
@@ -272,7 +277,7 @@ func (m *MockQualityValidator) ValidateImplementation(projectPath string) (*Vali
 	}
 
 	if m.shouldFail {
-		result.Errors = []ValidationError{
+		result.Errors = []types.ValidationError{
 			{
 				Type:        "test",
 				Message:     "Mock validation failure",
@@ -284,15 +289,15 @@ func (m *MockQualityValidator) ValidateImplementation(projectPath string) (*Vali
 	return result, nil
 }
 
-func (m *MockQualityValidator) runSwiftLint(projectPath string) (*LintResult, error) {
+func (m *MockQualityValidator) runSwiftLint(projectPath string) (*types.LintResult, error) {
 	return m.swiftlintResult, nil
 }
 
-func (m *MockQualityValidator) runBuild(projectPath string) (*BuildResult, error) {
+func (m *MockQualityValidator) runBuild(projectPath string) (*types.BuildResult, error) {
 	return m.buildResult, nil
 }
 
-func (m *MockQualityValidator) runTests(projectPath string) (*TestResult, error) {
+func (m *MockQualityValidator) runTests(projectPath string) (*types.TestResult, error) {
 	return m.testResult, nil
 }
 
@@ -300,9 +305,9 @@ func (m *MockQualityValidator) runTests(projectPath string) (*TestResult, error)
 func TestQualityValidation(t *testing.T) {
 	t.Run("Successful validation", func(t *testing.T) {
 		validator := &MockQualityValidator{
-			swiftlintResult: &LintResult{Success: true, AutoFixed: true},
-			buildResult:     &BuildResult{Success: true, Output: "Build successful"},
-			testResult:      &TestResult{Success: true, Passed: 10, Failed: 0},
+			swiftlintResult: &types.LintResult{Success: true, AutoFixed: true},
+			buildResult:     &types.BuildResult{Success: true, Output: "Build successful"},
+			testResult:      &types.TestResult{Success: true, Passed: 10, Failed: 0},
 			shouldFail:      false,
 		}
 
@@ -321,9 +326,9 @@ func TestQualityValidation(t *testing.T) {
 
 	t.Run("Failed validation", func(t *testing.T) {
 		validator := &MockQualityValidator{
-			swiftlintResult: &LintResult{Success: false, Errors: []string{"Lint error"}},
-			buildResult:     &BuildResult{Success: false, Error: "Build failed"},
-			testResult:      &TestResult{Success: false, Failed: 2},
+			swiftlintResult: &types.LintResult{Success: false, Errors: []string{"Lint error"}},
+			buildResult:     &types.BuildResult{Success: false, Error: "Build failed"},
+			testResult:      &types.TestResult{Success: false, Failed: 2},
 			shouldFail:      true,
 		}
 
@@ -343,13 +348,13 @@ func TestQualityValidation(t *testing.T) {
 
 // TestClaudeContext tests Claude integration context preparation
 func TestClaudeContext(t *testing.T) {
-	issue := &Issue{
+	issue := &types.Issue{
 		Number: 123,
 		Title:  "Test Issue",
 		Body:   "Test issue body",
 	}
 
-	worktreeConfig := &WorktreeConfig{
+	worktreeConfig := &types.WorktreeConfig{
 		BranchName:   "issue-123-test",
 		WorktreePath: "/test/path",
 		IssueNumber:  123,
@@ -357,7 +362,7 @@ func TestClaudeContext(t *testing.T) {
 		Repository:   "repo",
 	}
 
-	ctx := &ClaudeContext{
+	ctx := &types.ClaudeContext{
 		IssueData:      issue,
 		WorktreeConfig: worktreeConfig,
 		ProjectPath:    "/test/path",
@@ -371,7 +376,7 @@ func TestClaudeContext(t *testing.T) {
 		t.Fatalf("Failed to marshal Claude context: %v", err)
 	}
 
-	var unmarshaled ClaudeContext
+	var unmarshaled types.ClaudeContext
 	if err := json.Unmarshal(data, &unmarshaled); err != nil {
 		t.Fatalf("Failed to unmarshal Claude context: %v", err)
 	}
@@ -492,11 +497,11 @@ func TestConfigInitialization(t *testing.T) {
 	}()
 
 	// Skip test if gh CLI is not available
-	if err := checkGHCLI(); err != nil {
+	if err := github.CheckGHCLI(); err != nil {
 		t.Skipf("Skipping test: %v", err)
 	}
 
-	app, err := NewCCWApp()
+	app, err := app.NewCCWApp()
 	if err != nil {
 		t.Fatalf("Failed to initialize app: %v", err)
 	}
@@ -512,7 +517,7 @@ func TestConfigInitialization(t *testing.T) {
 // TestConfigValidation tests configuration validation
 func TestConfigValidation(t *testing.T) {
 	// Test missing gh CLI (simulated by checking error type)
-	_, err := NewCCWApp()
+	_, err := app.NewCCWApp()
 	if err != nil && strings.Contains(err.Error(), "GitHub CLI (gh) is required") {
 		// This is expected when gh CLI is not available or not authenticated
 		t.Logf("Expected error for missing gh CLI: %v", err)
@@ -555,7 +560,7 @@ func TestValidationErrorTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidationError{
+			err := types.ValidationError{
 				Type:        tt.errType,
 				Message:     tt.message,
 				Recoverable: tt.recoverable,
@@ -573,7 +578,7 @@ func TestValidationErrorTypes(t *testing.T) {
 
 // TestPRRequestGeneration tests PR request formatting
 func TestPRRequestGeneration(t *testing.T) {
-	issue := &Issue{
+	issue := &types.Issue{
 		Number: 123,
 		Title:  "Fix critical bug",
 		Body:   "This issue describes a critical bug that needs fixing",
@@ -587,7 +592,7 @@ func TestPRRequestGeneration(t *testing.T) {
 		"Co-Authored-By: Claude",
 	}
 
-	prReq := &PRRequest{
+	prReq := &types.PRRequest{
 		Title: fmt.Sprintf("Resolve #%d: %s", issue.Number, issue.Title),
 		Body: fmt.Sprintf(`## Summary
 Resolves #%d
@@ -634,12 +639,12 @@ Co-Authored-By: Claude <noreply@anthropic.com>`,
 // TestDataModelSerialization tests JSON serialization of all models
 func TestDataModelSerialization(t *testing.T) {
 	models := []interface{}{
-		&Issue{Number: 1, Title: "Test", State: "open"},
-		&WorktreeConfig{IssueNumber: 1, BranchName: "test"},
-		&ValidationResult{Success: true, Duration: time.Second},
-		&ClaudeContext{IsRetry: false, RetryAttempt: 1},
-		&PRRequest{Title: "Test", Base: "master"},
-		&PullRequest{Number: 1, State: "open"},
+		&types.Issue{Number: 1, Title: "Test", State: "open"},
+		&types.WorktreeConfig{IssueNumber: 1, BranchName: "test"},
+		&types.ValidationResult{Success: true, Duration: time.Second},
+		&types.ClaudeContext{IsRetry: false, RetryAttempt: 1},
+		&types.PRRequest{Title: "Test", Base: "master"},
+		&types.PullRequest{Number: 1, State: "open"},
 	}
 
 	for i, model := range models {
@@ -683,13 +688,13 @@ func TestWorkflowIntegration(t *testing.T) {
 	// For now, we test individual components
 	t.Run("Component integration", func(t *testing.T) {
 		// Test that all components can be initialized together
-		_, err := NewCCWApp()
+		_, err := app.NewCCWApp()
 		if err != nil {
 			t.Fatalf("Failed to initialize app: %v", err)
 		}
 
 		// Test URL extraction
-		owner, repo, number, err := extractIssueInfo("https://github.com/owner/repo/issues/123")
+		owner, repo, number, err := github.ExtractIssueInfo("https://github.com/owner/repo/issues/123")
 		if err != nil {
 			t.Fatalf("Failed to extract issue info: %v", err)
 		}
@@ -712,7 +717,7 @@ func BenchmarkExtractIssueInfo(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _, _ = extractIssueInfo(url)
+		_, _, _, _ = github.ExtractIssueInfo(url)
 	}
 }
 
@@ -724,7 +729,7 @@ func BenchmarkGenerateBranchName(b *testing.B) {
 }
 
 func BenchmarkJSONMarshalIssue(b *testing.B) {
-	issue := &Issue{
+	issue := &types.Issue{
 		Number:    123,
 		Title:     "Test Issue",
 		Body:      "This is a test issue",
@@ -745,33 +750,33 @@ func TestClaudeIntegrationPRDescription(t *testing.T) {
 		t.Skip("Skipping Claude integration test in short mode")
 	}
 
-	claude := &ClaudeIntegration{
-		timeout:    5 * time.Minute,
-		maxRetries: 1,
-		debugMode:  false,
+	claude := &claude.ClaudeIntegration{
+		Timeout:    5 * time.Minute,
+		MaxRetries: 1,
+		DebugMode:  false,
 	}
 
 	// Test fallback PR description
-	req := &PRDescriptionRequest{
-		Issue: &Issue{
+	req := &types.PRDescriptionRequest{
+		Issue: &types.Issue{
 			Number: 123,
 			Title:  "Test Issue",
 			Body:   "Test issue body",
 		},
-		WorktreeConfig: &WorktreeConfig{
+		WorktreeConfig: &types.WorktreeConfig{
 			BranchName:   "test-branch",
 			WorktreePath: "/tmp/test",
 		},
-		ValidationResult: &ValidationResult{
+		ValidationResult: &types.ValidationResult{
 			Success:     true,
-			LintResult:  &LintResult{Success: true},
-			BuildResult: &BuildResult{Success: true},
-			TestResult:  &TestResult{Success: true},
+			LintResult:  &types.LintResult{Success: true},
+			BuildResult: &types.BuildResult{Success: true},
+			TestResult:  &types.TestResult{Success: true},
 		},
 		ImplementationSummary: "Test implementation",
 	}
 
-	description := claude.getFallbackPRDescription(req)
+	description := claude.CreateEnhancedPRDescription(req)
 
 	if !strings.Contains(description, "## Summary") {
 		t.Errorf("Expected PR description to contain Summary section")
@@ -786,12 +791,7 @@ func TestClaudeIntegrationPRDescription(t *testing.T) {
 
 // TestUIManagerProgress tests progress tracking functionality
 func TestUIManagerProgress(t *testing.T) {
-	ui := &UIManager{
-		theme:      "default",
-		animations: false,
-		debugMode:  false,
-	}
-	ui.initializeColors()
+	ui := ui.NewUIManager("default", false, false)
 	ui.InitializeProgress()
 
 	if ui.progressTracker == nil {
