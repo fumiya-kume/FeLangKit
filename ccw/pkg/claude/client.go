@@ -32,8 +32,14 @@ func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 	}
 	defer os.Remove(contextFile) // Clean up after session
 
+	// Find Claude Code executable
+	claudePath, err := findClaudeExecutable()
+	if err != nil {
+		return fmt.Errorf("Claude Code executable not found: %w", err)
+	}
+	
 	// Prepare Claude Code command
-	cmd := exec.Command("claude")
+	cmd := exec.Command(claudePath)
 	cmd.Dir = workdir
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -123,8 +129,14 @@ func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 
 // ExecuteNonInteractive runs Claude Code in non-interactive mode
 func (c *Client) ExecuteNonInteractive(workdir, prompt string) (string, error) {
+	// Find Claude Code executable
+	claudePath, err := findClaudeExecutable()
+	if err != nil {
+		return "", fmt.Errorf("Claude Code executable not found: %w", err)
+	}
+	
 	// Use --print flag for non-interactive output
-	cmd := exec.Command("claude", "--print")
+	cmd := exec.Command(claudePath, "--print")
 	cmd.Dir = workdir
 	
 	// Write prompt to stdin
@@ -195,24 +207,37 @@ Be specific and actionable in your feedback.`, filePath)
 
 // CheckAvailability verifies Claude Code CLI is available
 func CheckAvailability() error {
-	cmd := exec.Command("claude", "--version")
-	if err := cmd.Run(); err != nil {
+	claudePath, err := findClaudeExecutable()
+	if err != nil {
 		fmt.Printf("\n❌ Claude Code CLI not found: %v\n", err)
 		fmt.Println("\n🔧 Installation instructions:")
 		fmt.Println("1. Visit: https://claude.ai/code")
 		fmt.Println("2. Download and install Claude Code CLI")
 		fmt.Println("3. Verify installation: claude --version")
-		fmt.Println("4. Ensure Claude Code is in your PATH")
+		fmt.Println("4. Ensure Claude Code is accessible")
 		
-		if strings.Contains(err.Error(), "executable file not found") {
-			fmt.Println("\n💡 Common solutions:")
-			fmt.Println("- Add Claude Code to PATH: export PATH=$PATH:/path/to/claude")
-			fmt.Println("- Restart terminal after installation")
-			fmt.Println("- Check installation location: which claude")
-		}
+		fmt.Println("\n💡 Common solutions:")
+		fmt.Println("- Add Claude Code to PATH: export PATH=$PATH:/path/to/claude")
+		fmt.Println("- Create symlink: ln -s ~/.claude/local/claude /usr/local/bin/claude")
+		fmt.Println("- Restart terminal after installation")
+		fmt.Println("- Check installation location: which claude")
 		
 		return fmt.Errorf("Claude Code CLI not found. Please install it from https://claude.ai/code")
 	}
+	
+	// Test that the found executable actually works
+	cmd := exec.Command(claudePath, "--version")
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("\n❌ Claude Code found at %s but not working: %v\n", claudePath, err)
+		fmt.Println("\n🔧 Troubleshooting:")
+		fmt.Println("- Check file permissions: chmod +x " + claudePath)
+		fmt.Println("- Verify Claude Code installation is complete")
+		fmt.Println("- Try running directly: " + claudePath + " --version")
+		
+		return fmt.Errorf("Claude Code executable found but not working: %w", err)
+	}
+	
+	fmt.Printf("✅ Claude Code found at: %s\n", claudePath)
 	return nil
 }
 
@@ -279,4 +304,39 @@ func (s *Session) IsActive() bool {
 
 func generateSessionID() string {
 	return fmt.Sprintf("claude-session-%d", time.Now().Unix())
+}
+
+// findClaudeExecutable locates the Claude Code executable, handling aliases and common paths
+func findClaudeExecutable() (string, error) {
+	// First try to find in PATH
+	if path, err := exec.LookPath("claude"); err == nil {
+		return path, nil
+	}
+	
+	// Try common installation locations based on typical Claude Code installations
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+	
+	commonPaths := []string{
+		filepath.Join(homeDir, ".claude", "local", "claude"),           // Default Claude Code installation
+		filepath.Join(homeDir, ".local", "bin", "claude"),             // User local bin
+		"/usr/local/bin/claude",                                       // System-wide installation
+		"/opt/homebrew/bin/claude",                                    // Homebrew on Apple Silicon
+		"/usr/bin/claude",                                             // System bin
+		filepath.Join(homeDir, "bin", "claude"),                      // User bin
+		filepath.Join(homeDir, ".claude", "claude"),                  // Alternative Claude location
+	}
+	
+	for _, path := range commonPaths {
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			// Check if file is executable
+			if info.Mode()&0111 != 0 {
+				return path, nil
+			}
+		}
+	}
+	
+	return "", fmt.Errorf("Claude Code executable not found in PATH or common locations. Please ensure Claude Code is properly installed from https://claude.ai/code")
 }
