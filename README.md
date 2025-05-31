@@ -1,15 +1,38 @@
 # FeLangKit
 
-A comprehensive Swift toolkit for the **FE pseudo-language**, providing complete parsing and analysis capabilities.
+> **A comprehensive Swift toolkit for the FE pseudo-language**, providing complete parsing and analysis capabilities with modular architecture.
 
-## 📦 Packages
+## 🎯 Overview
 
-### 🎯 FeLangCore
-The core parsing library with modular architecture:
-- **📝 Tokenizer Module** - Convert source text into tokens
-- **🔢 Expression Module** - Parse and represent expressions  
-- **🏗️ Parser Module** - Parse statements and build program ASTs
-- **🛠️ Utilities Module** - Shared functionality across modules
+FeLangKit is a powerful Swift library designed for parsing and analyzing the FE pseudo-language. It features a clean, modular architecture with comprehensive testing and documentation, making it ideal for building interpreters, compilers, educational tools, and IDE support.
+
+## ✨ Key Features
+
+- **🏗️ Modular Architecture** - Clean separation of concerns across 4 core modules
+- **🧪 Comprehensive Testing** - 132+ tests with organized structure and excellent coverage
+- **📖 Rich Documentation** - Detailed guides for development and usage
+- **🔒 Type Safety** - Full Swift type safety with comprehensive error handling
+- **🚀 High Performance** - Optimized parsers with security limits and validation
+- **🌐 Internationalization** - Support for both English and Japanese keywords
+- **🤖 Automation Ready** - Claude Code integration for intelligent issue processing
+
+## 📋 Requirements
+
+- **Swift 6.0+**
+- **macOS 13.0+** / **iOS 17.0+** / **Linux**
+- **SwiftLint** (for development)
+
+## 📦 Installation
+
+### Swift Package Manager
+
+Add FeLangKit to your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/fumiya-kume/FeLangKit.git", from: "1.0.0")
+]
+```
 
 ## 🚀 Quick Start
 
@@ -29,36 +52,95 @@ let statementParser = StatementParser()
 let statements = try statementParser.parseStatements(from: tokens)
 ```
 
+## 📦 Core Modules
+
+FeLangKit consists of four core modules that work together:
+
+### 1. **📝 Tokenizer Module**
+Converts source text into tokens with multiple implementations for different use cases.
+- Full-featured tokenizer with comprehensive error handling
+- Lightweight parsing tokenizer for specific scenarios
+- Multi-language keyword support (English/Japanese)
+- [📚 Module Documentation](Sources/FeLangCore/Tokenizer/docs/README.md)
+
+### 2. **🔢 Expression Module**
+Parses and represents expressions with proper operator precedence.
+- Recursive descent parser
+- Security limits for nesting depth
+- Support for function calls, field access, and array operations
+- [📚 Module Documentation](Sources/FeLangCore/Expression/docs/README.md)
+
+### 3. **🏗️ Parser Module**
+Parses statements and builds complete program ASTs.
+- Complete language construct support (if/else, while, for, functions)
+- Proper delegation to ExpressionParser
+- Control flow and declaration handling
+- [📚 Module Documentation](Sources/FeLangCore/Parser/docs/README.md)
+
+### 4. **🛠️ Utilities Module**
+Shared functionality across all modules.
+- String escape sequence processing
+- Unicode normalization
+- Cross-platform utilities
+- [📚 Module Documentation](Sources/FeLangCore/Utilities/docs/README.md)
+
+## 🎯 Use Cases
+
+- **Language Development** - Build interpreters or compilers for the FE pseudo-language
+- **Educational Tools** - Teach parsing concepts and compiler design
+- **Code Analysis** - Analyze and transform FE pseudo-language code
+- **IDE Support** - Build language servers and syntax highlighting
+- **Research Projects** - Experiment with language features and parsing techniques
+
 ## 📚 Documentation
 
-### **🎯 Project Documentation**
-| Document | Description |
-|----------|-------------|
-| **[🏗️ Architecture Guide](docs/ARCHITECTURE.md)** | Module structure, dependencies, and organization |
-| **[🧪 Testing Guide](docs/TESTING.md)** | Test organization, coverage, and guidelines |
-| **[👥 Development Guide](docs/DEVELOPMENT.md)** | Development guidelines and contribution guide |
-| **[📋 Migration Guide](docs/MIGRATION.md)** | Package reorganization details and history |
+### Core Documentation
+- **[🏗️ Architecture Guide](docs/ARCHITECTURE.md)** - Module structure, dependencies, and design principles
+- **[🧪 Testing Guide](docs/TESTING.md)** - Test organization, coverage, and best practices
+- **[👥 Development Guide](docs/DEVELOPMENT.md)** - Setup, contribution guidelines, and coding standards
+- **[📋 Migration Guide](docs/MIGRATION.md)** - Package reorganization details and upgrade paths
 
-### **📦 Module Documentation**
-| Module | Documentation |
-|--------|---------------|
-| **📝 Tokenizer** | **[Module Overview](Sources/FeLangCore/Tokenizer/docs/README.md)** |
-| **🔢 Expression** | **[Module Overview](Sources/FeLangCore/Expression/docs/README.md)** |
-| **🏗️ Parser** | **[Module Overview](Sources/FeLangCore/Parser/docs/README.md)** |
-| **🛠️ Utilities** | **[Module Overview](Sources/FeLangCore/Utilities/docs/README.md)** |
+### Advanced Topics
+- **[🎨 Design Documents](docs/design/)** - Architecture decisions and design patterns
+- **[⚡ Performance Analysis](docs/performance-analysis-summary.md)** - Benchmarks and optimization strategies
 
-## ✨ Features
+## 🛠️ Development
 
-- **🏗️ Modular Architecture** - Clean separation of concerns across 4 modules
-- **🧪 Comprehensive Testing** - 132 tests with organized structure
-- **📖 Rich Documentation** - Detailed guides for development and usage
-- **🔒 Type Safety** - Full Swift type safety with comprehensive error handling
-- **🚀 Performance** - Optimized parsers with security limits and validation
-- **🌐 Internationalization** - Support for both English and Japanese keywords
+### Building and Testing
 
-## 🤖 Claude Code Automation
+```bash
+# Build the project
+swift build
 
-**Automated GitHub issue processing with intelligent error recovery:**
+# Run tests
+swift test
+
+# Run tests with coverage
+swift test --enable-code-coverage
+
+# Run specific test suites
+swift test --filter "TokenizerTests"
+```
+
+### Code Quality
+
+```bash
+# Install SwiftLint
+brew install swiftlint
+
+# Run linting
+swiftlint lint
+
+# Auto-fix issues
+swiftlint lint --fix
+
+# Full validation sequence
+swiftlint lint --fix && swiftlint lint && swift build && swift test
+```
+
+### 🤖 Claude Code Automation
+
+For automated GitHub issue processing with intelligent error recovery:
 
 ```bash
 # Install dependencies
@@ -68,38 +150,31 @@ brew install gh jq swiftlint
 gh auth login
 
 # Process issues with Claude Code automation
-./claude.sh https://github.com/owner/repo/issues/123
+./claude.sh https://github.com/fumiya-kume/FeLangKit/issues/123
 ```
 
-**Features:**
-- **🔄 Parallel Development** - Creates isolated git worktrees for each issue
-- **🤖 Claude Code Integration** - Launches with pre-loaded issue context
-- **🔧 Intelligent Error Recovery** - Automatic retry loop with error fixing
-- **✅ Quality Validation** - SwiftLint, build, and test verification
-- **📋 PR Automation** - Creates pull requests with proper formatting
-- **🎯 CI Monitoring** - Watches GitHub Actions checks until completion
-
-## 🎯 Use Cases
-
-- **Language Development** - Build interpreters or compilers for the FE pseudo-language
-- **Educational Tools** - Teach parsing concepts and compiler design
-- **Code Analysis** - Analyze and transform FE pseudo-language code
-- **IDE Support** - Build language servers and syntax highlighting
-- **🤖 Automated Development** - Process GitHub issues intelligently with Claude Code
-
-## 📋 Requirements
-
-- **Swift 5.9+**
-- **macOS 14.0+** / **iOS 17.0+** / **Linux**
+This provides:
+- Parallel development with isolated git worktrees
+- Pre-loaded issue context for Claude Code
+- Automatic error recovery and retry loops
+- Quality validation and PR automation
+- CI monitoring until completion
 
 ## 🤝 Contributing
 
-Please see the **[Development Guide](docs/DEVELOPMENT.md)** for detailed contribution guidelines, coding standards, and development setup instructions.
+We welcome contributions! Please see the **[Development Guide](docs/DEVELOPMENT.md)** for:
+- Development environment setup
+- Coding standards and conventions
+- Testing requirements
+- Pull request process
+- Commit message guidelines
 
 ## 📄 License
 
-[Add your license information here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-**FeLangKit** provides a complete toolkit for working with the FE pseudo-language! 🎉
+<div align="center">
+  <strong>FeLangKit</strong> - Your complete toolkit for the FE pseudo-language! 🎉
+</div>
