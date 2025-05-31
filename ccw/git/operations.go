@@ -127,11 +127,17 @@ func (g *Operations) SyncWithUpstream(worktreePath string) error {
 
 // CommitChanges stages all changes and creates a commit with the provided message
 func (g *Operations) CommitChanges(worktreePath, commitMessage string) error {
-	// Stage all changes
+	// Stage all changes except .worktree-config.json
+	// First, add all files
 	addCmd := CreateGitCommand([]string{"add", "."}, worktreePath)
 	if err := addCmd.Run(); err != nil {
 		return fmt.Errorf("failed to stage changes: %w", err)
 	}
+	
+	// Then, unstage .worktree-config.json if it was staged
+	resetCmd := CreateGitCommand([]string{"reset", "--", ".worktree-config.json"}, worktreePath)
+	// Ignore error as the file might not exist
+	_ = resetCmd.Run()
 
 	// Check if there are any changes to commit
 	statusCmd := CreateGitCommand([]string{"status", "--porcelain"}, worktreePath)
