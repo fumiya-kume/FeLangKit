@@ -1,6 +1,9 @@
 package main
 
 import (
+	"ccw/app"
+	"ccw/github"
+	"ccw/types"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -32,7 +35,7 @@ func createMockGitHubServer(t *testing.T) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.Contains(r.URL.Path, "/repos/owner/repo/issues/123"):
-			mockIssue := Issue{
+			mockIssue := types.Issue{
 				Number:    123,
 				Title:     "Test Issue",
 				Body:      "This is a test issue for unit testing",
@@ -41,19 +44,19 @@ func createMockGitHubServer(t *testing.T) *httptest.Server {
 				HTMLURL:   "https://github.com/owner/repo/issues/123",
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
-				Repository: Repository{
+				Repository: types.Repository{
 					Name:     "repo",
 					FullName: "owner/repo",
-					Owner: User{
+					Owner: types.User{
 						Login: "owner",
 						URL:   "https://api.github.com/users/owner",
 					},
 				},
-				Labels: []Label{
+				Labels: []types.Label{
 					{Name: "bug", Color: "d73a4a"},
 					{Name: "enhancement", Color: "a2eeef"},
 				},
-				Assignees: []User{
+				Assignees: []types.User{
 					{Login: "assignee1", URL: "https://api.github.com/users/assignee1"},
 				},
 			}
@@ -64,7 +67,7 @@ func createMockGitHubServer(t *testing.T) *httptest.Server {
 			}
 
 		case strings.Contains(r.URL.Path, "/repos/owner/repo/pulls"):
-			mockPR := PullRequest{
+			mockPR := types.PullRequest{
 				Number:  456,
 				URL:     "https://api.github.com/repos/owner/repo/pulls/456",
 				HTMLURL: "https://github.com/owner/repo/pull/456",
@@ -160,7 +163,7 @@ func TestGitHubClientGetIssue(t *testing.T) {
 		t.Skip("Skipping GitHub CLI integration test in short mode")
 	}
 
-	client := &GitHubClient{}
+	client := &github.GitHubClient{}
 
 	t.Run("Invalid repository", func(t *testing.T) {
 		_, err := client.GetIssue("nonexistent", "repo", 1)
@@ -179,10 +182,10 @@ func TestGitHubClientCreatePR(t *testing.T) {
 		t.Skip("Skipping GitHub CLI integration test in short mode")
 	}
 
-	client := &GitHubClient{}
+	client := &github.GitHubClient{}
 
 	t.Run("Invalid repository for PR creation", func(t *testing.T) {
-		prReq := &PRRequest{
+		prReq := &types.PRRequest{
 			Title:               "Test PR",
 			Body:                "This is a test PR",
 			Head:                "feature-branch",
@@ -255,14 +258,14 @@ func TestWorktreeConfig(t *testing.T) {
 
 // MockQualityValidator for testing validation logic
 type MockQualityValidator struct {
-	swiftlintResult *LintResult
-	buildResult     *BuildResult
-	testResult      *TestResult
+	swiftlintResult *types.LintResult
+	buildResult     *types.BuildResult
+	testResult      *types.TestResult
 	shouldFail      bool
 }
 
-func (m *MockQualityValidator) ValidateImplementation(projectPath string) (*ValidationResult, error) {
-	result := &ValidationResult{
+func (m *MockQualityValidator) ValidateImplementation(projectPath string) (*types.ValidationResult, error) {
+	result := &types.ValidationResult{
 		Success:     !m.shouldFail,
 		LintResult:  m.swiftlintResult,
 		BuildResult: m.buildResult,
@@ -587,7 +590,7 @@ func TestPRRequestGeneration(t *testing.T) {
 		"Co-Authored-By: Claude",
 	}
 
-	prReq := &PRRequest{
+	prReq := &types.PRRequest{
 		Title: fmt.Sprintf("Resolve #%d: %s", issue.Number, issue.Title),
 		Body: fmt.Sprintf(`## Summary
 Resolves #%d

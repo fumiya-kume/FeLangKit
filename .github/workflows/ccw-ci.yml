@@ -1,0 +1,138 @@
+name: CCW Go CI
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'ccw/**'
+      - '.github/workflows/ccw-ci.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'ccw/**'
+      - '.github/workflows/ccw-ci.yml'
+
+defaults:
+  run:
+    working-directory: ./ccw
+
+jobs:
+  lint:
+    name: Go Lint (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-15]
+      fail-fast: false
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache-dependency-path: ccw/go.sum
+
+      - name: Cache golangci-lint
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/golangci-lint
+          key: golangci-lint-${{ runner.os }}-${{ hashFiles('ccw/go.sum') }}
+          restore-keys: golangci-lint-${{ runner.os }}-
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: ccw
+          args: --timeout=5m
+
+  build:
+    name: Go Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-15]
+      fail-fast: false
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache-dependency-path: ccw/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build project
+        run: go build -v ./...
+
+      - name: Build main binary
+        run: go build -o ccw-${{ runner.os }} .
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccw-binary-${{ runner.os }}
+          path: ccw/ccw-${{ runner.os }}
+          retention-days: 7
+
+  test:
+    name: Go Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-15]
+      fail-fast: false
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache-dependency-path: ccw/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Generate coverage report
+        run: go tool cover -html=coverage.out -o coverage.html
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ runner.os }}
+          path: |
+            ccw/coverage.out
+            ccw/coverage.html
+          retention-days: 7
+
+  security:
+    name: Go Security Scan
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache-dependency-path: ccw/go.sum
+
+      - name: Run Gosec Security Scanner
+        uses: securecodewarrior/github-action-gosec@master
+        with:
+          args: './ccw/...'
