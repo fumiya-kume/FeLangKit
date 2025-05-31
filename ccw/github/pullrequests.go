@@ -3,7 +3,6 @@ package github
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -13,97 +12,7 @@ import (
 	"ccw/types"
 )
 
-// GitHub client using gh CLI
-type GitHubClient struct {
-	// No fields needed - uses gh CLI commands
-}
-
-// Check if gh CLI is available and authenticated
-func CheckGHCLI() error {
-	debugLog("CheckGHCLI", "Checking gh CLI availability and authentication", nil)
-
-	// Check if gh command is available
-	if _, err := exec.LookPath("gh"); err != nil {
-		debugLog("CheckGHCLI", "gh CLI not found in PATH", map[string]interface{}{
-			"error": err.Error(),
-		})
-		return fmt.Errorf("gh CLI is not installed. Please install it: brew install gh")
-	}
-
-	debugLog("CheckGHCLI", "gh CLI found in PATH", nil)
-
-	// Check if user is authenticated
-	cmd := exec.Command("gh", "auth", "status")
-	output, err := cmd.CombinedOutput()
-
-	if err != nil {
-		debugLog("CheckGHCLI", "gh auth status failed", map[string]interface{}{
-			"error":  err.Error(),
-			"output": string(output),
-		})
-		return fmt.Errorf("gh CLI is not authenticated. Please run: gh auth login")
-	}
-
-	debugLog("CheckGHCLI", "gh CLI authentication verified", map[string]interface{}{
-		"output": string(output),
-	})
-
-	return nil
-}
-
-// Fetch issue data using gh CLI
-func (gc *GitHubClient) GetIssue(owner, repo string, issueNumber int) (*types.Issue, error) {
-	apiEndpoint := fmt.Sprintf("repos/%s/%s/issues/%d", owner, repo, issueNumber)
-	debugLog("GetIssue", "Fetching issue data", map[string]interface{}{
-		"owner":        owner,
-		"repo":         repo,
-		"issue_number": issueNumber,
-		"api_endpoint": apiEndpoint,
-	})
-
-	cmd := exec.Command("gh", "api", apiEndpoint)
-
-	output, err := cmd.Output()
-	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			debugLog("GetIssue", "gh api command failed", map[string]interface{}{
-				"error":   err.Error(),
-				"stderr":  string(exitError.Stderr),
-				"command": fmt.Sprintf("gh api %s", apiEndpoint),
-			})
-		} else {
-			debugLog("GetIssue", "gh command execution failed", map[string]interface{}{
-				"error":   err.Error(),
-				"command": fmt.Sprintf("gh api %s", apiEndpoint),
-			})
-		}
-		return nil, fmt.Errorf("failed to fetch issue via gh CLI: %w", err)
-	}
-
-	debugLog("GetIssue", "Issue data received", map[string]interface{}{
-		"output_length": len(output),
-		"raw_output":    truncateString(string(output), 500),
-	})
-
-	var issue types.Issue
-	if err := json.Unmarshal(output, &issue); err != nil {
-		debugLog("GetIssue", "Failed to decode issue JSON", map[string]interface{}{
-			"error":      err.Error(),
-			"raw_output": string(output),
-		})
-		return nil, fmt.Errorf("failed to decode issue data: %w", err)
-	}
-
-	debugLog("GetIssue", "Issue decoded successfully", map[string]interface{}{
-		"issue_title":  issue.Title,
-		"issue_state":  issue.State,
-		"issue_labels": len(issue.Labels),
-	})
-
-	return &issue, nil
-}
-
-// Create pull request using gh CLI
+// CreatePR creates a pull request using gh CLI
 func (gc *GitHubClient) CreatePR(owner, repo string, req *types.PRRequest) (*types.PullRequest, error) {
 	repoStr := fmt.Sprintf("%s/%s", owner, repo)
 
@@ -204,7 +113,7 @@ func (gc *GitHubClient) CreatePR(owner, repo string, req *types.PRRequest) (*typ
 	return pr, nil
 }
 
-// Check for existing PRs for this branch
+// CheckExistingPR checks for existing PRs for this branch
 func (gc *GitHubClient) CheckExistingPR(owner, repo, branchName string) (*types.PullRequest, error) {
 	cmd := exec.Command("gh", "pr", "list",
 		"--head", branchName,
@@ -228,7 +137,7 @@ func (gc *GitHubClient) CheckExistingPR(owner, repo, branchName string) (*types.
 	return nil, nil
 }
 
-// Get PR status and checks
+// GetPRStatus gets PR status and checks
 func (gc *GitHubClient) GetPRStatus(owner, repo string, prNumber int) (string, error) {
 	cmd := exec.Command("gh", "pr", "view", strconv.Itoa(prNumber),
 		"--repo", fmt.Sprintf("%s/%s", owner, repo),
@@ -266,7 +175,7 @@ func (gc *GitHubClient) GetPRStatus(owner, repo string, prNumber int) (string, e
 	return "success", nil
 }
 
-// Get detailed CI status for monitoring
+// GetDetailedCIStatus gets detailed CI status for monitoring
 func (gc *GitHubClient) GetDetailedCIStatus(owner, repo string, prNumber int) (*types.CIStatus, error) {
 	cmd := exec.Command("gh", "pr", "view", strconv.Itoa(prNumber),
 		"--repo", fmt.Sprintf("%s/%s", owner, repo),
@@ -364,7 +273,7 @@ func (gc *GitHubClient) GetDetailedCIStatus(owner, repo string, prNumber int) (*
 	return ciStatus, nil
 }
 
-// Monitor CI status with updates
+// MonitorCIStatus monitors CI status with updates
 func (gc *GitHubClient) MonitorCIStatus(owner, repo string, prNumber int, callback func(*types.CIStatus)) error {
 	ticker := time.NewTicker(30 * time.Second) // Check every 30 seconds
 	defer ticker.Stop()
@@ -403,146 +312,4 @@ func (gc *GitHubClient) MonitorCIStatus(owner, repo string, prNumber int, callba
 			}
 		}
 	}
-}
-
-// List issues from a repository
-func (gc *GitHubClient) ListIssues(owner, repo string, state string, labels []string, limit int) ([]*types.Issue, error) {
-	// Build base URL
-	url := fmt.Sprintf("repos/%s/%s/issues", owner, repo)
-
-	// Add query parameters to URL
-	params := []string{}
-	if state != "" {
-		params = append(params, fmt.Sprintf("state=%s", state))
-	}
-	if len(labels) > 0 {
-		labelStr := strings.Join(labels, ",")
-		params = append(params, fmt.Sprintf("labels=%s", labelStr))
-	}
-	if limit > 0 {
-		params = append(params, fmt.Sprintf("per_page=%d", limit))
-	}
-
-	// Append query parameters to URL
-	if len(params) > 0 {
-		url += "?" + strings.Join(params, "&")
-	}
-
-	cmd := exec.Command("gh", "api", url)
-
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch issues via gh CLI: %w", err)
-	}
-
-	var issues []*types.Issue
-	if err := json.Unmarshal(output, &issues); err != nil {
-		return nil, fmt.Errorf("failed to decode issues data: %w", err)
-	}
-
-	return issues, nil
-}
-
-// Extract repository information from URL
-func ExtractRepoInfo(repoURL string) (owner, repo string, err error) {
-	// Handle different GitHub URL formats
-	patterns := []string{
-		`^https://github\.com/([^/]+)/([^/]+)/?$`,
-		`^https://github\.com/([^/]+)/([^/]+)\.git$`,
-		`^git@github\.com:([^/]+)/([^/]+)\.git$`,
-		`^([^/]+)/([^/]+)$`, // Simple owner/repo format
-	}
-
-	for _, pattern := range patterns {
-		re := regexp.MustCompile(pattern)
-		matches := re.FindStringSubmatch(repoURL)
-
-		if len(matches) == 3 {
-			return matches[1], matches[2], nil
-		}
-	}
-
-	return "", "", fmt.Errorf("invalid GitHub repository URL or format: %s", repoURL)
-}
-
-// Get current repository's GitHub remote URL
-func GetCurrentRepoURL() (string, error) {
-	// Try to get the origin remote URL
-	cmd := exec.Command("git", "remote", "get-url", "origin")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get git remote URL: %w (make sure you're in a git repository)", err)
-	}
-
-	remoteURL := strings.TrimSpace(string(output))
-	if remoteURL == "" {
-		return "", fmt.Errorf("no git remote URL found")
-	}
-
-	// Convert SSH URL to HTTPS format if needed for consistency
-	if strings.HasPrefix(remoteURL, "git@github.com:") {
-		// Convert git@github.com:owner/repo.git to https://github.com/owner/repo
-		sshPattern := regexp.MustCompile(`^git@github\.com:([^/]+)/(.+)\.git$`)
-		matches := sshPattern.FindStringSubmatch(remoteURL)
-		if len(matches) == 3 {
-			remoteURL = fmt.Sprintf("https://github.com/%s/%s", matches[1], matches[2])
-		}
-	} else if strings.HasPrefix(remoteURL, "ssh://git@github.com/") {
-		// Convert ssh://git@github.com/owner/repo.git to https://github.com/owner/repo
-		sshPattern := regexp.MustCompile(`^ssh://git@github\.com/([^/]+)/(.+)\.git$`)
-		matches := sshPattern.FindStringSubmatch(remoteURL)
-		if len(matches) == 3 {
-			remoteURL = fmt.Sprintf("https://github.com/%s/%s", matches[1], matches[2])
-		}
-	}
-
-	// Remove .git suffix if present
-	remoteURL = strings.TrimSuffix(remoteURL, ".git")
-
-	return remoteURL, nil
-}
-
-// Extract issue information from URL
-func ExtractIssueInfo(issueURL string) (owner, repo string, issueNumber int, err error) {
-	re := regexp.MustCompile(`^https://github\.com/([^/]+)/([^/]+)/issues/(\d+)$`)
-	matches := re.FindStringSubmatch(issueURL)
-
-	if len(matches) != 4 {
-		return "", "", 0, fmt.Errorf("invalid GitHub issue URL format")
-	}
-
-	owner = matches[1]
-	repo = matches[2]
-	issueNumber, err = strconv.Atoi(matches[3])
-	if err != nil {
-		return "", "", 0, fmt.Errorf("invalid issue number: %s", matches[3])
-	}
-
-	return owner, repo, issueNumber, nil
-}
-
-// Debug logging helper functions
-func debugLog(function, message string, context map[string]interface{}) {
-	if os.Getenv("DEBUG_MODE") == "true" || os.Getenv("VERBOSE_MODE") == "true" {
-		contextStr := ""
-		if context != nil {
-			if data, err := json.Marshal(context); err == nil {
-				contextStr = string(data)
-			}
-		}
-
-		fmt.Printf("[DEBUG] [GitHub:%s] %s", function, message)
-		if contextStr != "" {
-			fmt.Printf(" | Context: %s", contextStr)
-		}
-		fmt.Println()
-	}
-}
-
-// Truncate string for logging purposes
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
 }
