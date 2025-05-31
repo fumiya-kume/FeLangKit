@@ -288,16 +288,22 @@ func (app *CCWApp) runImplementation(issue *types.Issue) error {
 	})
 
 	if err := app.claudeIntegration.RunWithContext(claudeCtx); err != nil {
+		app.ui.UpdateProgress("implementation", "failed")
 		app.logger.Error("workflow", "Claude Code execution failed", map[string]interface{}{
 			"error":         err.Error(),
 			"worktree_path": app.worktreeConfig.WorktreePath,
 			"issue_number":  issue.Number,
 		})
-		app.ui.Warning(fmt.Sprintf("Claude Code execution warning: %v", err))
-	} else {
-		app.debugStep("step5", "Claude Code execution completed successfully", nil)
+		
+		// Print detailed error information
+		app.ui.Error("❌ Claude Code execution failed")
+		app.ui.Error(fmt.Sprintf("Error details: %v", err))
+		app.ui.Info("Please check the error output above for troubleshooting information.")
+		
+		return fmt.Errorf("Claude Code execution failed: %w", err)
 	}
-
+	
+	app.debugStep("step5", "Claude Code execution completed successfully", nil)
 	app.ui.UpdateProgress("implementation", "completed")
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,11 +66,11 @@ func (ci *ClaudeIntegration) RunWithContext(ctx *types.ClaudeContext) error {
 		}
 		defer os.Remove(contextFile)
 
-		// Run Claude Code interactively without piping stdin
-		// This allows Claude Code to run in true interactive mode
+		// Capture stderr for error reporting while preserving interactive mode
+		var stderrBuf strings.Builder
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 
 		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 		fmt.Println("🤖 Starting Claude Code in interactive mode...")
@@ -83,8 +84,43 @@ func (ci *ClaudeIntegration) RunWithContext(ctx *types.ClaudeContext) error {
 		if err := cmd.Run(); err != nil {
 			// Check if it was a timeout
 			if cmdCtx.Err() == context.DeadlineExceeded {
+				fmt.Printf("\n❌ Claude Code execution timed out after %v\n", ci.Timeout)
+				if stderrOutput := strings.TrimSpace(stderrBuf.String()); stderrOutput != "" {
+					fmt.Printf("Error output:\n%s\n", stderrOutput)
+				}
 				return fmt.Errorf("Claude Code execution timed out after %v", ci.Timeout)
 			}
+			
+			// Print detailed error information
+			fmt.Printf("\n❌ Claude Code execution failed with error: %v\n", err)
+			if stderrOutput := strings.TrimSpace(stderrBuf.String()); stderrOutput != "" {
+				fmt.Printf("Error output:\n%s\n", stderrOutput)
+			}
+			
+			// Get exit code if available
+			if exitError, ok := err.(*exec.ExitError); ok {
+				fmt.Printf("Exit code: %d\n", exitError.ExitCode())
+			}
+			
+			// Check common failure scenarios and provide helpful suggestions
+			fmt.Println("\n🔍 Troubleshooting suggestions:")
+			if strings.Contains(err.Error(), "executable file not found") {
+				fmt.Println("- Claude Code CLI is not installed or not in PATH")
+				fmt.Println("- Install from: https://claude.ai/code")
+			} else if strings.Contains(err.Error(), "permission denied") {
+				fmt.Println("- Check file permissions for Claude Code executable")
+				fmt.Println("- Try: chmod +x $(which claude)")
+			} else if strings.Contains(stderrBuf.String(), "authentication") {
+				fmt.Println("- Claude Code authentication may have expired")
+				fmt.Println("- Try: claude auth login")
+			} else if strings.Contains(stderrBuf.String(), "network") {
+				fmt.Println("- Network connectivity issues")
+				fmt.Println("- Check internet connection and proxy settings")
+			} else {
+				fmt.Println("- Try running 'claude --help' to verify Claude Code installation")
+				fmt.Println("- Check CCW logs for more details")
+			}
+			
 			return fmt.Errorf("Claude Code execution failed: %w", err)
 		}
 		
