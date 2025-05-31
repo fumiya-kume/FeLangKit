@@ -58,11 +58,39 @@ func (ci *ClaudeIntegration) RunWithContext(ctx *types.ClaudeContext) error {
 
 	if !ctx.IsRetry {
 		// Interactive mode for initial run
-		cmd.Stdin = strings.NewReader(claudeInput)
+		// Write the context to a temporary file that Claude Code can read
+		contextFile := filepath.Join(ctx.ProjectPath, ".claude-initial-prompt.md")
+		if err := os.WriteFile(contextFile, []byte(claudeInput), 0644); err != nil {
+			return fmt.Errorf("failed to write initial prompt: %w", err)
+		}
+		defer os.Remove(contextFile)
+
+		// Run Claude Code interactively without piping stdin
+		// This allows Claude Code to run in true interactive mode
+		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
-		return cmd.Run()
+		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		fmt.Println("🤖 Starting Claude Code in interactive mode...")
+		fmt.Println("📋 Issue context has been saved to: .claude-initial-prompt.md")
+		fmt.Println("💡 Please read the file and implement the requested changes.")
+		fmt.Println("✅ When done, exit Claude Code to continue with validation.")
+		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		fmt.Println()
+
+		// Execute and wait for Claude Code to complete
+		if err := cmd.Run(); err != nil {
+			// Check if it was a timeout
+			if cmdCtx.Err() == context.DeadlineExceeded {
+				return fmt.Errorf("Claude Code execution timed out after %v", ci.Timeout)
+			}
+			return fmt.Errorf("Claude Code execution failed: %w", err)
+		}
+		
+		fmt.Println()
+		fmt.Println("✅ Claude Code session completed. Proceeding with validation...")
+		return nil
 	} else {
 		// Non-interactive mode for retries
 		cmd.Stdin = strings.NewReader(claudeInput)
