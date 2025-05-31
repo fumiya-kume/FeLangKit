@@ -238,3 +238,101 @@ jobs:
           name: coverage-report
           path: .build/debug/codecov/
           retention-days: 7
+
+  ccw-build:
+    name: CCW Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-15, ubuntu-22.04]
+      fail-fast: false
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache: true
+          cache-dependency-path: ccw/go.sum
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-mod-${{ matrix.os }}-${{ hashFiles('ccw/go.sum') }}
+          restore-keys: |
+            go-mod-${{ matrix.os }}-
+            go-mod-
+
+      - name: Download dependencies
+        working-directory: ccw
+        run: go mod download
+
+      - name: Build CCW
+        working-directory: ccw
+        run: go build -v -o ccw .
+
+      - name: Upload CCW binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccw-binary-${{ matrix.os }}
+          path: ccw/ccw
+          retention-days: 7
+
+  ccw-test:
+    name: CCW Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-15, ubuntu-22.04]
+      fail-fast: false
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache: true
+          cache-dependency-path: ccw/go.sum
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-mod-${{ matrix.os }}-${{ hashFiles('ccw/go.sum') }}
+          restore-keys: |
+            go-mod-${{ matrix.os }}-
+            go-mod-
+
+      - name: Download dependencies
+        working-directory: ccw
+        run: go mod download
+
+      - name: Run tests
+        working-directory: ccw
+        run: |
+          # Run tests for packages that have test files
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic \
+            ./commit/... \
+            ./config/... \
+            ./git/... \
+            ./github/... \
+            ./pr/... \
+            ./types/... \
+            ./ui/...
+
+      - name: Upload coverage reports
+        if: matrix.os == 'macos-15'  # Only upload from one platform
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccw-coverage-report
+          path: ccw/coverage.txt
+          retention-days: 7
