@@ -1,7 +1,6 @@
 package claude
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -38,42 +37,53 @@ func (ci *ClaudeIntegration) RunWithContext(ctx *types.ClaudeContext) error {
 	}
 	defer os.Remove(mdContextFile)
 
-	// Prepare Claude Code command
-	var args []string
-	if ctx.IsRetry {
-		args = []string{"--print"}
-	} else {
-		args = []string{}
-	}
-
-	// Create command with timeout
-	cmdCtx, cancel := context.WithTimeout(context.Background(), ci.Timeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(cmdCtx, "claude", args...)
-	cmd.Dir = ctx.ProjectPath
+	// Use the correct Claude Code path
+	claudePath := "/Users/kuu/.claude/local/claude"
 
 	// Prepare input for Claude with issue context
 	claudeInput := ci.buildClaudeInput(ctx)
 
-	if !ctx.IsRetry {
-		// Interactive mode for initial run
-		cmd.Stdin = strings.NewReader(claudeInput)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+	// Always use interactive mode with pre-filled prompt
+	args := []string{claudeInput}
 
-		return cmd.Run()
+	// Create command - no timeout for interactive mode
+	cmd := exec.Command(claudePath, args...)
+	cmd.Dir = ctx.ProjectPath
+	
+	// Run Claude interactively with the prompt pre-loaded
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	
+	if ctx.IsRetry {
+		fmt.Printf("🔄 Starting Claude Code for recovery (Attempt %d/%d)...\n", ctx.RetryAttempt, ctx.MaxRetries)
+		fmt.Printf("📝 Validation errors have been included in the context.\n")
 	} else {
-		// Non-interactive mode for retries
-		cmd.Stdin = strings.NewReader(claudeInput)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("Claude Code execution failed: %w\nOutput: %s", err, string(output))
-		}
-
-		fmt.Printf("Claude Code output:\n%s\n", string(output))
-		return nil
+		fmt.Printf("🤖 Starting Claude Code in interactive mode with prepared context...\n")
 	}
+	fmt.Printf("🚀 Launching Claude Code...\n\n")
+
+	// Run in interactive mode
+	if err := cmd.Run(); err != nil {
+		// Enhanced error reporting
+		var errorDetails strings.Builder
+		errorDetails.WriteString(fmt.Sprintf("Claude Code execution failed: %v\n", err))
+		errorDetails.WriteString(fmt.Sprintf("Command: %s <prompt>\n", claudePath))
+		errorDetails.WriteString(fmt.Sprintf("Working Directory: %s\n", ctx.ProjectPath))
+		
+		if exitError, ok := err.(*exec.ExitError); ok {
+			errorDetails.WriteString(fmt.Sprintf("Exit Code: %d\n", exitError.ExitCode()))
+		}
+		
+		// Check for common issues
+		if strings.Contains(err.Error(), "executable file not found") {
+			errorDetails.WriteString("\nPossible Solution: Ensure Claude Code is properly installed at /Users/kuu/.claude/local/claude\n")
+		}
+		
+		return fmt.Errorf("%s", errorDetails.String())
+	}
+	
+	return nil
 }
 
 // buildClaudeInput creates the input prompt for Claude Code
