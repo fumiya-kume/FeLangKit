@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-15, ubuntu-22.04]
-      fail-fast: false
+      fail-fast: true
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -47,7 +47,10 @@ jobs:
 
       - name: Run golangci-lint
         working-directory: ccw
-        run: golangci-lint run --verbose
+        run: |
+          echo "Running golangci-lint..."
+          golangci-lint run --verbose
+          echo "Linting completed successfully!"
 
   build:
     name: Build (${{ matrix.os }})
@@ -55,7 +58,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-15, ubuntu-22.04]
-      fail-fast: false
+      fail-fast: true
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -84,7 +87,10 @@ jobs:
 
       - name: Build CCW
         working-directory: ccw
-        run: go build -v -o ccw .
+        run: |
+          echo "Building CCW..."
+          go build -v -o ccw .
+          echo "Build successful!"
 
       - name: Test executable
         working-directory: ccw
@@ -103,7 +109,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-15, ubuntu-22.04]
-      fail-fast: false
+      fail-fast: true
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -166,7 +172,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-15, ubuntu-22.04]
-      fail-fast: false
+      fail-fast: true
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -192,8 +198,10 @@ jobs:
         working-directory: ccw
         run: |
           ./ccw --help
-          ./ccw list || true  # May fail if no worktrees exist
-          ./ccw doctor || true  # May fail if dependencies missing
+          # Test list command (should work even with no worktrees)
+          ./ccw list
+          # Test doctor command (should work with basic dependencies)
+          ./ccw doctor
 
       - name: Install development dependencies (Linux)
         if: runner.os == 'Linux'
