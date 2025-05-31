@@ -160,6 +160,11 @@ func (g *GitOperations) PushChangesWithAICommit(worktreePath, branchName string,
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to stage changes: %w", err)
 	}
+	
+	// Unstage .worktree-config.json if it was staged
+	resetCmd := createGitCommand([]string{"reset", "--", ".worktree-config.json"}, worktreePath)
+	// Ignore error as the file might not exist
+	_ = resetCmd.Run()
 
 	// Check if there are any changes to commit
 	cmd = createGitCommand([]string{"diff", "--staged", "--quiet"}, worktreePath)
@@ -207,6 +212,11 @@ func pushChanges(worktreePath, branchName string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to stage changes: %w", err)
 	}
+	
+	// Unstage .worktree-config.json if it was staged
+	resetCmd := createGitCommand([]string{"reset", "--", ".worktree-config.json"}, worktreePath)
+	// Ignore error as the file might not exist
+	_ = resetCmd.Run()
 
 	// Check if there are any changes to commit
 	cmd = createGitCommand([]string{"diff", "--staged", "--quiet"}, worktreePath)
