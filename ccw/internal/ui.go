@@ -65,7 +65,7 @@ func (ui *UI) ShowPRCreated(url string) {
 func (ui *UI) ShowValidationResults(result *ValidationResult) {
 	ui.spinner.Stop()
 	fmt.Println("\n📊 Validation Results:")
-	
+
 	if result.LintPassed {
 		fmt.Println("  ✅ SwiftLint: Passed")
 	} else {
@@ -74,13 +74,13 @@ func (ui *UI) ShowValidationResults(result *ValidationResult) {
 			fmt.Printf("     %s\n", strings.ReplaceAll(result.LintOutput, "\n", "\n     "))
 		}
 	}
-	
+
 	if result.BuildPassed {
 		fmt.Println("  ✅ Build: Passed")
 	} else {
 		fmt.Println("  ❌ Build: Failed")
 	}
-	
+
 	if result.TestsPassed {
 		fmt.Println("  ✅ Tests: Passed")
 	} else {
@@ -91,13 +91,13 @@ func (ui *UI) ShowValidationResults(result *ValidationResult) {
 // ConfirmContinue asks the user to confirm continuation
 func (ui *UI) ConfirmContinue(prompt string) bool {
 	fmt.Printf("\n%s (y/N): ", prompt)
-	
+
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err != nil {
 		return false
 	}
-	
+
 	response = strings.ToLower(strings.TrimSpace(response))
 	return response == "y" || response == "yes"
 }
@@ -119,10 +119,10 @@ func NewSpinner() *Spinner {
 // Start begins the spinner animation
 func (s *Spinner) Start(message string) {
 	s.Stop() // Stop any existing spinner
-	
+
 	s.active = true
 	s.message = message
-	
+
 	// For simplicity, just print the message with a status indicator
 	fmt.Printf("⏳ %s...", message)
 }
@@ -155,10 +155,10 @@ func (p *ProgressBar) Update(current int) {
 	p.current = current
 	percentage := float64(current) / float64(p.total)
 	filled := int(percentage * float64(p.width))
-	
+
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", p.width-filled)
 	fmt.Printf("\r[%s] %3.0f%%", bar, percentage*100)
-	
+
 	if current >= p.total {
 		fmt.Println()
 	}
@@ -221,7 +221,7 @@ func (s *StatusBox) Display() {
 	fmt.Println(strings.Repeat("─", width))
 	fmt.Printf("│ %-*s │\n", width-4, s.title)
 	fmt.Println(strings.Repeat("─", width))
-	
+
 	for _, item := range s.items {
 		value := item.Value
 		if item.Color != "" {
@@ -229,6 +229,6 @@ func (s *StatusBox) Display() {
 		}
 		fmt.Printf("│ %-20s: %-*s │\n", item.Label, width-26, value)
 	}
-	
+
 	fmt.Println(strings.Repeat("─", width))
 }

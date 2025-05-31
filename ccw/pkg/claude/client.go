@@ -37,7 +37,7 @@ func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 	if err != nil {
 		return fmt.Errorf("Claude Code executable not found: %w", err)
 	}
-	
+
 	// Prepare Claude Code command
 	cmd := exec.Command(claudePath)
 	cmd.Dir = workdir
@@ -59,7 +59,7 @@ func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 	if err := cmd.Start(); err != nil {
 		// Enhanced error reporting for startup failures
 		fmt.Printf("\n❌ Failed to start Claude Code: %v\n", err)
-		
+
 		// Provide specific troubleshooting based on error type
 		fmt.Println("\n🔍 Troubleshooting suggestions:")
 		if strings.Contains(err.Error(), "executable file not found") {
@@ -74,7 +74,7 @@ func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 			fmt.Println("- Check system PATH configuration")
 			fmt.Println("- Try: which claude")
 		}
-		
+
 		return fmt.Errorf("failed to start Claude Code: %w", err)
 	}
 
@@ -89,12 +89,12 @@ func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 		if err != nil {
 			// Enhanced error reporting for execution failures
 			fmt.Printf("\n❌ Claude Code session failed: %v\n", err)
-			
+
 			// Get exit code if available
 			if exitError, ok := err.(*exec.ExitError); ok {
 				fmt.Printf("Exit code: %d\n", exitError.ExitCode())
 			}
-			
+
 			// Provide troubleshooting suggestions
 			fmt.Println("\n🔍 Troubleshooting suggestions:")
 			if strings.Contains(err.Error(), "authentication") {
@@ -108,7 +108,7 @@ func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 				fmt.Println("- Verify your Claude Code session")
 				fmt.Println("- Try: claude --help")
 			}
-			
+
 			return fmt.Errorf("Claude Code session failed: %w", err)
 		}
 		return nil
@@ -122,7 +122,7 @@ func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 		fmt.Println("- Session took longer than expected")
 		fmt.Println("- Consider increasing timeout in configuration")
 		fmt.Println("- Check if Claude Code is waiting for input")
-		
+
 		return fmt.Errorf("Claude Code session timed out after %v", c.timeout)
 	}
 }
@@ -134,11 +134,11 @@ func (c *Client) ExecuteNonInteractive(workdir, prompt string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Claude Code executable not found: %w", err)
 	}
-	
+
 	// Use --print flag for non-interactive output
 	cmd := exec.Command(claudePath, "--print")
 	cmd.Dir = workdir
-	
+
 	// Write prompt to stdin
 	cmd.Stdin = createPromptReader(prompt)
 
@@ -215,16 +215,16 @@ func CheckAvailability() error {
 		fmt.Println("2. Download and install Claude Code CLI")
 		fmt.Println("3. Verify installation: claude --version")
 		fmt.Println("4. Ensure Claude Code is accessible")
-		
+
 		fmt.Println("\n💡 Common solutions:")
 		fmt.Println("- Add Claude Code to PATH: export PATH=$PATH:/path/to/claude")
 		fmt.Println("- Create symlink: ln -s ~/.claude/local/claude /usr/local/bin/claude")
 		fmt.Println("- Restart terminal after installation")
 		fmt.Println("- Check installation location: which claude")
-		
+
 		return fmt.Errorf("Claude Code CLI not found. Please install it from https://claude.ai/code")
 	}
-	
+
 	// Test that the found executable actually works
 	cmd := exec.Command(claudePath, "--version")
 	if err := cmd.Run(); err != nil {
@@ -233,10 +233,10 @@ func CheckAvailability() error {
 		fmt.Println("- Check file permissions: chmod +x " + claudePath)
 		fmt.Println("- Verify Claude Code installation is complete")
 		fmt.Println("- Try running directly: " + claudePath + " --version")
-		
+
 		return fmt.Errorf("Claude Code executable found but not working: %w", err)
 	}
-	
+
 	fmt.Printf("✅ Claude Code found at: %s\n", claudePath)
 	return nil
 }
@@ -249,10 +249,10 @@ func createPromptReader(prompt string) *os.File {
 	if err != nil {
 		return nil
 	}
-	
+
 	tmpFile.WriteString(prompt)
 	tmpFile.Seek(0, 0) // Reset to beginning
-	
+
 	return tmpFile
 }
 
@@ -287,7 +287,7 @@ func (s *Session) Start(initialContext string) error {
 	if s.active {
 		return fmt.Errorf("session already active")
 	}
-	
+
 	s.active = true
 	return s.client.LaunchInteractive(s.workdir, initialContext)
 }
@@ -312,23 +312,23 @@ func findClaudeExecutable() (string, error) {
 	if path, err := exec.LookPath("claude"); err == nil {
 		return path, nil
 	}
-	
+
 	// Try common installation locations based on typical Claude Code installations
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
 	}
-	
+
 	commonPaths := []string{
-		filepath.Join(homeDir, ".claude", "local", "claude"),           // Default Claude Code installation
-		filepath.Join(homeDir, ".local", "bin", "claude"),             // User local bin
-		"/usr/local/bin/claude",                                       // System-wide installation
-		"/opt/homebrew/bin/claude",                                    // Homebrew on Apple Silicon
-		"/usr/bin/claude",                                             // System bin
-		filepath.Join(homeDir, "bin", "claude"),                      // User bin
-		filepath.Join(homeDir, ".claude", "claude"),                  // Alternative Claude location
+		filepath.Join(homeDir, ".claude", "local", "claude"), // Default Claude Code installation
+		filepath.Join(homeDir, ".local", "bin", "claude"),    // User local bin
+		"/usr/local/bin/claude",                              // System-wide installation
+		"/opt/homebrew/bin/claude",                           // Homebrew on Apple Silicon
+		"/usr/bin/claude",                                    // System bin
+		filepath.Join(homeDir, "bin", "claude"),              // User bin
+		filepath.Join(homeDir, ".claude", "claude"),          // Alternative Claude location
 	}
-	
+
 	for _, path := range commonPaths {
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
 			// Check if file is executable
@@ -337,6 +337,6 @@ func findClaudeExecutable() (string, error) {
 			}
 		}
 	}
-	
+
 	return "", fmt.Errorf("Claude Code executable not found in PATH or common locations. Please ensure Claude Code is properly installed from https://claude.ai/code")
 }

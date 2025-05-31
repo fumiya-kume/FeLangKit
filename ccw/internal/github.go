@@ -124,7 +124,7 @@ func (g *GitHubClient) WaitForPRChecks(prURL string) error {
 		// Check PR status
 		cmd := exec.Command("gh", "pr", "checks", prURL)
 		output, err := cmd.CombinedOutput()
-		
+
 		if err == nil {
 			// All checks passed
 			return nil
@@ -164,25 +164,25 @@ func (g *GitHubClient) ListOpenPRs() ([]PullRequest, error) {
 func (g *GitHubClient) GeneratePRDescription(issue *Issue, commitMessages []string) string {
 	// Create a comprehensive PR description
 	var description strings.Builder
-	
+
 	description.WriteString("## Summary\n")
 	description.WriteString(fmt.Sprintf("Resolves #%d: %s\n\n", issue.Number, issue.Title))
-	
+
 	description.WriteString("## Background & Context\n")
 	description.WriteString(issue.Body)
 	description.WriteString("\n\n")
-	
+
 	description.WriteString("## Changes Made\n")
 	for _, commit := range commitMessages {
 		description.WriteString(fmt.Sprintf("- %s\n", commit))
 	}
 	description.WriteString("\n")
-	
+
 	description.WriteString("## Testing\n")
 	description.WriteString("- ✅ All tests pass\n")
 	description.WriteString("- ✅ SwiftLint validation successful\n")
 	description.WriteString("- ✅ Build successful\n\n")
-	
+
 	description.WriteString("## Quality Checks\n")
 	description.WriteString("This PR has been validated with:\n")
 	description.WriteString("```bash\n")

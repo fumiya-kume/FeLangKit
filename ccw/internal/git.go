@@ -38,7 +38,7 @@ func (g *GitOperations) CreateWorktree(worktreePath, branchName string) error {
 	// Create the worktree with the new branch
 	cmd := g.createGitCommand("worktree", "add", "-b", branchName, worktreePath, "origin/master")
 	cmd.Dir = g.basePath
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to create git worktree: %w\nOutput: %s", err, string(output))
@@ -51,7 +51,7 @@ func (g *GitOperations) CreateWorktree(worktreePath, branchName string) error {
 func (g *GitOperations) RemoveWorktree(worktreePath string) error {
 	cmd := g.createGitCommand("worktree", "remove", "--force", worktreePath)
 	cmd.Dir = filepath.Dir(worktreePath)
-	
+
 	if err := cmd.Run(); err != nil {
 		// If git worktree remove fails, try manual cleanup
 		return os.RemoveAll(worktreePath)
@@ -63,7 +63,7 @@ func (g *GitOperations) RemoveWorktree(worktreePath string) error {
 func (g *GitOperations) ListWorktrees() ([]string, error) {
 	cmd := g.createGitCommand("worktree", "list", "--porcelain")
 	cmd.Dir = g.basePath
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list worktrees: %w", err)
@@ -147,7 +147,7 @@ func (g *GitOperations) SyncWithUpstream(worktreePath string) error {
 func (g *GitOperations) HasUncommittedChanges(worktreePath string) (bool, error) {
 	cmd := g.createGitCommand("status", "--porcelain")
 	cmd.Dir = worktreePath
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return false, fmt.Errorf("failed to check git status: %w", err)
@@ -160,7 +160,7 @@ func (g *GitOperations) HasUncommittedChanges(worktreePath string) (bool, error)
 func (g *GitOperations) GetCurrentBranch(worktreePath string) (string, error) {
 	cmd := g.createGitCommand("branch", "--show-current")
 	cmd.Dir = worktreePath
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current branch: %w", err)
@@ -173,7 +173,7 @@ func (g *GitOperations) GetCurrentBranch(worktreePath string) (string, error) {
 func (g *GitOperations) CheckBranchExists(branchName string) (bool, error) {
 	cmd := g.createGitCommand("ls-remote", "--heads", "origin", branchName)
 	cmd.Dir = g.basePath
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return false, fmt.Errorf("failed to check remote branch: %w", err)
@@ -193,7 +193,7 @@ func (g *GitOperations) GenerateCommitMessage(worktreePath string) (string, erro
 func (g *GitOperations) ValidateRepository() error {
 	cmd := g.createGitCommand("rev-parse", "--git-dir")
 	cmd.Dir = g.basePath
-	
+
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("not a git repository")
 	}
@@ -230,7 +230,7 @@ func isRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
-	
+
 	errStr := err.Error()
 	retryablePatterns := []string{
 		"connection timed out",
@@ -241,7 +241,7 @@ func isRetryableError(err error) bool {
 		"SSL_ERROR_SYSCALL",
 		"Failed to connect",
 	}
-	
+
 	for _, pattern := range retryablePatterns {
 		if strings.Contains(errStr, pattern) {
 			return true

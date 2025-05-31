@@ -1,0 +1,22 @@
+---
+# golangci-lint configuration
+
+run:
+  timeout: 5m
+  
+linters:
+  enable:
+    - govet
+    - staticcheck  
+    - errcheck
+    - gosimple
+    - ineffassign
+    - unused
+    - misspell
+
+linters-settings:
+  govet:
+    enable-all: true
+    
+issues:
+  exclude-use-default: false
