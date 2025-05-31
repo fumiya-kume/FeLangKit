@@ -75,7 +75,8 @@
       "Bash(./main https://github.com/fumiya-kume/FeLangKit/issues/151)",
       "Bash(go fmt:*)",
       "Bash(go vet:*)",
-      "Bash(go list:*)"
+      "Bash(go list:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   },
