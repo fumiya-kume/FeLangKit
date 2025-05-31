@@ -3,7 +3,6 @@ package claude
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,10 +26,15 @@ func NewClient(timeout time.Duration) *Client {
 func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 	// Create context file
 	contextFile := filepath.Join(workdir, ".claude-context.md")
-	if err := ioutil.WriteFile(contextFile, []byte(contextContent), 0644); err != nil {
+	if err := os.WriteFile(contextFile, []byte(contextContent), 0644); err != nil {
 		return fmt.Errorf("failed to write context file: %w", err)
 	}
-	defer os.Remove(contextFile) // Clean up after session
+	defer func() {
+		if err := os.Remove(contextFile); err != nil {
+			// Log error but don't fail the function
+			fmt.Printf("Warning: failed to remove context file: %v\n", err)
+		}
+	}() // Clean up after session
 
 	// Find Claude Code executable
 	claudePath, err := findClaudeExecutable()
@@ -115,7 +119,9 @@ func (c *Client) LaunchInteractive(workdir, contextContent string) error {
 	case <-ctx.Done():
 		// Timeout occurred, terminate the process
 		if cmd.Process != nil {
-			cmd.Process.Kill()
+			if err := cmd.Process.Kill(); err != nil {
+				fmt.Printf("Warning: failed to kill process: %v\n", err)
+			}
 		}
 		fmt.Printf("\n⏰ Claude Code session timed out after %v\n", c.timeout)
 		fmt.Println("\n🔍 Troubleshooting suggestions:")
@@ -245,13 +251,19 @@ func CheckAvailability() error {
 
 func createPromptReader(prompt string) *os.File {
 	// Create a temporary file with the prompt
-	tmpFile, err := ioutil.TempFile("", "claude-prompt-*.txt")
+	tmpFile, err := os.CreateTemp("", "claude-prompt-*.txt")
 	if err != nil {
 		return nil
 	}
 
-	tmpFile.WriteString(prompt)
-	tmpFile.Seek(0, 0) // Reset to beginning
+	if _, err := tmpFile.WriteString(prompt); err != nil {
+		tmpFile.Close()
+		return nil
+	}
+	if _, err := tmpFile.Seek(0, 0); err != nil {
+		tmpFile.Close()
+		return nil
+	} // Reset to beginning
 
 	return tmpFile
 }

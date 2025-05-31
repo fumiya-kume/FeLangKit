@@ -26,7 +26,8 @@ func TestClientCreation(t *testing.T) {
 	client := NewClient(timeout)
 
 	if client == nil {
-		t.Error("Expected non-nil client")
+		t.Fatal("Expected non-nil client")
+		return
 	}
 
 	if client.timeout != timeout {

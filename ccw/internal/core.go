@@ -3,7 +3,6 @@ package internal
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -181,9 +180,10 @@ func loadConfig() *Config {
 	}
 
 	// Try to load from file
-	if _, err := ioutil.ReadFile("ccw.yaml"); err == nil {
+	if _, err := os.ReadFile("ccw.yaml"); err == nil {
 		// Parse YAML config (simplified for now)
 		// TODO: Implement proper YAML parsing
+		log.Println("Found ccw.yaml config file (YAML parsing not yet implemented)")
 	}
 
 	return config
@@ -250,11 +250,15 @@ When you're done, I'll help you create a pull request.`,
 func saveWorktreeConfig(worktreePath string, config *WorktreeConfig) {
 	configPath := filepath.Join(worktreePath, ".worktree-config.json")
 	data, _ := json.MarshalIndent(config, "", "  ")
-	ioutil.WriteFile(configPath, data, 0644)
+	if err := os.WriteFile(configPath, data, 0644); err != nil {
+		log.Printf("Warning: failed to write worktree config: %v", err)
+	}
 }
 
 func cleanupWorktree(gitOps *GitOperations, worktreePath string) {
-	gitOps.RemoveWorktree(worktreePath)
+	if err := gitOps.RemoveWorktree(worktreePath); err != nil {
+		log.Printf("Warning: failed to remove worktree: %v", err)
+	}
 }
 
 // Additional workflow commands
@@ -275,7 +279,7 @@ func ListWorktrees() {
 	for _, wt := range worktrees {
 		// Try to read worktree config
 		configPath := filepath.Join(wt, ".worktree-config.json")
-		if data, err := ioutil.ReadFile(configPath); err == nil {
+		if data, err := os.ReadFile(configPath); err == nil {
 			var config WorktreeConfig
 			if json.Unmarshal(data, &config) == nil {
 				fmt.Printf("  - %s (Issue #%d, created %s)\n",
@@ -376,5 +380,5 @@ validation:
   run_tests: true
   run_build: true
 `
-	return ioutil.WriteFile(filename, []byte(sample), 0644)
+	return os.WriteFile(filename, []byte(sample), 0644)
 }

@@ -1,0 +1,26 @@
+run:
+  timeout: 5m
+
+linters-settings:
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: ccw
+
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - govet
+    - errcheck
+    - gosimple
+    - ineffassign
+    - typecheck
+    - unused
+    - misspell
+  disable:
+    - depguard
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
