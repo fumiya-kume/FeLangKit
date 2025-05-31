@@ -23,11 +23,11 @@ type Config struct {
 
 // WorktreeConfig stores worktree-specific information
 type WorktreeConfig struct {
-	IssueNumber int    `json:"issue_number"`
-	IssueURL    string `json:"issue_url"`
-	BranchName  string `json:"branch_name"`
-	WorktreePath string `json:"worktree_path"`
-	CreatedAt   time.Time `json:"created_at"`
+	IssueNumber  int       `json:"issue_number"`
+	IssueURL     string    `json:"issue_url"`
+	BranchName   string    `json:"branch_name"`
+	WorktreePath string    `json:"worktree_path"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // ProcessIssue is the main workflow entry point
@@ -64,7 +64,7 @@ func ProcessIssue(issueURL, mode string) {
 	// Step 3: Create worktree
 	branchName := fmt.Sprintf("issue-%d-%s", issue.Number, time.Now().Format("20060102-150405"))
 	worktreePath := filepath.Join(config.WorktreeBase, branchName)
-	
+
 	ui.UpdateStatus("Creating worktree...")
 	if err := gitOps.CreateWorktree(worktreePath, branchName); err != nil {
 		ui.ShowError("Failed to create worktree", err)
@@ -88,11 +88,11 @@ func ProcessIssue(issueURL, mode string) {
 		cleanupWorktree(gitOps, worktreePath)
 		return
 	}
-	
+
 	// Step 5: Launch Claude Code
 	ui.UpdateStatus("Launching Claude Code...")
 	claudeContext := buildClaudeContext(issue, worktreePath)
-	
+
 	if err := claudeClient.LaunchInteractive(worktreePath, claudeContext); err != nil {
 		ui.ShowError("Claude Code session failed", err)
 		cleanupWorktree(gitOps, worktreePath)
@@ -149,7 +149,7 @@ func ProcessIssue(issueURL, mode string) {
 	ui.UpdateStatus("Creating pull request...")
 	prTitle := fmt.Sprintf("Resolve #%d: %s", issue.Number, issue.Title)
 	prBody := githubClient.GeneratePRDescription(issue, []string{commitMsg})
-	
+
 	pr, err := githubClient.CreatePullRequest(prTitle, prBody, branchName)
 	if err != nil {
 		ui.ShowError("Failed to create PR", err)
@@ -243,7 +243,7 @@ Please implement the necessary changes to resolve this issue. Make sure to:
 4. Ensure all existing tests pass
 5. Follow the project's coding standards
 
-When you're done, I'll help you create a pull request.`, 
+When you're done, I'll help you create a pull request.`,
 		issue.Number, issue.Title, issue.Body, worktreePath)
 }
 
@@ -278,8 +278,8 @@ func ListWorktrees() {
 		if data, err := ioutil.ReadFile(configPath); err == nil {
 			var config WorktreeConfig
 			if json.Unmarshal(data, &config) == nil {
-				fmt.Printf("  - %s (Issue #%d, created %s)\n", 
-					config.BranchName, config.IssueNumber, 
+				fmt.Printf("  - %s (Issue #%d, created %s)\n",
+					config.BranchName, config.IssueNumber,
 					config.CreatedAt.Format("2006-01-02 15:04"))
 				continue
 			}
@@ -313,7 +313,7 @@ func CleanupAllWorktrees() {
 func RunDiagnostics() {
 	fmt.Println("CCW System Diagnostics")
 	fmt.Println("=====================")
-	
+
 	// Check git
 	gitOps := NewGitOperations(getRepoRoot())
 	if err := gitOps.ValidateRepository(); err != nil {
@@ -345,9 +345,10 @@ func RunDiagnostics() {
 		}
 	}
 
-	// Check Claude
-	if err := checkCommand("claude"); err != nil {
+	// Check Claude Code using enhanced detection
+	if err := claude.CheckAvailability(); err != nil {
 		fmt.Println("❌ Claude Code CLI: Not found")
+		// Don't show the detailed error output in doctor command for cleaner display
 	} else {
 		fmt.Println("✅ Claude Code CLI: Available")
 	}
