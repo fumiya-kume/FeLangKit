@@ -1,0 +1,211 @@
+name: CCW (Go CLI)
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'ccw/**'
+      - '.github/workflows/ccw.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'ccw/**'
+      - '.github/workflows/ccw.yml'
+
+jobs:
+  lint:
+    name: Go Lint (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-15, ubuntu-22.04]
+      fail-fast: false
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache: true
+          cache-dependency-path: ccw/go.sum
+
+      - name: Cache golangci-lint
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/golangci-lint
+          key: golangci-lint-${{ matrix.os }}-${{ hashFiles('ccw/.golangci.yml') }}
+          restore-keys: |
+            golangci-lint-${{ matrix.os }}-
+
+      - name: Install golangci-lint
+        run: |
+          if ! command -v golangci-lint &> /dev/null; then
+            go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          fi
+
+      - name: Run golangci-lint
+        working-directory: ccw
+        run: golangci-lint run --verbose
+
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-15, ubuntu-22.04]
+      fail-fast: false
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache: true
+          cache-dependency-path: ccw/go.sum
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-mod-${{ matrix.os }}-${{ hashFiles('ccw/go.sum') }}
+          restore-keys: |
+            go-mod-${{ matrix.os }}-
+            go-mod-
+
+      - name: Download dependencies
+        working-directory: ccw
+        run: go mod download
+
+      - name: Build CCW
+        working-directory: ccw
+        run: go build -v -o ccw .
+
+      - name: Test executable
+        working-directory: ccw
+        run: ./ccw --help
+
+      - name: Upload CCW binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccw-binary-${{ matrix.os }}
+          path: ccw/ccw
+          retention-days: 7
+
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-15, ubuntu-22.04]
+      fail-fast: false
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache: true
+          cache-dependency-path: ccw/go.sum
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-mod-${{ matrix.os }}-${{ hashFiles('ccw/go.sum') }}
+          restore-keys: |
+            go-mod-${{ matrix.os }}-
+            go-mod-
+
+      - name: Download dependencies
+        working-directory: ccw
+        run: go mod download
+
+      - name: Run tests with coverage
+        working-directory: ccw
+        run: |
+          # Run tests for packages that have test files
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic \
+            ./commit/... \
+            ./config/... \
+            ./git/... \
+            ./github/... \
+            ./pr/... \
+            ./types/... \
+            ./ui/...
+
+      - name: Generate coverage report
+        working-directory: ccw
+        run: |
+          go tool cover -html=coverage.txt -o coverage.html
+          go tool cover -func=coverage.txt
+
+      - name: Upload coverage reports
+        if: matrix.os == 'macos-15'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccw-coverage-report
+          path: |
+            ccw/coverage.txt
+            ccw/coverage.html
+          retention-days: 7
+
+  integration:
+    name: Integration Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [build]
+    strategy:
+      matrix:
+        os: [macos-15, ubuntu-22.04]
+      fail-fast: false
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache: true
+          cache-dependency-path: ccw/go.sum
+
+      - name: Download CCW binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ccw-binary-${{ matrix.os }}
+          path: ccw/
+
+      - name: Make binary executable
+        working-directory: ccw
+        run: chmod +x ccw
+
+      - name: Test basic commands
+        working-directory: ccw
+        run: |
+          ./ccw --help
+          ./ccw list || true  # May fail if no worktrees exist
+          ./ccw doctor || true  # May fail if dependencies missing
+
+      - name: Install development dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Install basic tools that CCW might need
+          sudo apt-get update
+          sudo apt-get install -y git curl jq
+
+      - name: Install development dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # Install basic tools via Homebrew
+          brew list git >/dev/null 2>&1 || brew install git
+          brew list curl >/dev/null 2>&1 || brew install curl  
+          brew list jq >/dev/null 2>&1 || brew install jq
