@@ -16,7 +16,8 @@
       "NotebookRead(*)",
       "NotebookEdit(*)",
       "Task(*)",
-      "Bash(gh pr view:*)"
+      "Bash(gh pr view:*)",
+      "Bash(git push:*)"
     ],
     "deny": [
       "Bash(rm -rf /)",
