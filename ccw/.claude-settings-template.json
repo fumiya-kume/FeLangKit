@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "WebFetch(domain:github.com)"
+    ],
+    "deny": []
+  },
+  "enableAllProjectMcpServers": false
+}
