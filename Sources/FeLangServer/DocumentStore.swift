@@ -84,7 +84,8 @@ public struct Document: Sendable {
             let line = String(allLines[range.start.line])
             // Convert UTF-16 offsets to Swift String.Index
             guard let start = utf16ToStringIndex(line, utf16Offset: range.start.character),
-                  let end = utf16ToStringIndex(line, utf16Offset: range.end.character) else { return nil }
+                  let end = utf16ToStringIndex(line, utf16Offset: range.end.character),
+                  start <= end else { return nil }
             return String(line[start..<end])
         }
 
@@ -92,14 +93,16 @@ public struct Document: Sendable {
         for lineNum in range.start.line...range.end.line {
             let line = String(allLines[lineNum])
             if lineNum == range.start.line {
-                if let start = utf16ToStringIndex(line, utf16Offset: range.start.character) {
-                    result += line[start...]
-                    result += "\n"
+                guard let start = utf16ToStringIndex(line, utf16Offset: range.start.character) else {
+                    return nil
                 }
+                result += line[start...]
+                result += "\n"
             } else if lineNum == range.end.line {
-                if let end = utf16ToStringIndex(line, utf16Offset: range.end.character) {
-                    result += line[..<end]
+                guard let end = utf16ToStringIndex(line, utf16Offset: range.end.character) else {
+                    return nil
                 }
+                result += line[..<end]
             } else {
                 result += line
                 result += "\n"
@@ -155,10 +158,15 @@ public struct Document: Sendable {
     /// Convert an offset to a position (using UTF-16 semantics for LSP compliance).
     public mutating func positionFromOffset(_ offset: Int) -> Position? {
         var currentOffset = 0
-        for (lineNum, line) in lines.enumerated() {
-            let lineLength = line.utf16.count + 1 // +1 for newline
-            if currentOffset + lineLength > offset {
-                return Position(line: lineNum, character: offset - currentOffset)
+        let allLines = lines
+        for (lineNum, line) in allLines.enumerated() {
+            let isLastLine = lineNum == allLines.count - 1
+            let lineLength = line.utf16.count + (isLastLine ? 0 : 1) // +1 for newline, except last line
+            if currentOffset + lineLength > offset || isLastLine {
+                let character = offset - currentOffset
+                // Validate character is within line bounds
+                guard character >= 0 && character <= line.utf16.count else { return nil }
+                return Position(line: lineNum, character: character)
             }
             currentOffset += lineLength
         }

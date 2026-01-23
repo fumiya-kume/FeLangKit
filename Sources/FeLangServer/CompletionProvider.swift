@@ -97,11 +97,15 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "substring", kind: .function, detail: "Extract substring", insertText: "substring("),
         CompletionItem(label: "concat", kind: .function, detail: "Concatenate strings", insertText: "concat("),
         CompletionItem(label: "charAt", kind: .function, detail: "Character at index", insertText: "charAt("),
-        CompletionItem(label: "indexOf", kind: .function, detail: "Find substring index", insertText: "indexOf("),
+        CompletionItem(label: "upper", kind: .function, detail: "Convert to uppercase", insertText: "upper("),
+        CompletionItem(label: "lower", kind: .function, detail: "Convert to lowercase", insertText: "lower("),
+        CompletionItem(label: "trim", kind: .function, detail: "Remove whitespace", insertText: "trim("),
 
         // Array functions
-        CompletionItem(label: "push", kind: .function, detail: "Add to array end", insertText: "push("),
-        CompletionItem(label: "pop", kind: .function, detail: "Remove from array end", insertText: "pop(")
+        CompletionItem(label: "arrayLength", kind: .function, detail: "Array length", insertText: "arrayLength("),
+        CompletionItem(label: "append", kind: .function, detail: "Add to array end", insertText: "append("),
+        CompletionItem(label: "prepend", kind: .function, detail: "Add to array start", insertText: "prepend("),
+        CompletionItem(label: "concat_arrays", kind: .function, detail: "Concatenate arrays", insertText: "concat_arrays(")
     ]
 
     public init() {}
