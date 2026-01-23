@@ -173,10 +173,16 @@ public struct IncrementalTokenizer: Sendable {
         )
 
         // Step 6: Adjust positions of tokens after the change
+        let lineDelta = countNewlines(in: newText) - countNewlines(in: originalText[range])
+        // Calculate column delta for same-line edits
+        let editEndLine = previousTokens.isEmpty ? 0 : (safeEndIndex < previousTokens.count ? previousTokens[safeEndIndex].position.line : (previousTokens.last?.position.line ?? 0))
+        let columnDelta = lineDelta == 0 ? offsetDelta : 0
         let adjustedSuffixTokens = adjustTokenPositionsAfterEdit(
             tokens: Array(previousTokens[safeEndIndex...]),
             offsetDelta: offsetDelta,
-            lineDelta: countNewlines(in: newText) - countNewlines(in: originalText[range])
+            lineDelta: lineDelta,
+            columnDelta: columnDelta,
+            editEndLine: editEndLine
         )
 
         // Step 7: Merge the token arrays
@@ -274,14 +280,13 @@ public struct IncrementalTokenizer: Sendable {
         editStartOffset: Int
     ) -> (tokenIndex: Int, offset: Int) {
         // Find the first token that starts at or after the edit position
-        var startIndex = 0
+        var startIndex = tokens.count  // Default to end if edit is after all tokens
 
         for (index, token) in tokens.enumerated() {
             if token.position.offset >= editStartOffset {
                 startIndex = index
                 break
             }
-            startIndex = index
         }
 
         // Move back to find a safe boundary (line start or start of file)
@@ -380,12 +385,18 @@ public struct IncrementalTokenizer: Sendable {
     private func adjustTokenPositionsAfterEdit(
         tokens: [Token],
         offsetDelta: Int,
-        lineDelta: Int
+        lineDelta: Int,
+        columnDelta: Int = 0,
+        editEndLine: Int = -1
     ) -> [Token] {
         return tokens.map { token in
+            // Apply column delta only to tokens on the same line as the edit end
+            let shouldAdjustColumn = editEndLine >= 0 && token.position.line == editEndLine
+            let adjustedColumn = shouldAdjustColumn ? token.position.column + columnDelta : token.position.column
+
             let adjustedPosition = SourcePosition(
                 line: token.position.line + lineDelta,
-                column: token.position.column,
+                column: adjustedColumn,
                 offset: token.position.offset + offsetDelta
             )
 
@@ -419,7 +430,7 @@ public struct IncrementalTokenizer: Sendable {
         let countMatches = result.tokens.count == fullTokens.count
 
         // Compare token types and positions (sampling for performance)
-        let sampleSize = min(100, result.tokens.count)
+        let sampleSize = min(100, max(1, result.tokens.count))
         let sampledIndices = stride(from: 0, to: result.tokens.count, by: max(1, result.tokens.count / sampleSize))
 
         var typeMismatches = 0

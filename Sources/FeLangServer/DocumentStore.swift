@@ -79,6 +79,7 @@ public struct Document: Sendable {
         let allLines = lines
         guard range.start.line >= 0, range.start.line < allLines.count else { return nil }
         guard range.end.line >= 0, range.end.line < allLines.count else { return nil }
+        guard range.start.line <= range.end.line else { return nil }
 
         if range.start.line == range.end.line {
             let line = String(allLines[range.start.line])
