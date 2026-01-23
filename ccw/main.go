@@ -185,6 +185,7 @@ func handleAgentWorkflow() {
 	defer ccwApp.Cleanup()
 
 	if err := ccwApp.ExecuteWorkflowWithAgents(issueURL); err != nil {
+		ccwApp.Cleanup()
 		log.Fatalf("Agent workflow failed: %v", err)
 	}
 }

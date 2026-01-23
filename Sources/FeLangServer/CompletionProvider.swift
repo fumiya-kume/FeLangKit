@@ -257,15 +257,20 @@ public struct CompletionProvider: Sendable {
 
     private func isKeyword(_ word: String) -> Bool {
         let keywords = Set([
+            // English keywords
             "if", "then", "else", "elseif", "endif",
             "while", "do", "endwhile",
             "for", "to", "step", "endfor", "in",
             "function", "endfunction", "procedure", "endprocedure",
             "return", "break", "continue",
             "and", "or", "not", "true", "false",
-            "integer", "real", "string", "character", "boolean", "array"
+            "integer", "real", "string", "character", "boolean", "array",
+            // Japanese keywords
+            "もし", "ならば", "でなければ", "を実行", "繰り返し", "を繰り返す",
+            // Japanese type names
+            "整数型", "実数型", "文字列型", "文字型", "論理型", "配列型"
         ])
-        return keywords.contains(word.lowercased())
+        return keywords.contains(word.lowercased()) || keywords.contains(word)
     }
 }
 

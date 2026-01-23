@@ -201,7 +201,14 @@ public struct StandardLibrary: Sendable {
 
         var minValue = args[0]
         for arg in args.dropFirst() {
-            if let result = compare(arg, minValue), result < 0 {
+            guard let result = compare(arg, minValue) else {
+                throw RuntimeError.typeMismatch(
+                    expected: "numeric",
+                    actual: "\(arg.typeName) and \(minValue.typeName)",
+                    operation: "min"
+                )
+            }
+            if result < 0 {
                 minValue = arg
             }
         }
@@ -215,7 +222,14 @@ public struct StandardLibrary: Sendable {
 
         var maxValue = args[0]
         for arg in args.dropFirst() {
-            if let result = compare(arg, maxValue), result > 0 {
+            guard let result = compare(arg, maxValue) else {
+                throw RuntimeError.typeMismatch(
+                    expected: "numeric",
+                    actual: "\(arg.typeName) and \(maxValue.typeName)",
+                    operation: "max"
+                )
+            }
+            if result > 0 {
                 maxValue = arg
             }
         }
@@ -285,7 +299,14 @@ public struct StandardLibrary: Sendable {
         }
 
         let end: Int
-        if args.count >= 3, case .integer(let endIndex) = args[2] {
+        if args.count >= 3 {
+            guard case .integer(let endIndex) = args[2] else {
+                throw RuntimeError.typeMismatch(
+                    expected: "integer",
+                    actual: args[2].typeName,
+                    operation: "substring end index"
+                )
+            }
             end = endIndex
         } else {
             end = str.count
