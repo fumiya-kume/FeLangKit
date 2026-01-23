@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -116,9 +117,10 @@ func (ae *AgentExecutor) ExecuteInteractiveAgent(agentType, contextPath string, 
 	}
 
 	// Set up interactive mode with context piped first, then user input
+	// Use bytes.NewReader to avoid extra string copy of potentially large context
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Stdin = io.MultiReader(strings.NewReader(string(contextData)+"\n"), os.Stdin)
+	cmd.Stdin = io.MultiReader(bytes.NewReader(contextData), strings.NewReader("\n"), os.Stdin)
 
 	ae.logger.Info("agent", fmt.Sprintf("Launching %s agent in interactive mode...", agentType), nil)
 

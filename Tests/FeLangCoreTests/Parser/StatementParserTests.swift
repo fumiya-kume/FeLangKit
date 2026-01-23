@@ -710,8 +710,8 @@ struct StatementParserTests {
             deepNesting101 += " endif"
         }
 
-        // This should fail at 101 levels
-        #expect(throws: (any Error).self) {
+        // This should fail at 101 levels with nestingTooDeep error
+        #expect(throws: StatementParsingError.nestingTooDeep) {
             _ = try parseStatements(deepNesting101)
         }
     }

@@ -11,7 +11,7 @@ public struct HoverProvider: Sendable {
         "if": "**if** - Conditional statement\n\nExecutes code based on a condition.\n\n```fe\nif condition then\n    // code\nendif\n```",
         "then": "**then** - Then clause\n\nMarks the beginning of the true branch in an if statement.",
         "else": "**else** - Else clause\n\nMarks the false branch in an if statement.",
-        "elseif": "**elseif** - Else-if clause\n\nAdditional condition check in an if statement.",
+        "elif": "**elif** - Else-if clause\n\nAdditional condition check in an if statement.",
         "endif": "**endif** - End if\n\nMarks the end of an if statement.",
 
         // Loops

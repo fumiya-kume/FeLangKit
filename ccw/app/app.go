@@ -127,17 +127,19 @@ func NewCCWApp() (*CCWApp, error) {
 	}, nil
 }
 
-// Cleanup application resources
+// Cleanup application resources (idempotent - safe to call multiple times)
 func (app *CCWApp) Cleanup() {
 	if app.logger != nil {
 		app.logger.Info("application", "CCW application shutting down", map[string]interface{}{
 			"session_id": app.sessionID,
 		})
 		app.logger.Close()
+		app.logger = nil // Make idempotent
 	}
 
 	if app.ui != nil {
 		app.ui.RestoreTerminalState()
+		app.ui = nil // Make idempotent
 	}
 }
 

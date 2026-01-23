@@ -238,18 +238,40 @@ func (app *CCWApp) runPRMonitoringAgent(issue *types.Issue, owner, repo string) 
 	}
 }
 
-// Handle CI updates with agent integration
+// ciFixMutex prevents concurrent CI fix agent runs
+var ciFixMutex sync.Mutex
+var ciFixRunning bool
+
+// Handle CI updates with agent integration (non-blocking)
 func (app *CCWApp) handleCIUpdateWithAgent(update types.CIWatchUpdate, issue *types.Issue) {
 	if update.Status != nil && update.Status.FailedChecks > 0 {
+		// Check if a CI fix is already running (non-blocking)
+		ciFixMutex.Lock()
+		if ciFixRunning {
+			ciFixMutex.Unlock()
+			app.ui.Info("CI fix agent already running, skipping duplicate trigger")
+			return
+		}
+		ciFixRunning = true
+		ciFixMutex.Unlock()
+
 		app.ui.Warning("CI failures detected - running CI fixing agent")
 
 		// Analyze failures
 		failures := app.prManager.AnalyzeCIFailures(update.Status)
 
-		// Run CI fixing agent
-		if err := app.runCIFixingAgent(issue, failures); err != nil {
-			app.ui.Error(fmt.Sprintf("CI fixing agent failed: %v", err))
-		}
+		// Run CI fixing agent asynchronously to avoid blocking the update channel
+		go func() {
+			defer func() {
+				ciFixMutex.Lock()
+				ciFixRunning = false
+				ciFixMutex.Unlock()
+			}()
+
+			if err := app.runCIFixingAgent(issue, failures); err != nil {
+				app.ui.Error(fmt.Sprintf("CI fixing agent failed: %v", err))
+			}
+		}()
 	}
 }
 

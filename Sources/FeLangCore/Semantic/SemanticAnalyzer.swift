@@ -768,6 +768,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         let firstElementType = inferExpressionType(elements[0], depth: depth)
 
         // Check that all elements have compatible types
+        // TODO: Expression AST nodes don't currently store position information.
+        // To provide accurate error positions, the AST would need to be extended
+        // to include source locations on all nodes.
         for element in elements.dropFirst() {
             let elementType = inferExpressionType(element, depth: depth)
             if !elementType.isCompatible(with: firstElementType) {

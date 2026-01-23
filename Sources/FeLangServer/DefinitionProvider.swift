@@ -7,6 +7,11 @@ import FeLangCore
 public struct DefinitionProvider: Sendable {
     public init() {}
 
+    /// Convert String.Index to UTF-16 offset for LSP compliance
+    private func utf16Distance(in string: String, from start: String.Index, to end: String.Index) -> Int {
+        return string.utf16.distance(from: start, to: end)
+    }
+
     /// Find the definition of a symbol at a position.
     public func findDefinition(document: inout Document, position: Position) -> Location? {
         guard let (word, _) = document.wordAt(line: position.line, character: position.character) else {
@@ -69,8 +74,8 @@ public struct DefinitionProvider: Sendable {
             if let regex = try? NSRegularExpression(pattern: pattern),
                let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
                let wordRange = Swift.Range(match.range(at: 1), in: line) {
-                let startChar = line.distance(from: line.startIndex, to: wordRange.lowerBound)
-                let endChar = line.distance(from: line.startIndex, to: wordRange.upperBound)
+                let startChar = utf16Distance(in: line, from: line.startIndex, to: wordRange.lowerBound)
+                let endChar = utf16Distance(in: line, from: line.startIndex, to: wordRange.upperBound)
                 return Range(
                     startLine: lineNumber,
                     startCharacter: startChar,
@@ -148,7 +153,7 @@ public struct DefinitionProvider: Sendable {
 
         // Keywords
         let keywords = Set([
-            "if", "then", "else", "elseif", "endif",
+            "if", "then", "else", "elif", "endif",
             "while", "do", "endwhile",
             "for", "to", "step", "endfor", "in",
             "function", "endfunction", "procedure", "endprocedure",
@@ -162,13 +167,13 @@ public struct DefinitionProvider: Sendable {
             "整数型", "実数型", "文字列型", "文字型", "論理型", "配列型"
         ])
 
-        // Standard library
+        // Standard library (matching StandardLibrary.swift)
         let stdlib = Set([
-            "print", "input",
+            "print", "println", "input",
             "tointeger", "toreal", "tostring",
             "abs", "sqrt", "floor", "ceil", "round", "min", "max", "pow",
-            "length", "substring", "concat", "charat", "indexof",
-            "push", "pop"
+            "length", "substring", "concat", "charat", "upper", "lower", "trim",
+            "arraylength", "append", "prepend", "concat_arrays"
         ])
 
         return keywords.contains(lowerWord) || types.contains(word) || stdlib.contains(lowerWord)
