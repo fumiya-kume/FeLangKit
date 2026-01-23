@@ -308,6 +308,11 @@ public struct IncrementalTokenizer: Sendable {
             safeIndex -= 1
         }
 
+        // Handle case where edit is after all tokens
+        if safeIndex >= tokens.count {
+            let endOffset = tokens.last.map { $0.position.offset + $0.lexeme.count } ?? 0
+            return (tokens.count, endOffset)
+        }
         let offset = safeIndex > 0 ? tokens[safeIndex].position.offset : 0
         return (safeIndex, offset)
     }

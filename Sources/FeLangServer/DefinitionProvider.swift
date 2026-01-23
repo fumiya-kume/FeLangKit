@@ -94,8 +94,8 @@ public struct DefinitionProvider: Sendable {
         if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
            let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
            let wordRange = Swift.Range(match.range(at: 1), in: line) {
-            let startChar = line.distance(from: line.startIndex, to: wordRange.lowerBound)
-            let endChar = line.distance(from: line.startIndex, to: wordRange.upperBound)
+            let startChar = utf16Distance(in: line, from: line.startIndex, to: wordRange.lowerBound)
+            let endChar = utf16Distance(in: line, from: line.startIndex, to: wordRange.upperBound)
             return Range(
                 startLine: lineNumber,
                 startCharacter: startChar,
@@ -113,8 +113,8 @@ public struct DefinitionProvider: Sendable {
         if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
            let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
            let wordRange = Swift.Range(match.range(at: 1), in: line) {
-            let startChar = line.distance(from: line.startIndex, to: wordRange.lowerBound)
-            let endChar = line.distance(from: line.startIndex, to: wordRange.upperBound)
+            let startChar = utf16Distance(in: line, from: line.startIndex, to: wordRange.lowerBound)
+            let endChar = utf16Distance(in: line, from: line.startIndex, to: wordRange.upperBound)
             return Range(
                 startLine: lineNumber,
                 startCharacter: startChar,
@@ -133,8 +133,8 @@ public struct DefinitionProvider: Sendable {
         if let regex = try? NSRegularExpression(pattern: funcPattern, options: .caseInsensitive),
            let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
            let wordRange = Swift.Range(match.range(at: 2), in: line) {
-            let startChar = line.distance(from: line.startIndex, to: wordRange.lowerBound)
-            let endChar = line.distance(from: line.startIndex, to: wordRange.upperBound)
+            let startChar = utf16Distance(in: line, from: line.startIndex, to: wordRange.lowerBound)
+            let endChar = utf16Distance(in: line, from: line.startIndex, to: wordRange.upperBound)
             return Range(
                 startLine: lineNumber,
                 startCharacter: startChar,

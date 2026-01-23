@@ -179,6 +179,10 @@ public struct Document: Sendable {
         let allLines = lines
         guard position.line >= 0, position.line < allLines.count else { return nil }
 
+        // Validate character is within line bounds
+        let lineLength = allLines[position.line].utf16.count
+        guard position.character >= 0, position.character <= lineLength else { return nil }
+
         var offset = 0
         for lineNum in 0..<position.line {
             offset += allLines[lineNum].utf16.count + 1 // +1 for newline
