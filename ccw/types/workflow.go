@@ -49,6 +49,21 @@ type Config struct {
 	GitRetryAttempts  int                `json:"git_retry_attempts,omitempty"`
 }
 
+// Issue analysis result for agent workflow
+type IssueAnalysisResult struct {
+	AnalysisID              string    `json:"analysis_id"`
+	Timestamp               time.Time `json:"timestamp"`
+	Success                 bool      `json:"success"`
+	ExecutiveSummary        string    `json:"executive_summary"`
+	ComplexityAssessment    string    `json:"complexity_assessment"`    // "simple", "moderate", "complex"
+	EstimatedFilesToChange  []string  `json:"estimated_files_to_change"`
+	ImplementationApproach  string    `json:"implementation_approach"`
+	KeyRequirements         []string  `json:"key_requirements"`
+	PotentialChallenges     []string  `json:"potential_challenges"`
+	TestingStrategy         string    `json:"testing_strategy"`
+	SwiftLanguageImpact     string    `json:"swift_language_impact"`
+}
+
 // Workflow and progress tracking models
 type WorkflowStep struct {
 	ID          string `json:"id"`

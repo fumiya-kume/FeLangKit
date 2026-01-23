@@ -57,6 +57,9 @@ func main() {
 	case "--trace":
 		handleTraceMode()
 		return
+	case "agent", "--agent":
+		handleAgentWorkflow()
+		return
 	}
 
 	// Default case: issue URL provided
@@ -162,6 +165,27 @@ func handleTraceMode() {
 
 	if err := ccwApp.ExecuteWorkflowWithRecovery(issueURL); err != nil {
 		log.Fatalf("Workflow failed: %v", err)
+	}
+}
+
+// handleAgentWorkflow runs the 8-step multi-agent workflow
+func handleAgentWorkflow() {
+	if len(os.Args) < 3 {
+		fmt.Println("Error: agent command requires an issue URL")
+		fmt.Println("Usage: ccw agent <issue-url>")
+		os.Exit(1)
+	}
+
+	issueURL := os.Args[2]
+
+	ccwApp, err := app.NewCCWApp()
+	if err != nil {
+		log.Fatalf("Failed to initialize application: %v", err)
+	}
+	defer ccwApp.Cleanup()
+
+	if err := ccwApp.ExecuteWorkflowWithAgents(issueURL); err != nil {
+		log.Fatalf("Agent workflow failed: %v", err)
 	}
 }
 

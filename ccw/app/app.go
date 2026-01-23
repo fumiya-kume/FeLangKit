@@ -24,10 +24,12 @@ type CCWApp struct {
 	validator      *git.QualityValidator
 	worktreeConfig *git.WorktreeConfig
 	sessionID      string
+	currentPRURL   string
 
 	// Component integrations
 	githubClient      *github.GitHubClient
 	claudeIntegration *claude.ClaudeIntegration
+	agentExecutor     *claude.AgentExecutor
 	commitGenerator   *commit.CommitMessageGenerator
 	prManager         *pr.PRManager
 	ui                *ui.UIManager
@@ -99,6 +101,10 @@ func NewCCWApp() (*CCWApp, error) {
 	// Initialize error store
 	errorStore := logging.NewErrorStore(filepath.Join(".", ".ccw", "errors.json"), 1000)
 
+	// Initialize agent executor
+	claudeExecutable := getEnvWithDefault("CLAUDE_EXECUTABLE", "/Users/kuu/.claude/local/claude")
+	agentExecutor := claude.NewAgentExecutor(claudeExecutable, "", logger)
+
 	logger.Info("application", "CCW application initialized", map[string]interface{}{
 		"session_id": sessionID,
 		"debug_mode": ccwConfig.DebugMode,
@@ -111,6 +117,7 @@ func NewCCWApp() (*CCWApp, error) {
 		validator:         validator,
 		githubClient:      githubClient,
 		claudeIntegration: claudeIntegration,
+		agentExecutor:     agentExecutor,
 		commitGenerator:   commitGenerator,
 		prManager:         prManager,
 		ui:                uiManager,
