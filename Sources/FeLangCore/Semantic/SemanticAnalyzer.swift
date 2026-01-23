@@ -764,22 +764,29 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             return .array(elementType: .unknown, dimensions: [0])
         }
 
-        // Infer type from first element
-        let firstElementType = inferExpressionType(elements[0], depth: depth)
+        // Infer type from first element and progressively widen
+        var commonElementType = inferExpressionType(elements[0], depth: depth)
 
-        // Check that all elements have compatible types
+        // Check that all elements have compatible types, widening as needed
         // TODO: Expression AST nodes don't currently store position information.
         // To provide accurate error positions, the AST would need to be extended
         // to include source locations on all nodes.
         for element in elements.dropFirst() {
             let elementType = inferExpressionType(element, depth: depth)
-            if !elementType.isCompatible(with: firstElementType) {
+            if elementType.canAssignTo(commonElementType) {
+                // Element type can be assigned to common type, no widening needed
+                continue
+            } else if commonElementType.canAssignTo(elementType) {
+                // Widen common type to element type (e.g., integer -> real)
+                commonElementType = elementType
+            } else if !elementType.isCompatible(with: commonElementType) {
+                // Types are incompatible, report error
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(firstElementType, elementType, operation: "array literal", position: position))
+                errorReporter.collect(.incompatibleTypes(commonElementType, elementType, operation: "array literal", position: position))
             }
         }
 
-        return .array(elementType: firstElementType, dimensions: [elements.count])
+        return .array(elementType: commonElementType, dimensions: [elements.count])
     }
 
     private func inferLiteralType(_ literal: Literal) -> FeType {

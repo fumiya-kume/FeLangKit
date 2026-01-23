@@ -77,16 +77,16 @@ public struct IncrementalTokenizer: Sendable {
         // Construct new text with the replacement
         let newFullText = originalText.replacingCharacters(in: range, with: newText)
 
-        // Calculate change metrics
-        let startOffset = originalText.distance(from: originalText.startIndex, to: range.lowerBound)
-        let endOffset = originalText.distance(from: originalText.startIndex, to: range.upperBound)
-        let changeLength = max(newText.count, endOffset - startOffset)
+        // Calculate change metrics using Unicode scalars (consistent with SourcePosition.offset)
+        let startOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.lowerBound)
+        let endOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.upperBound)
+        let changeLength = max(newText.unicodeScalars.count, endOffset - startOffset)
 
         // Decide whether to use incremental or full re-tokenization
         let useIncremental = shouldUseIncremental(
             previousTokens: previousTokens,
             changeLength: changeLength,
-            totalLength: newFullText.count
+            totalLength: newFullText.unicodeScalars.count
         )
 
         if useIncremental {
@@ -119,8 +119,9 @@ public struct IncrementalTokenizer: Sendable {
         originalText: String,
         newFullText: String
     ) throws -> TokenizeResult {
-        let startOffset = originalText.distance(from: originalText.startIndex, to: range.lowerBound)
-        let endOffset = originalText.distance(from: originalText.startIndex, to: range.upperBound)
+        // Use Unicode scalars for offset calculation (consistent with SourcePosition.offset)
+        let startOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.lowerBound)
+        let endOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.upperBound)
 
         // Step 1: Find the safe reparse boundaries
         let (safeStartIndex, safeStartOffset) = findSafeReparseStart(
@@ -174,8 +175,10 @@ public struct IncrementalTokenizer: Sendable {
 
         // Step 6: Adjust positions of tokens after the change
         let lineDelta = countNewlines(in: newText) - countNewlines(in: originalText[range])
+        // Calculate edit end line from actual edit position, not from token positions
+        let editEndPosition = calculatePosition(at: range.upperBound, in: originalText)
+        let editEndLine = editEndPosition.line
         // Calculate column delta for same-line edits
-        let editEndLine = previousTokens.isEmpty ? 0 : (safeEndIndex < previousTokens.count ? previousTokens[safeEndIndex].position.line : (previousTokens.last?.position.line ?? 0))
         let columnDelta = lineDelta == 0 ? offsetDelta : 0
         let adjustedSuffixTokens = adjustTokenPositionsAfterEdit(
             tokens: Array(previousTokens[safeEndIndex...]),
@@ -310,7 +313,7 @@ public struct IncrementalTokenizer: Sendable {
 
         // Handle case where edit is after all tokens
         if safeIndex >= tokens.count {
-            let endOffset = tokens.last.map { $0.position.offset + $0.lexeme.count } ?? 0
+            let endOffset = tokens.last.map { $0.position.offset + $0.lexeme.unicodeScalars.count } ?? 0
             return (tokens.count, endOffset)
         }
         let offset = safeIndex > 0 ? tokens[safeIndex].position.offset : 0
@@ -353,7 +356,7 @@ public struct IncrementalTokenizer: Sendable {
         }
 
         if safeIndex >= totalTokens {
-            return (totalTokens, tokens.last.map { $0.position.offset + $0.lexeme.count } ?? 0)
+            return (totalTokens, tokens.last.map { $0.position.offset + $0.lexeme.unicodeScalars.count } ?? 0)
         }
 
         let offset = tokens[safeIndex].position.offset
@@ -468,8 +471,9 @@ public struct IncrementalTokenizer: Sendable {
         in tokens: [Token],
         originalText: String
     ) -> AffectedRange {
-        let startOffset = originalText.distance(from: originalText.startIndex, to: range.lowerBound)
-        let endOffset = originalText.distance(from: originalText.startIndex, to: range.upperBound)
+        // Use Unicode scalars for offset calculation (consistent with SourcePosition.offset)
+        let startOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.lowerBound)
+        let endOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.upperBound)
 
         var startTokenIndex: Int?
         var endTokenIndex: Int?
