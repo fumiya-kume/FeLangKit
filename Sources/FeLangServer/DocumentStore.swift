@@ -58,20 +58,16 @@ public struct Document: Sendable {
         return utf16Index.samePosition(in: text)
     }
 
-    /// Convert UTF-16 offset for Substring
-    private func utf16ToStringIndex(_ text: Substring, utf16Offset: Int) -> String.Index? {
-        guard utf16Offset >= 0 else { return nil }
-        guard let utf16Index = text.utf16.index(text.utf16.startIndex, offsetBy: utf16Offset, limitedBy: text.utf16.endIndex) else {
-            return nil
-        }
-        return utf16Index.samePosition(in: String(text))
+    /// Convert Swift String.Index to UTF-16 offset (LSP standard)
+    private func stringIndexToUtf16(_ text: String, index: String.Index) -> Int {
+        return text.utf16.distance(from: text.utf16.startIndex, to: index)
     }
 
     /// Get text at a specific position.
     public mutating func textAt(line: Int, character: Int) -> Character? {
         let allLines = lines
         guard line >= 0, line < allLines.count else { return nil }
-        let lineText = allLines[line]
+        let lineText = String(allLines[line])
         // Convert UTF-16 offset (LSP standard) to Swift String.Index
         guard let idx = utf16ToStringIndex(lineText, utf16Offset: character),
               idx < lineText.endIndex else { return nil }
@@ -85,7 +81,7 @@ public struct Document: Sendable {
         guard range.end.line >= 0, range.end.line < allLines.count else { return nil }
 
         if range.start.line == range.end.line {
-            let line = allLines[range.start.line]
+            let line = String(allLines[range.start.line])
             // Convert UTF-16 offsets to Swift String.Index
             guard let start = utf16ToStringIndex(line, utf16Offset: range.start.character),
                   let end = utf16ToStringIndex(line, utf16Offset: range.end.character) else { return nil }
@@ -94,7 +90,7 @@ public struct Document: Sendable {
 
         var result = ""
         for lineNum in range.start.line...range.end.line {
-            let line = allLines[lineNum]
+            let line = String(allLines[lineNum])
             if lineNum == range.start.line {
                 if let start = utf16ToStringIndex(line, utf16Offset: range.start.character) {
                     result += line[start...]
@@ -149,17 +145,18 @@ public struct Document: Sendable {
         guard wordStart < wordEnd else { return nil }
 
         let word = String(lineText[wordStart..<wordEnd])
-        let startChar = lineText.distance(from: lineText.startIndex, to: wordStart)
-        let endChar = lineText.distance(from: lineText.startIndex, to: wordEnd)
+        // Convert String.Index to UTF-16 offset for LSP compliance
+        let startChar = stringIndexToUtf16(lineText, index: wordStart)
+        let endChar = stringIndexToUtf16(lineText, index: wordEnd)
 
         return (word, Range(startLine: line, startCharacter: startChar, endLine: line, endCharacter: endChar))
     }
 
-    /// Convert an offset to a position.
+    /// Convert an offset to a position (using UTF-16 semantics for LSP compliance).
     public mutating func positionFromOffset(_ offset: Int) -> Position? {
         var currentOffset = 0
         for (lineNum, line) in lines.enumerated() {
-            let lineLength = line.count + 1 // +1 for newline
+            let lineLength = line.utf16.count + 1 // +1 for newline
             if currentOffset + lineLength > offset {
                 return Position(line: lineNum, character: offset - currentOffset)
             }
@@ -168,14 +165,14 @@ public struct Document: Sendable {
         return nil
     }
 
-    /// Convert a position to an offset.
+    /// Convert a position to an offset (using UTF-16 semantics for LSP compliance).
     public mutating func offsetFromPosition(_ position: Position) -> Int? {
         let allLines = lines
         guard position.line >= 0, position.line < allLines.count else { return nil }
 
         var offset = 0
         for lineNum in 0..<position.line {
-            offset += allLines[lineNum].count + 1 // +1 for newline
+            offset += allLines[lineNum].utf16.count + 1 // +1 for newline
         }
         offset += position.character
         return offset
