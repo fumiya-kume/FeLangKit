@@ -187,14 +187,23 @@ public final class Environment: @unchecked Sendable {
     }
 
     /// Creates a snapshot of the current environment for closures, including constant metadata.
+    /// This correctly handles shadowing: if an outer constant is shadowed by an inner non-constant,
+    /// the captured binding will be non-constant.
     public func captureEnvironmentWithConstants() -> CapturedEnvironment {
         var capturedValues: [String: RuntimeValue] = [:]
         var capturedConstants: Set<String> = []
         for scope in scopes {
             for (name, value) in scope.variables {
                 capturedValues[name] = value
+                // Update constant status based on current scope's binding
+                // Inner scope shadows outer scope, so we update (not union) the constant flag
+                if scope.constants.contains(name) {
+                    capturedConstants.insert(name)
+                } else {
+                    // Non-constant in this scope shadows any outer constant
+                    capturedConstants.remove(name)
+                }
             }
-            capturedConstants.formUnion(scope.constants)
         }
         return CapturedEnvironment(values: capturedValues, constants: capturedConstants)
     }

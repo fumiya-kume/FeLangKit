@@ -53,16 +53,44 @@ public struct PrettyPrinter {
         let itemIndent = makeIndent(indent + 1)
         var result = prefix + "\n"
         for (index, item) in items.enumerated() {
-            // Handle multi-line items: strip existing indentation and re-indent consistently
-            // This handles items from recursive calls that may already have indentation
+            // Handle multi-line items: preserve relative indentation by removing only common indent
             let lines = item.split(separator: "\n", omittingEmptySubsequences: false)
+
+            // Calculate minimum common indentation across non-empty lines
+            let commonIndent = lines
+                .filter { !$0.isEmpty }
+                .map { line -> Int in
+                    var count = 0
+                    for char in line {
+                        if char == " " { count += 1 }
+                        else if char == "\t" { count += config.indentSize }
+                        else { break }
+                    }
+                    return count
+                }
+                .min() ?? 0
+
             for (lineIndex, line) in lines.enumerated() {
                 if lineIndex > 0 {
                     result += "\n"
                 }
-                // Strip leading whitespace and re-indent to ensure consistent indentation
                 let lineStr = String(line)
-                let trimmedLine = lineStr.drop(while: { $0 == " " || $0 == "\t" })
+                // Remove only the common indentation, preserving relative differences
+                var charsToRemove = 0
+                var removedIndent = 0
+                for char in lineStr {
+                    if removedIndent >= commonIndent { break }
+                    if char == " " {
+                        removedIndent += 1
+                        charsToRemove += 1
+                    } else if char == "\t" {
+                        removedIndent += config.indentSize
+                        charsToRemove += 1
+                    } else {
+                        break
+                    }
+                }
+                let trimmedLine = String(lineStr.dropFirst(charsToRemove))
                 result += itemIndent + trimmedLine
             }
             if index < items.count - 1 {
