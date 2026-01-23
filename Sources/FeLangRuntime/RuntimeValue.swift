@@ -146,6 +146,9 @@ public struct FunctionValue: Equatable, Sendable {
     /// The captured environment (closure)
     public let capturedEnvironment: [String: RuntimeValue]
 
+    /// The captured constants from the closure environment
+    public let capturedConstants: Set<String>
+
     /// The return type
     public let returnType: DataType?
 
@@ -154,12 +157,14 @@ public struct FunctionValue: Equatable, Sendable {
         parameters: [String],
         body: [Statement],
         capturedEnvironment: [String: RuntimeValue] = [:],
+        capturedConstants: Set<String> = [],
         returnType: DataType?
     ) {
         self.name = name
         self.parameters = parameters
         self.body = body
         self.capturedEnvironment = capturedEnvironment
+        self.capturedConstants = capturedConstants
         self.returnType = returnType
     }
 }
@@ -178,15 +183,20 @@ public struct ProcedureValue: Equatable, Sendable {
     /// The captured environment (closure)
     public let capturedEnvironment: [String: RuntimeValue]
 
+    /// The captured constants from the closure environment
+    public let capturedConstants: Set<String>
+
     public init(
         name: String,
         parameters: [String],
         body: [Statement],
-        capturedEnvironment: [String: RuntimeValue] = [:]
+        capturedEnvironment: [String: RuntimeValue] = [:],
+        capturedConstants: Set<String> = []
     ) {
         self.name = name
         self.parameters = parameters
         self.body = body
         self.capturedEnvironment = capturedEnvironment
+        self.capturedConstants = capturedConstants
     }
 }

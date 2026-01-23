@@ -130,11 +130,13 @@ public final class StatementExecutor: @unchecked Sendable {
 
     private func executeFunctionDeclaration(_ decl: FunctionDeclaration) throws {
         let parameterNames = decl.parameters.map { $0.name }
+        let captured = environment.captureEnvironmentWithConstants()
         let functionValue = FunctionValue(
             name: decl.name,
             parameters: parameterNames,
             body: decl.body,
-            capturedEnvironment: environment.captureEnvironment(),
+            capturedEnvironment: captured.values,
+            capturedConstants: captured.constants,
             returnType: decl.returnType
         )
         environment.define(decl.name, value: .function(functionValue))
@@ -142,11 +144,13 @@ public final class StatementExecutor: @unchecked Sendable {
 
     private func executeProcedureDeclaration(_ decl: ProcedureDeclaration) throws {
         let parameterNames = decl.parameters.map { $0.name }
+        let captured = environment.captureEnvironmentWithConstants()
         let procedureValue = ProcedureValue(
             name: decl.name,
             parameters: parameterNames,
             body: decl.body,
-            capturedEnvironment: environment.captureEnvironment()
+            capturedEnvironment: captured.values,
+            capturedConstants: captured.constants
         )
         environment.define(decl.name, value: .procedure(procedureValue))
     }
@@ -391,8 +395,8 @@ public final class StatementExecutor: @unchecked Sendable {
         try environment.pushScope()
         defer { environment.popScope() }
 
-        // Import captured environment
-        environment.importVariables(function.capturedEnvironment)
+        // Import captured environment with constant metadata preserved
+        environment.importVariables(function.capturedEnvironment, constants: function.capturedConstants)
 
         // Bind parameters
         for (param, arg) in zip(function.parameters, arguments) {
@@ -428,8 +432,8 @@ public final class StatementExecutor: @unchecked Sendable {
         try environment.pushScope()
         defer { environment.popScope() }
 
-        // Import captured environment
-        environment.importVariables(procedure.capturedEnvironment)
+        // Import captured environment with constant metadata preserved
+        environment.importVariables(procedure.capturedEnvironment, constants: procedure.capturedConstants)
 
         // Bind parameters
         for (param, arg) in zip(procedure.parameters, arguments) {

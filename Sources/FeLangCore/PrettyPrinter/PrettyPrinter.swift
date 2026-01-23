@@ -288,7 +288,7 @@ public struct PrettyPrinter {
             return indentStr + printReturnStatement(returnStmt)
 
         case .expressionStatement(let expr):
-            return indentStr + printExpression(expr)
+            return indentStr + printExpression(expr, indent: indent)
 
         case .breakStatement:
             return indentStr + "break"

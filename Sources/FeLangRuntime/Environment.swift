@@ -137,10 +137,35 @@ public final class Environment: @unchecked Sendable {
 
     // MARK: - Bulk Operations
 
+    /// Represents a captured environment snapshot including constant metadata.
+    public struct CapturedEnvironment {
+        public let values: [String: RuntimeValue]
+        public let constants: Set<String>
+
+        public init(values: [String: RuntimeValue], constants: Set<String>) {
+            self.values = values
+            self.constants = constants
+        }
+    }
+
     /// Imports variables from a dictionary into the current scope.
     public func importVariables(_ variables: [String: RuntimeValue]) {
         for (name, value) in variables {
             define(name, value: value)
+        }
+    }
+
+    /// Imports variables from a captured environment, preserving constant metadata.
+    public func importVariables(_ captured: CapturedEnvironment) {
+        for (name, value) in captured.values {
+            define(name, value: value, isConstant: captured.constants.contains(name))
+        }
+    }
+
+    /// Imports variables with constant metadata.
+    public func importVariables(_ variables: [String: RuntimeValue], constants: Set<String>) {
+        for (name, value) in variables {
+            define(name, value: value, isConstant: constants.contains(name))
         }
     }
 
@@ -149,7 +174,8 @@ public final class Environment: @unchecked Sendable {
         scopes.last?.variables ?? [:]
     }
 
-    /// Creates a snapshot of the current environment for closures.
+    /// Creates a snapshot of the current environment for closures (without constant metadata).
+    /// - Note: For closures that need to preserve constant semantics, use `captureEnvironmentWithConstants()` instead.
     public func captureEnvironment() -> [String: RuntimeValue] {
         var captured: [String: RuntimeValue] = [:]
         for scope in scopes {
@@ -158,6 +184,19 @@ public final class Environment: @unchecked Sendable {
             }
         }
         return captured
+    }
+
+    /// Creates a snapshot of the current environment for closures, including constant metadata.
+    public func captureEnvironmentWithConstants() -> CapturedEnvironment {
+        var capturedValues: [String: RuntimeValue] = [:]
+        var capturedConstants: Set<String> = []
+        for scope in scopes {
+            for (name, value) in scope.variables {
+                capturedValues[name] = value
+            }
+            capturedConstants.formUnion(scope.constants)
+        }
+        return CapturedEnvironment(values: capturedValues, constants: capturedConstants)
     }
 
     // MARK: - Debugging

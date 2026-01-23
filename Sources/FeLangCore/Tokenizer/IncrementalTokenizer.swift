@@ -136,17 +136,19 @@ public struct IncrementalTokenizer: Sendable {
         )
 
         // Step 2: Calculate the adjustment for positions after the change
+        // Use unicodeScalars.count consistently to match SourcePosition.offset semantics
         let originalChangeLength = endOffset - startOffset
-        let newChangeLength = newText.count
+        let newChangeLength = newText.unicodeScalars.count
         let offsetDelta = newChangeLength - originalChangeLength
 
         // Step 3: Extract the text region to re-tokenize
         let newStartOffset = safeStartOffset
         let newEndOffset = safeEndOffset + offsetDelta
+        let newFullTextScalarCount = newFullText.unicodeScalars.count
 
         guard newStartOffset >= 0 && newEndOffset >= 0 &&
               newStartOffset <= newEndOffset &&
-              newStartOffset <= newFullText.count && newEndOffset <= newFullText.count else {
+              newStartOffset <= newFullTextScalarCount && newEndOffset <= newFullTextScalarCount else {
             // Safety fallback to full re-tokenization
             return try fullRetokenize(
                 newFullText: newFullText,
@@ -157,8 +159,12 @@ public struct IncrementalTokenizer: Sendable {
             )
         }
 
-        let reparseStartIndex = newFullText.index(newFullText.startIndex, offsetBy: newStartOffset)
-        let reparseEndIndex = newFullText.index(newFullText.startIndex, offsetBy: min(newEndOffset, newFullText.count))
+        // Use unicodeScalars.index to match offset semantics, then convert to String.Index
+        let scalars = newFullText.unicodeScalars
+        let reparseStartScalarIndex = scalars.index(scalars.startIndex, offsetBy: newStartOffset)
+        let reparseEndScalarIndex = scalars.index(scalars.startIndex, offsetBy: min(newEndOffset, newFullTextScalarCount))
+        let reparseStartIndex = reparseStartScalarIndex.samePosition(in: newFullText) ?? newFullText.startIndex
+        let reparseEndIndex = reparseEndScalarIndex.samePosition(in: newFullText) ?? newFullText.endIndex
         let textToReparse = String(newFullText[reparseStartIndex..<reparseEndIndex])
 
         // Step 4: Tokenize only the affected region
@@ -569,7 +575,8 @@ public struct IncrementalTokenizer: Sendable {
     private func calculatePosition(at index: String.Index, in text: String) -> SourcePosition {
         var line = 1
         var column = 1
-        var offset = 0
+        // Calculate offset in Unicode scalars to match SourcePosition semantics
+        let offset = text.unicodeScalars.distance(from: text.unicodeScalars.startIndex, to: index)
 
         for char in text[..<index] {
             if char == "\n" {
@@ -578,7 +585,6 @@ public struct IncrementalTokenizer: Sendable {
             } else {
                 column += 1
             }
-            offset += 1
         }
 
         return SourcePosition(line: line, column: column, offset: offset)
