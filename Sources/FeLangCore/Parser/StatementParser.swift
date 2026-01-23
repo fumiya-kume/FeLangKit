@@ -95,6 +95,9 @@ public struct StatementParser {
         case .breakKeyword:
             _ = parser.advance() // consume 'break'
             return .breakStatement
+        case .continueKeyword:
+            _ = parser.advance() // consume 'continue'
+            return .continueStatement
         case .identifier:
             // Could be assignment or expression statement
             return try parseAssignmentOrExpressionStatement(&parser)
@@ -281,6 +284,7 @@ public struct StatementParser {
         let name: String
         let type: DataType
         let initialValue: Expression?
+        let position: SourcePosition?
     }
 
     /// Parses the common declaration pattern: keyword name: type [← value]
@@ -295,6 +299,9 @@ public struct StatementParser {
         keywordType: TokenType,
         requiresInitialValue: Bool
     ) throws -> DeclarationComponents {
+        // Get position from keyword token before consuming
+        let position = parser.peek()?.position
+
         // Consume declaration keyword
         try expectToken(&parser, keywordType)
 
@@ -317,7 +324,7 @@ public struct StatementParser {
             throw StatementParsingError.expectedToken(.assign)
         }
 
-        return DeclarationComponents(name: name, type: type, initialValue: initialValue)
+        return DeclarationComponents(name: name, type: type, initialValue: initialValue, position: position)
     }
 
     /// Parses a variable declaration (変数 name: type ← initialValue).
@@ -331,7 +338,8 @@ public struct StatementParser {
         return VariableDeclaration(
             name: components.name,
             type: components.type,
-            initialValue: components.initialValue
+            initialValue: components.initialValue,
+            position: components.position
         )
     }
 
@@ -347,7 +355,8 @@ public struct StatementParser {
         return ConstantDeclaration(
             name: components.name,
             type: components.type,
-            initialValue: components.initialValue!
+            initialValue: components.initialValue!,
+            position: components.position
         )
     }
 
@@ -355,6 +364,9 @@ public struct StatementParser {
 
     /// Parses a function declaration.
     private func parseFunctionDeclaration(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> FunctionDeclaration {
+        // Get position from function keyword before consuming
+        let position = parser.peek()?.position
+
         try expectToken(&parser, .functionKeyword) // consume 'function'
 
         guard let nameToken = parser.advance(), nameToken.type == .identifier else {
@@ -378,11 +390,21 @@ public struct StatementParser {
 
         try expectToken(&parser, .endfunctionKeyword) // consume 'endfunction'
 
-        return FunctionDeclaration(name: name, parameters: parameters, returnType: returnType, localVariables: localVariables, body: body)
+        return FunctionDeclaration(
+            name: name,
+            parameters: parameters,
+            returnType: returnType,
+            localVariables: localVariables,
+            body: body,
+            position: position
+        )
     }
 
     /// Parses a procedure declaration.
     private func parseProcedureDeclaration(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> ProcedureDeclaration {
+        // Get position from procedure keyword before consuming
+        let position = parser.peek()?.position
+
         try expectToken(&parser, .procedureKeyword) // consume 'procedure'
 
         guard let nameToken = parser.advance(), nameToken.type == .identifier else {
@@ -399,7 +421,13 @@ public struct StatementParser {
 
         try expectToken(&parser, .endprocedureKeyword) // consume 'endprocedure'
 
-        return ProcedureDeclaration(name: name, parameters: parameters, localVariables: localVariables, body: body)
+        return ProcedureDeclaration(
+            name: name,
+            parameters: parameters,
+            localVariables: localVariables,
+            body: body,
+            position: position
+        )
     }
 
     /// Parses a return statement.
@@ -734,7 +762,8 @@ public struct StatementParser {
 
         // Flow control statements
         case .returnKeyword,    // RETURN statements (with or without values)
-             .breakKeyword:     // BREAK statements for loop termination
+             .breakKeyword,     // BREAK statements for loop termination
+             .continueKeyword:  // CONTINUE statements to skip to next iteration
             return true
 
         default:

@@ -14,7 +14,8 @@ struct VisitableTests {
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
-            visitFunctionCall: { _, _ in "function_call" }
+            visitFunctionCall: { _, _ in "function_call" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         let expr = Expression.literal(.integer(42))
@@ -39,6 +40,7 @@ struct VisitableTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 
@@ -69,7 +71,8 @@ struct VisitableTests {
             visitUnary: { op, _ in "unary(\(op.rawValue))" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, field in "field_access(\(field))" },
-            visitFunctionCall: { function, _ in "function_call(\(function))" }
+            visitFunctionCall: { function, _ in "function_call(\(function))" },
+            visitArrayLiteral: { elements in "array_literal(\(elements.count))" }
         )
 
         // Test all expression types with convenience method
@@ -105,6 +108,7 @@ struct VisitableTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 
@@ -161,7 +165,8 @@ struct VisitableTests {
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
-            visitFunctionCall: { _, _ in "function_call" }
+            visitFunctionCall: { _, _ in "function_call" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         let stmtVisitor = StatementVisitor<String>(
@@ -176,6 +181,7 @@ struct VisitableTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 
@@ -198,7 +204,8 @@ struct VisitableTests {
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
-            visitFunctionCall: { _, _ in "function_call" }
+            visitFunctionCall: { _, _ in "function_call" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         let stmtVisitor = StatementVisitor<String>(
@@ -213,6 +220,7 @@ struct VisitableTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 
@@ -236,7 +244,8 @@ struct VisitableTests {
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
-            visitFunctionCall: { _, _ in "function_call" }
+            visitFunctionCall: { _, _ in "function_call" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         let stmtVisitor = StatementVisitor<String>(
@@ -251,6 +260,7 @@ struct VisitableTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 

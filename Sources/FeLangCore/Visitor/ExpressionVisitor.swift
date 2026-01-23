@@ -69,6 +69,10 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
     ///   - arguments: The argument expressions
     public let visitFunctionCall: @Sendable (String, [Expression]) -> Result
 
+    /// Visits array literal expressions.
+    /// - Parameter elements: The array elements
+    public let visitArrayLiteral: @Sendable ([Expression]) -> Result
+
     // MARK: - Initialization
 
     /// Creates a new expression visitor with the specified visit closures.
@@ -79,7 +83,8 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
         visitUnary: @escaping @Sendable (UnaryOperator, Expression) -> Result,
         visitArrayAccess: @escaping @Sendable (Expression, Expression) -> Result,
         visitFieldAccess: @escaping @Sendable (Expression, String) -> Result,
-        visitFunctionCall: @escaping @Sendable (String, [Expression]) -> Result
+        visitFunctionCall: @escaping @Sendable (String, [Expression]) -> Result,
+        visitArrayLiteral: @escaping @Sendable ([Expression]) -> Result
     ) {
         self.visitLiteral = visitLiteral
         self.visitIdentifier = visitIdentifier
@@ -88,6 +93,7 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
         self.visitArrayAccess = visitArrayAccess
         self.visitFieldAccess = visitFieldAccess
         self.visitFunctionCall = visitFunctionCall
+        self.visitArrayLiteral = visitArrayLiteral
     }
 
     // MARK: - Visit Method
@@ -111,6 +117,8 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
             return visitFieldAccess(object, field)
         case .functionCall(let function, let arguments):
             return visitFunctionCall(function, arguments)
+        case .arrayLiteral(let elements):
+            return visitArrayLiteral(elements)
         }
     }
 }

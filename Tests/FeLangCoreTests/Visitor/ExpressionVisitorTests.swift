@@ -22,7 +22,8 @@ struct ExpressionVisitorTests {
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
-            visitFunctionCall: { _, _ in "function_call" }
+            visitFunctionCall: { _, _ in "function_call" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         #expect(visitor.visit(.literal(.integer(42))) == "int(42)")
@@ -40,7 +41,8 @@ struct ExpressionVisitorTests {
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
-            visitFunctionCall: { _, _ in "function_call" }
+            visitFunctionCall: { _, _ in "function_call" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         #expect(visitor.visit(.identifier("variable")) == "id(variable)")
@@ -55,7 +57,8 @@ struct ExpressionVisitorTests {
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
-            visitFunctionCall: { _, _ in "function_call" }
+            visitFunctionCall: { _, _ in "function_call" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         let expr = Expression.binary(.add, .literal(.integer(1)), .literal(.integer(2)))
@@ -76,7 +79,8 @@ struct ExpressionVisitorTests {
             visitUnary: { op, operand in "unary(\(op.rawValue), \(operand))" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
-            visitFunctionCall: { _, _ in "function_call" }
+            visitFunctionCall: { _, _ in "function_call" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         let expr = Expression.unary(.not, .literal(.boolean(true)))
@@ -93,7 +97,8 @@ struct ExpressionVisitorTests {
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { array, index in "array_access(\(array), \(index))" },
             visitFieldAccess: { _, _ in "field_access" },
-            visitFunctionCall: { _, _ in "function_call" }
+            visitFunctionCall: { _, _ in "function_call" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         let expr = Expression.arrayAccess(.identifier("arr"), .literal(.integer(0)))
@@ -110,7 +115,8 @@ struct ExpressionVisitorTests {
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { object, field in "field_access(\(object), \(field))" },
-            visitFunctionCall: { _, _ in "function_call" }
+            visitFunctionCall: { _, _ in "function_call" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         let expr = Expression.fieldAccess(.identifier("obj"), "property")
@@ -128,7 +134,8 @@ struct ExpressionVisitorTests {
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
-            visitFunctionCall: { function, arguments in "function_call(\(function), \(arguments.count) args)" }
+            visitFunctionCall: { function, arguments in "function_call(\(function), \(arguments.count) args)" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         let expr = Expression.functionCall("func", [.literal(.integer(1)), .identifier("x")])
@@ -163,6 +170,9 @@ struct ExpressionVisitorTests {
             case .functionCall(let function, let arguments):
                 let argStrings = arguments.map(stringifyExpression)
                 return "\(function)(\(argStrings.joined(separator: ", ")))"
+            case .arrayLiteral(let elements):
+                let elementStrings = elements.map(stringifyExpression)
+                return "[\(elementStrings.joined(separator: ", "))]"
             }
         }
 
@@ -202,7 +212,8 @@ struct ExpressionVisitorTests {
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
-            visitFunctionCall: { _, _ in "function_call" }
+            visitFunctionCall: { _, _ in "function_call" },
+            visitArrayLiteral: { _ in "array_literal" }
         )
 
         let expr = Expression.literal(.integer(42))
@@ -269,6 +280,15 @@ struct ExpressionVisitorTests {
                     }
                 }
                 return result
+            case .arrayLiteral(let elements):
+                var result = ["array_literal": 1]
+                for element in elements {
+                    let elementCounts = countExpressionTypes(element)
+                    for (key, value) in elementCounts {
+                        result[key, default: 0] += value
+                    }
+                }
+                return result
             }
         }
 
@@ -304,6 +324,8 @@ struct ExpressionVisitorTests {
                 return countNodes(object) + 1
             case .functionCall(_, let arguments):
                 return arguments.map(countNodes).reduce(1, +)
+            case .arrayLiteral(let elements):
+                return elements.map(countNodes).reduce(1, +)
             }
         }
 

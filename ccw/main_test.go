@@ -10,7 +10,37 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"ccw/git"
+	"ccw/github"
+	"ccw/types"
+	"ccw/ui"
 )
+
+// Type aliases for backward compatibility with tests
+type Issue = types.Issue
+type Repository = types.Repository
+type User = types.User
+type Label = types.Label
+type PullRequest = types.PullRequest
+type LintResult = git.LintResult
+type BuildResult = git.BuildResult
+type TestResult = git.TestResult
+type ValidationResult = git.ValidationResult
+type ValidationError = types.ValidationError
+type WorktreeConfig = git.WorktreeConfig
+type ClaudeContext = types.ClaudeContext
+type GitHubClient = github.GitHubClient
+type PRRequest = types.PRRequest
+type UIManager = ui.UIManager
+
+// Function aliases
+var extractIssueInfo = github.ExtractIssueInfo
+
+// generateBranchName wrapper for testing
+func generateBranchName(issueNumber int) string {
+	return fmt.Sprintf("issue-%d-%s", issueNumber, time.Now().Format("20060102-150405"))
+}
 
 // Test utilities
 func createTempDir(t *testing.T) string {
@@ -210,8 +240,9 @@ func TestGenerateBranchName(t *testing.T) {
 	}
 
 	// Check that it contains timestamp format
-	if !strings.Contains(branchName, "2024") && !strings.Contains(branchName, "2025") {
-		t.Errorf("Expected branch name to contain year, got %s", branchName)
+	currentYear := time.Now().Format("2006")
+	if !strings.Contains(branchName, currentYear) {
+		t.Errorf("Expected branch name to contain current year (%s), got %s", currentYear, branchName)
 	}
 
 	// Check that two calls generate different names

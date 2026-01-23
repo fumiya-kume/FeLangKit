@@ -48,6 +48,11 @@ public enum ASTWalker {
                 arguments.reduce(Set<String>()) { result, arg in
                     result.union(collectIdentifiers(from: arg))
                 }
+            },
+            visitArrayLiteral: { elements in
+                elements.reduce(Set<String>()) { result, element in
+                    result.union(collectIdentifiers(from: element))
+                }
             }
         )
 
@@ -77,6 +82,11 @@ public enum ASTWalker {
             visitFunctionCall: { _, arguments in
                 1 + arguments.reduce(0) { result, arg in
                     result + countNodes(in: arg)
+                }
+            },
+            visitArrayLiteral: { elements in
+                1 + elements.reduce(0) { result, element in
+                    result + countNodes(in: element)
                 }
             }
         )
@@ -119,6 +129,10 @@ public enum ASTWalker {
             visitFunctionCall: { name, arguments in
                 let transformedArguments = arguments.map { transformExpression($0, transform) }
                 return transform(.functionCall(name, transformedArguments))
+            },
+            visitArrayLiteral: { elements in
+                let transformedElements = elements.map { transformExpression($0, transform) }
+                return transform(.arrayLiteral(transformedElements))
             }
         )
 
@@ -230,6 +244,9 @@ public enum ASTWalker {
             visitBreakStatement: {
                 return Set()
             },
+            visitContinueStatement: {
+                return Set()
+            },
             visitBlock: { statements in
                 return statements.reduce(Set<String>()) { result, stmt in
                     result.union(collectIdentifiers(from: stmt))
@@ -328,6 +345,9 @@ public enum ASTWalker {
                 return 1 + countNodes(in: expr)
             },
             visitBreakStatement: {
+                return 1
+            },
+            visitContinueStatement: {
                 return 1
             },
             visitBlock: { statements in
@@ -471,6 +491,9 @@ public enum ASTWalker {
             },
             visitBreakStatement: {
                 return .breakStatement
+            },
+            visitContinueStatement: {
+                return .continueStatement
             },
             visitBlock: { statements in
                 let transformedStatements = statements.map { transformExpressions(in: $0, transform) }

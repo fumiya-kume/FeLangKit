@@ -547,8 +547,9 @@ func EnableTraceMode() {
 func PrintUsage() {
 	fmt.Printf(`CCW - Claude Code Worktree Automation Tool
 
-Usage: 
+Usage:
   ccw <github-issue-url>                  Process a specific GitHub issue
+  ccw agent <github-issue-url>            Run 8-step multi-agent workflow
   ccw list [repo-url] [options]           List and select issues interactively
   ccw doctor                              Run system diagnostic checks
 
@@ -564,6 +565,7 @@ List Command Options:
 
 Examples:
   ccw https://github.com/owner/repo/issues/123
+  ccw agent https://github.com/owner/repo/issues/123 # Run multi-agent workflow
   ccw list                                           # Use current repository
   ccw list owner/repo                                # Use specific repository
   ccw list --state open --limit 10                  # Use current repository with options

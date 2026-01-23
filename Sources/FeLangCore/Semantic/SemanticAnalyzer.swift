@@ -137,7 +137,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 collectSymbolsFromStatement(stmt)
             }
             symbolTable.popScope()
-        case .assignment, .expressionStatement, .returnStatement, .breakStatement:
+        case .assignment, .expressionStatement, .returnStatement, .breakStatement, .continueStatement:
             // These don't declare new symbols
             break
         }
@@ -145,7 +145,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
     private func collectSymbolsFromVariableDeclaration(_ decl: VariableDeclaration) {
         let feType = convertDataTypeToFeType(decl.type)
-        let position = SourcePosition(line: 0, column: 0, offset: 0) // TODO: Add real position tracking
+        let position = decl.position ?? SourcePosition(line: 0, column: 0, offset: 0)
         let isInitialized = decl.initialValue != nil
 
         let result = symbolTable.declare(
@@ -163,7 +163,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
     private func collectSymbolsFromConstantDeclaration(_ decl: ConstantDeclaration) {
         let feType = convertDataTypeToFeType(decl.type)
-        let position = SourcePosition(line: 0, column: 0, offset: 0) // TODO: Add real position tracking
+        let position = decl.position ?? SourcePosition(line: 0, column: 0, offset: 0)
 
         let result = symbolTable.declare(
             name: decl.name,
@@ -179,7 +179,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     }
 
     private func collectSymbolsFromFunctionDeclaration(_ decl: FunctionDeclaration) {
-        let position = SourcePosition(line: 0, column: 0, offset: 0)
+        let position = decl.position ?? SourcePosition(line: 0, column: 0, offset: 0)
         let returnType = decl.returnType.map(convertDataTypeToFeType)
         let paramTypes = decl.parameters.map { convertDataTypeToFeType($0.type) }
         let functionType = FeType.function(parameters: paramTypes, returnType: returnType)
@@ -237,7 +237,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     }
 
     private func collectSymbolsFromProcedureDeclaration(_ decl: ProcedureDeclaration) {
-        let position = SourcePosition(line: 0, column: 0, offset: 0)
+        let position = decl.position ?? SourcePosition(line: 0, column: 0, offset: 0)
         let paramTypes = decl.parameters.map { convertDataTypeToFeType($0.type) }
         let procedureType = FeType.function(parameters: paramTypes, returnType: nil)
 
@@ -412,7 +412,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 typeCheckStatement(stmt)
             }
             symbolTable.popScope()
-        case .breakStatement:
+        case .breakStatement, .continueStatement:
             // No type checking needed
             break
         }
@@ -753,7 +753,40 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             return inferFieldAccessType(object, field: field, depth: depth + 1)
         case .functionCall(let name, let arguments):
             return inferFunctionCallType(name, arguments: arguments, depth: depth + 1)
+        case .arrayLiteral(let elements):
+            return inferArrayLiteralType(elements, depth: depth + 1)
         }
+    }
+
+    private func inferArrayLiteralType(_ elements: [Expression], depth: Int) -> FeType {
+        guard !elements.isEmpty else {
+            // Empty array defaults to array of unknown
+            return .array(elementType: .unknown, dimensions: [0])
+        }
+
+        // Infer type from first element and progressively widen
+        var commonElementType = inferExpressionType(elements[0], depth: depth)
+
+        // Check that all elements have compatible types, widening as needed
+        // TODO: Expression AST nodes don't currently store position information.
+        // To provide accurate error positions, the AST would need to be extended
+        // to include source locations on all nodes.
+        for element in elements.dropFirst() {
+            let elementType = inferExpressionType(element, depth: depth)
+            if elementType.canAssignTo(commonElementType) {
+                // Element type can be assigned to common type, no widening needed
+                continue
+            } else if commonElementType.canAssignTo(elementType) {
+                // Widen common type to element type (e.g., integer -> real)
+                commonElementType = elementType
+            } else if !elementType.isCompatible(with: commonElementType) {
+                // Types are incompatible, report error
+                let position = SourcePosition(line: 0, column: 0, offset: 0)
+                errorReporter.collect(.incompatibleTypes(commonElementType, elementType, operation: "array literal", position: position))
+            }
+        }
+
+        return .array(elementType: commonElementType, dimensions: [elements.count])
     }
 
     private func inferLiteralType(_ literal: Literal) -> FeType {
@@ -989,6 +1022,8 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         switch statement {
         case .breakStatement:
             validateBreakStatement()
+        case .continueStatement:
+            validateContinueStatement()
         case .returnStatement(let stmt):
             validateReturnStatement(stmt)
         case .ifStatement(let stmt):
@@ -1017,6 +1052,13 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         if !symbolTable.isInLoop {
             let position = SourcePosition(line: 0, column: 0, offset: 0)
             errorReporter.collect(.breakOutsideLoop(position: position))
+        }
+    }
+
+    private func validateContinueStatement() {
+        if !symbolTable.isInLoop {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.continueOutsideLoop(position: position))
         }
     }
 

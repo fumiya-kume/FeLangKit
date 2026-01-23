@@ -58,6 +58,9 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
     /// Visits break statements.
     public let visitBreakStatement: @Sendable () -> Result
 
+    /// Visits continue statements.
+    public let visitContinueStatement: @Sendable () -> Result
+
     /// Visits block statements.
     /// - Parameter statements: The list of statements in the block
     public let visitBlock: @Sendable ([Statement]) -> Result
@@ -77,6 +80,7 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         visitReturnStatement: @escaping @Sendable (ReturnStatement) -> Result,
         visitExpressionStatement: @escaping @Sendable (Expression) -> Result,
         visitBreakStatement: @escaping @Sendable () -> Result,
+        visitContinueStatement: @escaping @Sendable () -> Result,
         visitBlock: @escaping @Sendable ([Statement]) -> Result
     ) {
         self.visitIfStatement = visitIfStatement
@@ -90,6 +94,7 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         self.visitReturnStatement = visitReturnStatement
         self.visitExpressionStatement = visitExpressionStatement
         self.visitBreakStatement = visitBreakStatement
+        self.visitContinueStatement = visitContinueStatement
         self.visitBlock = visitBlock
     }
 
@@ -122,6 +127,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
             return visitExpressionStatement(expr)
         case .breakStatement:
             return visitBreakStatement()
+        case .continueStatement:
+            return visitContinueStatement()
         case .block(let statements):
             return visitBlock(statements)
         }
