@@ -11,7 +11,7 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "if", kind: .keyword, detail: "Conditional statement", insertText: "if "),
         CompletionItem(label: "then", kind: .keyword, detail: "Then clause"),
         CompletionItem(label: "else", kind: .keyword, detail: "Else clause"),
-        CompletionItem(label: "elseif", kind: .keyword, detail: "Else-if clause", insertText: "elseif "),
+        CompletionItem(label: "elif", kind: .keyword, detail: "Else-if clause", insertText: "elif "),
         CompletionItem(label: "endif", kind: .keyword, detail: "End if statement"),
 
         // Loops
@@ -265,7 +265,7 @@ public struct CompletionProvider: Sendable {
     private func isKeyword(_ word: String) -> Bool {
         let keywords = Set([
             // English keywords
-            "if", "then", "else", "elseif", "endif",
+            "if", "then", "else", "elif", "endif",
             "while", "do", "endwhile",
             "for", "to", "step", "endfor", "in",
             "function", "endfunction", "procedure", "endprocedure",

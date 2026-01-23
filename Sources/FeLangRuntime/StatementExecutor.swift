@@ -170,18 +170,20 @@ public final class StatementExecutor: @unchecked Sendable {
             throw RuntimeError.generic(message: "Cannot assign to complex array expression")
         }
 
-        guard case .integer(let index) = try evaluator.evaluate(access.index) else {
+        let indexValue = try evaluator.evaluate(access.index)
+        guard case .integer(let index) = indexValue else {
             throw RuntimeError.typeMismatch(
                 expected: "integer",
-                actual: "other",
+                actual: indexValue.typeName,
                 operation: "array index"
             )
         }
 
-        guard case .array(var elements) = try environment.get(arrayName) else {
+        let arrayValue = try environment.get(arrayName)
+        guard case .array(var elements) = arrayValue else {
             throw RuntimeError.typeMismatch(
                 expected: "array",
-                actual: "other",
+                actual: arrayValue.typeName,
                 operation: "array assignment"
             )
         }
@@ -435,7 +437,10 @@ public final class StatementExecutor: @unchecked Sendable {
         }
 
         // Execute body
-        _ = try execute(procedure.body)
+        let result = try execute(procedure.body)
+        if case .returnValue(let value) = result, value != nil {
+            throw RuntimeError.returnInVoidContext
+        }
     }
 
     // MARK: - Helper Methods

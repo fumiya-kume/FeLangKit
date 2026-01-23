@@ -53,7 +53,14 @@ public struct PrettyPrinter {
         let itemIndent = makeIndent(indent + 1)
         var result = prefix + "\n"
         for (index, item) in items.enumerated() {
-            result += itemIndent + item
+            // Add indentation to each line within the item
+            let indentedItem = item.split(separator: "\n", omittingEmptySubsequences: false)
+                .enumerated()
+                .map { lineIndex, line in
+                    lineIndex == 0 ? String(line) : itemIndent + String(line)
+                }
+                .joined(separator: "\n")
+            result += itemIndent + indentedItem
             if index < items.count - 1 {
                 result += separator.trimmingCharacters(in: .whitespaces)
             }

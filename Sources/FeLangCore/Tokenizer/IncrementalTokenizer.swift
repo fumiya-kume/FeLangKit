@@ -80,7 +80,7 @@ public struct IncrementalTokenizer: Sendable {
         // Calculate change metrics
         let startOffset = originalText.distance(from: originalText.startIndex, to: range.lowerBound)
         let endOffset = originalText.distance(from: originalText.startIndex, to: range.upperBound)
-        let changeLength = newText.count + (endOffset - startOffset)
+        let changeLength = max(newText.count, endOffset - startOffset)
 
         // Decide whether to use incremental or full re-tokenization
         let useIncremental = shouldUseIncremental(
@@ -144,6 +144,7 @@ public struct IncrementalTokenizer: Sendable {
         let newEndOffset = safeEndOffset + offsetDelta
 
         guard newStartOffset >= 0 && newEndOffset >= 0 &&
+              newStartOffset <= newEndOffset &&
               newStartOffset <= newFullText.count && newEndOffset <= newFullText.count else {
             // Safety fallback to full re-tokenization
             return try fullRetokenize(
