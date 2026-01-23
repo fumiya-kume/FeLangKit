@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -21,7 +22,7 @@ type AgentExecutor struct {
 // NewAgentExecutor creates a new agent executor
 func NewAgentExecutor(claudeExecutable, workingDir string, logger *logging.Logger) *AgentExecutor {
 	if claudeExecutable == "" {
-		claudeExecutable = "/Users/kuu/.claude/local/claude"
+		claudeExecutable = "claude"
 	}
 	
 	return &AgentExecutor{
@@ -105,16 +106,17 @@ func (ae *AgentExecutor) ExecuteInteractiveAgent(agentType, contextPath string, 
 	ctx, cancel := context.WithTimeout(context.Background(), maxTime)
 	defer cancel()
 
-	// Create command for interactive mode with the context as input
-	cmd := exec.CommandContext(ctx, ae.claudeExecutable, string(contextData))
+	// Create command for interactive mode
+	// Pass context via stdin to avoid OS argument length limits (macOS ~256KB, Linux ~2MB)
+	cmd := exec.CommandContext(ctx, ae.claudeExecutable)
 	if ae.workingDir != "" {
 		cmd.Dir = ae.workingDir
 	}
 
-	// Set up interactive mode
+	// Set up interactive mode with context piped first, then user input
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
+	cmd.Stdin = io.MultiReader(strings.NewReader(string(contextData)+"\n"), os.Stdin)
 
 	ae.logger.Info("agent", fmt.Sprintf("Launching %s agent in interactive mode...", agentType), nil)
 

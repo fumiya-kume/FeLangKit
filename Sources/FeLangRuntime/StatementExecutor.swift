@@ -272,7 +272,18 @@ public final class StatementExecutor: @unchecked Sendable {
             )
         }
 
-        let step = rangeFor.step.map { _ in 1 } ?? 1
+        var step = 1
+        if let stepExpr = rangeFor.step {
+            let stepValue = try evaluator.evaluate(stepExpr)
+            guard case .integer(let stepInt) = stepValue, stepInt > 0 else {
+                throw RuntimeError.typeMismatch(
+                    expected: "positive integer",
+                    actual: stepValue.typeName,
+                    operation: "for loop step"
+                )
+            }
+            step = stepInt
+        }
         let range = start <= end ? stride(from: start, through: end, by: step)
                                  : stride(from: start, through: end, by: -step)
 

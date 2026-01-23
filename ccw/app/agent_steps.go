@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"ccw/git"
@@ -90,7 +91,12 @@ func (app *CCWApp) runVerificationAndReviewAgent(issue *types.Issue, analysis *t
 
 	// Save review result for reference
 	reviewPath := filepath.Join(app.worktreeConfig.WorktreePath, ".pr-review.md")
-	os.WriteFile(reviewPath, []byte(reviewResult), 0644)
+	if err := os.WriteFile(reviewPath, []byte(reviewResult), 0644); err != nil {
+		app.logger.Warn("workflow", "failed to save PR review", map[string]interface{}{
+			"path":  reviewPath,
+			"error": err.Error(),
+		})
+	}
 
 	if validationResult.Success {
 		app.ui.Success("Verification + PR Review Agent completed - All checks passed")
@@ -177,11 +183,10 @@ func (app *CCWApp) runPRCreationWithGH(prTitle, prDescription string) error {
 		return fmt.Errorf("failed to push branch: %w", err)
 	}
 
-	// Use gh CLI for PR creation
+	// Use gh CLI for PR creation (let gh use repository's default branch)
 	cmd := exec.Command("gh", "pr", "create",
 		"--title", prTitle,
-		"--body", prDescription,
-		"--base", "master")
+		"--body", prDescription)
 	cmd.Dir = app.worktreeConfig.WorktreePath
 
 	output, err := cmd.CombinedOutput()
@@ -211,7 +216,10 @@ func (app *CCWApp) runPRMonitoringAgent(issue *types.Issue, owner, repo string) 
 	// Start CI monitoring with existing goroutine system
 	watchChannel := app.prManager.WatchPRChecksWithGoroutine(ctx, app.currentPRURL)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		// Process real-time updates
 		for update := range watchChannel.Updates {
 			app.handleCIUpdateWithAgent(update, issue)
@@ -221,8 +229,10 @@ func (app *CCWApp) runPRMonitoringAgent(issue *types.Issue, owner, repo string) 
 	// Wait for completion
 	select {
 	case result := <-watchChannel.Completion:
+		wg.Wait()
 		return app.handleCICompletionWithAgent(result, issue)
 	case <-ctx.Done():
+		wg.Wait()
 		app.ui.Warning("CI monitoring timed out")
 		return nil
 	}
@@ -352,7 +362,10 @@ func (app *CCWApp) parseCommitMessageFromResult(result string, issue *types.Issu
 
 	var commit CommitJSON
 	if err := json.Unmarshal([]byte(result), &commit); err == nil && len(commit.CommitMessages) > 0 {
-		return commit.CommitMessages[0].Message
+		msg := strings.TrimSpace(commit.CommitMessages[0].Message)
+		if msg != "" {
+			return msg
+		}
 	}
 
 	// Fallback to simple conventional commit format

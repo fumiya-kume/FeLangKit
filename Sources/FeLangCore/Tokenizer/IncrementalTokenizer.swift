@@ -143,7 +143,8 @@ public struct IncrementalTokenizer: Sendable {
         let newStartOffset = safeStartOffset
         let newEndOffset = safeEndOffset + offsetDelta
 
-        guard newStartOffset <= newFullText.count && newEndOffset <= newFullText.count else {
+        guard newStartOffset >= 0 && newEndOffset >= 0 &&
+              newStartOffset <= newFullText.count && newEndOffset <= newFullText.count else {
             // Safety fallback to full re-tokenization
             return try fullRetokenize(
                 newFullText: newFullText,

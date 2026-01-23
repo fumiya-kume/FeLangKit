@@ -100,9 +100,13 @@ public struct Document: Sendable {
         let allLines = lines
         guard line >= 0, line < allLines.count else { return nil }
         let lineText = String(allLines[line])
-        guard character >= 0, character <= lineText.count else { return nil }
 
-        let startIdx = lineText.index(lineText.startIndex, offsetBy: character)
+        // Convert UTF-16 offset (LSP standard) to Swift String.Index
+        guard character >= 0 else { return nil }
+        guard let utf16Index = lineText.utf16.index(lineText.utf16.startIndex, offsetBy: character, limitedBy: lineText.utf16.endIndex),
+              let startIdx = utf16Index.samePosition(in: lineText) else {
+            return nil
+        }
 
         // Find word boundaries
         var wordStart = startIdx

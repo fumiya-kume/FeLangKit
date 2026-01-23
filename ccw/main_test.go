@@ -240,8 +240,9 @@ func TestGenerateBranchName(t *testing.T) {
 	}
 
 	// Check that it contains timestamp format
-	if !strings.Contains(branchName, "2024") && !strings.Contains(branchName, "2025") {
-		t.Errorf("Expected branch name to contain year, got %s", branchName)
+	currentYear := time.Now().Format("2006")
+	if !strings.Contains(branchName, currentYear) {
+		t.Errorf("Expected branch name to contain current year (%s), got %s", currentYear, branchName)
 	}
 
 	// Check that two calls generate different names

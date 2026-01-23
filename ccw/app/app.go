@@ -102,7 +102,7 @@ func NewCCWApp() (*CCWApp, error) {
 	errorStore := logging.NewErrorStore(filepath.Join(".", ".ccw", "errors.json"), 1000)
 
 	// Initialize agent executor
-	claudeExecutable := getEnvWithDefault("CLAUDE_EXECUTABLE", "/Users/kuu/.claude/local/claude")
+	claudeExecutable := getEnvWithDefault("CLAUDE_EXECUTABLE", "claude")
 	agentExecutor := claude.NewAgentExecutor(claudeExecutable, "", logger)
 
 	logger.Info("application", "CCW application initialized", map[string]interface{}{
