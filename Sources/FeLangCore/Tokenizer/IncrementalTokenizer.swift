@@ -1,5 +1,48 @@
 import Foundation
 
+// MARK: - Incremental Tokenizer State
+
+/// Represents the parsing state for incremental tokenization.
+/// Used to determine safe boundaries for incremental re-tokenization.
+public struct IncrementalParsingState: Equatable, Sendable {
+    /// Whether currently inside a string literal
+    public let inString: Bool
+
+    /// Whether currently inside a multi-line comment
+    public let inMultiLineComment: Bool
+
+    /// Current bracket nesting depth
+    public let bracketDepth: Int
+
+    /// Current parenthesis nesting depth
+    public let parenDepth: Int
+
+    /// The line number (1-indexed)
+    public let lineNumber: Int
+
+    public init(
+        inString: Bool = false,
+        inMultiLineComment: Bool = false,
+        bracketDepth: Int = 0,
+        parenDepth: Int = 0,
+        lineNumber: Int = 1
+    ) {
+        self.inString = inString
+        self.inMultiLineComment = inMultiLineComment
+        self.bracketDepth = bracketDepth
+        self.parenDepth = parenDepth
+        self.lineNumber = lineNumber
+    }
+
+    /// Default state at the start of tokenization
+    public static let initial = IncrementalParsingState()
+
+    /// Whether this state represents a "safe" boundary for re-tokenization
+    public var isSafeBoundary: Bool {
+        return !inString && !inMultiLineComment && bracketDepth == 0 && parenDepth == 0
+    }
+}
+
 // MARK: - Incremental Tokenizer
 
 /// A tokenizer that supports incremental updates for efficient real-time editing
@@ -7,14 +50,24 @@ public struct IncrementalTokenizer: Sendable {
     private let baseTokenizer: ParsingTokenizer
     private let chunkProcessor: ChunkProcessor
 
-    public init(baseTokenizer: ParsingTokenizer = ParsingTokenizer()) {
+    /// Threshold for using incremental vs full re-tokenization
+    private let incrementalThreshold: Int
+
+    /// Maximum characters to re-tokenize before falling back to full
+    private let maxReparseLength: Int
+
+    public init(
+        baseTokenizer: ParsingTokenizer = ParsingTokenizer(),
+        incrementalThreshold: Int = 100,
+        maxReparseLength: Int = 10000
+    ) {
         self.baseTokenizer = baseTokenizer
         self.chunkProcessor = ChunkProcessor()
+        self.incrementalThreshold = incrementalThreshold
+        self.maxReparseLength = maxReparseLength
     }
 
-    /// Updates tokens in a specific range with new text
-    /// NOTE: Current implementation uses full re-tokenization for correctness
-    /// TODO: Implement true incremental tokenization algorithm
+    /// Updates tokens in a specific range with new text using incremental tokenization
     public func updateTokens(
         in range: Range<String.Index>,
         with newText: String,
@@ -24,13 +77,146 @@ public struct IncrementalTokenizer: Sendable {
         // Construct new text with the replacement
         let newFullText = originalText.replacingCharacters(in: range, with: newText)
 
-        // For now, use full re-tokenization to ensure correctness
-        // This provides the correct interface while we develop the incremental algorithm
-        let allTokens = try baseTokenizer.tokenize(newFullText)
-
-        // Calculate affected range for metrics
+        // Calculate change metrics
         let startOffset = originalText.distance(from: originalText.startIndex, to: range.lowerBound)
         let endOffset = originalText.distance(from: originalText.startIndex, to: range.upperBound)
+        let changeLength = newText.count + (endOffset - startOffset)
+
+        // Decide whether to use incremental or full re-tokenization
+        let useIncremental = shouldUseIncremental(
+            previousTokens: previousTokens,
+            changeLength: changeLength,
+            totalLength: newFullText.count
+        )
+
+        if useIncremental {
+            return try updateTokensIncrementally(
+                in: range,
+                with: newText,
+                previousTokens: previousTokens,
+                originalText: originalText,
+                newFullText: newFullText
+            )
+        } else {
+            // Fall back to full re-tokenization
+            return try fullRetokenize(
+                newFullText: newFullText,
+                previousTokens: previousTokens,
+                startOffset: startOffset,
+                endOffset: endOffset,
+                range: range
+            )
+        }
+    }
+
+    // MARK: - Incremental Update
+
+    /// Performs true incremental tokenization
+    private func updateTokensIncrementally(
+        in range: Range<String.Index>,
+        with newText: String,
+        previousTokens: [Token],
+        originalText: String,
+        newFullText: String
+    ) throws -> TokenizeResult {
+        let startOffset = originalText.distance(from: originalText.startIndex, to: range.lowerBound)
+        let endOffset = originalText.distance(from: originalText.startIndex, to: range.upperBound)
+
+        // Step 1: Find the safe reparse boundaries
+        let (safeStartIndex, safeStartOffset) = findSafeReparseStart(
+            tokens: previousTokens,
+            editStartOffset: startOffset
+        )
+
+        let (safeEndIndex, safeEndOffset) = findSafeReparseEnd(
+            tokens: previousTokens,
+            editEndOffset: endOffset,
+            totalTokens: previousTokens.count
+        )
+
+        // Step 2: Calculate the adjustment for positions after the change
+        let originalChangeLength = endOffset - startOffset
+        let newChangeLength = newText.count
+        let offsetDelta = newChangeLength - originalChangeLength
+
+        // Step 3: Extract the text region to re-tokenize
+        let newStartOffset = safeStartOffset
+        let newEndOffset = safeEndOffset + offsetDelta
+
+        guard newStartOffset <= newFullText.count && newEndOffset <= newFullText.count else {
+            // Safety fallback to full re-tokenization
+            return try fullRetokenize(
+                newFullText: newFullText,
+                previousTokens: previousTokens,
+                startOffset: startOffset,
+                endOffset: endOffset,
+                range: range
+            )
+        }
+
+        let reparseStartIndex = newFullText.index(newFullText.startIndex, offsetBy: newStartOffset)
+        let reparseEndIndex = newFullText.index(newFullText.startIndex, offsetBy: min(newEndOffset, newFullText.count))
+        let textToReparse = String(newFullText[reparseStartIndex..<reparseEndIndex])
+
+        // Step 4: Tokenize only the affected region
+        let reparsedTokens = try baseTokenizer.tokenize(textToReparse)
+
+        // Step 5: Adjust positions of reparsed tokens
+        let basePosition = calculatePosition(at: reparseStartIndex, in: newFullText)
+        let adjustedReparsedTokens = adjustTokenPositions(
+            tokens: reparsedTokens,
+            baseOffset: newStartOffset,
+            baseLine: basePosition.line,
+            baseColumn: basePosition.column
+        )
+
+        // Step 6: Adjust positions of tokens after the change
+        let adjustedSuffixTokens = adjustTokenPositionsAfterEdit(
+            tokens: Array(previousTokens[safeEndIndex...]),
+            offsetDelta: offsetDelta,
+            lineDelta: countNewlines(in: newText) - countNewlines(in: originalText[range])
+        )
+
+        // Step 7: Merge the token arrays
+        let prefixTokens = safeStartIndex > 0 ? Array(previousTokens[..<safeStartIndex]) : []
+        let mergedTokens = prefixTokens + adjustedReparsedTokens + adjustedSuffixTokens
+
+        // Create affected range and metrics
+        let affectedRange = AffectedRange(
+            startTokenIndex: safeStartIndex,
+            endTokenIndex: safeEndIndex,
+            startOffset: startOffset,
+            endOffset: endOffset
+        )
+
+        let reparseRegion = ReparseRegion(
+            textRange: reparseStartIndex..<reparseEndIndex,
+            baseOffset: newStartOffset,
+            baseLine: basePosition.line,
+            baseColumn: basePosition.column
+        )
+
+        return TokenizeResult(
+            tokens: mergedTokens,
+            affectedRange: affectedRange,
+            reparseRegion: reparseRegion,
+            metrics: createMetrics(
+                originalCount: previousTokens.count,
+                newCount: mergedTokens.count,
+                reparsedLength: textToReparse.count
+            )
+        )
+    }
+
+    /// Full re-tokenization fallback
+    private func fullRetokenize(
+        newFullText: String,
+        previousTokens: [Token],
+        startOffset: Int,
+        endOffset: Int,
+        range: Range<String.Index>
+    ) throws -> TokenizeResult {
+        let allTokens = try baseTokenizer.tokenize(newFullText)
 
         let affectedRange = AffectedRange(
             startTokenIndex: 0,
@@ -39,7 +225,6 @@ public struct IncrementalTokenizer: Sendable {
             endOffset: endOffset
         )
 
-        // Create a dummy reparse region that covers the changed area
         let reparseRegion = ReparseRegion(
             textRange: range,
             baseOffset: startOffset,
@@ -57,6 +242,167 @@ public struct IncrementalTokenizer: Sendable {
                 reparsedLength: newFullText.count
             )
         )
+    }
+
+    // MARK: - Safe Boundary Detection
+
+    /// Determines whether to use incremental or full re-tokenization
+    private func shouldUseIncremental(
+        previousTokens: [Token],
+        changeLength: Int,
+        totalLength: Int
+    ) -> Bool {
+        // Use full re-tokenization for small files or large changes
+        if previousTokens.count < incrementalThreshold {
+            return false
+        }
+
+        if changeLength > maxReparseLength {
+            return false
+        }
+
+        // Use incremental if the change is small relative to total
+        let changeRatio = Double(changeLength) / Double(max(1, totalLength))
+        return changeRatio < 0.5
+    }
+
+    /// Finds a safe start position for re-tokenization
+    private func findSafeReparseStart(
+        tokens: [Token],
+        editStartOffset: Int
+    ) -> (tokenIndex: Int, offset: Int) {
+        // Find the first token that starts at or after the edit position
+        var startIndex = 0
+
+        for (index, token) in tokens.enumerated() {
+            if token.position.offset >= editStartOffset {
+                startIndex = index
+                break
+            }
+            startIndex = index
+        }
+
+        // Move back to find a safe boundary (line start or start of file)
+        var safeIndex = startIndex
+
+        while safeIndex > 0 {
+            let token = tokens[safeIndex - 1]
+
+            // A newline token or start of a statement is a safe boundary
+            if token.type == .newline {
+                break
+            }
+
+            // Also break at the start of compound tokens
+            if isStatementStartToken(token.type) {
+                break
+            }
+
+            safeIndex -= 1
+        }
+
+        let offset = safeIndex > 0 ? tokens[safeIndex].position.offset : 0
+        return (safeIndex, offset)
+    }
+
+    /// Finds a safe end position for re-tokenization
+    private func findSafeReparseEnd(
+        tokens: [Token],
+        editEndOffset: Int,
+        totalTokens: Int
+    ) -> (tokenIndex: Int, offset: Int) {
+        // Find the first token that starts at or after the edit end
+        var endIndex = totalTokens
+
+        for (index, token) in tokens.enumerated() {
+            if token.position.offset > editEndOffset {
+                endIndex = index
+                break
+            }
+        }
+
+        // Move forward to find a safe boundary
+        var safeIndex = endIndex
+
+        while safeIndex < totalTokens {
+            let token = tokens[safeIndex]
+
+            if token.type == .newline {
+                safeIndex += 1
+                break
+            }
+
+            if isStatementEndToken(token.type) {
+                safeIndex += 1
+                break
+            }
+
+            safeIndex += 1
+        }
+
+        if safeIndex >= totalTokens {
+            return (totalTokens, tokens.last.map { $0.position.offset + $0.lexeme.count } ?? 0)
+        }
+
+        let offset = tokens[safeIndex].position.offset
+        return (safeIndex, offset)
+    }
+
+    /// Checks if a token type represents the start of a statement
+    private func isStatementStartToken(_ type: TokenType) -> Bool {
+        switch type {
+        case .ifKeyword, .whileKeyword, .forKeyword,
+             .functionKeyword, .procedureKeyword,
+             .variableKeyword, .constantKeyword,
+             .returnKeyword, .breakKeyword, .continueKeyword:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Checks if a token type represents the end of a statement
+    private func isStatementEndToken(_ type: TokenType) -> Bool {
+        switch type {
+        case .endifKeyword, .endwhileKeyword, .endforKeyword,
+             .endfunctionKeyword, .endprocedureKeyword:
+            return true
+        default:
+            return false
+        }
+    }
+
+    // MARK: - Position Adjustment
+
+    /// Adjusts token positions after an edit
+    private func adjustTokenPositionsAfterEdit(
+        tokens: [Token],
+        offsetDelta: Int,
+        lineDelta: Int
+    ) -> [Token] {
+        return tokens.map { token in
+            let adjustedPosition = SourcePosition(
+                line: token.position.line + lineDelta,
+                column: token.position.column,
+                offset: token.position.offset + offsetDelta
+            )
+
+            return Token(
+                type: token.type,
+                lexeme: token.lexeme,
+                position: adjustedPosition
+            )
+        }
+    }
+
+    /// Counts the number of newlines in a string
+    private func countNewlines(in text: String) -> Int {
+        return text.filter { $0 == "\n" }.count
+    }
+
+    /// Counts the number of newlines in a substring
+    private func countNewlines(in text: Substring) -> Int {
+        return text.filter { $0 == "\n" }.count
     }
 
     /// Performs a quick tokenization check to validate incremental results

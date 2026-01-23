@@ -20,6 +20,7 @@ public indirect enum Statement: Equatable, Codable, Sendable {
     // Other
     case expressionStatement(Expression)
     case breakStatement
+    case continueStatement
     case block([Statement])
 }
 
@@ -116,13 +117,22 @@ public struct FunctionDeclaration: Equatable, Codable, Sendable {
     public let returnType: DataType?
     public let localVariables: [VariableDeclaration]
     public let body: [Statement]
+    public let position: SourcePosition?
 
-    public init(name: String, parameters: [Parameter], returnType: DataType? = nil, localVariables: [VariableDeclaration] = [], body: [Statement]) {
+    public init(
+        name: String,
+        parameters: [Parameter],
+        returnType: DataType? = nil,
+        localVariables: [VariableDeclaration] = [],
+        body: [Statement],
+        position: SourcePosition? = nil
+    ) {
         self.name = name
         self.parameters = parameters
         self.returnType = returnType
         self.localVariables = localVariables
         self.body = body
+        self.position = position
     }
 }
 
@@ -132,12 +142,20 @@ public struct ProcedureDeclaration: Equatable, Codable, Sendable {
     public let parameters: [Parameter]
     public let localVariables: [VariableDeclaration]
     public let body: [Statement]
+    public let position: SourcePosition?
 
-    public init(name: String, parameters: [Parameter], localVariables: [VariableDeclaration] = [], body: [Statement]) {
+    public init(
+        name: String,
+        parameters: [Parameter],
+        localVariables: [VariableDeclaration] = [],
+        body: [Statement],
+        position: SourcePosition? = nil
+    ) {
         self.name = name
         self.parameters = parameters
         self.localVariables = localVariables
         self.body = body
+        self.position = position
     }
 }
 
@@ -200,11 +218,13 @@ public struct VariableDeclaration: Equatable, Codable, Sendable {
     public let name: String
     public let type: DataType
     public let initialValue: Expression?
+    public let position: SourcePosition?
 
-    public init(name: String, type: DataType, initialValue: Expression? = nil) {
+    public init(name: String, type: DataType, initialValue: Expression? = nil, position: SourcePosition? = nil) {
         self.name = name
         self.type = type
         self.initialValue = initialValue
+        self.position = position
     }
 }
 
@@ -213,14 +233,17 @@ public struct VariableDeclaration: Equatable, Codable, Sendable {
 /// - `name`: The name of the constant.
 /// - `type`: The data type of the constant.
 /// - `initialValue`: The initial value assigned to the constant. This value cannot be changed after declaration.
+/// - `position`: The source position of this declaration.
 public struct ConstantDeclaration: Equatable, Codable, Sendable {
     public let name: String
     public let type: DataType
     public let initialValue: Expression
+    public let position: SourcePosition?
 
-    public init(name: String, type: DataType, initialValue: Expression) {
+    public init(name: String, type: DataType, initialValue: Expression, position: SourcePosition? = nil) {
         self.name = name
         self.type = type
         self.initialValue = initialValue
+        self.position = position
     }
 }

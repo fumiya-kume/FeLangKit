@@ -684,8 +684,54 @@ struct StatementParserTests {
         let statements = try parseStatements(simpleNesting)
         #expect(statements.count == 1)
 
-        // Skip the deep nesting test for now due to implementation complexity
-        // This would need a more sophisticated recursive tracking system
+        // Test that 100 levels of nesting is allowed (max depth)
+        var deepNesting100 = ""
+        for idx in 0..<100 {
+            deepNesting100 += "if true then "
+            _ = idx // unused but for clarity
+        }
+        deepNesting100 += "x ← 1"
+        for _ in 0..<100 {
+            deepNesting100 += " endif"
+        }
+
+        // This should succeed at exactly 100 levels
+        let deepStatements = try parseStatements(deepNesting100)
+        #expect(deepStatements.count == 1)
+
+        // Test that 101 levels of nesting fails with nestingTooDeep error
+        var deepNesting101 = ""
+        for idx in 0..<101 {
+            deepNesting101 += "if true then "
+            _ = idx // unused but for clarity
+        }
+        deepNesting101 += "x ← 1"
+        for _ in 0..<101 {
+            deepNesting101 += " endif"
+        }
+
+        // This should fail at 101 levels
+        #expect(throws: (any Error).self) {
+            _ = try parseStatements(deepNesting101)
+        }
+    }
+
+    @Test("Mixed Control Structure Nesting Security")
+    func testMixedControlStructureNesting() throws {
+        // Test mixed control structures with deep nesting
+        let mixedNesting = """
+        if true then
+            while x > 0 do
+                for idx ← 1 to 10 do
+                    if y > 0 then
+                        x ← x - 1
+                    endif
+                endfor
+            endwhile
+        endif
+        """
+        let statements = try parseStatements(mixedNesting)
+        #expect(statements.count == 1)
     }
 
     @Test("Large Input Security")

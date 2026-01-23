@@ -27,6 +27,7 @@ public enum SemanticError: Error, Equatable, Sendable {
     // Control flow errors
     case unreachableCode(position: SourcePosition)
     case breakOutsideLoop(position: SourcePosition)
+    case continueOutsideLoop(position: SourcePosition)
     case returnOutsideFunction(position: SourcePosition)
 
     // Array/indexing errors
@@ -188,6 +189,8 @@ extension SemanticError: LocalizedError {
             return "Unreachable code at \(position)"
         case .breakOutsideLoop(let position):
             return "Break statement outside loop at \(position)"
+        case .continueOutsideLoop(let position):
+            return "Continue statement outside loop at \(position)"
         case .returnOutsideFunction(let position):
             return "Return statement outside function at \(position)"
         case .invalidArrayAccess(let position):
@@ -493,6 +496,7 @@ public final class SemanticErrorReporter: @unchecked Sendable {
              .voidFunctionReturnsValue(_, let position),
              .unreachableCode(let position),
              .breakOutsideLoop(let position),
+             .continueOutsideLoop(let position),
              .returnOutsideFunction(let position),
              .invalidArrayAccess(let position),
              .arrayIndexTypeMismatch(_, _, let position),

@@ -19,6 +19,7 @@ struct StatementVisitorTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 
@@ -46,6 +47,7 @@ struct StatementVisitorTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 
@@ -80,6 +82,7 @@ struct StatementVisitorTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 
@@ -123,6 +126,7 @@ struct StatementVisitorTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 
@@ -150,6 +154,7 @@ struct StatementVisitorTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 
@@ -202,6 +207,7 @@ struct StatementVisitorTests {
             },
             visitExpressionStatement: { expr in "expr_stmt(\(expr))" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { statements in "block(\(statements.count))" }
         )
 
@@ -275,6 +281,8 @@ struct StatementVisitorTests {
                 return "\(expr)"
             case .breakStatement:
                 return "break"
+            case .continueStatement:
+                return "continue"
             case .block(let statements):
                 let results = statements.map(stringifyStatement)
                 return "{ \(results.joined(separator: "; ")) }"
@@ -316,6 +324,7 @@ struct StatementVisitorTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 
@@ -344,6 +353,7 @@ struct StatementVisitorTests {
             visitReturnStatement: { _ in "return" },
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
+            visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" }
         )
 
@@ -378,7 +388,7 @@ struct StatementVisitorTests {
                 }
                 return 1 + body.map(countStatements).reduce(0, +)
             case .assignment, .variableDeclaration, .constantDeclaration,
-                 .returnStatement, .expressionStatement, .breakStatement:
+                 .returnStatement, .expressionStatement, .breakStatement, .continueStatement:
                 return 1
             case .functionDeclaration(let funcDecl):
                 return 1 + funcDecl.body.map(countStatements).reduce(0, +)

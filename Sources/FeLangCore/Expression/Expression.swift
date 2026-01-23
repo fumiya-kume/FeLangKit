@@ -16,6 +16,9 @@ public indirect enum Expression: Equatable, Codable, Sendable {
     case arrayAccess(Expression, Expression)
     case fieldAccess(Expression, String)
     case functionCall(String, [Expression])
+
+    // Collection expressions
+    case arrayLiteral([Expression])
 }
 
 /// Represents literal values in FE pseudo-language.

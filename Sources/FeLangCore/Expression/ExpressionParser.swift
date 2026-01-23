@@ -128,6 +128,29 @@ public struct ExpressionParser {
             return expr
         }
 
+        // Array literal expressions [e1, e2, ...]
+        if token.type == .leftBracket {
+            var elements: [Expression] = []
+
+            // Handle empty array literal []
+            if parser.peek()?.type == .rightBracket {
+                _ = parser.advance() // consume ']'
+                return Expression.arrayLiteral(elements)
+            }
+
+            // Parse first element
+            elements.append(try parseExpression(&parser))
+
+            // Parse remaining elements
+            while parser.peek()?.type == .comma {
+                _ = parser.advance() // consume ','
+                elements.append(try parseExpression(&parser))
+            }
+
+            try expectToken(&parser, .rightBracket)
+            return Expression.arrayLiteral(elements)
+        }
+
         throw ParsingError.expectedPrimaryExpression(token)
     }
 

@@ -11,13 +11,17 @@ public struct PrettyPrinter {
         /// Whether to use spaces (true) or tabs (false) for indentation.
         public var useSpaces: Bool
 
-        /// Maximum line length before wrapping (currently not implemented).
+        /// Maximum line length before wrapping. Set to 0 to disable wrapping.
         public var maxLineLength: Int
 
-        public init(indentSize: Int = 4, useSpaces: Bool = true, maxLineLength: Int = 80) {
+        /// Whether to enable line wrapping based on maxLineLength.
+        public var enableWrapping: Bool
+
+        public init(indentSize: Int = 4, useSpaces: Bool = true, maxLineLength: Int = 80, enableWrapping: Bool = false) {
             self.indentSize = indentSize
             self.useSpaces = useSpaces
             self.maxLineLength = maxLineLength
+            self.enableWrapping = enableWrapping
         }
     }
 
@@ -28,11 +32,47 @@ public struct PrettyPrinter {
         self.config = configuration
     }
 
+    // MARK: - Line Wrapping Helpers
+
+    /// Checks if a line exceeds the maximum length.
+    private func shouldWrap(_ line: String, currentIndent: Int) -> Bool {
+        guard config.enableWrapping && config.maxLineLength > 0 else { return false }
+        let indentLength = makeIndent(currentIndent).count
+        return indentLength + line.count > config.maxLineLength
+    }
+
+    /// Wraps a list of items with proper indentation.
+    private func wrapItems(_ items: [String], separator: String, indent: Int, prefix: String, suffix: String) -> String {
+        let singleLine = prefix + items.joined(separator: separator) + suffix
+
+        if !shouldWrap(singleLine, currentIndent: indent) {
+            return singleLine
+        }
+
+        // Multi-line format
+        let itemIndent = makeIndent(indent + 1)
+        var result = prefix + "\n"
+        for (index, item) in items.enumerated() {
+            result += itemIndent + item
+            if index < items.count - 1 {
+                result += separator.trimmingCharacters(in: .whitespaces)
+            }
+            result += "\n"
+        }
+        result += makeIndent(indent) + suffix
+        return result
+    }
+
     // MARK: - Public API
 
     /// Converts an expression to its string representation.
     public func print(_ expression: Expression) -> String {
-        return printExpression(expression)
+        return printExpression(expression, indent: 0)
+    }
+
+    /// Converts an expression to its string representation with optional indentation for wrapping.
+    public func print(_ expression: Expression, indent: Int) -> String {
+        return printExpression(expression, indent: indent)
     }
 
     /// Converts a statement to its string representation with optional indentation.
@@ -47,7 +87,7 @@ public struct PrettyPrinter {
 
     // MARK: - Expression Printing
 
-    private func printExpression(_ expression: Expression) -> String {
+    private func printExpression(_ expression: Expression, indent: Int = 0) -> String {
         switch expression {
         case .literal(let literal):
             return printLiteral(literal)
@@ -56,21 +96,57 @@ public struct PrettyPrinter {
             return name
 
         case .binary(let binaryOp, let left, let right):
-            return printBinaryExpression(binaryOp, left, right)
+            return printBinaryExpression(binaryOp, left, right, indent: indent)
 
         case .unary(let unaryOp, let expr):
-            return printUnaryExpression(unaryOp, expr)
+            return printUnaryExpression(unaryOp, expr, indent: indent)
 
         case .arrayAccess(let array, let index):
-            return "\(printExpression(array))[\(printExpression(index))]"
+            return "\(printExpression(array, indent: indent))[\(printExpression(index, indent: indent))]"
 
         case .fieldAccess(let object, let field):
-            return "\(printExpression(object)).\(field)"
+            return "\(printExpression(object, indent: indent)).\(field)"
 
         case .functionCall(let name, let args):
-            let argStrings = args.map { printExpression($0) }
-            return "\(name)(\(argStrings.joined(separator: ", ")))"
+            return printFunctionCall(name: name, args: args, indent: indent)
+
+        case .arrayLiteral(let elements):
+            return printArrayLiteral(elements: elements, indent: indent)
         }
+    }
+
+    /// Prints a function call with optional line wrapping.
+    private func printFunctionCall(name: String, args: [Expression], indent: Int) -> String {
+        if args.isEmpty {
+            return "\(name)()"
+        }
+
+        let argStrings = args.map { printExpression($0, indent: indent + 1) }
+        let singleLine = "\(name)(\(argStrings.joined(separator: ", ")))"
+
+        if !shouldWrap(singleLine, currentIndent: indent) {
+            return singleLine
+        }
+
+        // Multi-line format with wrapping
+        return wrapItems(argStrings, separator: ", ", indent: indent, prefix: "\(name)(", suffix: ")")
+    }
+
+    /// Prints an array literal with optional line wrapping.
+    private func printArrayLiteral(elements: [Expression], indent: Int) -> String {
+        if elements.isEmpty {
+            return "[]"
+        }
+
+        let elementStrings = elements.map { printExpression($0, indent: indent + 1) }
+        let singleLine = "[\(elementStrings.joined(separator: ", "))]"
+
+        if !shouldWrap(singleLine, currentIndent: indent) {
+            return singleLine
+        }
+
+        // Multi-line format with wrapping
+        return wrapItems(elementStrings, separator: ", ", indent: indent, prefix: "[", suffix: "]")
     }
 
     private func printLiteral(_ literal: Literal) -> String {
@@ -115,18 +191,37 @@ public struct PrettyPrinter {
         }
     }
 
-    private func printBinaryExpression(_ binaryOp: BinaryOperator, _ left: Expression, _ right: Expression) -> String {
-        let leftStr = printExpressionWithParentheses(left, parentPrecedence: binaryOp.precedence, isLeft: true)
-        let rightStr = printExpressionWithParentheses(right, parentPrecedence: binaryOp.precedence, isLeft: false)
-        return "\(leftStr) \(binaryOp.rawValue) \(rightStr)"
+    private func printBinaryExpression(
+        _ binaryOp: BinaryOperator,
+        _ left: Expression,
+        _ right: Expression,
+        indent: Int = 0
+    ) -> String {
+        let leftStr = printExpressionWithParentheses(left, parentPrecedence: binaryOp.precedence, isLeft: true, indent: indent)
+        let rightStr = printExpressionWithParentheses(right, parentPrecedence: binaryOp.precedence, isLeft: false, indent: indent)
+        let singleLine = "\(leftStr) \(binaryOp.rawValue) \(rightStr)"
+
+        // Check if we should wrap the binary expression
+        if shouldWrap(singleLine, currentIndent: indent) {
+            // Wrap at the operator
+            let innerIndent = makeIndent(indent + 1)
+            return "\(leftStr)\n\(innerIndent)\(binaryOp.rawValue) \(rightStr)"
+        }
+
+        return singleLine
     }
 
-    private func printUnaryExpression(_ unaryOp: UnaryOperator, _ expr: Expression) -> String {
-        let exprStr = printExpressionWithParentheses(expr, parentPrecedence: unaryOp.precedence, isLeft: false)
+    private func printUnaryExpression(_ unaryOp: UnaryOperator, _ expr: Expression, indent: Int = 0) -> String {
+        let exprStr = printExpressionWithParentheses(expr, parentPrecedence: unaryOp.precedence, isLeft: false, indent: indent)
         return "\(unaryOp.rawValue)\(exprStr)"
     }
 
-    private func printExpressionWithParentheses(_ expr: Expression, parentPrecedence: Int, isLeft: Bool) -> String {
+    private func printExpressionWithParentheses(
+        _ expr: Expression,
+        parentPrecedence: Int,
+        isLeft: Bool,
+        indent: Int = 0
+    ) -> String {
         let needsParentheses: Bool
 
         switch expr {
@@ -144,7 +239,7 @@ public struct PrettyPrinter {
             needsParentheses = false
         }
 
-        let exprStr = printExpression(expr)
+        let exprStr = printExpression(expr, indent: indent)
         return needsParentheses ? "(\(exprStr))" : exprStr
     }
 
@@ -186,6 +281,9 @@ public struct PrettyPrinter {
 
         case .breakStatement:
             return indentStr + "break"
+
+        case .continueStatement:
+            return indentStr + "continue"
 
         case .block(let statements):
             return printStatements(statements, indent: indent)

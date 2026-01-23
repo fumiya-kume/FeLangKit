@@ -31,6 +31,7 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case endprocedureKeyword = "endprocedure"
     case returnKeyword = "return"
     case breakKeyword = "break"
+    case continueKeyword = "continue"
 
     /// Logical keywords
     case andKeyword = "and"
@@ -105,7 +106,7 @@ extension TokenType {
              .recordType, .arrayType, .ifKeyword, .thenKeyword, .elseKeyword, .elifKeyword, .endifKeyword,
              .whileKeyword, .doKeyword, .endwhileKeyword, .forKeyword, .toKeyword, .stepKeyword, .inKeyword, .endforKeyword,
              .functionKeyword, .endfunctionKeyword, .procedureKeyword, .endprocedureKeyword,
-             .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword,
+             .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword, .continueKeyword,
              .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword:
             return true
         default:
