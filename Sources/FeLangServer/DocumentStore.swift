@@ -49,13 +49,32 @@ public struct Document: Sendable {
         self.linesCache = nil
     }
 
+    /// Convert UTF-16 offset (LSP standard) to Swift String.Index
+    private func utf16ToStringIndex(_ text: String, utf16Offset: Int) -> String.Index? {
+        guard utf16Offset >= 0 else { return nil }
+        guard let utf16Index = text.utf16.index(text.utf16.startIndex, offsetBy: utf16Offset, limitedBy: text.utf16.endIndex) else {
+            return nil
+        }
+        return utf16Index.samePosition(in: text)
+    }
+
+    /// Convert UTF-16 offset for Substring
+    private func utf16ToStringIndex(_ text: Substring, utf16Offset: Int) -> String.Index? {
+        guard utf16Offset >= 0 else { return nil }
+        guard let utf16Index = text.utf16.index(text.utf16.startIndex, offsetBy: utf16Offset, limitedBy: text.utf16.endIndex) else {
+            return nil
+        }
+        return utf16Index.samePosition(in: String(text))
+    }
+
     /// Get text at a specific position.
     public mutating func textAt(line: Int, character: Int) -> Character? {
         let allLines = lines
         guard line >= 0, line < allLines.count else { return nil }
         let lineText = allLines[line]
-        let index = lineText.index(lineText.startIndex, offsetBy: character, limitedBy: lineText.endIndex)
-        guard let idx = index, idx < lineText.endIndex else { return nil }
+        // Convert UTF-16 offset (LSP standard) to Swift String.Index
+        guard let idx = utf16ToStringIndex(lineText, utf16Offset: character),
+              idx < lineText.endIndex else { return nil }
         return lineText[idx]
     }
 
@@ -67,9 +86,9 @@ public struct Document: Sendable {
 
         if range.start.line == range.end.line {
             let line = allLines[range.start.line]
-            let startIndex = line.index(line.startIndex, offsetBy: range.start.character, limitedBy: line.endIndex)
-            let endIndex = line.index(line.startIndex, offsetBy: range.end.character, limitedBy: line.endIndex)
-            guard let start = startIndex, let end = endIndex else { return nil }
+            // Convert UTF-16 offsets to Swift String.Index
+            guard let start = utf16ToStringIndex(line, utf16Offset: range.start.character),
+                  let end = utf16ToStringIndex(line, utf16Offset: range.end.character) else { return nil }
             return String(line[start..<end])
         }
 
@@ -77,14 +96,12 @@ public struct Document: Sendable {
         for lineNum in range.start.line...range.end.line {
             let line = allLines[lineNum]
             if lineNum == range.start.line {
-                let startIndex = line.index(line.startIndex, offsetBy: range.start.character, limitedBy: line.endIndex)
-                if let start = startIndex {
+                if let start = utf16ToStringIndex(line, utf16Offset: range.start.character) {
                     result += line[start...]
                     result += "\n"
                 }
             } else if lineNum == range.end.line {
-                let endIndex = line.index(line.startIndex, offsetBy: range.end.character, limitedBy: line.endIndex)
-                if let end = endIndex {
+                if let end = utf16ToStringIndex(line, utf16Offset: range.end.character) {
                     result += line[..<end]
                 }
             } else {
@@ -102,9 +119,7 @@ public struct Document: Sendable {
         let lineText = String(allLines[line])
 
         // Convert UTF-16 offset (LSP standard) to Swift String.Index
-        guard character >= 0 else { return nil }
-        guard let utf16Index = lineText.utf16.index(lineText.utf16.startIndex, offsetBy: character, limitedBy: lineText.utf16.endIndex),
-              let startIdx = utf16Index.samePosition(in: lineText) else {
+        guard let startIdx = utf16ToStringIndex(lineText, utf16Offset: character) else {
             return nil
         }
 

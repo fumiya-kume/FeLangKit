@@ -229,8 +229,8 @@ public final class StatementExecutor: @unchecked Sendable {
 
         while try evaluator.evaluate(whileStmt.condition).isTruthy {
             try environment.pushScope()
+            defer { environment.popScope() }
             let result = try execute(whileStmt.body)
-            environment.popScope()
 
             switch result {
             case .breakLoop:
@@ -289,10 +289,10 @@ public final class StatementExecutor: @unchecked Sendable {
 
         for currentValue in range {
             try environment.pushScope()
+            defer { environment.popScope() }
             environment.define(rangeFor.variable, value: .integer(currentValue))
 
             let result = try execute(rangeFor.body)
-            environment.popScope()
 
             switch result {
             case .breakLoop:
@@ -325,10 +325,10 @@ public final class StatementExecutor: @unchecked Sendable {
 
         for element in elements {
             try environment.pushScope()
+            defer { environment.popScope() }
             environment.define(forEach.variable, value: element)
 
             let result = try execute(forEach.body)
-            environment.popScope()
 
             switch result {
             case .breakLoop:

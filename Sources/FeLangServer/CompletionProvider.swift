@@ -158,7 +158,14 @@ public struct CompletionProvider: Sendable {
         }
 
         let line = String(lines[position.line])
-        let prefix = String(line.prefix(position.character))
+        // Convert UTF-16 offset (LSP standard) to Swift String.Index
+        let prefix: String
+        if let utf16Index = line.utf16.index(line.utf16.startIndex, offsetBy: position.character, limitedBy: line.utf16.endIndex),
+           let stringIndex = utf16Index.samePosition(in: line) {
+            prefix = String(line[..<stringIndex])
+        } else {
+            prefix = line
+        }
 
         // Check for type context (after colon)
         if prefix.contains(":") && !prefix.contains("←") {

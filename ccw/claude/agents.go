@@ -43,10 +43,12 @@ func (ae *AgentExecutor) ExecuteNonInteractiveAgent(agentType, prompt string, ma
 	defer cancel()
 
 	// Create command with --print flag for non-interactive mode
-	cmd := exec.CommandContext(ctx, ae.claudeExecutable, "--print", prompt)
+	// Pass prompt via stdin to avoid OS argument length limits
+	cmd := exec.CommandContext(ctx, ae.claudeExecutable, "--print", "-")
 	if ae.workingDir != "" {
 		cmd.Dir = ae.workingDir
 	}
+	cmd.Stdin = strings.NewReader(prompt)
 
 	// Capture output
 	output, err := cmd.CombinedOutput()
