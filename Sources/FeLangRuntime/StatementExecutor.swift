@@ -232,7 +232,16 @@ public final class StatementExecutor: @unchecked Sendable {
 
             // Validate type matches existing element type
             if let existingElement = elements.first {
-                if existingElement.typeName != value.typeName {
+                if let existingType = inferDataType(from: existingElement),
+                   let valueType = inferDataType(from: value) {
+                    if !typesMatch(valueType, expected: existingType) {
+                        throw RuntimeError.typeMismatch(
+                            expected: String(describing: existingType),
+                            actual: String(describing: valueType),
+                            operation: "array element assignment"
+                        )
+                    }
+                } else if existingElement.typeName != value.typeName {
                     throw RuntimeError.typeMismatch(
                         expected: existingElement.typeName,
                         actual: value.typeName,
@@ -262,7 +271,16 @@ public final class StatementExecutor: @unchecked Sendable {
 
             // Validate type matches existing element type
             if let existingElement = innerElements.first {
-                if existingElement.typeName != value.typeName {
+                if let existingType = inferDataType(from: existingElement),
+                   let valueType = inferDataType(from: value) {
+                    if !typesMatch(valueType, expected: existingType) {
+                        throw RuntimeError.typeMismatch(
+                            expected: String(describing: existingType),
+                            actual: String(describing: valueType),
+                            operation: "nested array element assignment"
+                        )
+                    }
+                } else if existingElement.typeName != value.typeName {
                     throw RuntimeError.typeMismatch(
                         expected: existingElement.typeName,
                         actual: value.typeName,

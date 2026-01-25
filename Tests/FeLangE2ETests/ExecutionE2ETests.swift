@@ -126,6 +126,8 @@ struct ExecutionE2ETests {
         """
         let output = try InProcessTestHelper.run(code)
         let lines = output.lowercased().split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }
+        #expect(lines.count >= 4, "Expected 4 output lines, got \(lines.count): \(lines)")
+        guard lines.count >= 4 else { return }
         #expect(lines[0] == "true")   // 17 is prime
         #expect(lines[1] == "false")  // 18 is not prime
         #expect(lines[2] == "true")   // 2 is prime

@@ -414,7 +414,7 @@ public struct FastParsingTokenizer {
         case "n", "t", "r", "\\", "\"", "'":
             break // Valid escape sequences
         default:
-            throw TokenizerError.invalidEscapeSequenceWithMessage("Unknown escape sequence \\\\(char)", position)
+            throw TokenizerError.invalidEscapeSequenceWithMessage("Unknown escape sequence \\(char)", position)
         }
     }
 
