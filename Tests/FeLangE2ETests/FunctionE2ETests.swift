@@ -182,7 +182,7 @@ struct FunctionE2ETests {
         """
         let output = try InProcessTestHelper.run(code)
         let lines = output.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }
-        #expect(lines.contains("5"))
+        #expect(lines == ["5", "5"], "absoluteValue(-5) and absoluteValue(5) should both return 5")
     }
 
     @Test("Early return from loop")
