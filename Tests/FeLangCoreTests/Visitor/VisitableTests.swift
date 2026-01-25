@@ -42,7 +42,7 @@ struct VisitableTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record" }
+            visitRecordDeclaration: { _ in "record" }
         )
 
         let stmt = Statement.breakStatement
@@ -111,7 +111,7 @@ struct VisitableTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record" }
+            visitRecordDeclaration: { _ in "record" }
         )
 
         // Test all statement types with convenience method
@@ -185,7 +185,7 @@ struct VisitableTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record" }
+            visitRecordDeclaration: { _ in "record" }
         )
 
         let expr = Expression.literal(.integer(42))
@@ -225,7 +225,7 @@ struct VisitableTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record" }
+            visitRecordDeclaration: { _ in "record" }
         )
 
         // Test that we can use visitors in async contexts
@@ -266,7 +266,7 @@ struct VisitableTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record" }
+            visitRecordDeclaration: { _ in "record" }
         )
 
         let expr = Expression.literal(.integer(42))

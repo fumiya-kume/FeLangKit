@@ -37,19 +37,20 @@ struct TokenStreamAdapterErrorHandlingTests {
     @Test func testMappedTokenSequenceSwallowsErrors() throws {
         // Setup
         let tokens = [Token(type: .integerLiteral, lexeme: "123", position: SourcePosition(line: 1, column: 1, offset: 0))]
-        let stream = ThrowingTokenStream(tokens: tokens, errorToThrow: MockError())
+        var stream = ThrowingTokenStream(tokens: tokens, errorToThrow: MockError())
         
         // When we map the sequence
-        var sequence = stream.map { $0 }
+        let sequence = stream.map { $0 }
         
-        // Then: collect() should throw the error
-        #expect(throws: MockError.self) {
-            _ = try sequence.collect()
-        }
+        // MappedTokenSequence silently swallows errors and returns nil
+        // So iterating should return the first token, then nil (error swallowed)
+        var iterator = sequence.makeIterator()
+        let firstToken = iterator.next()
+        #expect(firstToken != nil)
+        #expect(firstToken?.lexeme == "123")
         
-        // And if we reset stream and try successful collection
-        var goodStream = ThrowingTokenStream(tokens: tokens, errorToThrow: MockError(), index: 0)
-        // We need a stream that doesn't throw at the end for this test, or we catch it.
-        // Let's just verify the throwing behavior is sufficient for this test.
+        // The next call would trigger the error, but it's swallowed and returns nil
+        let secondToken = iterator.next()
+        #expect(secondToken == nil)
     }
 }

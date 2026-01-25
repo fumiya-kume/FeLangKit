@@ -21,7 +21,7 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" }
         )
 
         let ifStmt = IfStatement(
@@ -50,7 +50,7 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" }
         )
 
         let whileStmt = WhileStatement(
@@ -86,7 +86,7 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" }
         )
 
         let rangeFor = ForStatement.RangeFor(
@@ -131,7 +131,7 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" }
         )
 
         let varAssignment = Statement.assignment(.variable("x", .literal(.integer(42))))
@@ -160,7 +160,7 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" }
         )
 
         let varDecl = Statement.variableDeclaration(VariableDeclaration(
@@ -334,7 +334,7 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" }
         )
 
         let stmt = Statement.breakStatement
@@ -364,7 +364,7 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" }
         )
 
         // Test simple statements

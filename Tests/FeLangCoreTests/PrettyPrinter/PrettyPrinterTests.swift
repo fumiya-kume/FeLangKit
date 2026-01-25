@@ -435,9 +435,6 @@ final class PrettyPrinterTests: XCTestCase {
         XCTAssertEqual(printer.print(stmt), "doSomething()")
     }
 
-        XCTAssertEqual(printer.print(stmt), expected)
-    }
-
     func testRecordDeclaration() {
         let fields = [
             RecordField(name: "name", type: .string),
