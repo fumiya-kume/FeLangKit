@@ -62,7 +62,13 @@ public struct PrettyPrinter {
                 .map { line -> Int in
                     var count = 0
                     for char in line {
-                        if char == " " { count += 1 } else if char == "\t" { count += config.indentSize } else { break }
+                        if char == " " {
+                            count += 1
+                        } else if char == "\t" {
+                            count += config.indentSize
+                        } else {
+                            break
+                        }
                     }
                     return count
                 }
