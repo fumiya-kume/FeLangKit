@@ -430,7 +430,8 @@ public final class StatementExecutor: @unchecked Sendable {
             if start <= end {
                 range = stride(from: start, through: end, by: 1)
             } else {
-                // Empty range - don't execute loop when end < start without explicit step
+                // Empty range - don't execute loop when end < start without explicit step.
+                // Using a dummy stride here is intentional: this range iterates zero times.
                 range = stride(from: 0, through: -1, by: 1)
             }
         }

@@ -22,9 +22,22 @@ public final class Environment: @unchecked Sendable {
     /// Maximum allowed call depth
     private let maxCallDepth: Int
 
-    /// Record type definitions (global, not scope-dependent)
-    /// TODO: Consider making this thread-safe (e.g., using a concurrent dictionary or lock)
-    /// if multiple threads can define/lookup records concurrently.
+    /// Record type definitions.
+    ///
+    /// Note:
+    /// - These definitions are intentionally **global** within an `Environment`
+    ///   instance and are **not** tied to the lexical / runtime scopes managed
+    ///   by `scopes`.
+    /// - This differs from variable bindings, which are pushed/popped with
+    ///   `pushScope`/`popScope`. Record (type) declarations are treated as
+    ///   language-level, module-wide definitions that remain visible across all
+    ///   scopes once declared, similar to how many languages handle type
+    ///   declarations.
+    /// - If per-scope record types are ever required, they should be modeled
+    ///   separately (e.g. by making record definitions part of `Scope`) instead
+    ///   of changing this global behavior.
+    /// - TODO: Consider making this thread-safe (e.g., using a concurrent dictionary or lock)
+    ///   if multiple threads can define/lookup records concurrently.
     private var recordDefinitions: [String: [RecordField]] = [:]
 
     // MARK: - Initialization
@@ -78,6 +91,17 @@ public final class Environment: @unchecked Sendable {
     // MARK: - Variable Operations
 
     /// Defines a new variable in the current scope.
+    ///
+    /// - Parameters:
+    ///   - name: The variable name
+    ///   - value: The initial value
+    ///   - isConstant: Whether this is a constant (default: false)
+    ///   - type: Optional declared type for type checking
+    ///
+    /// - Note: If a variable with the same name already exists in the current scope,
+    ///   this method will overwrite it. The constant status is also updated: if
+    ///   `isConstant` is false, any previous constant flag for this name is removed.
+    ///   This handles redefinition scenarios correctly.
     public func define(_ name: String, value: RuntimeValue, isConstant: Bool = false, type: DataType? = nil) {
         guard var currentScope = scopes.last else { return }
         currentScope.variables[name] = value

@@ -7,8 +7,16 @@ public struct FastParsingTokenizer {
 
     // MARK: - Static Lookup Tables
 
-    /// Lookup table for single-byte ASCII operators/delimiters
-    /// Maps byte values to (TokenType, lexeme) pairs for O(1) lookup
+    /// Lookup table for single-byte ASCII operators/delimiters.
+    /// Maps byte values to (TokenType, lexeme) pairs for O(1) lookup.
+    ///
+    /// This table is the first tier of a two-tier operator lookup strategy:
+    /// 1. **Tier 1 (this table)**: Fast O(1) lookup for single-character ASCII operators
+    /// 2. **Tier 2 (`TokenizerUtilities.operators`)**: Fallback for multi-character
+    ///    operators (e.g., `<=`, `>=`, `==`) and Unicode operators (e.g., `←`, `≤`)
+    ///
+    /// The tokenizer first checks this table for common single-byte operators,
+    /// then falls back to `parseUnicodeOperatorFast` for anything not found here.
     private static let asciiOperatorTable: [UInt8: (TokenType, String)] = [
         40: (.leftParen, "("),      // '('
         41: (.rightParen, ")"),     // ')'
@@ -417,7 +425,7 @@ public struct FastParsingTokenizer {
         case "n", "t", "r", "\\", "\"", "'":
             break // Valid escape sequences
         default:
-            throw TokenizerError.invalidEscapeSequenceWithMessage("Unknown escape sequence \\(char)", position)
+            throw TokenizerError.invalidEscapeSequenceWithMessage("Unknown escape sequence \\\(char)", position)
         }
     }
 

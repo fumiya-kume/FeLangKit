@@ -221,7 +221,12 @@ public struct MappedTokenSequenceIterator<T>: IteratorProtocol {
 
 // MARK: - Mapped Token Sequence
 
-/// A sequence that transforms tokens from a TokenStream
+/// A sequence that transforms tokens from a TokenStream.
+///
+/// - Important: This sequence silently swallows errors from the transform closure
+///   and returns `nil` instead, because `IteratorProtocol.next()` cannot throw.
+///   If error handling is required, consider using `TokenStreamAdapter.collectTokens`
+///   with manual transformation, or check the source stream for errors separately.
 public struct MappedTokenSequence<T>: Sequence {
     public typealias Element = T
     public typealias Iterator = MappedTokenSequenceIterator<T>
