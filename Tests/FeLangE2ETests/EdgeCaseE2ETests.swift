@@ -4,7 +4,7 @@ import Testing
 @Suite("Edge Case E2E Tests", .serialized)
 struct EdgeCaseE2ETests {
 
-    init() async throws {
+    init() throws {
         try CLITestHelper.ensureBinaryBuilt()
     }
 
@@ -20,7 +20,7 @@ struct EdgeCaseE2ETests {
         if result.exitCode == 0 {
             #expect(result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } else {
-            #expect(result.exitCode != 0)
+            // Non-zero exit code is also acceptable behavior for empty program.
         }
     }
 
@@ -33,7 +33,7 @@ struct EdgeCaseE2ETests {
         if result.exitCode == 0 {
             #expect(result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } else {
-            #expect(result.exitCode != 0)
+            // Non-zero exit code is also acceptable behavior for whitespace-only program.
         }
     }
 
@@ -48,7 +48,7 @@ struct EdgeCaseE2ETests {
         if result.exitCode == 0 {
             #expect(result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } else {
-            #expect(result.exitCode != 0)
+            // Non-zero exit code is also acceptable behavior for comment-only program.
         }
     }
 

@@ -209,7 +209,10 @@ public struct MappedTokenSequenceIterator<T>: IteratorProtocol {
             return nil
         } catch {
             // In case of error, we'll return nil to conform to IteratorProtocol
-            // In a production system, you might want to log the error
+            // IteratorProtocol doesn't support throwing, so we log in debug builds.
+            #if DEBUG
+            assertionFailure("MappedTokenSequenceIterator encountered error: \(error)")
+            #endif
             return nil
         }
     }

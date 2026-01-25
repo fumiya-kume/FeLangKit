@@ -21,7 +21,7 @@ func readSource(file: String?, code: String?) throws -> String {
         do {
             return try String(contentsOfFile: file, encoding: .utf8)
         } catch {
-            throw CLIError.fileNotFound(file)
+            throw CLIError.fileNotFound(file, error)
         }
     }
     throw CLIError.noInput
@@ -30,13 +30,16 @@ func readSource(file: String?, code: String?) throws -> String {
 /// CLI error definitions
 enum CLIError: Error, CustomStringConvertible {
     case noInput
-    case fileNotFound(String)
+    case fileNotFound(String, Error?)
 
     var description: String {
         switch self {
         case .noInput:
             return "No input provided. Specify a file or use --code"
-        case .fileNotFound(let path):
+        case .fileNotFound(let path, let underlyingError):
+            if let error = underlyingError {
+                return "Cannot read file '\(path)': \(error.localizedDescription)"
+            }
             return "File not found: \(path)"
         }
     }

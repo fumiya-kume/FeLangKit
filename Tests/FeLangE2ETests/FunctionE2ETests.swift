@@ -19,8 +19,8 @@ struct FunctionE2ETests {
         println(x)
         """
         let output = try InProcessTestHelper.run(code)
-        #expect(output.contains("20"))
-        #expect(output.contains("10"))
+        let lines = output.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        #expect(lines == ["20", "10"])
     }
 
     @Test("Constant capture in function")

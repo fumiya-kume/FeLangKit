@@ -54,6 +54,7 @@ struct ControlFlowE2ETests {
 
     @Test("Nested function calls in expressions")
     func testNestedFunctionCalls() throws {
+        // This covers nested function calls in-process; CLI coverage lives in EdgeCaseE2ETests.
         // max(3, -2) = 3, min(-5, 3) = -5, abs(-5) = 5
         let output = try InProcessTestHelper.run("println(abs(min(-5, max(3, -2))))")
         #expect(output.contains("5"))
@@ -157,12 +158,20 @@ struct ControlFlowE2ETests {
     func testBreakOutsideLoop() throws {
         let result = InProcessTestHelper.execute("break")
         #expect(!result.succeeded)
+        if let error = result.error {
+            let message = String(describing: error).lowercased()
+            #expect(message.contains("break") || message.contains("loop"))
+        }
     }
 
     @Test("Continue outside loop should error")
     func testContinueOutsideLoop() throws {
         let result = InProcessTestHelper.execute("continue")
         #expect(!result.succeeded)
+        if let error = result.error {
+            let message = String(describing: error).lowercased()
+            #expect(message.contains("continue") || message.contains("loop"))
+        }
     }
 
     // MARK: - For Loop Variations

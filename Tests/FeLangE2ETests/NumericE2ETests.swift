@@ -77,7 +77,7 @@ struct NumericE2ETests {
     @Test("Integer division: 7 / 3 = 2")
     func testIntegerDivision() throws {
         let output = try InProcessTestHelper.run("println(7 / 3)")
-        #expect(output.contains("2"))
+        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "2")
     }
 
     @Test("Real division: 7.0 / 3.0")

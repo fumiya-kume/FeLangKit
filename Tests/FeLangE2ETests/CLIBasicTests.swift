@@ -12,7 +12,7 @@ struct CLIBasicTests {
     func testVersionFlag() throws {
         let result = try CLITestHelper.run(arguments: ["--version"])
         #expect(result.exitCode == 0)
-        #expect(result.stdout.contains("1.0.0"))
+        #expect(result.stdout.range(of: #"\d+\.\d+\.\d+"#, options: .regularExpression) != nil)
     }
 
     @Test("--help flag shows usage")

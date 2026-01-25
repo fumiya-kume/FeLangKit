@@ -103,7 +103,7 @@ struct ParseCommandTests {
         )
         #expect(result.exitCode == 0)
         // Should contain line:column format
-        #expect(result.stdout.contains("1:"))
+        #expect(result.stdout.range(of: #"\b\d+:\d+\b"#, options: .regularExpression) != nil)
     }
 
     @Test("Tokenize arithmetic expression")

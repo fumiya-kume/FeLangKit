@@ -54,7 +54,7 @@ struct BoundaryE2ETests {
     @Test("large array creation and access")
     func testLargeArray() throws {
         // Create array with 100 elements
-        var elements = (0..<100).map { String($0) }.joined(separator: ", ")
+        let elements = (0..<100).map { String($0) }.joined(separator: ", ")
         let code = """
         変数 arr: 配列 of 整数 ← [\(elements)]
         println(arrayLength(arr))
