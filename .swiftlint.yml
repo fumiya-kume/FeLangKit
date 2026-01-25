@@ -13,7 +13,6 @@ excluded:
 
 # オプトインルール（明示的に有効化しないと動かないルール）
 opt_in_rules:
-  - explicit_self
   - force_unwrapping
   - empty_count
   - closure_end_indentation
@@ -37,3 +36,9 @@ custom_rules:
     regex: 'as!'
     message: "Avoid using force casts (as!)"
     severity: warning
+
+# 複雑度ルールの調整（switch の case をカウントしない）
+cyclomatic_complexity:
+  warning: 15
+  error: 20
+  ignores_case_statements: true

@@ -200,9 +200,11 @@ final class SemanticErrorReporterTests: XCTestCase {
         XCTAssertEqual(result.errors.count, 4)
 
         // Check that the last error is the "too many errors" error
-        let lastError = result.errors.last
-        XCTAssertNotNil(lastError)
-        if case .tooManyErrors(let count) = lastError! {
+        guard let lastError = result.errors.last else {
+            XCTFail("Expected at least one error")
+            return
+        }
+        if case .tooManyErrors(let count) = lastError {
             XCTAssertEqual(count, 3)
         } else {
             XCTFail("Expected tooManyErrors error")
@@ -220,7 +222,11 @@ final class SemanticErrorReporterTests: XCTestCase {
         XCTAssertTrue(reporter.hasReachedErrorLimit)
 
         let result = reporter.finalize(with: symbolTable)
-        if case .tooManyErrors(let count) = result.errors.first! {
+        guard let firstError = result.errors.first else {
+            XCTFail("Expected at least one error")
+            return
+        }
+        if case .tooManyErrors(let count) = firstError {
             XCTAssertEqual(count, 0)
         } else {
             XCTFail("Expected tooManyErrors error")

@@ -27,6 +27,12 @@ public final class StatementExecutor: @unchecked Sendable {
     /// Loop depth for break/continue validation
     private var loopDepth: Int = 0
 
+    /// Function depth for return validation
+    private var functionDepth: Int = 0
+
+    /// External function resolver for standard library functions
+    private var externalFunctionResolver: (@Sendable (String, [RuntimeValue]) throws -> RuntimeValue)?
+
     // MARK: - Initialization
 
     public init(environment: Environment) {
@@ -35,6 +41,13 @@ public final class StatementExecutor: @unchecked Sendable {
             guard let self = self else { throw RuntimeError.generic(message: "Executor deallocated") }
             return try self.callFunction(name, arguments: args)
         }
+    }
+
+    /// Sets the external function resolver for standard library functions
+    public func setExternalFunctionResolver(
+        _ resolver: @escaping @Sendable (String, [RuntimeValue]) throws -> RuntimeValue
+    ) {
+        self.externalFunctionResolver = resolver
     }
 
     // MARK: - Main Execution
@@ -108,35 +121,50 @@ public final class StatementExecutor: @unchecked Sendable {
             try environment.pushScope()
             defer { environment.popScope() }
             return try execute(statements)
+
+        case .recordDeclaration(let decl):
+            executeRecordDeclaration(decl)
+            return .normal
         }
     }
 
     // MARK: - Declaration Execution
 
+    private func executeRecordDeclaration(_ decl: RecordDeclaration) {
+        environment.defineRecord(decl.name, fields: decl.fields)
+    }
+
     private func executeVariableDeclaration(_ decl: VariableDeclaration) throws {
         let value: RuntimeValue
         if let initialValue = decl.initialValue {
             value = try evaluator.evaluate(initialValue)
+            // Validate type of initial value matches declaration
+            try validateType(value, expected: decl.type, context: "variable '\(decl.name)' initialization")
         } else {
             value = defaultValue(for: decl.type)
         }
-        environment.define(decl.name, value: value, isConstant: false)
+        environment.define(decl.name, value: value, isConstant: false, type: decl.type)
     }
 
     private func executeConstantDeclaration(_ decl: ConstantDeclaration) throws {
         let value = try evaluator.evaluate(decl.initialValue)
-        environment.define(decl.name, value: value, isConstant: true)
+        // Validate type of initial value matches declaration
+        try validateType(value, expected: decl.type, context: "constant '\(decl.name)' initialization")
+        environment.define(decl.name, value: value, isConstant: true, type: decl.type)
     }
 
     private func executeFunctionDeclaration(_ decl: FunctionDeclaration) throws {
         let parameterNames = decl.parameters.map { $0.name }
+        let parameterTypes = decl.parameters.map { $0.type }
         let captured = environment.captureEnvironmentWithConstants()
         let functionValue = FunctionValue(
             name: decl.name,
             parameters: parameterNames,
+            parameterTypes: parameterTypes,
             body: decl.body,
             capturedEnvironment: captured.values,
             capturedConstants: captured.constants,
+            capturedTypes: captured.types,
             returnType: decl.returnType
         )
         environment.define(decl.name, value: .function(functionValue))
@@ -144,13 +172,16 @@ public final class StatementExecutor: @unchecked Sendable {
 
     private func executeProcedureDeclaration(_ decl: ProcedureDeclaration) throws {
         let parameterNames = decl.parameters.map { $0.name }
+        let parameterTypes = decl.parameters.map { $0.type }
         let captured = environment.captureEnvironmentWithConstants()
         let procedureValue = ProcedureValue(
             name: decl.name,
             parameters: parameterNames,
+            parameterTypes: parameterTypes,
             body: decl.body,
             capturedEnvironment: captured.values,
-            capturedConstants: captured.constants
+            capturedConstants: captured.constants,
+            capturedTypes: captured.types
         )
         environment.define(decl.name, value: .procedure(procedureValue))
     }
@@ -161,6 +192,10 @@ public final class StatementExecutor: @unchecked Sendable {
         switch assignment {
         case .variable(let name, let expr):
             let value = try evaluator.evaluate(expr)
+            // Validate type if variable has a declared type
+            if let expectedType = environment.lookupType(name) {
+                try validateType(value, expected: expectedType, context: "assignment to '\(name)'")
+            }
             try environment.assign(name, value: value)
 
         case .arrayElement(let arrayAccess, let expr):
@@ -170,10 +205,6 @@ public final class StatementExecutor: @unchecked Sendable {
     }
 
     private func assignArrayElement(_ access: Assignment.ArrayAccess, value: RuntimeValue) throws {
-        guard case .identifier(let arrayName) = access.array else {
-            throw RuntimeError.generic(message: "Cannot assign to complex array expression")
-        }
-
         let indexValue = try evaluator.evaluate(access.index)
         guard case .integer(let index) = indexValue else {
             throw RuntimeError.typeMismatch(
@@ -183,29 +214,105 @@ public final class StatementExecutor: @unchecked Sendable {
             )
         }
 
-        let arrayValue = try environment.get(arrayName)
-        guard case .array(var elements) = arrayValue else {
-            throw RuntimeError.typeMismatch(
-                expected: "array",
-                actual: arrayValue.typeName,
-                operation: "array assignment"
-            )
-        }
+        switch access.array {
+        case .identifier(let arrayName):
+            // Simple case: arr[i] ← value
+            let arrayValue = try environment.get(arrayName)
+            guard case .array(var elements) = arrayValue else {
+                throw RuntimeError.typeMismatch(
+                    expected: "array",
+                    actual: arrayValue.typeName,
+                    operation: "array assignment"
+                )
+            }
 
-        guard index >= 0, index < elements.count else {
-            throw RuntimeError.indexOutOfBounds(index: index, size: elements.count)
-        }
+            guard index >= 0, index < elements.count else {
+                throw RuntimeError.indexOutOfBounds(index: index, size: elements.count)
+            }
 
-        elements[index] = value
-        try environment.assign(arrayName, value: .array(elements))
+            // Validate type matches existing element type
+            if let existingElement = elements.first {
+                if let existingType = inferDataType(from: existingElement),
+                   let valueType = inferDataType(from: value) {
+                    if !typesMatch(valueType, expected: existingType) {
+                        throw RuntimeError.typeMismatch(
+                            expected: String(describing: existingType),
+                            actual: String(describing: valueType),
+                            operation: "array element assignment"
+                        )
+                    }
+                } else if existingElement.typeName != value.typeName {
+                    throw RuntimeError.typeMismatch(
+                        expected: existingElement.typeName,
+                        actual: value.typeName,
+                        operation: "array element assignment"
+                    )
+                }
+            }
+
+            elements[index] = value
+            try environment.assign(arrayName, value: .array(elements))
+
+        case .arrayAccess(let innerArray, let innerIndex):
+            // Nested case: arr[i][j] ← value
+            // First, get the inner array and modify it
+            let innerArrayValue = try evaluator.evaluate(.arrayAccess(innerArray, innerIndex))
+            guard case .array(var innerElements) = innerArrayValue else {
+                throw RuntimeError.typeMismatch(
+                    expected: "array",
+                    actual: innerArrayValue.typeName,
+                    operation: "nested array assignment"
+                )
+            }
+
+            guard index >= 0, index < innerElements.count else {
+                throw RuntimeError.indexOutOfBounds(index: index, size: innerElements.count)
+            }
+
+            // Validate type matches existing element type
+            if let existingElement = innerElements.first {
+                if let existingType = inferDataType(from: existingElement),
+                   let valueType = inferDataType(from: value) {
+                    if !typesMatch(valueType, expected: existingType) {
+                        throw RuntimeError.typeMismatch(
+                            expected: String(describing: existingType),
+                            actual: String(describing: valueType),
+                            operation: "nested array element assignment"
+                        )
+                    }
+                } else if existingElement.typeName != value.typeName {
+                    throw RuntimeError.typeMismatch(
+                        expected: existingElement.typeName,
+                        actual: value.typeName,
+                        operation: "nested array element assignment"
+                    )
+                }
+            }
+
+            innerElements[index] = value
+
+            // Now assign the modified inner array back
+            let innerAccess = Assignment.ArrayAccess(array: innerArray, index: innerIndex)
+            try assignArrayElement(innerAccess, value: .array(innerElements))
+
+        default:
+            throw RuntimeError.generic(message: "Cannot assign to complex array expression")
+        }
     }
 
     // MARK: - Control Flow Execution
 
     private func executeIfStatement(_ ifStmt: IfStatement) throws -> ControlFlow {
         let condition = try evaluator.evaluate(ifStmt.condition)
+        guard case .boolean(let boolValue) = condition else {
+            throw RuntimeError.typeMismatch(
+                expected: "Boolean",
+                actual: condition.typeName,
+                operation: "if condition"
+            )
+        }
 
-        if condition.isTruthy {
+        if boolValue {
             try environment.pushScope()
             defer { environment.popScope() }
             return try execute(ifStmt.thenBody)
@@ -213,7 +320,14 @@ public final class StatementExecutor: @unchecked Sendable {
 
         for elseIf in ifStmt.elseIfs {
             let elseIfCondition = try evaluator.evaluate(elseIf.condition)
-            if elseIfCondition.isTruthy {
+            guard case .boolean(let elseIfBoolValue) = elseIfCondition else {
+                throw RuntimeError.typeMismatch(
+                    expected: "Boolean",
+                    actual: elseIfCondition.typeName,
+                    operation: "elif condition"
+                )
+            }
+            if elseIfBoolValue {
                 try environment.pushScope()
                 defer { environment.popScope() }
                 return try execute(elseIf.body)
@@ -233,7 +347,17 @@ public final class StatementExecutor: @unchecked Sendable {
         loopDepth += 1
         defer { loopDepth -= 1 }
 
-        while try evaluator.evaluate(whileStmt.condition).isTruthy {
+        while true {
+            let condition = try evaluator.evaluate(whileStmt.condition)
+            guard case .boolean(let boolValue) = condition else {
+                throw RuntimeError.typeMismatch(
+                    expected: "Boolean",
+                    actual: condition.typeName,
+                    operation: "while condition"
+                )
+            }
+            guard boolValue else { break }
+
             try environment.pushScope()
             defer { environment.popScope() }
             let result = try execute(whileStmt.body)
@@ -279,24 +403,43 @@ public final class StatementExecutor: @unchecked Sendable {
         }
 
         var step = 1
+        var hasExplicitStep = false
         if let stepExpr = rangeFor.step {
+            hasExplicitStep = true
             let stepValue = try evaluator.evaluate(stepExpr)
-            guard case .integer(let stepInt) = stepValue, stepInt > 0 else {
+            guard case .integer(let stepInt) = stepValue else {
                 throw RuntimeError.typeMismatch(
-                    expected: "positive integer",
+                    expected: "integer",
                     actual: stepValue.typeName,
                     operation: "for loop step"
                 )
             }
+            guard stepInt != 0 else {
+                throw RuntimeError.generic(message: "For loop step cannot be zero")
+            }
             step = stepInt
         }
-        let range = start <= end ? stride(from: start, through: end, by: step)
-                                 : stride(from: start, through: end, by: -step)
+
+        // Create range based on step direction and explicit step flag
+        let range: StrideThrough<Int>
+        if hasExplicitStep {
+            // With explicit step, use it directly (user controls direction)
+            range = stride(from: start, through: end, by: step)
+        } else {
+            // Without explicit step, only forward iteration
+            if start <= end {
+                range = stride(from: start, through: end, by: 1)
+            } else {
+                // Empty range - don't execute loop when end < start without explicit step.
+                // Using a dummy stride here is intentional: this range iterates zero times.
+                range = stride(from: 0, through: -1, by: 1)
+            }
+        }
 
         for currentValue in range {
             try environment.pushScope()
             defer { environment.popScope() }
-            environment.define(rangeFor.variable, value: .integer(currentValue))
+            environment.define(rangeFor.variable, value: .integer(currentValue), type: .integer)
 
             let result = try execute(rangeFor.body)
 
@@ -332,7 +475,8 @@ public final class StatementExecutor: @unchecked Sendable {
         for element in elements {
             try environment.pushScope()
             defer { environment.popScope() }
-            environment.define(forEach.variable, value: element)
+            let elementType = inferDataType(from: element)
+            environment.define(forEach.variable, value: element, type: elementType)
 
             let result = try execute(forEach.body)
 
@@ -352,6 +496,9 @@ public final class StatementExecutor: @unchecked Sendable {
     }
 
     private func executeReturnStatement(_ returnStmt: ReturnStatement) throws -> ControlFlow {
+        guard functionDepth > 0 else {
+            throw RuntimeError.generic(message: "Return statement outside of function")
+        }
         if let expr = returnStmt.expression {
             let value = try evaluator.evaluate(expr)
             return .returnValue(value)
@@ -362,19 +509,25 @@ public final class StatementExecutor: @unchecked Sendable {
     // MARK: - Function Calling
 
     public func callFunction(_ name: String, arguments: [RuntimeValue]) throws -> RuntimeValue {
-        guard let callable = environment.lookup(name) else {
-            throw RuntimeError.undefinedFunction(name: name)
+        // First check user-defined functions in environment
+        if let callable = environment.lookup(name) {
+            switch callable {
+            case .function(let functionValue):
+                return try callFunctionValue(functionValue, arguments: arguments)
+            case .procedure(let procedureValue):
+                try callProcedureValue(procedureValue, arguments: arguments)
+                return .null
+            default:
+                throw RuntimeError.notCallable(type: callable.typeName)
+            }
         }
 
-        switch callable {
-        case .function(let functionValue):
-            return try callFunctionValue(functionValue, arguments: arguments)
-        case .procedure(let procedureValue):
-            try callProcedureValue(procedureValue, arguments: arguments)
-            return .null
-        default:
-            throw RuntimeError.notCallable(type: callable.typeName)
+        // Then try external function resolver (for standard library functions)
+        if let resolver = externalFunctionResolver {
+            return try resolver(name, arguments)
         }
+
+        throw RuntimeError.undefinedFunction(name: name)
     }
 
     private func callFunctionValue(
@@ -389,18 +542,36 @@ public final class StatementExecutor: @unchecked Sendable {
             )
         }
 
+        // Validate parameter types
+        if !function.parameterTypes.isEmpty {
+            for (index, (param, arg)) in zip(function.parameters, arguments).enumerated() {
+                guard index < function.parameterTypes.count else { continue }
+                let expectedType = function.parameterTypes[index]
+                try validateType(arg, expected: expectedType, context: "parameter '\(param)' of '\(function.name)'")
+            }
+        }
+
         try environment.enterCall()
         defer { environment.exitCall() }
+
+        functionDepth += 1
+        defer { functionDepth -= 1 }
 
         try environment.pushScope()
         defer { environment.popScope() }
 
-        // Import captured environment with constant metadata preserved
-        environment.importVariables(function.capturedEnvironment, constants: function.capturedConstants)
+        // Import captured environment with constant metadata and type information preserved
+        let capturedEnv = Environment.CapturedEnvironment(
+            values: function.capturedEnvironment,
+            constants: function.capturedConstants,
+            types: function.capturedTypes
+        )
+        environment.importVariables(capturedEnv)
 
-        // Bind parameters
-        for (param, arg) in zip(function.parameters, arguments) {
-            environment.define(param, value: arg)
+        // Bind parameters with their types
+        for (index, (param, arg)) in zip(function.parameters, arguments).enumerated() {
+            let paramType = index < function.parameterTypes.count ? function.parameterTypes[index] : nil
+            environment.define(param, value: arg, type: paramType)
         }
 
         // Execute body
@@ -408,7 +579,12 @@ public final class StatementExecutor: @unchecked Sendable {
 
         switch result {
         case .returnValue(let value):
-            return value ?? .null
+            let returnValue = value ?? .null
+            // Validate return type
+            if let expectedType = function.returnType {
+                try validateType(returnValue, expected: expectedType, context: "return value of '\(function.name)'")
+            }
+            return returnValue
         default:
             throw RuntimeError.missingReturnValue(function: function.name)
         }
@@ -426,18 +602,36 @@ public final class StatementExecutor: @unchecked Sendable {
             )
         }
 
+        // Validate parameter types
+        if !procedure.parameterTypes.isEmpty {
+            for (index, (param, arg)) in zip(procedure.parameters, arguments).enumerated() {
+                guard index < procedure.parameterTypes.count else { continue }
+                let expectedType = procedure.parameterTypes[index]
+                try validateType(arg, expected: expectedType, context: "parameter '\(param)' of '\(procedure.name)'")
+            }
+        }
+
         try environment.enterCall()
         defer { environment.exitCall() }
+
+        functionDepth += 1
+        defer { functionDepth -= 1 }
 
         try environment.pushScope()
         defer { environment.popScope() }
 
-        // Import captured environment with constant metadata preserved
-        environment.importVariables(procedure.capturedEnvironment, constants: procedure.capturedConstants)
+        // Import captured environment with constant metadata and type information preserved
+        let capturedEnv = Environment.CapturedEnvironment(
+            values: procedure.capturedEnvironment,
+            constants: procedure.capturedConstants,
+            types: procedure.capturedTypes
+        )
+        environment.importVariables(capturedEnv)
 
-        // Bind parameters
-        for (param, arg) in zip(procedure.parameters, arguments) {
-            environment.define(param, value: arg)
+        // Bind parameters with their types
+        for (index, (param, arg)) in zip(procedure.parameters, arguments).enumerated() {
+            let paramType = index < procedure.parameterTypes.count ? procedure.parameterTypes[index] : nil
+            environment.define(param, value: arg, type: paramType)
         }
 
         // Execute body
@@ -466,5 +660,175 @@ public final class StatementExecutor: @unchecked Sendable {
         case .record:
             return .record([:])
         }
+    }
+
+    private func inferDataType(from value: RuntimeValue) -> DataType? {
+        switch value {
+        case .integer: return .integer
+        case .real: return .real
+        case .string: return .string
+        case .character: return .character
+        case .boolean: return .boolean
+        case .array(let elements):
+            // Infer element type from first element if available
+            if let first = elements.first, let elementType = inferDataType(from: first) {
+                return .array(elementType)
+            }
+            return nil
+        case .record:
+            // Record type name cannot be inferred from runtime value
+            return nil
+        case .function, .procedure, .null:
+            return nil
+        }
+    }
+
+    private func validateType(_ value: RuntimeValue, expected: DataType, context: String) throws {
+        let matches: Bool
+        switch (expected, value) {
+        case (.integer, .integer):
+            matches = true
+        case (.real, .real):
+            matches = true
+        case (.real, .integer):
+            // Integer can be promoted to real
+            matches = true
+        case (.string, .string):
+            matches = true
+        case (.character, .character):
+            matches = true
+        case (.boolean, .boolean):
+            matches = true
+        case (.array(let expectedElementType), .array(let elements)):
+            if elements.isEmpty {
+                // Empty array matches any element type
+                matches = true
+            } else {
+                let mismatchIndices = validateArrayElements(elements, expectedElementType: expectedElementType)
+                if mismatchIndices.isEmpty {
+                    matches = true
+                } else {
+                    // Throw with detailed error message including mismatched indices
+                    let mismatchedElement = elements[mismatchIndices[0]]
+                    let actualTypeDesc = inferDataType(from: mismatchedElement)
+                        .map { String(describing: $0) }
+                        ?? mismatchedElement.typeName
+                    throw RuntimeError.typeMismatch(
+                        expected: "array of \(expectedElementType)",
+                        actual: "array containing \(actualTypeDesc) at indices \(mismatchIndices)",
+                        operation: context
+                    )
+                }
+            }
+        case (.record(let expectedName), .record(let fields)):
+            // Look up record definition and validate field types
+            if let definition = environment.lookupRecordDefinition(expectedName) {
+                let (isValid, errorDetail) = validateRecordFields(fields, definition: definition)
+                if !isValid {
+                    throw RuntimeError.typeMismatch(
+                        expected: "record \(expectedName)",
+                        actual: errorDetail ?? "invalid record",
+                        operation: context
+                    )
+                }
+                matches = true
+            } else {
+                // Undefined record type is a type error
+                throw RuntimeError.typeMismatch(
+                    expected: "record \(expectedName)",
+                    actual: "undefined record type",
+                    operation: context
+                )
+            }
+        default:
+            matches = false
+        }
+
+        guard matches else {
+            throw RuntimeError.typeMismatch(
+                expected: String(describing: expected),
+                actual: value.typeName,
+                operation: context
+            )
+        }
+    }
+
+    /// Checks if an actual DataType matches an expected DataType, including integer → real promotion.
+    /// This method handles recursive array type checking.
+    private func typesMatch(_ actual: DataType, expected: DataType) -> Bool {
+        switch (expected, actual) {
+        case (.integer, .integer):
+            return true
+        case (.real, .real):
+            return true
+        case (.real, .integer):
+            // Integer can be promoted to real
+            return true
+        case (.string, .string):
+            return true
+        case (.character, .character):
+            return true
+        case (.boolean, .boolean):
+            return true
+        case (.array(let expectedElem), .array(let actualElem)):
+            // Recursively check element types
+            return typesMatch(actualElem, expected: expectedElem)
+        case (.record(let expectedName), .record(let actualName)):
+            return expectedName == actualName
+        default:
+            return false
+        }
+    }
+
+    /// Validates all elements in an array against the expected element type.
+    /// Returns indices of elements that don't match the expected type.
+    private func validateArrayElements(
+        _ elements: [RuntimeValue],
+        expectedElementType: DataType
+    ) -> [Int] {
+        var mismatchIndices: [Int] = []
+        for (index, element) in elements.enumerated() {
+            if let actualType = inferDataType(from: element) {
+                if !typesMatch(actualType, expected: expectedElementType) {
+                    mismatchIndices.append(index)
+                }
+            } else {
+                // Cannot infer type (e.g., function, procedure, null)
+                mismatchIndices.append(index)
+            }
+        }
+        return mismatchIndices
+    }
+
+    /// Validates all fields in a record against the expected field types.
+    /// - Parameters:
+    ///   - fields: The actual record field values
+    ///   - definition: The expected field definitions
+    /// - Returns: A tuple with validation result and error details
+    private func validateRecordFields(
+        _ fields: [String: RuntimeValue],
+        definition: [RecordField]
+    ) -> (isValid: Bool, errorDetail: String?) {
+        let definedFieldNames = Set(definition.map { $0.name })
+
+        // Check for extra fields not in definition
+        for fieldName in fields.keys where !definedFieldNames.contains(fieldName) {
+            return (false, "unexpected field '\(fieldName)'")
+        }
+
+        // Check all defined fields exist and have correct types
+        for field in definition {
+            guard let value = fields[field.name] else {
+                return (false, "missing field '\(field.name)'")
+            }
+            if let actualType = inferDataType(from: value) {
+                if !typesMatch(actualType, expected: field.type) {
+                    return (false, "field '\(field.name)' has type \(actualType), expected \(field.type)")
+                }
+            } else {
+                return (false, "cannot infer type of field '\(field.name)'")
+            }
+        }
+        return (true, nil)
     }
 }

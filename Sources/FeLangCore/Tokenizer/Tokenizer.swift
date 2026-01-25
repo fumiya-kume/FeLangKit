@@ -96,8 +96,7 @@ public final class Tokenizer {
     }
 
     /// Scans the next token from the input
-    private func nextToken() throws -> Token { // swiftlint:disable:this cyclomatic_complexity
-        let position = currentPosition()
+    private func nextToken() throws -> Token {        let position = currentPosition()
         let startIndex = current
         let char = advance()
 

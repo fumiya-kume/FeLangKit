@@ -41,8 +41,7 @@ struct FastParsingTokenizerTests {
         #expect(tokens[5].type == .eof)
     }
 
-    @Test(.disabled("FastParsingTokenizer has a bug with Japanese character processing"))
-    func testJapaneseKeywords() throws {
+    @Test func testJapaneseKeywords() throws {
         // Test each Japanese keyword individually
         let intType = try tokenizer.tokenize("整数型")
         #expect(intType[0].type == .integerType)
@@ -140,8 +139,7 @@ struct FastParsingTokenizerTests {
         #expect(tokens[8].type == .eof)
     }
 
-    @Test(.disabled("FastParsingTokenizer has a bug with Unicode character processing"))
-    func testUnicodeOperators() throws {
+    @Test func testUnicodeOperators() throws {
         // Test each Unicode operator individually
         let assign = try tokenizer.tokenize("←")
         #expect(assign[0].type == .assign)

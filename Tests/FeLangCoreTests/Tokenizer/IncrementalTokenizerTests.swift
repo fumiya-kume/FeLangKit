@@ -42,9 +42,11 @@ struct IncrementalTokenizerTests {
         let originalTokens = try baseTokenizer.tokenize(originalText)
 
         // Replace "oldName" with "newName"
-        let startIndex = originalText.range(of: "oldName")!.lowerBound
-        let endIndex = originalText.range(of: "oldName")!.upperBound
-        let replacementRange = startIndex..<endIndex
+        guard let range = originalText.range(of: "oldName") else {
+            Issue.record("Expected 'oldName' in original text")
+            return
+        }
+        let replacementRange = range
 
         let result = try incrementalTokenizer.updateTokens(
             in: replacementRange,
@@ -74,9 +76,11 @@ struct IncrementalTokenizerTests {
         let originalTokens = try baseTokenizer.tokenize(originalText)
 
         // Delete the second line
-        let deletionStart = originalText.range(of: "\n変数 y: 整数型")!.lowerBound
-        let deletionEnd = originalText.endIndex
-        let deletionRange = deletionStart..<deletionEnd
+        guard let range = originalText.range(of: "\n変数 y: 整数型") else {
+            Issue.record("Expected second line in original text")
+            return
+        }
+        let deletionRange = range.lowerBound..<originalText.endIndex
 
         let result = try incrementalTokenizer.updateTokens(
             in: deletionRange,
@@ -138,7 +142,10 @@ struct IncrementalTokenizerTests {
         let originalTokens = try baseTokenizer.tokenize(originalText)
 
         // Replace the number
-        let numberRange = originalText.range(of: "100")!
+        guard let numberRange = originalText.range(of: "100") else {
+            Issue.record("Expected '100' in original text")
+            return
+        }
         let result = try incrementalTokenizer.updateTokens(
             in: numberRange,
             with: "200",
@@ -177,8 +184,11 @@ struct IncrementalTokenizerTests {
         let originalTokens = try baseTokenizer.tokenize(originalText)
 
         // Insert a new variable declaration in the middle
-        let insertionPoint = originalText.range(of: "if x > 0 then")!.lowerBound
-        let insertionRange = insertionPoint..<insertionPoint
+        guard let ifRange = originalText.range(of: "if x > 0 then") else {
+            Issue.record("Expected 'if x > 0 then' in original text")
+            return
+        }
+        let insertionRange = ifRange.lowerBound..<ifRange.lowerBound
         let newCode = "変数 y: 整数型 ← x * 2\n"
 
         let result = try incrementalTokenizer.updateTokens(
@@ -238,7 +248,10 @@ struct IncrementalTokenizerTests {
         let originalTokens = try baseTokenizer.tokenize(originalText)
 
         // Modify the middle line
-        let secondLineRange = originalText.range(of: "second line")!
+        guard let secondLineRange = originalText.range(of: "second line") else {
+            Issue.record("Expected 'second line' in original text")
+            return
+        }
         let result = try incrementalTokenizer.updateTokens(
             in: secondLineRange,
             with: "modified line",
@@ -261,7 +274,10 @@ struct IncrementalTokenizerTests {
         let originalTokens = try baseTokenizer.tokenize(originalText)
 
         // Change just the first number
-        let firstNumberRange = originalText.range(of: "42")!
+        guard let firstNumberRange = originalText.range(of: "42") else {
+            Issue.record("Expected '42' in original text")
+            return
+        }
         let result = try incrementalTokenizer.updateTokens(
             in: firstNumberRange,
             with: "100",
@@ -291,8 +307,11 @@ struct IncrementalTokenizerTests {
         let originalTokens = try baseTokenizer.tokenize(originalText)
 
         // Insert a large block of code in the middle
-        let insertionPoint = originalText.range(of: "\n")!.upperBound
-        let insertionRange = insertionPoint..<insertionPoint
+        guard let newlineRange = originalText.range(of: "\n") else {
+            Issue.record("Expected newline in original text")
+            return
+        }
+        let insertionRange = newlineRange.upperBound..<newlineRange.upperBound
 
         var largeInsertion = ""
         for index in 0..<20 { // Reduced for test reliability

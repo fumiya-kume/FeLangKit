@@ -99,12 +99,13 @@ public struct ArrayTokenStream: TokenStreamProtocol {
     }
 
     public func position() -> SourcePosition {
+        if let peeked = peekedToken {
+            return peeked.position
+        }
         if currentIndex < tokens.count {
             return tokens[currentIndex].position
-        } else if !tokens.isEmpty {
-            return tokens.last!.position
         } else {
-            return SourcePosition(line: 1, column: 1, offset: 0)
+            return tokens.last?.position ?? SourcePosition(line: 1, column: 1, offset: 0)
         }
     }
 }
@@ -189,12 +190,46 @@ public struct FilteredTokenStream: TokenStreamProtocol {
     }
 }
 
+// MARK: - Mapped Token Sequence Iterator
+
+/// Iterator for MappedTokenSequence that transforms tokens
+public struct MappedTokenSequenceIterator<T>: IteratorProtocol {
+    public typealias Element = T
+
+    private var source: any TokenStreamProtocol
+    private let transform: (Token) throws -> T
+
+    init(source: any TokenStreamProtocol, transform: @escaping (Token) throws -> T) {
+        self.source = source
+        self.transform = transform
+    }
+
+    public mutating func next() -> T? {
+        do {
+            if let token = try source.nextToken() {
+                return try transform(token)
+            }
+            return nil
+        } catch {
+            // MappedTokenSequenceIterator doesn't support throwing from next(),
+            // so we return nil and ideally the error should be surfaced elsewhere
+            // or MappedTokenSequence should be redesigned to handle errors.
+            return nil
+        }
+    }
+}
+
 // MARK: - Mapped Token Sequence
 
-/// A sequence that transforms tokens from a TokenStream
+/// A sequence that transforms tokens from a TokenStream.
+///
+/// - Important: This sequence silently swallows errors from the transform closure
+///   and returns `nil` instead, because `IteratorProtocol.next()` cannot throw.
+///   If error handling is required, consider using `TokenStreamAdapter.collectTokens`
+///   with manual transformation, or check the source stream for errors separately.
 public struct MappedTokenSequence<T>: Sequence {
     public typealias Element = T
-    public typealias Iterator = MappedTokenSequence<T>.TokenIterator
+    public typealias Iterator = MappedTokenSequenceIterator<T>
 
     private var source: any TokenStreamProtocol
     private let transform: (Token) throws -> T
@@ -204,33 +239,8 @@ public struct MappedTokenSequence<T>: Sequence {
         self.transform = transform
     }
 
-    public func makeIterator() -> TokenIterator {
-        return TokenIterator(source: source, transform: transform)
-    }
-
-    public struct TokenIterator: IteratorProtocol {
-        public typealias Element = T
-
-        private var source: any TokenStreamProtocol
-        private let transform: (Token) throws -> T
-
-        init(source: any TokenStreamProtocol, transform: @escaping (Token) throws -> T) {
-            self.source = source
-            self.transform = transform
-        }
-
-        public mutating func next() -> T? {
-            do {
-                if let token = try source.nextToken() {
-                    return try transform(token)
-                }
-                return nil
-            } catch {
-                // In case of error, we'll return nil to conform to IteratorProtocol
-                // In a production system, you might want to log the error
-                return nil
-            }
-        }
+    public func makeIterator() -> MappedTokenSequenceIterator<T> {
+        return MappedTokenSequenceIterator(source: source, transform: transform)
     }
 }
 

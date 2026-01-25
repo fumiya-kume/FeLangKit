@@ -325,8 +325,9 @@ struct UnicodeNormalizationTests {
 
         // NFD should decompose é into e + combining acute
         // Note: grapheme cluster count stays the same, but Unicode scalar count increases
+        let combiningAcute: UnicodeScalar = "\u{0301}"
         #expect(result.unicodeScalars.count > composedText.unicodeScalars.count, "NFD should decompose characters")
-        #expect(result.unicodeScalars.contains(UnicodeScalar(0x0301)!), "Should contain combining acute accent")
+        #expect(result.unicodeScalars.contains(combiningAcute), "Should contain combining acute accent")
     }
 
     @Test("Normalization Forms - NFKC Testing")
@@ -355,7 +356,7 @@ struct UnicodeNormalizationTests {
     @Test("Character Classification System")
     func testCharacterClassificationSystem() throws {
         // Test letter classification
-        let letterA = UnicodeScalar(65)! // 'A'
+        let letterA: UnicodeScalar = "A"
         let classA = UnicodeNormalizer.classifyCharacter(letterA)
         if case .letter(let subcategory) = classA {
             #expect(subcategory == .uppercaseLetter, "A should be classified as uppercase letter")
@@ -364,7 +365,7 @@ struct UnicodeNormalizationTests {
         }
 
         // Test number classification
-        let digit5 = UnicodeScalar(53)! // '5'
+        let digit5: UnicodeScalar = "5"
         let class5 = UnicodeNormalizer.classifyCharacter(digit5)
         if case .number(let subcategory) = class5 {
             #expect(subcategory == .decimalDigitNumber, "5 should be classified as decimal digit")
@@ -373,7 +374,7 @@ struct UnicodeNormalizationTests {
         }
 
         // Test mathematical symbol
-        let piSymbol = UnicodeScalar(0x03C0)! // π
+        let piSymbol: UnicodeScalar = "π"
         let classPi = UnicodeNormalizer.classifyCharacter(piSymbol)
         if case .symbol(let subcategory) = classPi {
             #expect(subcategory == .mathSymbol, "π should be classified as math symbol")
@@ -382,7 +383,7 @@ struct UnicodeNormalizationTests {
         }
 
         // Test punctuation
-        let openParen = UnicodeScalar(40)! // '('
+        let openParen: UnicodeScalar = "("
         let classParen = UnicodeNormalizer.classifyCharacter(openParen)
         if case .punctuation(let subcategory) = classParen {
             #expect(subcategory == .openPunctuation, "( should be classified as open punctuation")
@@ -564,8 +565,9 @@ struct UnicodeNormalizationTests {
         let testTextWithAccent = "caf\u{00E9}"  // é as composed character
 
         // Test individual normalization methods - compare at Unicode scalar level
+        let combiningAcute: UnicodeScalar = "\u{0301}"
         #expect(testTextWithAccent.normalizedNFC.unicodeScalars.count != testTextWithAccent.normalizedNFD.unicodeScalars.count, "NFC and NFD should have different scalar counts")
-        #expect(testTextWithAccent.normalizedNFD.unicodeScalars.contains(UnicodeScalar(0x0301)!), "NFD should contain combining marks")
+        #expect(testTextWithAccent.normalizedNFD.unicodeScalars.contains(combiningAcute), "NFD should contain combining marks")
 
         let testText = "Ｈｅｌｌｏ π"
         #expect(testText.normalizedNFKC.contains("Hello"), "NFKC should normalize full-width")

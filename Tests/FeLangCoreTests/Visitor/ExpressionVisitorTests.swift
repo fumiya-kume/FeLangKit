@@ -53,7 +53,7 @@ struct ExpressionVisitorTests {
         let visitor = ExpressionVisitor<String>(
             visitLiteral: { _ in "literal" },
             visitIdentifier: { _ in "identifier" },
-            visitBinary: { op, left, right in "binary(\(op.rawValue), \(left), \(right))" },
+            visitBinary: { binaryOp, left, right in "binary(\(binaryOp.rawValue), \(left), \(right))" },
             visitUnary: { _, _ in "unary" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
@@ -76,7 +76,7 @@ struct ExpressionVisitorTests {
             visitLiteral: { _ in "literal" },
             visitIdentifier: { _ in "identifier" },
             visitBinary: { _, _, _ in "binary" },
-            visitUnary: { op, operand in "unary(\(op.rawValue), \(operand))" },
+            visitUnary: { unaryOp, operand in "unary(\(unaryOp.rawValue), \(operand))" },
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
@@ -159,10 +159,10 @@ struct ExpressionVisitorTests {
                 }
             case .identifier(let identifier):
                 return identifier
-            case .binary(let op, let left, let right):
-                return "(\(stringifyExpression(left)) \(op.rawValue) \(stringifyExpression(right)))"
-            case .unary(let op, let operand):
-                return "\(op.rawValue) \(stringifyExpression(operand))"
+            case .binary(let binaryOp, let left, let right):
+                return "(\(stringifyExpression(left)) \(binaryOp.rawValue) \(stringifyExpression(right)))"
+            case .unary(let unaryOp, let operand):
+                return "\(unaryOp.rawValue) \(stringifyExpression(operand))"
             case .arrayAccess(let array, let index):
                 return "\(stringifyExpression(array))[\(stringifyExpression(index))]"
             case .fieldAccess(let object, let field):

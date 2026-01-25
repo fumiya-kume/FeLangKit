@@ -46,13 +46,13 @@ public struct ExpressionParser {
         var leftExpr = try parseUnaryExpression(&parser)
 
         // Parse operators and right operands
-        while let op = tryParseBinaryOperator(&parser, minPrecedence: minPrecedence) {
+        while let binaryOp = tryParseBinaryOperator(&parser, minPrecedence: minPrecedence) {
             // For left-associative operators, increase precedence by 1
-            let nextMinPrec = op.isLeftAssociative ? op.precedence + 1 : op.precedence
+            let nextMinPrec = binaryOp.isLeftAssociative ? binaryOp.precedence + 1 : binaryOp.precedence
             let rightExpr = try parseExpression(&parser, minPrecedence: nextMinPrec)
 
             // Combine into binary expression
-            leftExpr = Expression.binary(op, leftExpr, rightExpr)
+            leftExpr = Expression.binary(binaryOp, leftExpr, rightExpr)
         }
 
         return leftExpr
@@ -61,9 +61,9 @@ public struct ExpressionParser {
     /// Parses a unary expression.
     private func parseUnaryExpression(_ parser: inout TokenStream) throws -> Expression {
         // Try to parse unary operators
-        if let op = tryParseUnaryOperator(&parser) {
+        if let unaryOp = tryParseUnaryOperator(&parser) {
             let expr = try parseUnaryExpression(&parser)
-            return Expression.unary(op, expr)
+            return Expression.unary(unaryOp, expr)
         }
 
         // Parse postfix expressions
@@ -159,24 +159,24 @@ public struct ExpressionParser {
     /// Tries to parse a binary operator with minimum precedence.
     private func tryParseBinaryOperator(_ parser: inout TokenStream, minPrecedence: Int) -> BinaryOperator? {
         guard let token = parser.peek(),
-              let op = BinaryOperator(tokenType: token.type),
-              op.precedence >= minPrecedence else {
+              let binaryOp = BinaryOperator(tokenType: token.type),
+              binaryOp.precedence >= minPrecedence else {
             return nil
         }
 
         _ = parser.advance() // consume the operator
-        return op
+        return binaryOp
     }
 
     /// Tries to parse a unary operator.
     private func tryParseUnaryOperator(_ parser: inout TokenStream) -> UnaryOperator? {
         guard let token = parser.peek(),
-              let op = UnaryOperator(tokenType: token.type) else {
+              let unaryOp = UnaryOperator(tokenType: token.type) else {
             return nil
         }
 
         _ = parser.advance() // consume the operator
-        return op
+        return unaryOp
     }
 
     /// Expects a specific token type and consumes it.

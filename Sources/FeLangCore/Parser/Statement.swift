@@ -11,6 +11,7 @@ public indirect enum Statement: Equatable, Codable, Sendable {
     // Declarations
     case variableDeclaration(VariableDeclaration)
     case constantDeclaration(ConstantDeclaration)
+    case recordDeclaration(RecordDeclaration)
 
     // Function/Procedure
     case functionDeclaration(FunctionDeclaration)
@@ -244,6 +245,47 @@ public struct ConstantDeclaration: Equatable, Codable, Sendable {
         self.name = name
         self.type = type
         self.initialValue = initialValue
+        self.position = position
+    }
+}
+
+/// Represents a single field in a record type definition.
+///
+/// Example:
+/// ```swift
+/// let field = RecordField(name: "x", type: .integer)
+/// ```
+public struct RecordField: Equatable, Codable, Sendable {
+    public let name: String
+    public let type: DataType
+
+    public init(name: String, type: DataType) {
+        self.name = name
+        self.type = type
+    }
+}
+
+/// Represents a record type declaration.
+/// A record declaration defines a custom data type with named fields.
+///
+/// Example:
+/// ```swift
+/// let record = RecordDeclaration(
+///     name: "Point",
+///     fields: [
+///         RecordField(name: "x", type: .integer),
+///         RecordField(name: "y", type: .integer)
+///     ]
+/// )
+/// ```
+public struct RecordDeclaration: Equatable, Codable, Sendable {
+    public let name: String
+    public let fields: [RecordField]
+    public let position: SourcePosition?
+
+    public init(name: String, fields: [RecordField], position: SourcePosition? = nil) {
+        self.name = name
+        self.fields = fields
         self.position = position
     }
 }

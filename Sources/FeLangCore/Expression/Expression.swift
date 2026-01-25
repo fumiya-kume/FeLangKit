@@ -149,6 +149,7 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
 
     // Logical operators
     case and = "and"
+    // swiftlint:disable:next identifier_name
     case or = "or"
 
     /// Returns the precedence level of this operator.

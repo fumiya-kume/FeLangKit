@@ -92,11 +92,10 @@ public enum TokenizerParsingStrategies {
     /// Parses operators using longest-match strategy
     /// Checks operators in order of length (longest first) to ensure proper matching
     public static func parseOperator(from input: String, at index: inout String.Index) -> TokenData? {
-        for (operatorString, tokenType) in TokenizerUtilities.operators {
-            if TokenizerUtilities.matchString(operatorString, in: input, at: index) {
-                index = input.index(index, offsetBy: operatorString.count)
-                return TokenData(type: tokenType, lexeme: operatorString)
-            }
+        for (operatorString, tokenType) in TokenizerUtilities.operators
+            where TokenizerUtilities.matchString(operatorString, in: input, at: index) {
+            index = input.index(index, offsetBy: operatorString.count)
+            return TokenData(type: tokenType, lexeme: operatorString)
         }
         return nil
     }
@@ -106,11 +105,10 @@ public enum TokenizerParsingStrategies {
     /// Parses delimiters (parentheses, brackets, punctuation)
     /// Uses the same longest-match strategy as operators
     public static func parseDelimiter(from input: String, at index: inout String.Index) -> TokenData? {
-        for (delimiter, tokenType) in TokenizerUtilities.delimiters {
-            if TokenizerUtilities.matchString(delimiter, in: input, at: index) {
-                index = input.index(index, offsetBy: delimiter.count)
-                return TokenData(type: tokenType, lexeme: delimiter)
-            }
+        for (delimiter, tokenType) in TokenizerUtilities.delimiters
+            where TokenizerUtilities.matchString(delimiter, in: input, at: index) {
+            index = input.index(index, offsetBy: delimiter.count)
+            return TokenData(type: tokenType, lexeme: delimiter)
         }
         return nil
     }

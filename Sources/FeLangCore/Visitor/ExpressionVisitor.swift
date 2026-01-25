@@ -107,10 +107,10 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
             return visitLiteral(literal)
         case .identifier(let identifier):
             return visitIdentifier(identifier)
-        case .binary(let op, let left, let right):
-            return visitBinary(op, left, right)
-        case .unary(let op, let operand):
-            return visitUnary(op, operand)
+        case .binary(let binaryOperator, let left, let right):
+            return visitBinary(binaryOperator, left, right)
+        case .unary(let unaryOperator, let operand):
+            return visitUnary(unaryOperator, operand)
         case .arrayAccess(let array, let index):
             return visitArrayAccess(array, index)
         case .fieldAccess(let object, let field):

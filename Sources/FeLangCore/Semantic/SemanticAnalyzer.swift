@@ -137,6 +137,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 collectSymbolsFromStatement(stmt)
             }
             symbolTable.popScope()
+        case .recordDeclaration:
+            // Record declarations are handled at type level, not symbol level
+            break
         case .assignment, .expressionStatement, .returnStatement, .breakStatement, .continueStatement:
             // These don't declare new symbols
             break
@@ -412,6 +415,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 typeCheckStatement(stmt)
             }
             symbolTable.popScope()
+        case .recordDeclaration:
+            // Record type declarations don't need type checking here
+            break
         case .breakStatement, .continueStatement:
             // No type checking needed
             break
@@ -1042,6 +1048,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 validateStatement(stmt)
             }
             symbolTable.popScope()
+        case .recordDeclaration:
+            // Record declarations are validated separately
+            break
         case .variableDeclaration, .constantDeclaration, .assignment, .expressionStatement:
             // These are validated in type checking pass
             break

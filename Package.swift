@@ -4,7 +4,8 @@ import PackageDescription
 let package = Package(
     name: "FeLangKit",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v13),
+        .iOS(.v17)
     ],
     products: [
         .library(name: "FeLangCore", targets: ["FeLangCore"]),
@@ -13,7 +14,9 @@ let package = Package(
         .library(name: "FeLangServer", targets: ["FeLangServer"])
     ],
     dependencies: [
-        .package(url: "https://github.com/pointfreeco/swift-parsing.git", from: "0.5.0")
+        .package(url: "https://github.com/pointfreeco/swift-parsing.git", from: "0.5.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
+        .package(url: "https://github.com/apple/swift-atomics.git", from: "1.3.0")
     ],
     targets: [
         .target(
@@ -48,6 +51,14 @@ let package = Package(
                 "FeLangKit"
             ]
         ),
+        .executableTarget(
+            name: "felang",
+            dependencies: [
+                "FeLangCore",
+                "FeLangRuntime",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ]
+        ),
         .testTarget(
             name: "FeLangCoreTests",
             dependencies: [
@@ -73,6 +84,14 @@ let package = Package(
             name: "FeLangServerTests",
             dependencies: [
                 "FeLangServer"
+            ]
+        ),
+        .testTarget(
+            name: "FeLangE2ETests",
+            dependencies: [
+                "FeLangCore",
+                "FeLangRuntime",
+                .product(name: "Atomics", package: "swift-atomics")
             ]
         )
     ]

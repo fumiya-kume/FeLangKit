@@ -470,13 +470,11 @@ public struct EnhancedParsingTokenizer {
             if TokenizerUtilities.isIdentifierStart(char) {
                 // Look ahead to see if this might be a keyword
                 let remainingInput = String(input[newIndex...])
-                for (keyword, _) in TokenizerUtilities.keywords {
-                    if remainingInput.hasPrefix(keyword) {
-                        // Check word boundary
-                        let endIndex = input.index(newIndex, offsetBy: keyword.count, limitedBy: input.endIndex) ?? input.endIndex
-                        if endIndex == input.endIndex || !TokenizerUtilities.isIdentifierContinue(input[endIndex]) {
-                            return newIndex // Found a keyword boundary
-                        }
+                for (keyword, _) in TokenizerUtilities.keywords where remainingInput.hasPrefix(keyword) {
+                    // Check word boundary
+                    let endIndex = input.index(newIndex, offsetBy: keyword.count, limitedBy: input.endIndex) ?? input.endIndex
+                    if endIndex == input.endIndex || !TokenizerUtilities.isIdentifierContinue(input[endIndex]) {
+                        return newIndex // Found a keyword boundary
                     }
                 }
             }
@@ -489,6 +487,7 @@ public struct EnhancedParsingTokenizer {
 
     private func convertToLegacyError(_ enhancedError: EnhancedTokenizerError) -> TokenizerError {
         let position = enhancedError.range.start
+        let nullScalar: UnicodeScalar = "\0"
 
         switch enhancedError.type {
         case .unexpectedCharacter(let char):
@@ -507,7 +506,7 @@ public struct EnhancedParsingTokenizer {
             return .invalidUnderscorePlacement(position)
         default:
             // For new error types, create a generic unexpected character error
-            return .unexpectedCharacter(UnicodeScalar(0x00)!, position)
+            return .unexpectedCharacter(nullScalar, position)
         }
     }
 

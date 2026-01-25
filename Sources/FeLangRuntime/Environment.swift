@@ -1,4 +1,5 @@
 import Foundation
+import FeLangCore
 
 /// Manages variable scopes and bindings during runtime execution.
 public final class Environment: @unchecked Sendable {
@@ -6,6 +7,7 @@ public final class Environment: @unchecked Sendable {
     private struct Scope {
         var variables: [String: RuntimeValue] = [:]
         var constants: Set<String> = []
+        var types: [String: DataType] = [:]
     }
 
     /// Stack of scopes (innermost scope is last)
@@ -19,6 +21,24 @@ public final class Environment: @unchecked Sendable {
 
     /// Maximum allowed call depth
     private let maxCallDepth: Int
+
+    /// Record type definitions.
+    ///
+    /// Note:
+    /// - These definitions are intentionally **global** within an `Environment`
+    ///   instance and are **not** tied to the lexical / runtime scopes managed
+    ///   by `scopes`.
+    /// - This differs from variable bindings, which are pushed/popped with
+    ///   `pushScope`/`popScope`. Record (type) declarations are treated as
+    ///   language-level, module-wide definitions that remain visible across all
+    ///   scopes once declared, similar to how many languages handle type
+    ///   declarations.
+    /// - If per-scope record types are ever required, they should be modeled
+    ///   separately (e.g. by making record definitions part of `Scope`) instead
+    ///   of changing this global behavior.
+    /// - TODO: Consider making this thread-safe (e.g., using a concurrent dictionary or lock)
+    ///   if multiple threads can define/lookup records concurrently.
+    private var recordDefinitions: [String: [RecordField]] = [:]
 
     // MARK: - Initialization
 
@@ -71,11 +91,31 @@ public final class Environment: @unchecked Sendable {
     // MARK: - Variable Operations
 
     /// Defines a new variable in the current scope.
-    public func define(_ name: String, value: RuntimeValue, isConstant: Bool = false) {
+    ///
+    /// - Parameters:
+    ///   - name: The variable name
+    ///   - value: The initial value
+    ///   - isConstant: Whether this is a constant (default: false)
+    ///   - type: Optional declared type for type checking
+    ///
+    /// - Note: If a variable with the same name already exists in the current scope,
+    ///   this method will overwrite it. The constant status is also updated: if
+    ///   `isConstant` is false, any previous constant flag for this name is removed.
+    ///   This handles redefinition scenarios correctly.
+    public func define(_ name: String, value: RuntimeValue, isConstant: Bool = false, type: DataType? = nil) {
         guard var currentScope = scopes.last else { return }
         currentScope.variables[name] = value
+        // Update constant status - remove if not constant (handles redefinition)
         if isConstant {
             currentScope.constants.insert(name)
+        } else {
+            currentScope.constants.remove(name)
+        }
+        // Update type info - remove if nil (handles redefinition)
+        if let type = type {
+            currentScope.types[name] = type
+        } else {
+            currentScope.types.removeValue(forKey: name)
         }
         scopes[scopes.count - 1] = currentScope
     }
@@ -109,6 +149,20 @@ public final class Environment: @unchecked Sendable {
         return false
     }
 
+    /// Looks up the declared type of a variable.
+    public func lookupType(_ name: String) -> DataType? {
+        for scope in scopes.reversed() {
+            if let type = scope.types[name] {
+                return type
+            }
+            if scope.variables[name] != nil {
+                // Variable exists but no type recorded
+                return nil
+            }
+        }
+        return nil
+    }
+
     /// Assigns a new value to an existing variable.
     public func assign(_ name: String, value: RuntimeValue) throws {
         // Check if it's a constant
@@ -117,11 +171,9 @@ public final class Environment: @unchecked Sendable {
         }
 
         // Find and update the variable
-        for index in (0..<scopes.count).reversed() {
-            if scopes[index].variables[name] != nil {
-                scopes[index].variables[name] = value
-                return
-            }
+        for index in (0..<scopes.count).reversed() where scopes[index].variables[name] != nil {
+            scopes[index].variables[name] = value
+            return
         }
 
         throw RuntimeError.undefinedVariable(name: name)
@@ -137,14 +189,16 @@ public final class Environment: @unchecked Sendable {
 
     // MARK: - Bulk Operations
 
-    /// Represents a captured environment snapshot including constant metadata.
+    /// Represents a captured environment snapshot including constant metadata and type information.
     public struct CapturedEnvironment {
         public let values: [String: RuntimeValue]
         public let constants: Set<String>
+        public let types: [String: DataType]
 
-        public init(values: [String: RuntimeValue], constants: Set<String>) {
+        public init(values: [String: RuntimeValue], constants: Set<String>, types: [String: DataType] = [:]) {
             self.values = values
             self.constants = constants
+            self.types = types
         }
     }
 
@@ -155,10 +209,11 @@ public final class Environment: @unchecked Sendable {
         }
     }
 
-    /// Imports variables from a captured environment, preserving constant metadata.
+    /// Imports variables from a captured environment, preserving constant metadata and type information.
     public func importVariables(_ captured: CapturedEnvironment) {
         for (name, value) in captured.values {
-            define(name, value: value, isConstant: captured.constants.contains(name))
+            let type = captured.types[name]
+            define(name, value: value, isConstant: captured.constants.contains(name), type: type)
         }
     }
 
@@ -186,12 +241,13 @@ public final class Environment: @unchecked Sendable {
         return captured
     }
 
-    /// Creates a snapshot of the current environment for closures, including constant metadata.
+    /// Creates a snapshot of the current environment for closures, including constant metadata and type information.
     /// This correctly handles shadowing: if an outer constant is shadowed by an inner non-constant,
     /// the captured binding will be non-constant.
     public func captureEnvironmentWithConstants() -> CapturedEnvironment {
         var capturedValues: [String: RuntimeValue] = [:]
         var capturedConstants: Set<String> = []
+        var capturedTypes: [String: DataType] = [:]
         for scope in scopes {
             for (name, value) in scope.variables {
                 capturedValues[name] = value
@@ -204,8 +260,18 @@ public final class Environment: @unchecked Sendable {
                     capturedConstants.remove(name)
                 }
             }
+            // Capture type information for type checking in closures
+            // When a variable is shadowed, update or clear type info based on the inner scope
+            for name in scope.variables.keys {
+                if let type = scope.types[name] {
+                    capturedTypes[name] = type
+                } else {
+                    // Variable exists in this scope but has no type - remove any outer type
+                    capturedTypes.removeValue(forKey: name)
+                }
+            }
         }
-        return CapturedEnvironment(values: capturedValues, constants: capturedConstants)
+        return CapturedEnvironment(values: capturedValues, constants: capturedConstants, types: capturedTypes)
     }
 
     // MARK: - Debugging
@@ -217,5 +283,22 @@ public final class Environment: @unchecked Sendable {
             names.formUnion(scope.variables.keys)
         }
         return Array(names).sorted()
+    }
+
+    // MARK: - Record Type Definitions
+
+    /// Defines a new record type.
+    /// - Parameters:
+    ///   - name: The name of the record type
+    ///   - fields: The fields of the record type
+    public func defineRecord(_ name: String, fields: [RecordField]) {
+        recordDefinitions[name] = fields
+    }
+
+    /// Looks up a record type definition by name.
+    /// - Parameter name: The name of the record type to look up
+    /// - Returns: The record fields if found, nil otherwise
+    public func lookupRecordDefinition(_ name: String) -> [RecordField]? {
+        return recordDefinitions[name]
     }
 }

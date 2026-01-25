@@ -210,6 +210,18 @@ struct ASTWalkerTests {
         #expect(identifiers == Set(["x", "y"]))
     }
 
+    @Test func collectIdentifiersFromRecordDeclaration() {
+        let stmt = Statement.recordDeclaration(RecordDeclaration(
+            name: "Person",
+            fields: [
+                RecordField(name: "name", type: .string),
+                RecordField(name: "age", type: .integer)
+            ]
+        ))
+        let identifiers = ASTWalker.collectIdentifiers(from: stmt)
+        #expect(identifiers == Set(["Person", "name", "age"]))
+    }
+
     // MARK: - Statement Node Counting Tests
 
     @Test func countNodesInSimpleStatement() {
@@ -260,6 +272,18 @@ struct ASTWalkerTests {
         let block = Statement.block([.breakStatement, .breakStatement, .breakStatement])
         let count = ASTWalker.countNodes(in: block)
         #expect(count == 4) // block + 3 breaks
+    }
+
+    @Test func countNodesInRecordDeclaration() {
+        let stmt = Statement.recordDeclaration(RecordDeclaration(
+            name: "Person",
+            fields: [
+                RecordField(name: "name", type: .string),
+                RecordField(name: "age", type: .integer)
+            ]
+        ))
+        let count = ASTWalker.countNodes(in: stmt)
+        #expect(count == 3) // record + 2 fields
     }
 
     // MARK: - Statement Expression Transformation Tests
@@ -363,6 +387,17 @@ struct ASTWalkerTests {
             .expressionStatement(.identifier("Z"))
         ])
         #expect(transformed == expected)
+    }
+
+    @Test func transformExpressionsInRecordDeclaration() {
+        let recordDecl = RecordDeclaration(
+            name: "Person",
+            fields: [RecordField(name: "name", type: .string)]
+        )
+        let stmt = Statement.recordDeclaration(recordDecl)
+
+        let transformed = ASTWalker.transformExpressions(in: stmt) { $0 }
+        #expect(transformed == stmt)
     }
 
     // MARK: - Performance Tests

@@ -51,8 +51,8 @@ struct ParserTests {
         let expression = try parser.parseExpression(input)
 
         // Should parse as 1 + (2 * 3) due to operator precedence
-        if case .binary(let op, let left, _) = expression {
-            #expect(op == .add)
+        if case .binary(let binaryOp, let left, _) = expression {
+            #expect(binaryOp == .add)
             if case .literal(let literal) = left {
                 if case .integer(let value) = literal {
                     #expect(value == 1)

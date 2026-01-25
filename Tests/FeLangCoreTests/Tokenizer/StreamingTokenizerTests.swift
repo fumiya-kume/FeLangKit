@@ -46,7 +46,10 @@ struct StreamingTokenizerTests {
     func testBufferTokenization() async throws {
         let parallelTokenizer = ParallelTokenizer()
         let input = "変数 test: 文字列型"
-        let data = input.data(using: .utf8)!
+        guard let data = input.data(using: .utf8) else {
+            Issue.record("Failed to encode input as UTF-8")
+            return
+        }
 
         let tokens = try await withCheckedThrowingContinuation { continuation in
             Task {

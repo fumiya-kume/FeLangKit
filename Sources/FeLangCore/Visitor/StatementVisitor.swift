@@ -65,6 +65,9 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
     /// - Parameter statements: The list of statements in the block
     public let visitBlock: @Sendable ([Statement]) -> Result
 
+    /// Visits record declarations.
+    public let visitRecordDeclaration: @Sendable (RecordDeclaration) -> Result
+
     // MARK: - Initialization
 
     /// Creates a new statement visitor with the specified visit closures.
@@ -81,7 +84,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         visitExpressionStatement: @escaping @Sendable (Expression) -> Result,
         visitBreakStatement: @escaping @Sendable () -> Result,
         visitContinueStatement: @escaping @Sendable () -> Result,
-        visitBlock: @escaping @Sendable ([Statement]) -> Result
+        visitBlock: @escaping @Sendable ([Statement]) -> Result,
+        visitRecordDeclaration: @escaping @Sendable (RecordDeclaration) -> Result
     ) {
         self.visitIfStatement = visitIfStatement
         self.visitWhileStatement = visitWhileStatement
@@ -96,6 +100,7 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         self.visitBreakStatement = visitBreakStatement
         self.visitContinueStatement = visitContinueStatement
         self.visitBlock = visitBlock
+        self.visitRecordDeclaration = visitRecordDeclaration
     }
 
     // MARK: - Visit Method
@@ -131,6 +136,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
             return visitContinueStatement()
         case .block(let statements):
             return visitBlock(statements)
+        case .recordDeclaration(let recordDecl):
+            return visitRecordDeclaration(recordDecl)
         }
     }
 }

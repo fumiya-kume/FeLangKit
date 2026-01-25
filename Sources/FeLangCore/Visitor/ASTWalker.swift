@@ -108,14 +108,14 @@ public enum ASTWalker {
             visitIdentifier: { identifier in
                 transform(.identifier(identifier))
             },
-            visitBinary: { op, left, right in
+            visitBinary: { binaryOperator, left, right in
                 let transformedLeft = transformExpression(left, transform)
                 let transformedRight = transformExpression(right, transform)
-                return transform(.binary(op, transformedLeft, transformedRight))
+                return transform(.binary(binaryOperator, transformedLeft, transformedRight))
             },
-            visitUnary: { op, operand in
+            visitUnary: { unaryOperator, operand in
                 let transformedOperand = transformExpression(operand, transform)
-                return transform(.unary(op, transformedOperand))
+                return transform(.unary(unaryOperator, transformedOperand))
             },
             visitArrayAccess: { array, index in
                 let transformedArray = transformExpression(array, transform)
@@ -251,6 +251,11 @@ public enum ASTWalker {
                 return statements.reduce(Set<String>()) { result, stmt in
                     result.union(collectIdentifiers(from: stmt))
                 }
+            },
+            visitRecordDeclaration: { recordDecl in
+                var identifiers = Set([recordDecl.name])
+                identifiers.formUnion(Set(recordDecl.fields.map { $0.name }))
+                return identifiers
             }
         )
 
@@ -354,6 +359,9 @@ public enum ASTWalker {
                 return 1 + statements.reduce(0) { result, stmt in
                     result + countNodes(in: stmt)
                 }
+            },
+            visitRecordDeclaration: { recordDecl in
+                return 1 + recordDecl.fields.count
             }
         )
 
@@ -498,6 +506,13 @@ public enum ASTWalker {
             visitBlock: { statements in
                 let transformedStatements = statements.map { transformExpressions(in: $0, transform) }
                 return .block(transformedStatements)
+            },
+            visitRecordDeclaration: { recordDecl in
+                return .recordDeclaration(RecordDeclaration(
+                    name: recordDecl.name,
+                    fields: recordDecl.fields,
+                    position: recordDecl.position
+                ))
             }
         )
 
