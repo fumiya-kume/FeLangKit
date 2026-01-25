@@ -325,8 +325,8 @@ public struct PrettyPrinter {
         case .block(let statements):
             return printStatements(statements, indent: indent)
 
-        case .recordDeclaration:
-            return indentStr + "// Record declaration"
+        case .recordDeclaration(let recordDecl):
+            return printRecordDeclaration(recordDecl, indent: indent)
         }
     }
 
@@ -512,6 +512,16 @@ public struct PrettyPrinter {
             return ""
         }
         return statements.map { printStatement($0, indent: indent) }.joined(separator: "\n")
+    }
+
+    private func printRecordDeclaration(_ recordDecl: RecordDeclaration, indent: Int) -> String {
+        let indentStr = makeIndent(indent)
+        var result = "\(indentStr)record \(recordDecl.name)\n"
+        for field in recordDecl.fields {
+            result += "\(makeIndent(indent + 1))\(field.name): \(printDataType(field.type))\n"
+        }
+        result += "\(indentStr)endrecord"
+        return result
     }
 
     // MARK: - Utility Methods

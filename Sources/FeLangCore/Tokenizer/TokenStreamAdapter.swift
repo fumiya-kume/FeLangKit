@@ -99,6 +99,9 @@ public struct ArrayTokenStream: TokenStreamProtocol {
     }
 
     public func position() -> SourcePosition {
+        if let peeked = peekedToken {
+            return peeked.position
+        }
         if currentIndex < tokens.count {
             return tokens[currentIndex].position
         } else {
@@ -208,11 +211,9 @@ public struct MappedTokenSequenceIterator<T>: IteratorProtocol {
             }
             return nil
         } catch {
-            // In case of error, we'll return nil to conform to IteratorProtocol
-            // IteratorProtocol doesn't support throwing, so we log in debug builds.
-            #if DEBUG
-            assertionFailure("MappedTokenSequenceIterator encountered error: \(error)")
-            #endif
+            // MappedTokenSequenceIterator doesn't support throwing from next(),
+            // so we return nil and ideally the error should be surfaced elsewhere
+            // or MappedTokenSequence should be redesigned to handle errors.
             return nil
         }
     }

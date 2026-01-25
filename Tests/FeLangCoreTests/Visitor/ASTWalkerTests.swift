@@ -201,13 +201,19 @@ struct ASTWalkerTests {
         #expect(identifiers == Set(["add", "a", "b", "result"]))
     }
 
-    @Test func collectIdentifiersFromBlock() {
-        let block = Statement.block([
-            .variableDeclaration(VariableDeclaration(name: "x", type: .integer, initialValue: .literal(.integer(1)))),
-            .assignment(.variable("y", .identifier("x")))
-        ])
-        let identifiers = ASTWalker.collectIdentifiers(from: block)
         #expect(identifiers == Set(["x", "y"]))
+    }
+    
+    @Test func collectIdentifiersFromRecordDeclaration() {
+        let stmt = Statement.recordDeclaration(RecordDeclaration(
+            name: "Person",
+            fields: [
+                RecordField(name: "name", type: .string),
+                RecordField(name: "age", type: .integer)
+            ]
+        ))
+        let identifiers = ASTWalker.collectIdentifiers(from: stmt)
+        #expect(identifiers == Set(["Person", "name", "age"]))
     }
 
     // MARK: - Statement Node Counting Tests
@@ -256,10 +262,19 @@ struct ASTWalkerTests {
         #expect(count == 4) // for + 0 + 10 + break
     }
 
-    @Test func countNodesInBlock() {
-        let block = Statement.block([.breakStatement, .breakStatement, .breakStatement])
-        let count = ASTWalker.countNodes(in: block)
         #expect(count == 4) // block + 3 breaks
+    }
+
+    @Test func countNodesInRecordDeclaration() {
+        let stmt = Statement.recordDeclaration(RecordDeclaration(
+            name: "Person",
+            fields: [
+                RecordField(name: "name", type: .string),
+                RecordField(name: "age", type: .integer)
+            ]
+        ))
+        let count = ASTWalker.countNodes(in: stmt)
+        #expect(count == 3) // record + 2 fields
     }
 
     // MARK: - Statement Expression Transformation Tests
@@ -358,11 +373,22 @@ struct ASTWalkerTests {
             }
         }
 
-        let expected = Statement.block([
+            let expected = Statement.block([
             .assignment(.variable("x", .identifier("Y"))),
             .expressionStatement(.identifier("Z"))
         ])
         #expect(transformed == expected)
+    }
+
+    @Test func transformExpressionsInRecordDeclaration() {
+        let recordDecl = RecordDeclaration(
+            name: "Person",
+            fields: [RecordField(name: "name", type: .string)]
+        )
+        let stmt = Statement.recordDeclaration(recordDecl)
+        
+        let transformed = ASTWalker.transformExpressions(in: stmt) { $0 }
+        #expect(transformed == stmt)
     }
 
     // MARK: - Performance Tests

@@ -66,7 +66,7 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
     public let visitBlock: @Sendable ([Statement]) -> Result
 
     /// Visits record declarations.
-    public let visitRecordDeclaration: @Sendable () -> Result
+    public let visitRecordDeclaration: @Sendable (RecordDeclaration) -> Result
 
     // MARK: - Initialization
 
@@ -85,7 +85,7 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         visitBreakStatement: @escaping @Sendable () -> Result,
         visitContinueStatement: @escaping @Sendable () -> Result,
         visitBlock: @escaping @Sendable ([Statement]) -> Result,
-        visitRecordDeclaration: @escaping @Sendable () -> Result
+        visitRecordDeclaration: @escaping @Sendable (RecordDeclaration) -> Result
     ) {
         self.visitIfStatement = visitIfStatement
         self.visitWhileStatement = visitWhileStatement
@@ -136,8 +136,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
             return visitContinueStatement()
         case .block(let statements):
             return visitBlock(statements)
-        case .recordDeclaration:
-            return visitRecordDeclaration()
+        case .recordDeclaration(let recordDecl):
+            return visitRecordDeclaration(recordDecl)
         }
     }
 }

@@ -252,8 +252,10 @@ public enum ASTWalker {
                     result.union(collectIdentifiers(from: stmt))
                 }
             },
-            visitRecordDeclaration: {
-                return Set()
+            visitRecordDeclaration: { recordDecl in
+                var identifiers = Set([recordDecl.name])
+                identifiers.formUnion(Set(recordDecl.fields.map { $0.name }))
+                return identifiers
             }
         )
 
@@ -358,8 +360,8 @@ public enum ASTWalker {
                     result + countNodes(in: stmt)
                 }
             },
-            visitRecordDeclaration: {
-                return 1
+            visitRecordDeclaration: { recordDecl in
+                return 1 + recordDecl.fields.count
             }
         )
 
@@ -505,8 +507,8 @@ public enum ASTWalker {
                 let transformedStatements = statements.map { transformExpressions(in: $0, transform) }
                 return .block(transformedStatements)
             },
-            visitRecordDeclaration: {
-                return .recordDeclaration(RecordDeclaration(name: "", fields: []))
+            visitRecordDeclaration: { recordDecl in
+                return .recordDeclaration(recordDecl)
             }
         )
 

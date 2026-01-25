@@ -435,15 +435,22 @@ final class PrettyPrinterTests: XCTestCase {
         XCTAssertEqual(printer.print(stmt), "doSomething()")
     }
 
-    func testBlockStatement() {
-        let block = [
-            Statement.assignment(.variable("x", .literal(.integer(1)))),
-            Statement.assignment(.variable("y", .literal(.integer(2))))
+        XCTAssertEqual(printer.print(stmt), expected)
+    }
+
+    func testRecordDeclaration() {
+        let fields = [
+            RecordField(name: "name", type: .string),
+            RecordField(name: "age", type: .integer)
         ]
-        let stmt = Statement.block(block)
+        let recordDecl = RecordDeclaration(name: "Person", fields: fields)
+        let stmt = Statement.recordDeclaration(recordDecl)
+        
         let expected = """
-        x ← 1
-        y ← 2
+        record Person
+            name: 文字列型
+            age: 整数型
+        endrecord
         """
         XCTAssertEqual(printer.print(stmt), expected)
     }

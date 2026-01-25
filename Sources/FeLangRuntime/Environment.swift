@@ -23,6 +23,8 @@ public final class Environment: @unchecked Sendable {
     private let maxCallDepth: Int
 
     /// Record type definitions (global, not scope-dependent)
+    /// TODO: Consider making this thread-safe (e.g., using a concurrent dictionary or lock)
+    /// if multiple threads can define/lookup records concurrently.
     private var recordDefinitions: [String: [RecordField]] = [:]
 
     // MARK: - Initialization

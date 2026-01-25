@@ -122,9 +122,10 @@ public struct FastParsingTokenizer {
         // Unicode identifiers (Japanese characters, etc.)
         if byte >= 128 || TokenizerUtilities.isIdentifierStart(input[stringIndex]) {
             if let token = parseUnicodeIdentifierFast(from: input, stringIndex: &stringIndex) {
-                // Update byte position to match string index
-                let newBytePos = input.utf8.distance(from: input.utf8.startIndex, to: input.utf8.index(input.utf8.startIndex, offsetBy: input.distance(from: input.startIndex, to: stringIndex)))
-                bytePosition = newBytePos
+                // Update byte position to match string index accurately for Unicode
+                if let utf8Index = stringIndex.samePosition(in: input.utf8) {
+                    bytePosition = input.utf8.distance(from: input.utf8.startIndex, to: utf8Index)
+                }
                 return token
             }
         }
@@ -132,9 +133,10 @@ public struct FastParsingTokenizer {
         // Strings (' or ")
         if byte == 39 || byte == 34 { // '\'' or '\"'
             if let token = try parseStringFast(from: input, stringIndex: &stringIndex, startIndex: startIndex) {
-                // Update byte position
-                let newBytePos = input.utf8.distance(from: input.utf8.startIndex, to: input.utf8.index(input.utf8.startIndex, offsetBy: input.distance(from: input.startIndex, to: stringIndex)))
-                bytePosition = newBytePos
+                // Update byte position accurately for strings with Unicode/escapes
+                if let utf8Index = stringIndex.samePosition(in: input.utf8) {
+                    bytePosition = input.utf8.distance(from: input.utf8.startIndex, to: utf8Index)
+                }
                 return token
             }
         }
@@ -147,9 +149,10 @@ public struct FastParsingTokenizer {
 
         // Unicode operators
         if let token = parseUnicodeOperatorFast(from: input, stringIndex: &stringIndex) {
-            // Update byte position
-            let newBytePos = input.utf8.distance(from: input.utf8.startIndex, to: input.utf8.index(input.utf8.startIndex, offsetBy: input.distance(from: input.startIndex, to: stringIndex)))
-            bytePosition = newBytePos
+            // Update byte position accurately for multi-byte operators
+            if let utf8Index = stringIndex.samePosition(in: input.utf8) {
+                bytePosition = input.utf8.distance(from: input.utf8.startIndex, to: utf8Index)
+            }
             return token
         }
 
