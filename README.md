@@ -34,6 +34,24 @@ dependencies: [
 ]
 ```
 
+### Xcode (iOS app)
+
+1. In Xcode, open your app project.
+2. Go to **File > Add Packages...**.
+3. Enter the repository URL:
+
+```
+https://github.com/fumiya-kume/FeLangKit.git
+```
+
+4. Select the version rule (e.g. "Up to Next Major" from 1.0.0).
+5. Add the product you need to your target:
+   - `FeLangCore` (parser/tokenizer core)
+   - `FeLangKit` (core + runtime)
+   - `FeLangRuntime` (interpreter/runtime)
+
+**Requirements:** iOS 17.0+ and Swift 6.0+
+
 ## 🚀 Quick Start
 
 ```swift
