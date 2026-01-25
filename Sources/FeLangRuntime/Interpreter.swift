@@ -26,6 +26,16 @@ public final class Interpreter: @unchecked Sendable {
 
         // Register standard library functions
         registerStandardLibrary()
+
+        executor.setExternalFunctionResolver { [weak self] name, args in
+            guard let self = self else {
+                throw RuntimeError.generic(message: "Interpreter deallocated")
+            }
+            if let function = self.customFunctions[name] {
+                return try function(args)
+            }
+            throw RuntimeError.undefinedFunction(name: name)
+        }
     }
 
     private func registerStandardLibrary() {

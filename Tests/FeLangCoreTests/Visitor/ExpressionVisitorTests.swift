@@ -147,7 +147,6 @@ struct ExpressionVisitorTests {
 
     @Test func manualRecursiveVisitor() {
         // Create a manual recursive visitor for basic expression stringification
-        // swiftlint:disable:next cyclomatic_complexity
         func stringifyExpression(_ expr: FeLangCore.Expression) -> String {
             switch expr {
             case .literal(let literal):
@@ -230,7 +229,6 @@ struct ExpressionVisitorTests {
 
     @Test func typeCountingVisitor() {
         // Create a manual recursive visitor for counting node types
-        // swiftlint:disable:next cyclomatic_complexity
         func countExpressionTypes(_ expr: FeLangCore.Expression) -> [String: Int] {
             switch expr {
             case .literal:

@@ -96,8 +96,7 @@ public final class Tokenizer {
     }
 
     /// Scans the next token from the input
-    private func nextToken() throws -> Token { // swiftlint:disable:this cyclomatic_complexity
-        let position = currentPosition()
+    private func nextToken() throws -> Token {        let position = currentPosition()
         let startIndex = current
         let char = advance()
 
@@ -249,9 +248,7 @@ public final class Tokenizer {
         return Token(type: .realLiteral, lexeme: lexeme, position: position)
     }
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Scans a string or character literal with escape sequence support
-    // swiftlint:disable:next cyclomatic_complexity
     private func scanStringOrCharacterLiteral(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) throws -> Token {
         let contentStartIndex = current
 

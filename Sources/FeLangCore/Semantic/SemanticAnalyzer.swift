@@ -112,7 +112,6 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         }
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func collectSymbolsFromStatement(_ statement: Statement) {
         incrementNestingDepth()
         defer { decrementNestingDepth() }
@@ -385,7 +384,6 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         }
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func typeCheckStatement(_ statement: Statement) {
         incrementNestingDepth()
         defer { decrementNestingDepth() }
@@ -552,7 +550,6 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         symbolTable.popScope()
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func typeCheckForStatement(_ stmt: ForStatement) {
         switch stmt {
         case .range(let rangeFor):
@@ -827,7 +824,6 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         return symbol.type
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func inferBinaryOperationType(_ operatorType: BinaryOperator, left: Expression, right: Expression, depth: Int) -> FeType {
         let leftType = inferExpressionType(left, depth: depth)
         let rightType = inferExpressionType(right, depth: depth)
@@ -1025,7 +1021,6 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         // converted to warnings in the error reporter's finalize method
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func validateStatement(_ statement: Statement) {
         incrementNestingDepth()
         defer { decrementNestingDepth() }

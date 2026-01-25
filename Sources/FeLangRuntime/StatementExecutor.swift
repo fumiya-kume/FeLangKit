@@ -66,9 +66,7 @@ public final class StatementExecutor: @unchecked Sendable {
         return .normal
     }
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Executes a single statement.
-    // swiftlint:disable:next cyclomatic_complexity
     public func executeStatement(_ statement: Statement) throws -> ControlFlow {
         switch statement {
         case .variableDeclaration(let decl):
@@ -206,7 +204,6 @@ public final class StatementExecutor: @unchecked Sendable {
         }
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func assignArrayElement(_ access: Assignment.ArrayAccess, value: RuntimeValue) throws {
         let indexValue = try evaluator.evaluate(access.index)
         guard case .integer(let index) = indexValue else {
@@ -371,7 +368,6 @@ public final class StatementExecutor: @unchecked Sendable {
         }
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func executeRangeFor(_ rangeFor: ForStatement.RangeFor) throws -> ControlFlow {
         loopDepth += 1
         defer { loopDepth -= 1 }
@@ -666,7 +662,6 @@ public final class StatementExecutor: @unchecked Sendable {
         }
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func validateType(_ value: RuntimeValue, expected: DataType, context: String) throws {
         let matches: Bool
         switch (expected, value) {

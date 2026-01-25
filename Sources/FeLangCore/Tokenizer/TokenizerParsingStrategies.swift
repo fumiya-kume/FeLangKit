@@ -171,10 +171,8 @@ public enum TokenizerParsingStrategies {
 
     // MARK: - String Parsing
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Parses string literals with basic escape sequence support
     /// Returns nil if the string is unterminated or invalid
-    // swiftlint:disable:next cyclomatic_complexity
     public static func parseBasicString(from input: String, at index: inout String.Index) -> TokenData? {
         guard index < input.endIndex else { return nil }
 

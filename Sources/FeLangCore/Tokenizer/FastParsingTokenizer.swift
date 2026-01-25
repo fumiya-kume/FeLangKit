@@ -96,7 +96,6 @@ public struct FastParsingTokenizer {
 
     // MARK: - Fast Parsing Methods
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func parseNextTokenFast(from input: String, utf8: [UInt8], bytePosition: inout Int, stringIndex: inout String.Index, startIndex: String.Index) throws -> TokenData? {
         // Try comments first
         if try parseCommentFast(from: input, utf8: utf8, bytePosition: &bytePosition, stringIndex: &stringIndex, startIndex: startIndex) != nil {

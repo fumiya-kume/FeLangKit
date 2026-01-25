@@ -58,9 +58,7 @@ public struct ParseError: Error, CustomStringConvertible, Equatable, Sendable {
 // MARK: - Conversion Utilities
 
 extension ParseError {
-    // swiftlint:disable:next orphaned_doc_comment
     /// Creates a ParseError from a StatementParsingError
-    // swiftlint:disable:next cyclomatic_complexity
     public static func from(_ error: StatementParsingError, at token: Token? = nil) -> ParseError {
         let (line, column) = token?.position.lineColumn ?? (0, 0)
         let message: String

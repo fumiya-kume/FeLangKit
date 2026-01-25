@@ -192,10 +192,8 @@ public enum UnaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
 // MARK: - TokenType Mapping Extensions
 
 extension BinaryOperator {
-    // swiftlint:disable:next orphaned_doc_comment
     /// Creates a binary operator from a token type.
     /// Returns nil if the token type doesn't correspond to a binary operator.
-    // swiftlint:disable:next cyclomatic_complexity
     public init?(tokenType: TokenType) {
         switch tokenType {
         case .plus:
@@ -248,10 +246,8 @@ extension UnaryOperator {
 }
 
 extension Literal {
-    // swiftlint:disable:next orphaned_doc_comment
     /// Creates a literal from a token.
     /// Returns nil if the token doesn't represent a literal value.
-    // swiftlint:disable:next cyclomatic_complexity
     public init?(token: Token) {
         switch token.type {
         case .integerLiteral:

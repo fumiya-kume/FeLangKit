@@ -169,10 +169,8 @@ public enum SharedTokenizerImplementation {
 
     // MARK: - Enhanced Number Parsing (with Error Detection)
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Enhanced number parsing with improved error detection and validation.
     /// Detects multiple decimal points, invalid formats, and provides detailed error context.
-    // swiftlint:disable:next cyclomatic_complexity
     public static func parseNumberWithValidation(from input: String, at index: inout String.Index) -> Result<TokenData, TokenizerError> {
         let nullScalar: UnicodeScalar = "\0"
         guard index < input.endIndex else {
@@ -381,10 +379,8 @@ public enum SharedTokenizerImplementation {
 
     // MARK: - String Literal Parsing
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Parses string literals with escape sequence support
     /// Handles both single and double quotes, with proper escape sequence validation
-    // swiftlint:disable:next cyclomatic_complexity
     public static func parseStringLiteral(from input: String, at index: inout String.Index, quoteChar: Character) -> Result<TokenData, TokenizerError> {
         let start = index
         index = input.index(after: index) // consume opening quote

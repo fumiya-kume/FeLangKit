@@ -212,7 +212,6 @@ public struct EnhancedParsingTokenizer {
         return nil
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func parseStringWithRecovery(
         from input: String,
         at index: inout String.Index,

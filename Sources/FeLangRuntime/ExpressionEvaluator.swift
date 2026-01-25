@@ -97,7 +97,6 @@ public struct ExpressionEvaluator: Sendable {
 
     // MARK: - Binary Operations
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func evaluateBinary(
         _ operatorType: BinaryOperator,
         left: RuntimeValue,

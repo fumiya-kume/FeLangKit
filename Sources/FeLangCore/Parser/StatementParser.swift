@@ -69,9 +69,7 @@ public struct StatementParser {
         return statements
     }
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Parses a single statement from the token stream.
-    // swiftlint:disable:next cyclomatic_complexity
     private func parseStatement(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> Statement {
         guard let token = parser.peek() else {
             throw StatementParsingError.unexpectedEndOfInput
@@ -507,10 +505,8 @@ public struct StatementParser {
         return Parameter(name: name, type: type)
     }
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Parses a data type with full support for basic types, arrays, and records.
     /// Supports both English and Japanese keywords for internationalization.
-    // swiftlint:disable:next cyclomatic_complexity
     private func parseDataType(_ parser: inout TokenStream) throws -> DataType {
         guard let typeToken = parser.advance() else {
             throw StatementParsingError.unexpectedEndOfInput
@@ -622,10 +618,8 @@ public struct StatementParser {
         return (localVariables, statements)
     }
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Parses an expression by delegating to ExpressionParser.
     /// This creates a bounded token stream and delegates to ExpressionParser.
-    // swiftlint:disable:next cyclomatic_complexity
     private func parseExpression(_ parser: inout TokenStream) throws -> Expression {
         // Get the starting position
         let startIndex = parser.index
@@ -750,10 +744,8 @@ public struct StatementParser {
         }
     }
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Checks if a token sequence indicates the start of a new statement.
     /// This helps detect statement boundaries when newlines are filtered out.
-    // swiftlint:disable:next cyclomatic_complexity
     private func isStartOfNewStatement(_ parser: TokenStream, at index: Int) -> Bool {
         guard index < parser.tokens.count else { return false }
 

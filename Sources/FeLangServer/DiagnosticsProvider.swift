@@ -209,7 +209,6 @@ public struct DiagnosticsProvider: Sendable {
         return Position(line: 0, character: 0)
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func extractCodeFromSemanticError(_ error: SemanticError) -> String {
         switch error {
         case .typeMismatch: return "type-mismatch"

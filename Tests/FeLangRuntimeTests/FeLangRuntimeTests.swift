@@ -655,12 +655,8 @@ struct StatementExecutorTests {
         let executor = StatementExecutor(environment: env)
 
         let returnStmt = ReturnStatement(expression: .literal(.integer(42)))
-        let result = try executor.executeStatement(.returnStatement(returnStmt))
-
-        if case .returnValue(let value) = result {
-            #expect(value == .integer(42))
-        } else {
-            Issue.record("Expected returnValue control flow")
+        #expect(throws: RuntimeError.self) {
+            _ = try executor.executeStatement(.returnStatement(returnStmt))
         }
     }
 

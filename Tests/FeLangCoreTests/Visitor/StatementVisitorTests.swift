@@ -239,7 +239,6 @@ struct StatementVisitorTests {
 
     @Test func manualRecursiveVisitor() {
         // Create a manual recursive visitor for basic statement stringification
-        // swiftlint:disable:next cyclomatic_complexity
         func stringifyStatement(_ stmt: Statement) -> String {
             switch stmt {
             case .ifStatement(let ifStmt):

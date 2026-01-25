@@ -175,7 +175,6 @@ public struct ParsingTokenizer: Sendable {
     // ✅ REMOVED: Individual number parsing methods have been consolidated into SharedTokenizerImplementation
     // This eliminates ~80 lines of duplicated code while maintaining identical functionality
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func parseString(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenData? {
         guard index < input.endIndex else { return nil }
 

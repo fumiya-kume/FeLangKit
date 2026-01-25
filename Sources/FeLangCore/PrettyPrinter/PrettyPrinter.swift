@@ -41,9 +41,7 @@ public struct PrettyPrinter {
         return indentLength + line.count > config.maxLineLength
     }
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Wraps a list of items with proper indentation.
-    // swiftlint:disable:next cyclomatic_complexity
     private func wrapItems(_ items: [String], separator: String, indent: Int, prefix: String, suffix: String) -> String {
         let singleLine = prefix + items.joined(separator: separator) + suffix
 
@@ -188,7 +186,6 @@ public struct PrettyPrinter {
         return wrapItems(elementStrings, separator: ", ", indent: indent, prefix: "[", suffix: "]")
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func printLiteral(_ literal: Literal) -> String {
         switch literal {
         case .integer(let value):
@@ -285,7 +282,6 @@ public struct PrettyPrinter {
 
     // MARK: - Statement Printing
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func printStatement(_ statement: Statement, indent: Int) -> String {
         let indentStr = makeIndent(indent)
 

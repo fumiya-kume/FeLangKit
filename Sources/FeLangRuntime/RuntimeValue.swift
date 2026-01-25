@@ -140,6 +140,9 @@ public struct FunctionValue: Equatable, Sendable {
     /// Parameter names
     public let parameters: [String]
 
+    /// Parameter types
+    public let parameterTypes: [DataType]
+
     /// The body statements
     public let body: [Statement]
 
@@ -149,22 +152,29 @@ public struct FunctionValue: Equatable, Sendable {
     /// The captured constants from the closure environment
     public let capturedConstants: Set<String>
 
+    /// The captured types from the closure environment
+    public let capturedTypes: [String: DataType]
+
     /// The return type
     public let returnType: DataType?
 
     public init(
         name: String,
         parameters: [String],
+        parameterTypes: [DataType] = [],
         body: [Statement],
         capturedEnvironment: [String: RuntimeValue] = [:],
         capturedConstants: Set<String> = [],
+        capturedTypes: [String: DataType] = [:],
         returnType: DataType?
     ) {
         self.name = name
         self.parameters = parameters
+        self.parameterTypes = parameterTypes
         self.body = body
         self.capturedEnvironment = capturedEnvironment
         self.capturedConstants = capturedConstants
+        self.capturedTypes = capturedTypes
         self.returnType = returnType
     }
 }
@@ -177,6 +187,9 @@ public struct ProcedureValue: Equatable, Sendable {
     /// Parameter names
     public let parameters: [String]
 
+    /// Parameter types
+    public let parameterTypes: [DataType]
+
     /// The body statements
     public let body: [Statement]
 
@@ -186,17 +199,24 @@ public struct ProcedureValue: Equatable, Sendable {
     /// The captured constants from the closure environment
     public let capturedConstants: Set<String>
 
+    /// The captured types from the closure environment
+    public let capturedTypes: [String: DataType]
+
     public init(
         name: String,
         parameters: [String],
+        parameterTypes: [DataType] = [],
         body: [Statement],
         capturedEnvironment: [String: RuntimeValue] = [:],
-        capturedConstants: Set<String> = []
+        capturedConstants: Set<String> = [],
+        capturedTypes: [String: DataType] = [:]
     ) {
         self.name = name
         self.parameters = parameters
+        self.parameterTypes = parameterTypes
         self.body = body
         self.capturedEnvironment = capturedEnvironment
         self.capturedConstants = capturedConstants
+        self.capturedTypes = capturedTypes
     }
 }

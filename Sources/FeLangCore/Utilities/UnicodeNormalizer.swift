@@ -467,9 +467,7 @@ public struct UnicodeNormalizer {
 
     // MARK: - Character Classification Methods
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Classifies a Unicode scalar into detailed categories
-    // swiftlint:disable:next cyclomatic_complexity
     public static func classifyCharacter(_ scalar: UnicodeScalar) -> UnicodeCharacterClass {
         let value = scalar.value
 

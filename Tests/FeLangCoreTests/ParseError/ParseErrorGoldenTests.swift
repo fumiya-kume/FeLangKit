@@ -310,7 +310,7 @@ struct ParseErrorGoldenTests {
                 ParseErrorTestUtils.GoldenTestCase(
                     name: "missing_then_keyword",
                     input: "if x > 5\nwriteLine(x)",
-                    expectedError: "StatementParseError: Unexpected token 'writeLine'\n  at line 2, column 1\n  Expected: eof\n  Source context:\n  2: writeLine(x)\n     ^",
+                    expectedError: "StatementParseError: Unexpected token 'writeLine'\n  at line 2, column 1\n  Expected: thenKeyword\n  Source context:\n  2: writeLine(x)\n     ^",
                     category: .syntaxErrors
                 )
             ]

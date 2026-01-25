@@ -105,11 +105,9 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
 
     // MARK: - Visit Method
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Visits a statement, dispatching to the appropriate visit closure based on the statement type.
     /// - Parameter statement: The statement to visit
     /// - Returns: The result of visiting the statement
-    // swiftlint:disable:next cyclomatic_complexity
     public func visit(_ statement: Statement) -> Result {
         switch statement {
         case .ifStatement(let ifStmt):

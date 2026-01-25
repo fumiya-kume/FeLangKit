@@ -36,3 +36,9 @@ custom_rules:
     regex: 'as!'
     message: "Avoid using force casts (as!)"
     severity: warning
+
+# 複雑度ルールの調整（switch の case をカウントしない）
+cyclomatic_complexity:
+  warning: 15
+  error: 20
+  ignores_case_statements: true

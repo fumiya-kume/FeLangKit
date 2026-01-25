@@ -68,10 +68,8 @@ public enum ParsingBoundaryDetection {
         }
     }
 
-    // swiftlint:disable:next orphaned_doc_comment
     /// Checks if a token sequence indicates the start of a new statement
     /// This helps detect statement boundaries when newlines are filtered out
-    // swiftlint:disable:next cyclomatic_complexity
     public static func isStartOfNewStatement(_ tokens: [Token], at index: Int) -> Bool {
         guard index < tokens.count else { return false }
 

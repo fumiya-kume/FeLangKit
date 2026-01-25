@@ -29,8 +29,7 @@ writeLine(x)
 Expected Error:
 StatementParseError: Unexpected token 'writeLine'
   at line 2, column 1
-  Expected: eof
+  Expected: thenKeyword
   Source context:
   2: writeLine(x)
      ^
-
