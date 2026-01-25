@@ -202,31 +202,12 @@ public struct PrettyPrinter {
 
         case .string(let value):
             // Escape special characters and wrap in quotes
-            let escaped = value
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "\"", with: "\\\"")
-                .replacingOccurrences(of: "\n", with: "\\n")
-                .replacingOccurrences(of: "\t", with: "\\t")
-                .replacingOccurrences(of: "\r", with: "\\r")
+            let escaped = value.map { escapeCharacter($0) }.joined()
             return "\"\(escaped)\""
 
         case .character(let value):
             // Escape special characters and wrap in single quotes
-            let escaped: String
-            switch value {
-            case "\\":
-                escaped = "\\\\"
-            case "'":
-                escaped = "\\'"
-            case "\n":
-                escaped = "\\n"
-            case "\t":
-                escaped = "\\t"
-            case "\r":
-                escaped = "\\r"
-            default:
-                escaped = String(value)
-            }
+            let escaped = escapeCharacter(value)
             return "'\(escaped)'"
 
         case .boolean(let value):
@@ -418,72 +399,29 @@ public struct PrettyPrinter {
     }
 
     private func printFunctionDeclaration(_ funcDecl: FunctionDeclaration, indent: Int) -> String {
-        let indentStr = makeIndent(indent)
-        let params = funcDecl.parameters.map { "\($0.name): \(printDataType($0.type))" }.joined(separator: ", ")
-
-        var result = "\(indentStr)function \(funcDecl.name)(\(params))"
-        if let returnType = funcDecl.returnType {
-            result += ": \(printDataType(returnType))"
-        }
-
-        var hasContent = false
-
-        // Print local variables
-        for localVar in funcDecl.localVariables {
-            if !hasContent {
-                result += "\n"
-                hasContent = true
-            }
-            result += "\(makeIndent(indent + 1))\(printVariableDeclaration(localVar))\n"
-        }
-
-        // Print body
-        let bodyStr = printStatements(funcDecl.body, indent: indent + 1)
-        if !bodyStr.isEmpty {
-            if !hasContent {
-                result += "\n"
-                hasContent = true
-            }
-            result += bodyStr + "\n"
-        }
-
-        // Add a newline before 'endfunction' if there is no content in the function body.
-        let newlineBeforeEnd = hasContent ? "" : "\n"
-        result += "\(newlineBeforeEnd)\(indentStr)endfunction"
-        return result
+        return printCallableDeclaration(
+            name: funcDecl.name,
+            parameters: funcDecl.parameters,
+            returnType: funcDecl.returnType,
+            localVariables: funcDecl.localVariables,
+            body: funcDecl.body,
+            indent: indent,
+            keyword: "function",
+            endKeyword: "endfunction"
+        )
     }
 
     private func printProcedureDeclaration(_ procDecl: ProcedureDeclaration, indent: Int) -> String {
-        let indentStr = makeIndent(indent)
-        let params = procDecl.parameters.map { "\($0.name): \(printDataType($0.type))" }.joined(separator: ", ")
-
-        var result = "\(indentStr)procedure \(procDecl.name)(\(params))"
-
-        var hasContent = false
-
-        // Print local variables
-        for localVar in procDecl.localVariables {
-            if !hasContent {
-                result += "\n"
-                hasContent = true
-            }
-            result += "\(makeIndent(indent + 1))\(printVariableDeclaration(localVar))\n"
-        }
-
-        // Print body
-        let bodyStr = printStatements(procDecl.body, indent: indent + 1)
-        if !bodyStr.isEmpty {
-            if !hasContent {
-                result += "\n"
-                hasContent = true
-            }
-            result += bodyStr + "\n"
-        }
-
-        // Add a newline before 'endprocedure' if there is no content in the procedure body.
-        let newlineBeforeEnd = hasContent ? "" : "\n"
-        result += "\(newlineBeforeEnd)\(indentStr)endprocedure"
-        return result
+        return printCallableDeclaration(
+            name: procDecl.name,
+            parameters: procDecl.parameters,
+            returnType: nil,
+            localVariables: procDecl.localVariables,
+            body: procDecl.body,
+            indent: indent,
+            keyword: "procedure",
+            endKeyword: "endprocedure"
+        )
     }
 
     private func printReturnStatement(_ returnStmt: ReturnStatement) -> String {
@@ -524,14 +462,8 @@ public struct PrettyPrinter {
         let indentStr = makeIndent(indent)
         var result = "\(indentStr)record \(recordDecl.name)"
 
-        var hasContent = false
-
-        for field in recordDecl.fields {
-            if !hasContent {
-                result += "\n"
-                hasContent = true
-            }
-            result += "\(makeIndent(indent + 1))\(field.name): \(printDataType(field.type))\n"
+        let hasContent = appendContentLines(recordDecl.fields, to: &result, indent: indent + 1) {
+            "\($0.name): \(printDataType($0.type))"
         }
 
         let newlineBeforeEnd = hasContent ? "" : "\n"
@@ -540,6 +472,73 @@ public struct PrettyPrinter {
     }
 
     // MARK: - Utility Methods
+
+    /// Escapes a character for output in string or character literals.
+    private func escapeCharacter(_ char: Character) -> String {
+        switch char {
+        case "\\": return "\\\\"
+        case "\"": return "\\\""
+        case "'": return "\\'"
+        case "\n": return "\\n"
+        case "\t": return "\\t"
+        case "\r": return "\\r"
+        default: return String(char)
+        }
+    }
+
+    /// Appends formatted content lines to a result string, tracking whether content was added.
+    /// Returns true if any content was added, false otherwise.
+    @discardableResult
+    private func appendContentLines<T>(
+        _ items: [T],
+        to result: inout String,
+        indent: Int,
+        formatItem: (T) -> String
+    ) -> Bool {
+        guard !items.isEmpty else { return false }
+        result += "\n"
+        for item in items {
+            result += makeIndent(indent) + formatItem(item) + "\n"
+        }
+        return true
+    }
+
+    /// Prints a callable declaration (function or procedure) with shared formatting logic.
+    private func printCallableDeclaration(
+        name: String,
+        parameters: [Parameter],
+        returnType: DataType?,
+        localVariables: [VariableDeclaration],
+        body: [Statement],
+        indent: Int,
+        keyword: String,
+        endKeyword: String
+    ) -> String {
+        let indentStr = makeIndent(indent)
+        let params = parameters.map { "\($0.name): \(printDataType($0.type))" }.joined(separator: ", ")
+
+        var result = "\(indentStr)\(keyword) \(name)(\(params))"
+        if let returnType = returnType {
+            result += ": \(printDataType(returnType))"
+        }
+
+        var hasContent = appendContentLines(localVariables, to: &result, indent: indent + 1) {
+            printVariableDeclaration($0)
+        }
+
+        let bodyStr = printStatements(body, indent: indent + 1)
+        if !bodyStr.isEmpty {
+            if !hasContent {
+                result += "\n"
+                hasContent = true
+            }
+            result += bodyStr + "\n"
+        }
+
+        let newlineBeforeEnd = hasContent ? "" : "\n"
+        result += "\(newlineBeforeEnd)\(indentStr)\(endKeyword)"
+        return result
+    }
 
     private func makeIndent(_ level: Int) -> String {
         let indentChar = config.useSpaces ? " " : "\t"
