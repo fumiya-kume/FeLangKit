@@ -508,7 +508,11 @@ public enum ASTWalker {
                 return .block(transformedStatements)
             },
             visitRecordDeclaration: { recordDecl in
-                return .recordDeclaration(recordDecl)
+                return .recordDeclaration(RecordDeclaration(
+                    name: recordDecl.name,
+                    fields: recordDecl.fields,
+                    position: recordDecl.position
+                ))
             }
         )
 
