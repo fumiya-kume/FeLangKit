@@ -214,7 +214,7 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { statements in "block(\(statements.count))" },
-            visitRecordDeclaration: { "record" }
+            visitRecordDeclaration: { _ in "record" }
         )
 
         let returnStmt = Statement.returnStatement(ReturnStatement(expression: .literal(.integer(42))))
