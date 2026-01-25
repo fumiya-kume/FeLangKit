@@ -442,7 +442,7 @@ final class PrettyPrinterTests: XCTestCase {
         ]
         let recordDecl = RecordDeclaration(name: "Person", fields: fields)
         let stmt = Statement.recordDeclaration(recordDecl)
-        
+
         let expected = """
         record Person
             name: 文字列型

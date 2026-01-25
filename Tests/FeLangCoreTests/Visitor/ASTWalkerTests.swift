@@ -200,7 +200,7 @@ struct ASTWalkerTests {
         let identifiers = ASTWalker.collectIdentifiers(from: stmt)
         #expect(identifiers == Set(["add", "a", "b", "result"]))
     }
-    
+
     @Test func collectIdentifiersFromRecordDeclaration() {
         let stmt = Statement.recordDeclaration(RecordDeclaration(
             name: "Person",
@@ -380,7 +380,7 @@ struct ASTWalkerTests {
             fields: [RecordField(name: "name", type: .string)]
         )
         let stmt = Statement.recordDeclaration(recordDecl)
-        
+
         let transformed = ASTWalker.transformExpressions(in: stmt) { $0 }
         #expect(transformed == stmt)
     }
