@@ -545,6 +545,7 @@ public final class StatementExecutor: @unchecked Sendable {
         // Validate parameter types
         if !function.parameterTypes.isEmpty {
             for (index, (param, arg)) in zip(function.parameters, arguments).enumerated() {
+                guard index < function.parameterTypes.count else { continue }
                 let expectedType = function.parameterTypes[index]
                 try validateType(arg, expected: expectedType, context: "parameter '\(param)' of '\(function.name)'")
             }
@@ -604,6 +605,7 @@ public final class StatementExecutor: @unchecked Sendable {
         // Validate parameter types
         if !procedure.parameterTypes.isEmpty {
             for (index, (param, arg)) in zip(procedure.parameters, arguments).enumerated() {
+                guard index < procedure.parameterTypes.count else { continue }
                 let expectedType = procedure.parameterTypes[index]
                 try validateType(arg, expected: expectedType, context: "parameter '\(param)' of '\(procedure.name)'")
             }
