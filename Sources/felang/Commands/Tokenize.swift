@@ -18,7 +18,7 @@ struct Tokenize: ParsableCommand {
         do {
             source = try readSource(file: file, code: code)
         } catch let error as CLIError {
-            fputs("Error: \(error)\n", stderr)
+            FileHandle.standardError.write(Data("Error: \(error)\n".utf8))
             throw ExitCode(3)
         }
 
@@ -29,7 +29,7 @@ struct Tokenize: ParsableCommand {
                 print("\(token.type)\t\(token.position.line):\(token.position.column)\t\"\(token.lexeme)\"")
             }
         } catch {
-            fputs("Tokenize error: \(error)\n", stderr)
+            FileHandle.standardError.write(Data("Tokenize error: \(error)\n".utf8))
             throw ExitCode(1)
         }
     }

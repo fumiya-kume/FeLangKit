@@ -19,7 +19,7 @@ struct Run: ParsableCommand {
         do {
             source = try readSource(file: file, code: code)
         } catch let error as CLIError {
-            fputs("Error: \(error)\n", stderr)
+            FileHandle.standardError.write(Data("Error: \(error)\n".utf8))
             throw ExitCode(3)
         }
 
@@ -27,13 +27,13 @@ struct Run: ParsableCommand {
         do {
             try interpreter.execute(source)
         } catch let error as ParseError {
-            fputs("Parse error: \(error)\n", stderr)
+            FileHandle.standardError.write(Data("Parse error: \(error)\n".utf8))
             throw ExitCode(1)
         } catch let error as RuntimeError {
-            fputs("Runtime error: \(error)\n", stderr)
+            FileHandle.standardError.write(Data("Runtime error: \(error)\n".utf8))
             throw ExitCode(2)
         } catch {
-            fputs("Error: \(error)\n", stderr)
+            FileHandle.standardError.write(Data("Error: \(error)\n".utf8))
             throw ExitCode(1)
         }
     }
