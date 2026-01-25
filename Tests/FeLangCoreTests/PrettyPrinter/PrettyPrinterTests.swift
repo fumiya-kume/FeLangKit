@@ -465,6 +465,49 @@ final class PrettyPrinterTests: XCTestCase {
         XCTAssertEqual(printer.print(stmt), expected)
     }
 
+    func testEmptyRecordDeclaration() {
+        let recordDecl = RecordDeclaration(name: "EmptyRecord", fields: [])
+        let stmt = Statement.recordDeclaration(recordDecl)
+
+        let expected = """
+        record EmptyRecord
+        endrecord
+        """
+        XCTAssertEqual(printer.print(stmt), expected)
+    }
+
+    func testSingleFieldRecordDeclaration() {
+        let fields = [RecordField(name: "value", type: .integer)]
+        let recordDecl = RecordDeclaration(name: "SingleField", fields: fields)
+        let stmt = Statement.recordDeclaration(recordDecl)
+
+        let expected = """
+        record SingleField
+            value: 整数型
+        endrecord
+        """
+        XCTAssertEqual(printer.print(stmt), expected)
+    }
+
+    func testRecordWithComplexTypes() {
+        let fields = [
+            RecordField(name: "items", type: .array(.string)),
+            RecordField(name: "address", type: .record("Address")),
+            RecordField(name: "scores", type: .array(.real))
+        ]
+        let recordDecl = RecordDeclaration(name: "ComplexRecord", fields: fields)
+        let stmt = Statement.recordDeclaration(recordDecl)
+
+        let expected = """
+        record ComplexRecord
+            items: 配列[文字列型]
+            address: レコード Address
+            scores: 配列[実数型]
+        endrecord
+        """
+        XCTAssertEqual(printer.print(stmt), expected)
+    }
+
     // MARK: - Configuration Tests
 
     func testCustomIndentation() {

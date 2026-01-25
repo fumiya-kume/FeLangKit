@@ -516,11 +516,20 @@ public struct PrettyPrinter {
 
     private func printRecordDeclaration(_ recordDecl: RecordDeclaration, indent: Int) -> String {
         let indentStr = makeIndent(indent)
-        var result = "\(indentStr)record \(recordDecl.name)\n"
+        var result = "\(indentStr)record \(recordDecl.name)"
+
+        var hasContent = false
+
         for field in recordDecl.fields {
+            if !hasContent {
+                result += "\n"
+                hasContent = true
+            }
             result += "\(makeIndent(indent + 1))\(field.name): \(printDataType(field.type))\n"
         }
-        result += "\(indentStr)endrecord"
+
+        let newlineBeforeEnd = hasContent ? "" : "\n"
+        result += "\(newlineBeforeEnd)\(indentStr)endrecord"
         return result
     }
 
