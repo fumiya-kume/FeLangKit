@@ -250,6 +250,11 @@ public struct ConstantDeclaration: Equatable, Codable, Sendable {
 }
 
 /// Represents a single field in a record type definition.
+///
+/// Example:
+/// ```swift
+/// let field = RecordField(name: "x", type: .integer)
+/// ```
 public struct RecordField: Equatable, Codable, Sendable {
     public let name: String
     public let type: DataType
@@ -262,6 +267,17 @@ public struct RecordField: Equatable, Codable, Sendable {
 
 /// Represents a record type declaration.
 /// A record declaration defines a custom data type with named fields.
+///
+/// Example:
+/// ```swift
+/// let record = RecordDeclaration(
+///     name: "Point",
+///     fields: [
+///         RecordField(name: "x", type: .integer),
+///         RecordField(name: "y", type: .integer)
+///     ]
+/// )
+/// ```
 public struct RecordDeclaration: Equatable, Codable, Sendable {
     public let name: String
     public let fields: [RecordField]
