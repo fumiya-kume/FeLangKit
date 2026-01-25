@@ -201,6 +201,15 @@ struct ASTWalkerTests {
         #expect(identifiers == Set(["add", "a", "b", "result"]))
     }
 
+    @Test func collectIdentifiersFromBlock() {
+        let block = Statement.block([
+            .variableDeclaration(VariableDeclaration(name: "x", type: .integer, initialValue: .literal(.integer(1)))),
+            .assignment(.variable("y", .identifier("x")))
+        ])
+        let identifiers = ASTWalker.collectIdentifiers(from: block)
+        #expect(identifiers == Set(["x", "y"]))
+    }
+
     @Test func collectIdentifiersFromRecordDeclaration() {
         let stmt = Statement.recordDeclaration(RecordDeclaration(
             name: "Person",
@@ -257,6 +266,12 @@ struct ASTWalkerTests {
         let stmt = Statement.forStatement(.range(rangeFor))
         let count = ASTWalker.countNodes(in: stmt)
         #expect(count == 4) // for + 0 + 10 + break
+    }
+
+    @Test func countNodesInBlock() {
+        let block = Statement.block([.breakStatement, .breakStatement, .breakStatement])
+        let count = ASTWalker.countNodes(in: block)
+        #expect(count == 4) // block + 3 breaks
     }
 
     @Test func countNodesInRecordDeclaration() {
