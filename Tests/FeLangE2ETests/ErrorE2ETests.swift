@@ -37,6 +37,21 @@ struct ErrorE2ETests {
         #expect(result.exitCode != 0)
     }
 
+    @Test("Directory path returns error")
+    func testDirectoryPathReturnsError() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("felang-dir-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: tempDir,
+            withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let result = try CLITestHelper.run(arguments: ["run", tempDir.path])
+        #expect(result.exitCode != 0)
+        #expect(result.stderr.contains("Cannot read file"))
+    }
+
     // MARK: - No Input Error Tests
     // These tests require CLI because they test CLI argument handling
 

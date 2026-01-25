@@ -61,6 +61,18 @@ struct EdgeCaseE2ETests {
         #expect(result.stdout.contains("42"))
     }
 
+    @Test("empty array literal length via CLI")
+    func testEmptyArrayLengthViaCLI() throws {
+        // Cover CLI execution path for empty array handling.
+        let code = """
+        変数 arr: 配列 of 整数 ← []
+        println(arrayLength(arr))
+        """
+        let result = try CLITestHelper.run(arguments: ["run", "--code", code])
+        #expect(result.exitCode == 0)
+        #expect(result.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "0")
+    }
+
     // MARK: - Nested Structures
 
     @Test("triple nested for loops")

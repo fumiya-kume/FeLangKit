@@ -89,4 +89,64 @@ struct FileIntegrationTests {
             #expect(result.stdout.contains("println"))
         }
     }
+
+    @Test("Run prefers --code over file argument")
+    func testRunPrefersCodeOverFile() throws {
+        try withTempDir { tempDir in
+            let filePath = tempDir.appendingPathComponent("ignored.fe")
+            try "println(1)".write(to: filePath, atomically: true, encoding: .utf8)
+
+            let result = try CLITestHelper.run(
+                arguments: ["run", "--code", "println(2)", filePath.path]
+            )
+            #expect(result.exitCode == 0)
+            #expect(result.stdout.contains("2"))
+            #expect(!result.stdout.contains("1"))
+        }
+    }
+
+    @Test("Execute file with spaces in path")
+    func testExecuteFileWithSpacesInPath() throws {
+        try withTempDir { tempDir in
+            let nestedDir = tempDir.appendingPathComponent("dir with space")
+            try FileManager.default.createDirectory(
+                at: nestedDir,
+                withIntermediateDirectories: true
+            )
+            let code = "println(123)"
+            let filePath = nestedDir.appendingPathComponent("file name with spaces.fe")
+            try code.write(to: filePath, atomically: true, encoding: .utf8)
+
+            let result = try CLITestHelper.run(arguments: ["run", filePath.path])
+            #expect(result.exitCode == 0)
+            #expect(result.stdout.contains("123"))
+        }
+    }
+
+    @Test("Execute file with unicode filename")
+    func testExecuteFileWithUnicodeFilename() throws {
+        try withTempDir { tempDir in
+            let code = "println(77)"
+            let filePath = tempDir.appendingPathComponent("ユニコード.fe")
+            try code.write(to: filePath, atomically: true, encoding: .utf8)
+
+            let result = try CLITestHelper.run(arguments: ["run", filePath.path])
+            #expect(result.exitCode == 0)
+            #expect(result.stdout.contains("77"))
+        }
+    }
+
+    @Test("Execute file with CRLF line endings")
+    func testExecuteFileWithCRLFLineEndings() throws {
+        try withTempDir { tempDir in
+            let code = "println(1)\r\nprintln(2)\r\n"
+            let filePath = tempDir.appendingPathComponent("crlf.fe")
+            try code.write(to: filePath, atomically: true, encoding: .utf8)
+
+            let result = try CLITestHelper.run(arguments: ["run", filePath.path])
+            #expect(result.exitCode == 0)
+            #expect(result.stdout.contains("1"))
+            #expect(result.stdout.contains("2"))
+        }
+    }
 }
