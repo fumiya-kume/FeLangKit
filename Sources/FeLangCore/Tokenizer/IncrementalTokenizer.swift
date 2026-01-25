@@ -291,11 +291,9 @@ public struct IncrementalTokenizer: Sendable {
         // Find the first token that starts at or after the edit position
         var startIndex = tokens.count  // Default to end if edit is after all tokens
 
-        for (index, token) in tokens.enumerated() {
-            if token.position.offset >= editStartOffset {
-                startIndex = index
-                break
-            }
+        for (index, token) in tokens.enumerated() where token.position.offset >= editStartOffset {
+            startIndex = index
+            break
         }
 
         // Move back to find a safe boundary (line start or start of file)
@@ -335,11 +333,9 @@ public struct IncrementalTokenizer: Sendable {
         // Find the first token that starts at or after the edit end
         var endIndex = totalTokens
 
-        for (index, token) in tokens.enumerated() {
-            if token.position.offset > editEndOffset {
-                endIndex = index
-                break
-            }
+        for (index, token) in tokens.enumerated() where token.position.offset > editEndOffset {
+            endIndex = index
+            break
         }
 
         // Move forward to find a safe boundary
@@ -450,14 +446,12 @@ public struct IncrementalTokenizer: Sendable {
         var typeMismatches = 0
         var positionMismatches = 0
 
-        for index in sampledIndices {
-            if index < fullTokens.count {
-                if result.tokens[index].type != fullTokens[index].type {
-                    typeMismatches += 1
-                }
-                if result.tokens[index].position != fullTokens[index].position {
-                    positionMismatches += 1
-                }
+        for index in sampledIndices where index < fullTokens.count {
+            if result.tokens[index].type != fullTokens[index].type {
+                typeMismatches += 1
+            }
+            if result.tokens[index].position != fullTokens[index].position {
+                positionMismatches += 1
             }
         }
 

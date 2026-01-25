@@ -194,16 +194,22 @@ struct StringEscapeUtilitiesTests {
         #expect(try StringEscapeUtilities.processEscapeSequences("A\\u{41}") == "AA")
     }
 
+    private struct SuccessTestCase {
+        let input: String
+        let expectedType: TokenType
+        let description: String
+    }
+
     @Test("End-to-End Integration Test")
     func testEndToEndIntegration() throws {
         // Test cases that should work from tokenization to literal creation
-        let successCases: [(input: String, expectedType: TokenType, description: String)] = [
-            ("'Hello\\nWorld'", .stringLiteral, "Basic newline escape"),
-            ("'\\u{1F600}'", .characterLiteral, "Unicode emoji escape"),
-            ("'\\u{41}'", .characterLiteral, "Unicode character A"),
-            ("'Tab\\tSeparated'", .stringLiteral, "Tab escape sequence"),
-            ("'Quote\\\"Mark'", .stringLiteral, "Quote escape sequence"),
-            ("'Back\\\\slash'", .stringLiteral, "Backslash escape")
+        let successCases: [SuccessTestCase] = [
+            SuccessTestCase(input: "'Hello\\nWorld'", expectedType: .stringLiteral, description: "Basic newline escape"),
+            SuccessTestCase(input: "'\\u{1F600}'", expectedType: .characterLiteral, description: "Unicode emoji escape"),
+            SuccessTestCase(input: "'\\u{41}'", expectedType: .characterLiteral, description: "Unicode character A"),
+            SuccessTestCase(input: "'Tab\\tSeparated'", expectedType: .stringLiteral, description: "Tab escape sequence"),
+            SuccessTestCase(input: "'Quote\\\"Mark'", expectedType: .stringLiteral, description: "Quote escape sequence"),
+            SuccessTestCase(input: "'Back\\\\slash'", expectedType: .stringLiteral, description: "Backslash escape")
         ]
 
         for testCase in successCases {

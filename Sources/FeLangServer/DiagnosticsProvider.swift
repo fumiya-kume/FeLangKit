@@ -149,13 +149,13 @@ public struct DiagnosticsProvider: Sendable {
     }
 
     private func semanticWarningToDiagnostic(_ warning: SemanticWarning) -> Diagnostic {
-        let (position, severity, code) = extractInfoFromSemanticWarning(warning)
-        let range = Range(start: position, end: position)
+        let info = extractInfoFromSemanticWarning(warning)
+        let range = Range(start: info.position, end: info.position)
 
         return Diagnostic(
             range: range,
-            severity: severity,
-            code: code,
+            severity: info.severity,
+            code: info.code,
             source: "FeLangKit",
             message: warning.description
         )
@@ -243,7 +243,13 @@ public struct DiagnosticsProvider: Sendable {
         }
     }
 
-    private func extractInfoFromSemanticWarning(_ warning: SemanticWarning) -> (Position, DiagnosticSeverity, String) {
+    private struct WarningInfo {
+        let position: Position
+        let severity: DiagnosticSeverity
+        let code: String
+    }
+
+    private func extractInfoFromSemanticWarning(_ warning: SemanticWarning) -> WarningInfo {
         let position: Position
         let severity: DiagnosticSeverity
         let code: String
@@ -275,7 +281,7 @@ public struct DiagnosticsProvider: Sendable {
             code = "inefficient-operation"
         }
 
-        return (position, severity, code)
+        return WarningInfo(position: position, severity: severity, code: code)
     }
 
     // MARK: - Helper Methods

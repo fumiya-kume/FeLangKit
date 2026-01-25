@@ -393,24 +393,30 @@ public final class SymbolTable: @unchecked Sendable {
         let sqrtType = FeType.function(parameters: [.real], returnType: .real)
         let absType = FeType.function(parameters: [.real], returnType: .real)
 
-        let builtins: [(String, FeType, SymbolKind)] = [
-            ("readLine", readLineType, .function),
-            ("writeLine", writeLineType, .procedure),
-            ("write", writeType, .procedure),
-            ("toString", toStringType, .function),
-            ("toInteger", toIntegerType, .function),
-            ("toReal", toRealType, .function),
-            ("sqrt", sqrtType, .function),
-            ("abs", absType, .function)
+        struct BuiltinDefinition {
+            let name: String
+            let type: FeType
+            let kind: SymbolKind
+        }
+
+        let builtins: [BuiltinDefinition] = [
+            BuiltinDefinition(name: "readLine", type: readLineType, kind: .function),
+            BuiltinDefinition(name: "writeLine", type: writeLineType, kind: .procedure),
+            BuiltinDefinition(name: "write", type: writeType, kind: .procedure),
+            BuiltinDefinition(name: "toString", type: toStringType, kind: .function),
+            BuiltinDefinition(name: "toInteger", type: toIntegerType, kind: .function),
+            BuiltinDefinition(name: "toReal", type: toRealType, kind: .function),
+            BuiltinDefinition(name: "sqrt", type: sqrtType, kind: .function),
+            BuiltinDefinition(name: "abs", type: absType, kind: .function)
         ]
 
         guard var globalScope = scopes["global"] else { return }
 
-        for (name, type, kind) in builtins {
+        for builtin in builtins {
             let symbol = Symbol(
-                name: name,
-                type: type,
-                kind: kind,
+                name: builtin.name,
+                type: builtin.type,
+                kind: builtin.kind,
                 position: SourcePosition(line: 0, column: 0, offset: 0),
                 isInitialized: true,
                 isUsed: false

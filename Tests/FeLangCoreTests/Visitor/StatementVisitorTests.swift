@@ -20,7 +20,8 @@ struct StatementVisitorTests {
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
-            visitBlock: { _ in "block" }
+            visitBlock: { _ in "block" },
+            visitRecordDeclaration: { "record_decl" }
         )
 
         let ifStmt = IfStatement(
@@ -48,7 +49,8 @@ struct StatementVisitorTests {
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
-            visitBlock: { _ in "block" }
+            visitBlock: { _ in "block" },
+            visitRecordDeclaration: { "record_decl" }
         )
 
         let whileStmt = WhileStatement(
@@ -83,7 +85,8 @@ struct StatementVisitorTests {
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
-            visitBlock: { _ in "block" }
+            visitBlock: { _ in "block" },
+            visitRecordDeclaration: { "record_decl" }
         )
 
         let rangeFor = ForStatement.RangeFor(
@@ -127,7 +130,8 @@ struct StatementVisitorTests {
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
-            visitBlock: { _ in "block" }
+            visitBlock: { _ in "block" },
+            visitRecordDeclaration: { "record_decl" }
         )
 
         let varAssignment = Statement.assignment(.variable("x", .literal(.integer(42))))
@@ -155,7 +159,8 @@ struct StatementVisitorTests {
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
-            visitBlock: { _ in "block" }
+            visitBlock: { _ in "block" },
+            visitRecordDeclaration: { "record_decl" }
         )
 
         let varDecl = Statement.variableDeclaration(VariableDeclaration(
@@ -208,7 +213,8 @@ struct StatementVisitorTests {
             visitExpressionStatement: { expr in "expr_stmt(\(expr))" },
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
-            visitBlock: { statements in "block(\(statements.count))" }
+            visitBlock: { statements in "block(\(statements.count))" },
+            visitRecordDeclaration: { "record" }
         )
 
         let returnStmt = Statement.returnStatement(ReturnStatement(expression: .literal(.integer(42))))
@@ -233,6 +239,7 @@ struct StatementVisitorTests {
 
     @Test func manualRecursiveVisitor() {
         // Create a manual recursive visitor for basic statement stringification
+        // swiftlint:disable:next cyclomatic_complexity
         func stringifyStatement(_ stmt: Statement) -> String {
             switch stmt {
             case .ifStatement(let ifStmt):
@@ -286,6 +293,8 @@ struct StatementVisitorTests {
             case .block(let statements):
                 let results = statements.map(stringifyStatement)
                 return "{ \(results.joined(separator: "; ")) }"
+            case .recordDeclaration(let recordDecl):
+                return "record \(recordDecl.name)"
             }
         }
 
@@ -325,7 +334,8 @@ struct StatementVisitorTests {
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
-            visitBlock: { _ in "block" }
+            visitBlock: { _ in "block" },
+            visitRecordDeclaration: { "record_decl" }
         )
 
         let stmt = Statement.breakStatement
@@ -354,7 +364,8 @@ struct StatementVisitorTests {
             visitExpressionStatement: { _ in "expr_stmt" },
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
-            visitBlock: { _ in "block" }
+            visitBlock: { _ in "block" },
+            visitRecordDeclaration: { "record_decl" }
         )
 
         // Test simple statements
@@ -388,7 +399,8 @@ struct StatementVisitorTests {
                 }
                 return 1 + body.map(countStatements).reduce(0, +)
             case .assignment, .variableDeclaration, .constantDeclaration,
-                 .returnStatement, .expressionStatement, .breakStatement, .continueStatement:
+                 .returnStatement, .expressionStatement, .breakStatement, .continueStatement,
+                 .recordDeclaration:
                 return 1
             case .functionDeclaration(let funcDecl):
                 return 1 + funcDecl.body.map(countStatements).reduce(0, +)

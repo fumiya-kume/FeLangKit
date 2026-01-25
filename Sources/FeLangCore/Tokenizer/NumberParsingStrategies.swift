@@ -333,18 +333,16 @@ public enum NumberParsingStrategies {
         if decimalCount > 1 { return false }
 
         // Check for valid start
-        let firstChar = lexeme.first!
+        guard let firstChar = lexeme.first else { return false }
         if !(firstChar.isNumber || firstChar == ".") { return false }
 
         // Check for valid characters
-        for char in lexeme {
-            if !(char.isNumber || char == "." || char == "_" ||
-                 char == "e" || char == "E" || char == "+" || char == "-" ||
-                 char == "x" || char == "X" || char == "o" || char == "O" ||
-                 char == "b" || char == "B" || (char >= "a" && char <= "f") ||
-                 (char >= "A" && char <= "F")) {
-                return false
-            }
+        for char in lexeme where !(char.isNumber || char == "." || char == "_" ||
+                                   char == "e" || char == "E" || char == "+" || char == "-" ||
+                                   char == "x" || char == "X" || char == "o" || char == "O" ||
+                                   char == "b" || char == "B" || (char >= "a" && char <= "f") ||
+                                   (char >= "A" && char <= "F")) {
+            return false
         }
 
         return true

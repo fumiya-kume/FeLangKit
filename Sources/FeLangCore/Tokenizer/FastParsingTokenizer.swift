@@ -5,6 +5,31 @@ import Foundation
 /// Uses hybrid approach: UTF-8 byte processing for ASCII, String operations for Unicode
 public struct FastParsingTokenizer {
 
+    // MARK: - Static Lookup Tables
+
+    /// Lookup table for single-byte ASCII operators/delimiters
+    /// Maps byte values to (TokenType, lexeme) pairs for O(1) lookup
+    private static let asciiOperatorTable: [UInt8: (TokenType, String)] = [
+        40: (.leftParen, "("),      // '('
+        41: (.rightParen, ")"),     // ')'
+        91: (.leftBracket, "["),    // '['
+        93: (.rightBracket, "]"),   // ']'
+        123: (.leftBrace, "{"),     // '{'
+        125: (.rightBrace, "}"),    // '}'
+        44: (.comma, ","),          // ','
+        46: (.dot, "."),            // '.'
+        59: (.semicolon, ";"),      // ';'
+        58: (.colon, ":"),          // ':'
+        43: (.plus, "+"),           // '+'
+        45: (.minus, "-"),          // '-'
+        42: (.multiply, "*"),       // '*'
+        47: (.divide, "/"),         // '/'
+        37: (.modulo, "%"),         // '%'
+        61: (.equal, "="),          // '='
+        62: (.greater, ">"),        // '>'
+        60: (.less, "<")            // '<'
+    ]
+
     public init() {}
 
     public func tokenize(_ input: String) throws -> [Token] {
@@ -71,6 +96,7 @@ public struct FastParsingTokenizer {
 
     // MARK: - Fast Parsing Methods
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func parseNextTokenFast(from input: String, utf8: [UInt8], bytePosition: inout Int, stringIndex: inout String.Index, startIndex: String.Index) throws -> TokenData? {
         // Try comments first
         if try parseCommentFast(from: input, utf8: utf8, bytePosition: &bytePosition, stringIndex: &stringIndex, startIndex: startIndex) != nil {
@@ -237,55 +263,61 @@ public struct FastParsingTokenizer {
         guard bytePosition < utf8.count else { return nil }
 
         let start = stringIndex
-        var hasDecimal = false
 
         // Check for leading dot decimal
-        if utf8[bytePosition] == 46 { // '.'
-            if bytePosition + 1 < utf8.count && utf8[bytePosition + 1] >= 48 && utf8[bytePosition + 1] <= 57 {
-                hasDecimal = true
-                bytePosition += 1
-                stringIndex = input.index(after: stringIndex)
-
-                // Read fractional part
-                while bytePosition < utf8.count && utf8[bytePosition] >= 48 && utf8[bytePosition] <= 57 {
-                    bytePosition += 1
-                    stringIndex = input.index(after: stringIndex)
-                }
-
-                let lexeme = String(input[start..<stringIndex])
-                return TokenData(type: .realLiteral, lexeme: lexeme)
-            } else {
-                return nil
-            }
+        if let result = parseLeadingDotNumber(from: input, utf8: utf8, bytePosition: &bytePosition, stringIndex: &stringIndex, start: start) {
+            return result
         }
 
         // Must start with digit
-        guard utf8[bytePosition] >= 48 && utf8[bytePosition] <= 57 else { return nil }
+        guard isDigit(utf8[bytePosition]) else { return nil }
 
         // Read integer part
-        while bytePosition < utf8.count && utf8[bytePosition] >= 48 && utf8[bytePosition] <= 57 {
-            bytePosition += 1
-            stringIndex = input.index(after: stringIndex)
-        }
+        consumeDigits(from: input, utf8: utf8, bytePosition: &bytePosition, stringIndex: &stringIndex)
 
-        // Check for decimal point
-        if bytePosition < utf8.count && utf8[bytePosition] == 46 {
-            if bytePosition + 1 < utf8.count && utf8[bytePosition + 1] >= 48 && utf8[bytePosition + 1] <= 57 {
-                hasDecimal = true
-                bytePosition += 1
-                stringIndex = input.index(after: stringIndex)
-
-                // Read fractional part
-                while bytePosition < utf8.count && utf8[bytePosition] >= 48 && utf8[bytePosition] <= 57 {
-                    bytePosition += 1
-                    stringIndex = input.index(after: stringIndex)
-                }
-            }
-        }
+        // Check for decimal point and read fractional part if present
+        let hasDecimal = tryParseDecimalPart(from: input, utf8: utf8, bytePosition: &bytePosition, stringIndex: &stringIndex)
 
         let lexeme = String(input[start..<stringIndex])
         let tokenType = hasDecimal ? TokenType.realLiteral : TokenType.integerLiteral
         return TokenData(type: tokenType, lexeme: lexeme)
+    }
+
+    /// Parse a number starting with a leading decimal point (e.g., ".123")
+    private func parseLeadingDotNumber(from input: String, utf8: [UInt8], bytePosition: inout Int, stringIndex: inout String.Index, start: String.Index) -> TokenData? {
+        guard utf8[bytePosition] == 46 else { return nil } // '.'
+        guard bytePosition + 1 < utf8.count && isDigit(utf8[bytePosition + 1]) else { return nil }
+
+        bytePosition += 1
+        stringIndex = input.index(after: stringIndex)
+        consumeDigits(from: input, utf8: utf8, bytePosition: &bytePosition, stringIndex: &stringIndex)
+
+        let lexeme = String(input[start..<stringIndex])
+        return TokenData(type: .realLiteral, lexeme: lexeme)
+    }
+
+    /// Try to parse the decimal part of a number. Returns true if decimal was found.
+    private func tryParseDecimalPart(from input: String, utf8: [UInt8], bytePosition: inout Int, stringIndex: inout String.Index) -> Bool {
+        guard bytePosition < utf8.count && utf8[bytePosition] == 46 else { return false }
+        guard bytePosition + 1 < utf8.count && isDigit(utf8[bytePosition + 1]) else { return false }
+
+        bytePosition += 1
+        stringIndex = input.index(after: stringIndex)
+        consumeDigits(from: input, utf8: utf8, bytePosition: &bytePosition, stringIndex: &stringIndex)
+        return true
+    }
+
+    /// Consume consecutive digit characters
+    private func consumeDigits(from input: String, utf8: [UInt8], bytePosition: inout Int, stringIndex: inout String.Index) {
+        while bytePosition < utf8.count && isDigit(utf8[bytePosition]) {
+            bytePosition += 1
+            stringIndex = input.index(after: stringIndex)
+        }
+    }
+
+    /// Check if a byte is an ASCII digit (0-9)
+    private func isDigit(_ byte: UInt8) -> Bool {
+        byte >= 48 && byte <= 57
     }
 
     private func parseStringFast(from input: String, stringIndex: inout String.Index, startIndex: String.Index) throws -> TokenData? {
@@ -299,61 +331,7 @@ public struct FastParsingTokenizer {
         stringIndex = input.index(after: stringIndex) // Skip opening quote
 
         // Read until closing quote, handling escape sequences
-        while stringIndex < input.endIndex && input[stringIndex] != quoteChar {
-            if input[stringIndex] == "\\" {
-                stringIndex = input.index(after: stringIndex) // consume backslash
-
-                guard stringIndex < input.endIndex else {
-                    throw TokenizerError.invalidEscapeSequenceWithMessage("Incomplete escape sequence at end of string", position)
-                }
-
-                let escapedChar = input[stringIndex]
-                stringIndex = input.index(after: stringIndex) // consume escaped character
-
-                // Handle Unicode escape sequences specially
-                if escapedChar == "u" {
-                    guard stringIndex < input.endIndex && input[stringIndex] == "{" else {
-                        throw TokenizerError.invalidUnicodeEscape("Expected '{' after \\u", position)
-                    }
-                    stringIndex = input.index(after: stringIndex) // consume '{'
-
-                    // Scan hex digits
-                    var hexDigitCount = 0
-                    while stringIndex < input.endIndex && input[stringIndex] != "}" && hexDigitCount < 8 {
-                        guard let scalar = String(input[stringIndex]).unicodeScalars.first,
-                              TokenizerUtilities.isHexDigit(scalar) else {
-                            throw TokenizerError.invalidUnicodeEscape("Invalid hex digit in Unicode escape", position)
-                        }
-                        stringIndex = input.index(after: stringIndex)
-                        hexDigitCount += 1
-                    }
-
-                    guard stringIndex < input.endIndex else {
-                        throw TokenizerError.invalidUnicodeEscape("Unterminated Unicode escape sequence", position)
-                    }
-
-                    guard input[stringIndex] == "}" else {
-                        throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence too long (max 8 hex digits)", position)
-                    }
-
-                    guard hexDigitCount > 0 else {
-                        throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence must have at least one hex digit", position)
-                    }
-
-                    stringIndex = input.index(after: stringIndex) // consume '}'
-                } else {
-                    // Validate basic escape sequences
-                    switch escapedChar {
-                    case "n", "t", "r", "\\", "\"", "'":
-                        break // Valid escape sequences
-                    default:
-                        throw TokenizerError.invalidEscapeSequenceWithMessage("Unknown escape sequence \\\\(escapedChar)", position)
-                    }
-                }
-            } else {
-                stringIndex = input.index(after: stringIndex)
-            }
-        }
+        try consumeStringContent(from: input, stringIndex: &stringIndex, quoteChar: quoteChar, position: position)
 
         // Must have closing quote
         guard stringIndex < input.endIndex else {
@@ -366,6 +344,83 @@ public struct FastParsingTokenizer {
         let content = String(lexeme.dropFirst().dropLast())
 
         // Process escape sequences in the content for token type determination
+        return try createStringToken(lexeme: lexeme, content: content, position: position)
+    }
+
+    /// Consume string content until closing quote, handling escape sequences
+    private func consumeStringContent(from input: String, stringIndex: inout String.Index, quoteChar: Character, position: SourcePosition) throws {
+        while stringIndex < input.endIndex && input[stringIndex] != quoteChar {
+            if input[stringIndex] == "\\" {
+                try consumeEscapeSequence(from: input, stringIndex: &stringIndex, position: position)
+            } else {
+                stringIndex = input.index(after: stringIndex)
+            }
+        }
+    }
+
+    /// Consume an escape sequence starting at the backslash
+    private func consumeEscapeSequence(from input: String, stringIndex: inout String.Index, position: SourcePosition) throws {
+        stringIndex = input.index(after: stringIndex) // consume backslash
+
+        guard stringIndex < input.endIndex else {
+            throw TokenizerError.invalidEscapeSequenceWithMessage("Incomplete escape sequence at end of string", position)
+        }
+
+        let escapedChar = input[stringIndex]
+        stringIndex = input.index(after: stringIndex) // consume escaped character
+
+        if escapedChar == "u" {
+            try consumeUnicodeEscapeSequence(from: input, stringIndex: &stringIndex, position: position)
+        } else {
+            try validateBasicEscapeChar(escapedChar, position: position)
+        }
+    }
+
+    /// Consume Unicode escape sequence \u{XXXX}
+    private func consumeUnicodeEscapeSequence(from input: String, stringIndex: inout String.Index, position: SourcePosition) throws {
+        guard stringIndex < input.endIndex && input[stringIndex] == "{" else {
+            throw TokenizerError.invalidUnicodeEscape("Expected '{' after \\u", position)
+        }
+        stringIndex = input.index(after: stringIndex) // consume '{'
+
+        // Scan hex digits
+        var hexDigitCount = 0
+        while stringIndex < input.endIndex && input[stringIndex] != "}" && hexDigitCount < 8 {
+            guard let scalar = String(input[stringIndex]).unicodeScalars.first,
+                  TokenizerUtilities.isHexDigit(scalar) else {
+                throw TokenizerError.invalidUnicodeEscape("Invalid hex digit in Unicode escape", position)
+            }
+            stringIndex = input.index(after: stringIndex)
+            hexDigitCount += 1
+        }
+
+        guard stringIndex < input.endIndex else {
+            throw TokenizerError.invalidUnicodeEscape("Unterminated Unicode escape sequence", position)
+        }
+
+        guard input[stringIndex] == "}" else {
+            throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence too long (max 8 hex digits)", position)
+        }
+
+        guard hexDigitCount > 0 else {
+            throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence must have at least one hex digit", position)
+        }
+
+        stringIndex = input.index(after: stringIndex) // consume '}'
+    }
+
+    /// Validate basic escape character
+    private func validateBasicEscapeChar(_ char: Character, position: SourcePosition) throws {
+        switch char {
+        case "n", "t", "r", "\\", "\"", "'":
+            break // Valid escape sequences
+        default:
+            throw TokenizerError.invalidEscapeSequenceWithMessage("Unknown escape sequence \\\\(char)", position)
+        }
+    }
+
+    /// Create string token from lexeme and processed content
+    private func createStringToken(lexeme: String, content: String, position: SourcePosition) throws -> TokenData {
         do {
             let processedContent = try StringEscapeUtilities.processEscapeSequences(content)
             let tokenType = TokenizerUtilities.stringLiteralTokenType(content: processedContent)
@@ -380,82 +435,28 @@ public struct FastParsingTokenizer {
 
         let byte = utf8[bytePosition]
 
-        // Fast path for single-byte ASCII operators/delimiters
-        switch byte {
-        case 40: // '('
-            bytePosition += 1
-            return TokenData(type: .leftParen, lexeme: "(")
-        case 41: // ')'
-            bytePosition += 1
-            return TokenData(type: .rightParen, lexeme: ")")
-        case 91: // '['
-            bytePosition += 1
-            return TokenData(type: .leftBracket, lexeme: "[")
-        case 93: // ']'
-            bytePosition += 1
-            return TokenData(type: .rightBracket, lexeme: "]")
-        case 123: // '{'
-            bytePosition += 1
-            return TokenData(type: .leftBrace, lexeme: "{")
-        case 125: // '}'
-            bytePosition += 1
-            return TokenData(type: .rightBrace, lexeme: "}")
-        case 44: // ','
-            bytePosition += 1
-            return TokenData(type: .comma, lexeme: ",")
-        case 46: // '.' (if not part of number)
-            bytePosition += 1
-            return TokenData(type: .dot, lexeme: ".")
-        case 59: // ';'
-            bytePosition += 1
-            return TokenData(type: .semicolon, lexeme: ";")
-        case 58: // ':'
-            bytePosition += 1
-            return TokenData(type: .colon, lexeme: ":")
-        case 43: // '+'
-            bytePosition += 1
-            return TokenData(type: .plus, lexeme: "+")
-        case 45: // '-'
-            bytePosition += 1
-            return TokenData(type: .minus, lexeme: "-")
-        case 42: // '*'
-            bytePosition += 1
-            return TokenData(type: .multiply, lexeme: "*")
-        case 47: // '/'
-            bytePosition += 1
-            return TokenData(type: .divide, lexeme: "/")
-        case 37: // '%'
-            bytePosition += 1
-            return TokenData(type: .modulo, lexeme: "%")
-        case 61: // '='
-            bytePosition += 1
-            return TokenData(type: .equal, lexeme: "=")
-        case 62: // '>'
-            bytePosition += 1
-            return TokenData(type: .greater, lexeme: ">")
-        case 60: // '<'
-            bytePosition += 1
-            return TokenData(type: .less, lexeme: "<")
-        default:
+        // Use lookup table for O(1) operator matching
+        guard let (tokenType, lexeme) = Self.asciiOperatorTable[byte] else {
             return nil
         }
+
+        bytePosition += 1
+        return TokenData(type: tokenType, lexeme: lexeme)
     }
 
     private func parseUnicodeOperatorFast(from input: String, stringIndex: inout String.Index) -> TokenData? {
         // Check multi-byte operators
-        for (operatorString, tokenType) in TokenizerUtilities.operators {
-            if TokenizerUtilities.matchString(operatorString, in: input, at: stringIndex) {
-                stringIndex = input.index(stringIndex, offsetBy: operatorString.count)
-                return TokenData(type: tokenType, lexeme: operatorString)
-            }
+        for (operatorString, tokenType) in TokenizerUtilities.operators
+            where TokenizerUtilities.matchString(operatorString, in: input, at: stringIndex) {
+            stringIndex = input.index(stringIndex, offsetBy: operatorString.count)
+            return TokenData(type: tokenType, lexeme: operatorString)
         }
 
         // Check delimiters
-        for (delimiter, tokenType) in TokenizerUtilities.delimiters {
-            if TokenizerUtilities.matchString(delimiter, in: input, at: stringIndex) {
-                stringIndex = input.index(stringIndex, offsetBy: delimiter.count)
-                return TokenData(type: tokenType, lexeme: delimiter)
-            }
+        for (delimiter, tokenType) in TokenizerUtilities.delimiters
+            where TokenizerUtilities.matchString(delimiter, in: input, at: stringIndex) {
+            stringIndex = input.index(stringIndex, offsetBy: delimiter.count)
+            return TokenData(type: tokenType, lexeme: delimiter)
         }
 
         return nil

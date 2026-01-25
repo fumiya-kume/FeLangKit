@@ -690,23 +690,23 @@ struct ASTImmutabilityAuditTests {
         // Test all BinaryOperator cases
         let binaryOperators = BinaryOperator.allCases
 
-        for (index, op) in binaryOperators.enumerated() {
-            let encoded = try encoder.encode(op)
+        for (index, binaryOp) in binaryOperators.enumerated() {
+            let encoded = try encoder.encode(binaryOp)
             #expect(!encoded.isEmpty, "Encoded data should not be empty for BinaryOperator \(index)")
 
             let decoded = try decoder.decode(BinaryOperator.self, from: encoded)
-            #expect(decoded == op, "Round-trip failed for BinaryOperator \(index): \(op)")
+            #expect(decoded == binaryOp, "Round-trip failed for BinaryOperator \(index): \(binaryOp)")
         }
 
         // Test all UnaryOperator cases
         let unaryOperators = UnaryOperator.allCases
 
-        for (index, op) in unaryOperators.enumerated() {
-            let encoded = try encoder.encode(op)
+        for (index, unaryOp) in unaryOperators.enumerated() {
+            let encoded = try encoder.encode(unaryOp)
             #expect(!encoded.isEmpty, "Encoded data should not be empty for UnaryOperator \(index)")
 
             let decoded = try decoder.decode(UnaryOperator.self, from: encoded)
-            #expect(decoded == op, "Round-trip failed for UnaryOperator \(index): \(op)")
+            #expect(decoded == unaryOp, "Round-trip failed for UnaryOperator \(index): \(unaryOp)")
         }
     }
 

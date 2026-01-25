@@ -474,8 +474,9 @@ public struct AsyncCharacterSequence: AsyncSequence, Sendable {
 // MARK: - Error Extensions
 
 extension TokenizerError {
+    private static let nullScalar: UnicodeScalar = "\0"
     static let invalidEncoding = TokenizerError.unexpectedCharacter(
-        UnicodeScalar(0)!,
+        nullScalar,
         SourcePosition(line: 0, column: 0, offset: 0)
     )
 }

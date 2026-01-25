@@ -249,7 +249,9 @@ public final class Tokenizer {
         return Token(type: .realLiteral, lexeme: lexeme, position: position)
     }
 
+    // swiftlint:disable:next orphaned_doc_comment
     /// Scans a string or character literal with escape sequence support
+    // swiftlint:disable:next cyclomatic_complexity
     private func scanStringOrCharacterLiteral(_ position: SourcePosition, startIndex: String.UnicodeScalarView.Index) throws -> Token {
         let contentStartIndex = current
 

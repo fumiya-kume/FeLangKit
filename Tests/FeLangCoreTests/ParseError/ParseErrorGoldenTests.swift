@@ -86,62 +86,74 @@ struct ParseErrorGoldenTests {
 
     // MARK: - Individual Error Type Tests
 
+    private struct StatementErrorTestCase {
+        let name: String
+        let parsingError: StatementParsingError
+        let expectedFormat: String
+    }
+
+    private struct ExpressionErrorTestCase {
+        let name: String
+        let parsingError: ParsingError
+        let expectedFormat: String
+    }
+
     @Test("Statement Parser Error Formatting")
     func testStatementParserErrorFormatting() async throws {
         // Test each StatementParsingError case for consistent formatting
-        let testCases: [(String, StatementParsingError, String)] = [
-            (
-                "unexpected_end_of_input",
-                .unexpectedEndOfInput,
-                "StatementParseError: Unexpected end of input\n  Expected: complete statement"
+        let testCases: [StatementErrorTestCase] = [
+            StatementErrorTestCase(
+                name: "unexpected_end_of_input",
+                parsingError: .unexpectedEndOfInput,
+                expectedFormat: "StatementParseError: Unexpected end of input\n  Expected: complete statement"
             ),
-            (
-                "expected_identifier",
-                .expectedIdentifier,
-                "StatementParseError: Expected identifier\n  Found: invalid or missing identifier"
+            StatementErrorTestCase(
+                name: "expected_identifier",
+                parsingError: .expectedIdentifier,
+                expectedFormat: "StatementParseError: Expected identifier\n  Found: invalid or missing identifier"
             ),
-            (
-                "expected_data_type",
-                .expectedDataType,
-                "StatementParseError: Expected data type\n  Expected: integer, real, string, boolean, array, or record type"
+            StatementErrorTestCase(
+                name: "expected_data_type",
+                parsingError: .expectedDataType,
+                expectedFormat: "StatementParseError: Expected data type\n  Expected: integer, real, string, boolean, array, or record type"
             ),
-            (
-                "input_too_large",
-                .inputTooLarge,
-                "StatementParseError: Input too large for safe processing\n  Maximum input size exceeded (100,000 tokens)"
+            StatementErrorTestCase(
+                name: "input_too_large",
+                parsingError: .inputTooLarge,
+                expectedFormat: "StatementParseError: Input too large for safe processing\n  Maximum input size exceeded (100,000 tokens)"
             ),
-            (
-                "nesting_too_deep",
-                .nestingTooDeep,
-                "StatementParseError: Nesting depth too deep\n  Maximum nesting depth exceeded (100 levels)"
+            StatementErrorTestCase(
+                name: "nesting_too_deep",
+                parsingError: .nestingTooDeep,
+                expectedFormat: "StatementParseError: Nesting depth too deep\n  Maximum nesting depth exceeded (100 levels)"
             )
         ]
 
-        for (name, error, expectedFormat) in testCases {
-            let formattedError = ErrorFormatter.format(error)
-            #expect(formattedError == expectedFormat, "Error formatting mismatch for \(name)")
+        for testCase in testCases {
+            let formattedError = ErrorFormatter.format(testCase.parsingError)
+            #expect(formattedError == testCase.expectedFormat, "Error formatting mismatch for \(testCase.name)")
         }
     }
 
     @Test("Expression Parser Error Formatting")
     func testExpressionParserErrorFormatting() async throws {
         // Test each ParsingError case for consistent formatting
-        let testCases: [(String, ParsingError, String)] = [
-            (
-                "unexpected_end_of_input",
-                .unexpectedEndOfInput,
-                "ParseError: Unexpected end of input\n  Expected: expression or statement"
+        let testCases: [ExpressionErrorTestCase] = [
+            ExpressionErrorTestCase(
+                name: "unexpected_end_of_input",
+                parsingError: .unexpectedEndOfInput,
+                expectedFormat: "ParseError: Unexpected end of input\n  Expected: expression or statement"
             ),
-            (
-                "expected_identifier",
-                .expectedIdentifier,
-                "ParseError: Expected identifier\n  Found: invalid or missing identifier"
+            ExpressionErrorTestCase(
+                name: "expected_identifier",
+                parsingError: .expectedIdentifier,
+                expectedFormat: "ParseError: Expected identifier\n  Found: invalid or missing identifier"
             )
         ]
 
-        for (name, error, expectedFormat) in testCases {
-            let formattedError = ErrorFormatter.format(error)
-            #expect(formattedError == expectedFormat, "Error formatting mismatch for \(name)")
+        for testCase in testCases {
+            let formattedError = ErrorFormatter.format(testCase.parsingError)
+            #expect(formattedError == testCase.expectedFormat, "Error formatting mismatch for \(testCase.name)")
         }
     }
 

@@ -56,8 +56,25 @@ public struct ExpressionEvaluator: Sendable {
             return try callFunction(name, args)
 
         case .arrayLiteral(let elements):
-            let values = try elements.map { try evaluate($0) }
-            return .array(values)
+            return try evaluateArrayLiteral(elements)
+        }
+    }
+
+    private func evaluateArrayLiteral(_ elements: [FEExpression]) throws -> RuntimeValue {
+        let values = try elements.map { try evaluate($0) }
+        try validateArrayElementTypes(values)
+        return .array(values)
+    }
+
+    private func validateArrayElementTypes(_ values: [RuntimeValue]) throws {
+        guard let firstValue = values.first else { return }
+        let expectedType = firstValue.typeName
+        for (index, value) in values.enumerated() where index > 0 && value.typeName != expectedType {
+            throw RuntimeError.typeMismatch(
+                expected: expectedType,
+                actual: value.typeName,
+                operation: "array literal element at index \(index)"
+            )
         }
     }
 
@@ -80,6 +97,7 @@ public struct ExpressionEvaluator: Sendable {
 
     // MARK: - Binary Operations
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func evaluateBinary(
         _ operatorType: BinaryOperator,
         left: RuntimeValue,
@@ -114,10 +132,32 @@ public struct ExpressionEvaluator: Sendable {
 
         // Logical
         case .and:
-            return .boolean(left.isTruthy && right.isTruthy)
+            return try evaluateLogicalAnd(left, right)
         case .or:
-            return .boolean(left.isTruthy || right.isTruthy)
+            return try evaluateLogicalOr(left, right)
         }
+    }
+
+    // MARK: - Logical Operations
+
+    private func evaluateLogicalAnd(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
+        guard case .boolean(let leftBool) = left else {
+            throw RuntimeError.typeMismatch(expected: "Boolean", actual: left.typeName, operation: "and")
+        }
+        guard case .boolean(let rightBool) = right else {
+            throw RuntimeError.typeMismatch(expected: "Boolean", actual: right.typeName, operation: "and")
+        }
+        return .boolean(leftBool && rightBool)
+    }
+
+    private func evaluateLogicalOr(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
+        guard case .boolean(let leftBool) = left else {
+            throw RuntimeError.typeMismatch(expected: "Boolean", actual: left.typeName, operation: "or")
+        }
+        guard case .boolean(let rightBool) = right else {
+            throw RuntimeError.typeMismatch(expected: "Boolean", actual: right.typeName, operation: "or")
+        }
+        return .boolean(leftBool || rightBool)
     }
 
     private func evaluateAdd(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
@@ -227,7 +267,16 @@ public struct ExpressionEvaluator: Sendable {
         case (.real(let lhs), .integer(let rhs)):
             return .boolean(compare(lhs, Double(rhs)))
         case (.string(let lhs), .string(let rhs)):
-            return .boolean(compare(Double(lhs.compare(rhs).rawValue), 0))
+            // Use lexicographic comparison: -1 for less, 0 for equal, 1 for greater
+            let comparisonResult: Double
+            if lhs < rhs {
+                comparisonResult = -1
+            } else if lhs > rhs {
+                comparisonResult = 1
+            } else {
+                comparisonResult = 0
+            }
+            return .boolean(compare(comparisonResult, 0))
         default:
             throw RuntimeError.typeMismatch(
                 expected: "comparable types",

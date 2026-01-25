@@ -69,7 +69,9 @@ public struct StatementParser {
         return statements
     }
 
+    // swiftlint:disable:next orphaned_doc_comment
     /// Parses a single statement from the token stream.
+    // swiftlint:disable:next cyclomatic_complexity
     private func parseStatement(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> Statement {
         guard let token = parser.peek() else {
             throw StatementParsingError.unexpectedEndOfInput
@@ -351,11 +353,14 @@ public struct StatementParser {
             requiresInitialValue: true
         )
 
-        // Safe force unwrap: requiresInitialValue: true guarantees initialValue exists
+        // requiresInitialValue: true guarantees initialValue exists
+        guard let initialValue = components.initialValue else {
+            throw StatementParsingError.expectedToken(.assign)
+        }
         return ConstantDeclaration(
             name: components.name,
             type: components.type,
-            initialValue: components.initialValue!,
+            initialValue: initialValue,
             position: components.position
         )
     }
@@ -502,8 +507,10 @@ public struct StatementParser {
         return Parameter(name: name, type: type)
     }
 
+    // swiftlint:disable:next orphaned_doc_comment
     /// Parses a data type with full support for basic types, arrays, and records.
     /// Supports both English and Japanese keywords for internationalization.
+    // swiftlint:disable:next cyclomatic_complexity
     private func parseDataType(_ parser: inout TokenStream) throws -> DataType {
         guard let typeToken = parser.advance() else {
             throw StatementParsingError.unexpectedEndOfInput
@@ -615,8 +622,10 @@ public struct StatementParser {
         return (localVariables, statements)
     }
 
-        /// Parses an expression by delegating to ExpressionParser.
+    // swiftlint:disable:next orphaned_doc_comment
+    /// Parses an expression by delegating to ExpressionParser.
     /// This creates a bounded token stream and delegates to ExpressionParser.
+    // swiftlint:disable:next cyclomatic_complexity
     private func parseExpression(_ parser: inout TokenStream) throws -> Expression {
         // Get the starting position
         let startIndex = parser.index
@@ -726,8 +735,25 @@ public struct StatementParser {
         }
     }
 
+    /// Checks if a token type indicates expression continuation (operator, opening bracket, comma, etc.)
+    /// Used to distinguish between function calls as new statements vs function calls within expressions
+    private func isExpressionContinuationToken(_ tokenType: TokenType) -> Bool {
+        switch tokenType {
+        case .plus, .minus, .multiply, .divide, .modulo,
+             .equal, .notEqual, .less, .greater, .lessEqual, .greaterEqual,
+             .andKeyword, .orKeyword,
+             .leftParen, .leftBracket, .comma, .dot,
+             .assign:
+            return true
+        default:
+            return false
+        }
+    }
+
+    // swiftlint:disable:next orphaned_doc_comment
     /// Checks if a token sequence indicates the start of a new statement.
     /// This helps detect statement boundaries when newlines are filtered out.
+    // swiftlint:disable:next cyclomatic_complexity
     private func isStartOfNewStatement(_ parser: TokenStream, at index: Int) -> Bool {
         guard index < parser.tokens.count else { return false }
 
@@ -739,6 +765,37 @@ public struct StatementParser {
             let nextToken = parser.tokens[index + 1]
             if nextToken.type == .assign {
                 return true
+            }
+            // Check for function call pattern: identifier(
+            // This detects function calls like "println(x)" as new statements
+            // But NOT if preceded by an operator (expression continuation like "a + f(x)")
+            if nextToken.type == .leftParen {
+                if index > 0 && isExpressionContinuationToken(parser.tokens[index - 1].type) {
+                    return false
+                }
+                return true
+            }
+            // Check for array element assignment pattern: identifier[...]←
+            // This detects array assignments like "arr[0] ← 10" or "arr[i] ← value"
+            // But also check for expression continuation after array access
+            if nextToken.type == .leftBracket {
+                var offset = 2
+                var bracketCount = 1
+                while bracketCount > 0, index + offset < parser.tokens.count {
+                    let scanToken = parser.tokens[index + offset]
+                    if scanToken.type == .leftBracket { bracketCount += 1 } else if scanToken.type == .rightBracket { bracketCount -= 1 }
+                    offset += 1
+                }
+                if index + offset < parser.tokens.count {
+                    let afterBracket = parser.tokens[index + offset]
+                    if afterBracket.type == .assign {
+                        return true  // Array assignment is a new statement
+                    }
+                    // Expression continuation after array access is NOT a new statement
+                    if isExpressionContinuationToken(afterBracket.type) {
+                        return false
+                    }
+                }
             }
         }
 

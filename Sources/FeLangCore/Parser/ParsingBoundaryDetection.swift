@@ -44,8 +44,34 @@ public enum ParsingBoundaryDetection {
         }
     }
 
+    /// Checks if a token type indicates expression continuation (operator, opening bracket, comma, etc.)
+    /// Used to distinguish between function calls as new statements vs function calls within expressions
+    private static func isExpressionContinuationToken(_ tokenType: TokenType) -> Bool {
+        switch tokenType {
+        // Binary operators
+        case .plus, .minus, .multiply, .divide, .modulo:
+            return true
+        // Comparison operators
+        case .equal, .notEqual, .less, .greater, .lessEqual, .greaterEqual:
+            return true
+        // Logical operators
+        case .andKeyword, .orKeyword:
+            return true
+        // Opening brackets, comma, and dot (function arguments, array access, field access)
+        case .leftParen, .leftBracket, .comma, .dot:
+            return true
+        // Assignment operator
+        case .assign:
+            return true
+        default:
+            return false
+        }
+    }
+
+    // swiftlint:disable:next orphaned_doc_comment
     /// Checks if a token sequence indicates the start of a new statement
     /// This helps detect statement boundaries when newlines are filtered out
+    // swiftlint:disable:next cyclomatic_complexity
     public static func isStartOfNewStatement(_ tokens: [Token], at index: Int) -> Bool {
         guard index < tokens.count else { return false }
 
@@ -56,6 +82,35 @@ public enum ParsingBoundaryDetection {
             let nextToken = tokens[index + 1]
             if nextToken.type == .assign {
                 return true
+            }
+            // Check for function call pattern: identifier(
+            // But NOT if preceded by an operator (expression continuation)
+            if nextToken.type == .leftParen {
+                if index > 0 && isExpressionContinuationToken(tokens[index - 1].type) {
+                    return false
+                }
+                return true
+            }
+            // Check for array element assignment pattern: identifier[...]←
+            // But also check for expression continuation after array access
+            if nextToken.type == .leftBracket {
+                var offset = 2
+                var bracketCount = 1
+                while bracketCount > 0, index + offset < tokens.count {
+                    let scanToken = tokens[index + offset]
+                    if scanToken.type == .leftBracket { bracketCount += 1 } else if scanToken.type == .rightBracket { bracketCount -= 1 }
+                    offset += 1
+                }
+                if index + offset < tokens.count {
+                    let afterBracket = tokens[index + offset]
+                    if afterBracket.type == .assign {
+                        return true  // Array assignment is a new statement
+                    }
+                    // Expression continuation after array access is NOT a new statement
+                    if isExpressionContinuationToken(afterBracket.type) {
+                        return false
+                    }
+                }
             }
         }
 

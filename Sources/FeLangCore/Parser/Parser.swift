@@ -200,7 +200,9 @@ extension Parser {
         case breakStatement
     }
 
+    // swiftlint:disable:next orphaned_doc_comment
     /// Validates that statements conform to the expected grammar rule
+    // swiftlint:disable:next cyclomatic_complexity
     private func validateGrammarRule(_ statements: [Statement], expectedRule: GrammarRule) throws {
         guard statements.count == 1 else {
             throw ParseError(

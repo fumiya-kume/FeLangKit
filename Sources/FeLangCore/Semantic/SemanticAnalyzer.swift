@@ -112,6 +112,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func collectSymbolsFromStatement(_ statement: Statement) {
         incrementNestingDepth()
         defer { decrementNestingDepth() }
@@ -137,6 +138,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 collectSymbolsFromStatement(stmt)
             }
             symbolTable.popScope()
+        case .recordDeclaration:
+            // Record declarations are handled at type level, not symbol level
+            break
         case .assignment, .expressionStatement, .returnStatement, .breakStatement, .continueStatement:
             // These don't declare new symbols
             break
@@ -381,6 +385,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func typeCheckStatement(_ statement: Statement) {
         incrementNestingDepth()
         defer { decrementNestingDepth() }
@@ -412,6 +417,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 typeCheckStatement(stmt)
             }
             symbolTable.popScope()
+        case .recordDeclaration:
+            // Record type declarations don't need type checking here
+            break
         case .breakStatement, .continueStatement:
             // No type checking needed
             break
@@ -544,6 +552,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         symbolTable.popScope()
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func typeCheckForStatement(_ stmt: ForStatement) {
         switch stmt {
         case .range(let rangeFor):
@@ -818,6 +827,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         return symbol.type
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func inferBinaryOperationType(_ operatorType: BinaryOperator, left: Expression, right: Expression, depth: Int) -> FeType {
         let leftType = inferExpressionType(left, depth: depth)
         let rightType = inferExpressionType(right, depth: depth)
@@ -1015,6 +1025,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         // converted to warnings in the error reporter's finalize method
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func validateStatement(_ statement: Statement) {
         incrementNestingDepth()
         defer { decrementNestingDepth() }
@@ -1042,6 +1053,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 validateStatement(stmt)
             }
             symbolTable.popScope()
+        case .recordDeclaration:
+            // Record declarations are validated separately
+            break
         case .variableDeclaration, .constantDeclaration, .assignment, .expressionStatement:
             // These are validated in type checking pass
             break

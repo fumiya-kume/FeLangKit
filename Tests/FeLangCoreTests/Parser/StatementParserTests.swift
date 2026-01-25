@@ -756,4 +756,79 @@ struct StatementParserTests {
         let statements = try parseStatements("\(longIdentifier) ← 1")
                 #expect(statements.count == 1)
     }
+
+    // MARK: - Function Call in Expression Tests
+
+    @Test("Function call in binary expression")
+    func testFunctionCallInBinaryExpression() throws {
+        // This tests that a + f(x) is parsed as one expression, not split at f(
+        let statements = try parseStatements("println(a + f(x))")
+
+        #expect(statements.count == 1)
+        guard case .expressionStatement(.functionCall("println", let args)) = statements[0] else {
+            #expect(Bool(false), "Expected expression statement with function call")
+            return
+        }
+
+        #expect(args.count == 1)
+        // The argument should be a binary expression: a + f(x)
+        guard case .binary(.add, _, _) = args[0] else {
+            #expect(Bool(false), "Expected binary addition expression")
+            return
+        }
+    }
+
+    @Test("Multiple function calls in expression")
+    func testMultipleFunctionCallsInExpression() throws {
+        // Tests that f(x) + g(y) is parsed correctly
+        let statements = try parseStatements("println(f(x) + g(y))")
+
+        #expect(statements.count == 1)
+        guard case .expressionStatement(.functionCall("println", let args)) = statements[0] else {
+            #expect(Bool(false), "Expected expression statement with function call")
+            return
+        }
+
+        #expect(args.count == 1)
+        guard case .binary(.add, .functionCall("f", _), .functionCall("g", _)) = args[0] else {
+            #expect(Bool(false), "Expected binary expression with two function calls")
+            return
+        }
+    }
+
+    @Test("Function call after multiplication")
+    func testFunctionCallAfterMultiplication() throws {
+        // Tests that x * f(y) is parsed correctly
+        let statements = try parseStatements("println(x * f(y))")
+
+        #expect(statements.count == 1)
+        guard case .expressionStatement(.functionCall("println", let args)) = statements[0] else {
+            #expect(Bool(false), "Expected expression statement with function call")
+            return
+        }
+
+        #expect(args.count == 1)
+        guard case .binary(.multiply, .identifier("x"), .functionCall("f", _)) = args[0] else {
+            #expect(Bool(false), "Expected binary multiplication expression")
+            return
+        }
+    }
+
+    @Test("Function call in complex expression")
+    func testFunctionCallInComplexExpression() throws {
+        // Tests that (a + b) * f(c) is parsed correctly
+        let statements = try parseStatements("println((a + b) * f(c))")
+
+        #expect(statements.count == 1)
+        guard case .expressionStatement(.functionCall("println", let args)) = statements[0] else {
+            #expect(Bool(false), "Expected expression statement with function call")
+            return
+        }
+
+        #expect(args.count == 1)
+        guard case .binary(.multiply, _, .functionCall("f", _)) = args[0] else {
+            #expect(Bool(false), "Expected binary multiplication with function call")
+            return
+        }
+    }
 }

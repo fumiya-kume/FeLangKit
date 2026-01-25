@@ -326,4 +326,170 @@ struct ParsingBoundaryDetectionTests {
         #expect(context.isInsideNestedStructure == false)
     }
 
+    // MARK: - Function Call in Expression Tests
+
+    @Test func testFunctionCallAfterOperatorNotNewStatement() throws {
+        // Test case: a + f(x) - "f(" at index 2 should NOT be a new statement
+        // because it follows an operator "+"
+        let tokens = [
+            Token(type: .identifier, lexeme: "a", position: SourcePosition(line: 1, column: 1, offset: 0)),
+            Token(type: .plus, lexeme: "+", position: SourcePosition(line: 1, column: 3, offset: 2)),
+            Token(type: .identifier, lexeme: "f", position: SourcePosition(line: 1, column: 5, offset: 4)),
+            Token(type: .leftParen, lexeme: "(", position: SourcePosition(line: 1, column: 6, offset: 5)),
+            Token(type: .identifier, lexeme: "x", position: SourcePosition(line: 1, column: 7, offset: 6)),
+            Token(type: .rightParen, lexeme: ")", position: SourcePosition(line: 1, column: 8, offset: 7))
+        ]
+
+        // f( at index 2 should NOT be a new statement because it follows "+"
+        #expect(ParsingBoundaryDetection.isStartOfNewStatement(tokens, at: 2) == false)
+    }
+
+    @Test func testStandaloneFunctionCallIsNewStatement() throws {
+        // Test case: println(x) - standalone function call IS a new statement
+        let tokens = [
+            Token(type: .identifier, lexeme: "println", position: SourcePosition(line: 1, column: 1, offset: 0)),
+            Token(type: .leftParen, lexeme: "(", position: SourcePosition(line: 1, column: 8, offset: 7)),
+            Token(type: .identifier, lexeme: "x", position: SourcePosition(line: 1, column: 9, offset: 8)),
+            Token(type: .rightParen, lexeme: ")", position: SourcePosition(line: 1, column: 10, offset: 9))
+        ]
+
+        // println( at index 0 SHOULD be a new statement
+        #expect(ParsingBoundaryDetection.isStartOfNewStatement(tokens, at: 0) == true)
+    }
+
+    @Test func testFunctionCallAfterMultiplyNotNewStatement() throws {
+        // Test case: x * func(y) - "func(" should NOT be a new statement
+        let tokens = [
+            Token(type: .identifier, lexeme: "x", position: SourcePosition(line: 1, column: 1, offset: 0)),
+            Token(type: .multiply, lexeme: "*", position: SourcePosition(line: 1, column: 3, offset: 2)),
+            Token(type: .identifier, lexeme: "func", position: SourcePosition(line: 1, column: 5, offset: 4)),
+            Token(type: .leftParen, lexeme: "(", position: SourcePosition(line: 1, column: 9, offset: 8)),
+            Token(type: .identifier, lexeme: "y", position: SourcePosition(line: 1, column: 10, offset: 9)),
+            Token(type: .rightParen, lexeme: ")", position: SourcePosition(line: 1, column: 11, offset: 10))
+        ]
+
+        #expect(ParsingBoundaryDetection.isStartOfNewStatement(tokens, at: 2) == false)
+    }
+
+    @Test func testFunctionCallAfterComparisonNotNewStatement() throws {
+        // Test case: a > max(b, c) - "max(" should NOT be a new statement
+        let tokens = [
+            Token(type: .identifier, lexeme: "a", position: SourcePosition(line: 1, column: 1, offset: 0)),
+            Token(type: .greater, lexeme: ">", position: SourcePosition(line: 1, column: 3, offset: 2)),
+            Token(type: .identifier, lexeme: "max", position: SourcePosition(line: 1, column: 5, offset: 4)),
+            Token(type: .leftParen, lexeme: "(", position: SourcePosition(line: 1, column: 8, offset: 7)),
+            Token(type: .identifier, lexeme: "b", position: SourcePosition(line: 1, column: 9, offset: 8)),
+            Token(type: .comma, lexeme: ",", position: SourcePosition(line: 1, column: 10, offset: 9)),
+            Token(type: .identifier, lexeme: "c", position: SourcePosition(line: 1, column: 12, offset: 11)),
+            Token(type: .rightParen, lexeme: ")", position: SourcePosition(line: 1, column: 13, offset: 12))
+        ]
+
+        #expect(ParsingBoundaryDetection.isStartOfNewStatement(tokens, at: 2) == false)
+    }
+
+    @Test func testFunctionCallAfterLogicalOperatorNotNewStatement() throws {
+        // Test case: x and isValid(y) - "isValid(" should NOT be a new statement
+        let tokens = [
+            Token(type: .identifier, lexeme: "x", position: SourcePosition(line: 1, column: 1, offset: 0)),
+            Token(type: .andKeyword, lexeme: "and", position: SourcePosition(line: 1, column: 3, offset: 2)),
+            Token(type: .identifier, lexeme: "isValid", position: SourcePosition(line: 1, column: 7, offset: 6)),
+            Token(type: .leftParen, lexeme: "(", position: SourcePosition(line: 1, column: 14, offset: 13)),
+            Token(type: .identifier, lexeme: "y", position: SourcePosition(line: 1, column: 15, offset: 14)),
+            Token(type: .rightParen, lexeme: ")", position: SourcePosition(line: 1, column: 16, offset: 15))
+        ]
+
+        #expect(ParsingBoundaryDetection.isStartOfNewStatement(tokens, at: 2) == false)
+    }
+
+    @Test func testFunctionCallAfterAssignNotNewStatement() throws {
+        // Test case: result ← getValue() - "getValue(" should NOT be a new statement
+        // because it follows assignment operator
+        let tokens = [
+            Token(type: .identifier, lexeme: "result", position: SourcePosition(line: 1, column: 1, offset: 0)),
+            Token(type: .assign, lexeme: "←", position: SourcePosition(line: 1, column: 8, offset: 7)),
+            Token(type: .identifier, lexeme: "getValue", position: SourcePosition(line: 1, column: 10, offset: 9)),
+            Token(type: .leftParen, lexeme: "(", position: SourcePosition(line: 1, column: 18, offset: 17)),
+            Token(type: .rightParen, lexeme: ")", position: SourcePosition(line: 1, column: 19, offset: 18))
+        ]
+
+        #expect(ParsingBoundaryDetection.isStartOfNewStatement(tokens, at: 2) == false)
+    }
+
+    // MARK: - Field Access (Dot) Tests
+
+    @Test func testFieldAccessAfterOperatorNotNewStatement() throws {
+        // Test case: a + obj.field - "obj" at index 2 should NOT be new statement
+        // because it follows "+" operator
+        let tokens = [
+            Token(type: .identifier, lexeme: "a", position: SourcePosition(line: 1, column: 1, offset: 0)),
+            Token(type: .plus, lexeme: "+", position: SourcePosition(line: 1, column: 3, offset: 2)),
+            Token(type: .identifier, lexeme: "obj", position: SourcePosition(line: 1, column: 5, offset: 4)),
+            Token(type: .dot, lexeme: ".", position: SourcePosition(line: 1, column: 8, offset: 7)),
+            Token(type: .identifier, lexeme: "field", position: SourcePosition(line: 1, column: 9, offset: 8))
+        ]
+
+        #expect(ParsingBoundaryDetection.isStartOfNewStatement(tokens, at: 2) == false)
+    }
+
+    @Test func testFieldAccessAfterDotNotNewStatement() throws {
+        // Test case: obj.method() - "method" after dot should NOT be new statement
+        let tokens = [
+            Token(type: .identifier, lexeme: "obj", position: SourcePosition(line: 1, column: 1, offset: 0)),
+            Token(type: .dot, lexeme: ".", position: SourcePosition(line: 1, column: 4, offset: 3)),
+            Token(type: .identifier, lexeme: "method", position: SourcePosition(line: 1, column: 5, offset: 4)),
+            Token(type: .leftParen, lexeme: "(", position: SourcePosition(line: 1, column: 11, offset: 10)),
+            Token(type: .rightParen, lexeme: ")", position: SourcePosition(line: 1, column: 12, offset: 11))
+        ]
+
+        // "method" at index 2 follows ".dot" which is expression continuation
+        #expect(ParsingBoundaryDetection.isStartOfNewStatement(tokens, at: 2) == false)
+    }
+
+    // MARK: - Array Access Followed by Operator Tests
+
+    @Test func testArrayAccessFollowedByPlusNotNewStatement() throws {
+        // Test case: arr[i] + 5 - "arr[i]" should NOT be new statement when followed by "+"
+        let tokens = [
+            Token(type: .identifier, lexeme: "arr", position: SourcePosition(line: 1, column: 1, offset: 0)),
+            Token(type: .leftBracket, lexeme: "[", position: SourcePosition(line: 1, column: 4, offset: 3)),
+            Token(type: .identifier, lexeme: "i", position: SourcePosition(line: 1, column: 5, offset: 4)),
+            Token(type: .rightBracket, lexeme: "]", position: SourcePosition(line: 1, column: 6, offset: 5)),
+            Token(type: .plus, lexeme: "+", position: SourcePosition(line: 1, column: 8, offset: 7)),
+            Token(type: .integerLiteral, lexeme: "5", position: SourcePosition(line: 1, column: 10, offset: 9))
+        ]
+
+        // "arr" at index 0 followed by "[i]+" should NOT be new statement
+        #expect(ParsingBoundaryDetection.isStartOfNewStatement(tokens, at: 0) == false)
+    }
+
+    @Test func testArrayAccessFollowedByDotNotNewStatement() throws {
+        // Test case: arr[i].field - "arr[i]" followed by "." should NOT be new statement
+        let tokens = [
+            Token(type: .identifier, lexeme: "arr", position: SourcePosition(line: 1, column: 1, offset: 0)),
+            Token(type: .leftBracket, lexeme: "[", position: SourcePosition(line: 1, column: 4, offset: 3)),
+            Token(type: .identifier, lexeme: "i", position: SourcePosition(line: 1, column: 5, offset: 4)),
+            Token(type: .rightBracket, lexeme: "]", position: SourcePosition(line: 1, column: 6, offset: 5)),
+            Token(type: .dot, lexeme: ".", position: SourcePosition(line: 1, column: 7, offset: 6)),
+            Token(type: .identifier, lexeme: "field", position: SourcePosition(line: 1, column: 8, offset: 7))
+        ]
+
+        // "arr" at index 0 followed by "[i]." should NOT be new statement
+        #expect(ParsingBoundaryDetection.isStartOfNewStatement(tokens, at: 0) == false)
+    }
+
+    @Test func testArrayAssignmentIsNewStatement() throws {
+        // Test case: arr[i] ← 5 - array assignment IS a new statement
+        let tokens = [
+            Token(type: .identifier, lexeme: "arr", position: SourcePosition(line: 1, column: 1, offset: 0)),
+            Token(type: .leftBracket, lexeme: "[", position: SourcePosition(line: 1, column: 4, offset: 3)),
+            Token(type: .identifier, lexeme: "i", position: SourcePosition(line: 1, column: 5, offset: 4)),
+            Token(type: .rightBracket, lexeme: "]", position: SourcePosition(line: 1, column: 6, offset: 5)),
+            Token(type: .assign, lexeme: "←", position: SourcePosition(line: 1, column: 8, offset: 7)),
+            Token(type: .integerLiteral, lexeme: "5", position: SourcePosition(line: 1, column: 10, offset: 9))
+        ]
+
+        // "arr" at index 0 followed by "[i]←" IS a new statement
+        #expect(ParsingBoundaryDetection.isStartOfNewStatement(tokens, at: 0) == true)
+    }
+
 }

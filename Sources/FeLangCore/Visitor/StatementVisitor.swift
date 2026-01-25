@@ -65,6 +65,9 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
     /// - Parameter statements: The list of statements in the block
     public let visitBlock: @Sendable ([Statement]) -> Result
 
+    /// Visits record declarations.
+    public let visitRecordDeclaration: @Sendable () -> Result
+
     // MARK: - Initialization
 
     /// Creates a new statement visitor with the specified visit closures.
@@ -81,7 +84,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         visitExpressionStatement: @escaping @Sendable (Expression) -> Result,
         visitBreakStatement: @escaping @Sendable () -> Result,
         visitContinueStatement: @escaping @Sendable () -> Result,
-        visitBlock: @escaping @Sendable ([Statement]) -> Result
+        visitBlock: @escaping @Sendable ([Statement]) -> Result,
+        visitRecordDeclaration: @escaping @Sendable () -> Result
     ) {
         self.visitIfStatement = visitIfStatement
         self.visitWhileStatement = visitWhileStatement
@@ -96,13 +100,16 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         self.visitBreakStatement = visitBreakStatement
         self.visitContinueStatement = visitContinueStatement
         self.visitBlock = visitBlock
+        self.visitRecordDeclaration = visitRecordDeclaration
     }
 
     // MARK: - Visit Method
 
+    // swiftlint:disable:next orphaned_doc_comment
     /// Visits a statement, dispatching to the appropriate visit closure based on the statement type.
     /// - Parameter statement: The statement to visit
     /// - Returns: The result of visiting the statement
+    // swiftlint:disable:next cyclomatic_complexity
     public func visit(_ statement: Statement) -> Result {
         switch statement {
         case .ifStatement(let ifStmt):
@@ -131,6 +138,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
             return visitContinueStatement()
         case .block(let statements):
             return visitBlock(statements)
+        case .recordDeclaration:
+            return visitRecordDeclaration()
         }
     }
 }
