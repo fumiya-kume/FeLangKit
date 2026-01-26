@@ -126,9 +126,15 @@ struct TypeConversionE2ETests {
         println(b)
         """
         let output = try InProcessTestHelper.run(code)
-        #expect(output.contains("4"))
-        #expect(output.contains("ok"))
-        #expect(output.contains("A"))
-        #expect(output.lowercased().contains("true"))
+        let lines = output
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        #expect(lines.count >= 4)
+        #expect(lines[0] == "4" || lines[0] == "4.0")
+        #expect(lines[1] == "ok")
+        #expect(lines[2] == "A")
+        #expect(lines[3].lowercased() == "true")
     }
 }
