@@ -3,7 +3,13 @@ set -euo pipefail
 
 INPUT=$(cat)
 
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+FILE_PATH=""
+
+if command -v jq &>/dev/null; then
+    FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null || printf '')
+else
+    exit 0
+fi
 
 if [ -z "$FILE_PATH" ]; then
     exit 0
