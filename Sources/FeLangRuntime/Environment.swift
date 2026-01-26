@@ -113,6 +113,7 @@ public final class Environment: @unchecked Sendable {
     ) {
         guard !scopes.isEmpty else { return }
         scopes[0].variables[name] = value
+        scopes[0].constants.remove(name)
         if let type = type {
             scopes[0].types[name] = type
         } else {
