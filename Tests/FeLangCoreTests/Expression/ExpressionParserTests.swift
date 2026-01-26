@@ -221,7 +221,7 @@ struct ExpressionParserTests {
     }
 
     @Test func testBitwiseAndPrecedenceWithComparison() throws {
-        // 5 ∧ 3 > 0 should be parsed as (5 ∧ 3) > 0 (bitwiseAnd has lower precedence than comparison)
+        // 5 ∧ 3 > 0 should be parsed as 5 ∧ (3 > 0) (comparison has higher precedence than bitwiseAnd)
         let expr = try parseExpression("5 ∧ 3 > 0")
         let expected = Expression.binary(
             .bitwiseAnd,
