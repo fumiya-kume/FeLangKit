@@ -123,7 +123,7 @@ public final class Tokenizer {
             if match("=") {
                 return Token(type: .notEqual, lexeme: "!=", position: position)
             } else {
-                throw TokenizerError.unexpectedCharacter(char, position)
+                return Token(type: .notKeyword, lexeme: "!", position: position)
             }
         case "≠":
             return Token(type: .notEqual, lexeme: "≠", position: position)
@@ -155,8 +155,6 @@ public final class Tokenizer {
             return Token(type: .semicolon, lexeme: ";", position: position)
         case ":":
             return Token(type: .colon, lexeme: ":", position: position)
-        case "!":
-            return Token(type: .notKeyword, lexeme: "!", position: position)
         case "'":
             return try scanStringOrCharacterLiteral(position, startIndex: startIndex)
         default:

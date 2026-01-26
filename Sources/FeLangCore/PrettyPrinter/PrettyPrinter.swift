@@ -503,7 +503,8 @@ public struct PrettyPrinter {
         return true
     }
 
-    /// Prints a callable declaration (function or procedure) with shared formatting logic.
+    // Prints a callable declaration (function or procedure) with shared formatting logic.
+    // swiftlint:disable:next function_parameter_count
     private func printCallableDeclaration(
         name: String,
         parameters: [Parameter],
