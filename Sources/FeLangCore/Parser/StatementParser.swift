@@ -275,12 +275,18 @@ public struct StatementParser {
             try expectToken(&parser, .assign) // consume '←'
             let valueExpr = try parseExpression(&parser)
 
-            // Extract the final array access for the assignment
-            guard case .arrayAccess(let array, let index) = arrayExpr else {
-                throw StatementParsingError.expectedToken(.leftBracket)
+            // Extract the final array access for the assignment.
+            // At this point, arrayExpr is guaranteed to be .arrayAccess because it is
+            // initialized as .arrayAccess above and only ever wrapped into further
+            // .arrayAccess cases in the loop. If this assumption is violated in the
+            // future, treat it as an internal parser logic error rather than a
+            // user-facing syntax error.
+            if case let .arrayAccess(array, index) = arrayExpr {
+                let arrayAccessStruct = Assignment.ArrayAccess(array: array, index: index)
+                return .arrayElement(arrayAccessStruct, valueExpr)
+            } else {
+                preconditionFailure("Internal parser error: expected final arrayExpr to be .arrayAccess")
             }
-            let arrayAccessStruct = Assignment.ArrayAccess(array: array, index: index)
-            return .arrayElement(arrayAccessStruct, valueExpr)
         } else if parser.peek()?.type == .assign {
             // Variable assignment: variable ← expression
             _ = parser.advance() // consume '←'
