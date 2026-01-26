@@ -693,6 +693,39 @@ final class SemanticAnalyzerTests: XCTestCase {
         }
     }
 
+    // MARK: - Continue Statement Tests
+
+    func testContinueStatementInLoop() {
+        let statements = [
+            Statement.whileStatement(WhileStatement(
+                condition: .literal(.boolean(true)),
+                body: [
+                    Statement.continueStatement
+                ]
+            ))
+        ]
+
+        let result = analyzer.analyze(statements)
+        XCTAssertTrue(result.isSuccessful)
+        XCTAssertTrue(result.errors.isEmpty)
+    }
+
+    func testContinueStatementOutsideLoop() {
+        let statements = [
+            Statement.continueStatement
+        ]
+
+        let result = analyzer.analyze(statements)
+        XCTAssertFalse(result.isSuccessful)
+        XCTAssertEqual(result.errors.count, 1)
+
+        if case .continueOutsideLoop = result.errors[0] {
+            // Expected
+        } else {
+            XCTFail("Expected continue outside loop error")
+        }
+    }
+
     // MARK: - Scope Tests
 
     func testVariableScope() {

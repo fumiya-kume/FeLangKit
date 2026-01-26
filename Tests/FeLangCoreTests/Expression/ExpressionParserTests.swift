@@ -317,6 +317,21 @@ struct ExpressionParserTests {
         #expect(expr == expected)
     }
 
+    @Test func testUnaryMinusWithParentheses() throws {
+        let expr = try parseExpression("-(5 + 3)")
+        let expected = Expression.unary(
+            .minus,
+            .binary(.add, .literal(.integer(5)), .literal(.integer(3)))
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testDoubleUnaryMinus() throws {
+        let expr = try parseExpression("--5")
+        let expected = Expression.unary(.minus, .unary(.minus, .literal(.integer(5))))
+        #expect(expr == expected)
+    }
+
     @Test func testUnaryPrecedence() throws {
         // not x or y should be parsed as (not x) or y
         let expr = try parseExpression("not x or y")

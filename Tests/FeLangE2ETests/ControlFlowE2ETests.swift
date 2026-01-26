@@ -154,26 +154,6 @@ struct ControlFlowE2ETests {
         #expect(output.contains("12"))
     }
 
-    @Test("Break outside loop should error")
-    func testBreakOutsideLoop() throws {
-        let result = InProcessTestHelper.execute("break")
-        #expect(!result.succeeded)
-        if let error = result.error {
-            let message = String(describing: error).lowercased()
-            #expect(message.contains("break") || message.contains("loop"))
-        }
-    }
-
-    @Test("Continue outside loop should error")
-    func testContinueOutsideLoop() throws {
-        let result = InProcessTestHelper.execute("continue")
-        #expect(!result.succeeded)
-        if let error = result.error {
-            let message = String(describing: error).lowercased()
-            #expect(message.contains("continue") || message.contains("loop"))
-        }
-    }
-
     // MARK: - For Loop Variations
 
     @Test("For loop with step")
