@@ -101,6 +101,7 @@ public enum TokenizerUtilities {
         (">", .greater),
         ("<", .less),
         ("∧", .bitwiseAnd),
+        ("∨", .bitwiseOr),
         // NOTE: If multi-character operators starting with "!" (e.g., "!=") are added,
         // they must appear before this single-character "!" entry to preserve longest-match behavior.
         ("!", .notKeyword)
