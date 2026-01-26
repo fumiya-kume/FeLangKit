@@ -45,6 +45,9 @@ public struct HoverProvider: Sendable {
         "or": "**or** - Logical OR\n\nReturns true if either operand is true.",
         "not": "**not** - Logical NOT\n\nReturns the opposite of a boolean value.",
 
+        // Arithmetic operators
+        "mod": "**mod** - Modulo operator\n\nReturns the remainder of integer division.\n\n```fe\n7 mod 3  // returns 1\n```",
+
         // Literals
         "true": "**true** - Boolean true\n\nThe boolean value representing truth.",
         "false": "**false** - Boolean false\n\nThe boolean value representing falsehood.",

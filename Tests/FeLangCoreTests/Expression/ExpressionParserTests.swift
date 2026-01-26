@@ -91,6 +91,12 @@ struct ExpressionParserTests {
         #expect(expr == expected)
     }
 
+    @Test func testModuloWithModKeyword() throws {
+        let expr = try parseExpression("7 mod 3")
+        let expected = Expression.binary(.modulo, .literal(.integer(7)), .literal(.integer(3)))
+        #expect(expr == expected)
+    }
+
     // MARK: - Precedence Tests
 
     @Test func testArithmeticPrecedence() throws {
