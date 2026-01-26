@@ -7,13 +7,31 @@
 #   bash check-issue-references.sh OWNER REPO ISSUE_NUMBER [ISSUE_NUMBER...]
 #
 # Output:
-#   JSON lines, one per issue, with referenced PR number, title, and state.
+#   JSON lines, one per issue, with structure:
+#     {
+#       "issue": <issue number>,
+#       "title": <issue title or null>,
+#       "error": <error message if issue not found, otherwise omitted>,
+#       "referenced_prs": [
+#         {
+#           "number": <PR number>,
+#           "title": <PR title>,
+#           "state": <PR state: "MERGED" or "CLOSED">,
+#           "merged": true
+#         },
+#         ...
+#       ]
+#     }
+#
+# Limitations:
+#   - Only returns the first 100 timeline items per issue. Issues with more
+#     cross-references may have some PRs missing from results.
 #
 # Requirements:
 #   - gh CLI authenticated
 #   - jq installed
 
-set -euo pipefail
+set -uo pipefail
 
 if [ $# -lt 3 ]; then
   echo "Usage: $0 OWNER REPO ISSUE_NUMBER [ISSUE_NUMBER...]" >&2
@@ -34,6 +52,7 @@ done
 
 for ISSUE_NUM in "$@"; do
   # Use GraphQL variables via -F flag to prevent injection
+  # Use || true to allow error handling despite set -u
   RESULT=$(gh api graphql \
     -F owner="$OWNER" \
     -F repo="$REPO" \
@@ -71,14 +90,21 @@ for ISSUE_NUM in "$@"; do
         }
       }
     }
-  ')
+  ' 2>&1) || true
 
-  if [ $? -ne 0 ] || [ -z "$RESULT" ]; then
+  if [ -z "$RESULT" ]; then
     echo "Error: Failed to fetch data for issue #$ISSUE_NUM" >&2
     continue
   fi
 
+  # Check if result contains GraphQL errors
+  if echo "$RESULT" | jq -e '.errors' > /dev/null 2>&1; then
+    echo "Error: GraphQL error for issue #$ISSUE_NUM: $(echo "$RESULT" | jq -r '.errors[0].message // "Unknown error"')" >&2
+    continue
+  fi
+
   # Extract merged PRs referencing this issue with null checking
+  # Only include PRs that are actually merged
   echo "$RESULT" | jq -c --arg issue_num "$ISSUE_NUM" '
     if .data.repository.issue == null then
       {
@@ -94,12 +120,13 @@ for ISSUE_NUM in "$@"; do
         referenced_prs: (
           (.data.repository.issue.timelineItems.nodes // [])
           | map(
-              if .source?.number then
+              if .source != null and .source.number != null then
                 { number: .source.number, title: .source.title, state: .source.state, merged: .source.merged }
-              elif .closer?.number then
-                { number: .closer.number, title: .closer.title, merged: .closer.merged, state: "CLOSED_BY" }
+              elif .closer != null and .closer.number != null then
+                { number: .closer.number, title: .closer.title, merged: .closer.merged, state: (if .closer.merged == true then "MERGED" else "CLOSED" end) }
               else empty end
             )
+          | map(select(.merged == true))
         )
       }
     end

@@ -37,6 +37,8 @@ Fetch recently merged pull requests:
 gh pr list --state merged --limit 100 --json number,title,body,mergedAt
 ```
 
+**Note:** This fetches only the 100 most recently merged PRs. For repositories with high PR volume, older issues may require manual verification or adjusting the limit.
+
 ### Step 3: Cross-Reference Issues with PRs
 
 For each open issue, check whether a merged PR addresses it. Use two detection methods:
@@ -58,7 +60,7 @@ bash .claude/skills/close-fixed-issue/scripts/check-issue-references.sh OWNER RE
 
 Extract the repository owner and name from `gh repo view --json owner,name`.
 
-This script returns, for each issue, any pull requests that reference it and their merge status.
+This script returns, for each issue, only the **merged** pull requests that reference it. The output is pre-filtered to include only PRs where `merged: true`.
 
 ### Step 4: Verify Fixes in Codebase
 
@@ -95,6 +97,11 @@ For each approved issue, close with a descriptive comment linking to the PR:
 
 ```bash
 gh issue close <NUMBER> --comment "Resolved by PR #<PR_NUMBER> (<brief description>)"
+```
+
+**Example:**
+```bash
+gh issue close 123 --comment "Resolved by PR #456 (Added user authentication feature)"
 ```
 
 Report the final list of closed issues.
