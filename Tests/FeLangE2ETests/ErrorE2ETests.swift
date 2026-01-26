@@ -110,6 +110,31 @@ struct ErrorE2ETests {
         #expect(!result.succeeded)
     }
 
+    @Test("Variable becomes usable after assignment")
+    func testVariableUsableAfterAssignment() throws {
+        let code = """
+        変数 x: 整数
+        x ← 5
+        println(x)
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(result.succeeded)
+        #expect(result.output == "5\n")
+    }
+
+    @Test("Uninitialized variable in closure returns error")
+    func testUninitializedVariableInClosure() throws {
+        let code = """
+        変数 x: 整数
+        function foo(): 整数
+            return x
+        endfunction
+        println(foo())
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(!result.succeeded)
+    }
+
     @Test("Undefined function returns error")
     func testUndefinedFunction() throws {
         let result = InProcessTestHelper.execute("println(notAFunction())")
