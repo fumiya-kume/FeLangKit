@@ -140,6 +140,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         case .recordDeclaration:
             // Record declarations are handled at type level, not symbol level
             break
+        case .classDeclaration:
+            // Class declarations are handled at type level, not symbol level
+            break
         case .assignment, .expressionStatement, .returnStatement, .breakStatement, .continueStatement:
             // These don't declare new symbols
             break
@@ -418,6 +421,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         case .recordDeclaration:
             // Record type declarations don't need type checking here
             break
+        case .classDeclaration:
+            // Class type declarations don't need type checking here
+            break
         case .breakStatement, .continueStatement:
             // No type checking needed
             break
@@ -497,6 +503,12 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
                 errorReporter.collect(.typeMismatch(expected: elementType, actual: valueType, position: position))
             }
+
+        case .fieldAccess(let fieldAccess, let expr):
+            // Type check field access assignment
+            _ = inferExpressionType(fieldAccess.object)
+            _ = inferExpressionType(expr)
+            // Field type checking is deferred to runtime for now
         }
     }
 
@@ -1050,6 +1062,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             symbolTable.popScope()
         case .recordDeclaration:
             // Record declarations are validated separately
+            break
+        case .classDeclaration:
+            // Class declarations are validated separately
             break
         case .variableDeclaration, .constantDeclaration, .assignment, .expressionStatement:
             // These are validated in type checking pass

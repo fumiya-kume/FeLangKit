@@ -351,14 +351,21 @@ public struct ExpressionEvaluator: Sendable {
         _ object: RuntimeValue,
         field: String
     ) throws -> RuntimeValue {
-        guard case .record(let fields) = object else {
+        switch object {
+        case .record(let fields):
+            guard let value = fields[field] else {
+                throw RuntimeError.invalidFieldAccess(field: field, type: "record")
+            }
+            return value
+
+        case .instance(let inst):
+            guard let value = inst.fields[field] else {
+                throw RuntimeError.invalidFieldAccess(field: field, type: inst.className)
+            }
+            return value
+
+        default:
             throw RuntimeError.invalidFieldAccess(field: field, type: object.typeName)
         }
-
-        guard let value = fields[field] else {
-            throw RuntimeError.invalidFieldAccess(field: field, type: "record")
-        }
-
-        return value
     }
 }

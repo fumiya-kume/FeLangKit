@@ -35,6 +35,10 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "procedure", kind: .keyword, detail: "Procedure declaration", insertText: "procedure "),
         CompletionItem(label: "endprocedure", kind: .keyword, detail: "End procedure"),
 
+        // Classes
+        CompletionItem(label: "class", kind: .keyword, detail: "Class declaration", insertText: "class "),
+        CompletionItem(label: "endclass", kind: .keyword, detail: "End class"),
+
         // Logical operators
         CompletionItem(label: "and", kind: .keyword, detail: "Logical AND"),
         CompletionItem(label: "or", kind: .keyword, detail: "Logical OR"),
@@ -273,6 +277,7 @@ public struct CompletionProvider: Sendable {
             "while", "do", "endwhile",
             "for", "to", "step", "endfor", "in",
             "function", "endfunction", "procedure", "endprocedure",
+            "class", "endclass",
             "return", "break", "continue",
             "and", "or", "not", "true", "false",
             "integer", "real", "string", "character", "boolean", "array",

@@ -41,6 +41,9 @@ public final class Environment: @unchecked Sendable {
     ///   if multiple threads can define/lookup records concurrently.
     private var recordDefinitions: [String: [RecordField]] = [:]
 
+    /// Class definitions (similar to record definitions, globally scoped).
+    private var classDefinitions: [String: ClassDefinition] = [:]
+
     // MARK: - Initialization
 
     public init(maxScopeDepth: Int = 1000, maxCallDepth: Int = 500) {
@@ -360,5 +363,22 @@ public final class Environment: @unchecked Sendable {
     /// - Returns: The record fields if found, nil otherwise
     public func lookupRecordDefinition(_ name: String) -> [RecordField]? {
         return recordDefinitions[name]
+    }
+
+    // MARK: - Class Definitions
+
+    /// Defines a new class.
+    /// - Parameters:
+    ///   - name: The name of the class
+    ///   - definition: The class definition
+    public func defineClass(_ name: String, definition: ClassDefinition) {
+        classDefinitions[name] = definition
+    }
+
+    /// Looks up a class definition by name.
+    /// - Parameter name: The name of the class to look up
+    /// - Returns: The class definition if found, nil otherwise
+    public func lookupClassDefinition(_ name: String) -> ClassDefinition? {
+        return classDefinitions[name]
     }
 }

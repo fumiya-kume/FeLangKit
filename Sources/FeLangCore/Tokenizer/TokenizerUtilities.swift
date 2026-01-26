@@ -23,13 +23,15 @@ public enum TokenizerUtilities {
         // 8 characters
         ("endwhile", .endwhileKeyword),
         ("function", .functionKeyword),
-
-        // 8 characters
+        ("endclass", .endclassKeyword),
         ("continue", .continueKeyword),
 
         // 6 characters
         ("return", .returnKeyword),
         ("endfor", .endforKeyword),
+
+        // 5 characters
+        ("class", .classKeyword),
 
         // 5 characters
         ("endif", .endifKeyword),

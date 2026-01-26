@@ -21,7 +21,8 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" },
+            visitClassDeclaration: { _ in "class_decl" }
         )
 
         let ifStmt = IfStatement(
@@ -50,7 +51,8 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" },
+            visitClassDeclaration: { _ in "class_decl" }
         )
 
         let whileStmt = WhileStatement(
@@ -86,7 +88,8 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" },
+            visitClassDeclaration: { _ in "class_decl" }
         )
 
         let rangeFor = ForStatement.RangeFor(
@@ -120,6 +123,8 @@ struct StatementVisitorTests {
                     return "assign_var(\(name))"
                 case .arrayElement(let arrayAccess, _):
                     return "assign_array(\(arrayAccess.array))"
+                case .fieldAccess(let fieldAccess, _):
+                    return "assign_field(\(fieldAccess.field))"
                 }
             },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -131,7 +136,8 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" },
+            visitClassDeclaration: { _ in "class_decl" }
         )
 
         let varAssignment = Statement.assignment(.variable("x", .literal(.integer(42))))
@@ -160,7 +166,8 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" },
+            visitClassDeclaration: { _ in "class_decl" }
         )
 
         let varDecl = Statement.variableDeclaration(VariableDeclaration(
@@ -214,7 +221,8 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { statements in "block(\(statements.count))" },
-            visitRecordDeclaration: { _ in "record" }
+            visitRecordDeclaration: { _ in "record" },
+            visitClassDeclaration: { _ in "class_decl" }
         )
 
         let returnStmt = Statement.returnStatement(ReturnStatement(expression: .literal(.integer(42))))
@@ -262,6 +270,8 @@ struct StatementVisitorTests {
                     return "\(name) = \(expr)"
                 case .arrayElement(let arrayAccess, let expr):
                     return "\(arrayAccess.array)[\(arrayAccess.index)] = \(expr)"
+                case .fieldAccess(let fieldAccess, let expr):
+                    return "\(fieldAccess.object).\(fieldAccess.field) = \(expr)"
                 }
             case .variableDeclaration(let varDecl):
                 if let initialValue = varDecl.initialValue {
@@ -294,6 +304,8 @@ struct StatementVisitorTests {
                 return "{ \(results.joined(separator: "; ")) }"
             case .recordDeclaration(let recordDecl):
                 return "record \(recordDecl.name)"
+            case .classDeclaration(let classDecl):
+                return "class \(classDecl.name)"
             }
         }
 
@@ -334,7 +346,8 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" },
+            visitClassDeclaration: { _ in "class_decl" }
         )
 
         let stmt = Statement.breakStatement
@@ -364,7 +377,8 @@ struct StatementVisitorTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record_decl" }
+            visitRecordDeclaration: { _ in "record_decl" },
+            visitClassDeclaration: { _ in "class_decl" }
         )
 
         // Test simple statements
@@ -399,7 +413,7 @@ struct StatementVisitorTests {
                 return 1 + body.map(countStatements).reduce(0, +)
             case .assignment, .variableDeclaration, .constantDeclaration,
                  .returnStatement, .expressionStatement, .breakStatement, .continueStatement,
-                 .recordDeclaration:
+                 .recordDeclaration, .classDeclaration:
                 return 1
             case .functionDeclaration(let funcDecl):
                 return 1 + funcDecl.body.map(countStatements).reduce(0, +)

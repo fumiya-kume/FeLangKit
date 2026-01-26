@@ -35,6 +35,10 @@ public struct HoverProvider: Sendable {
         "procedure": "**procedure** - Procedure declaration\n\nDeclares a procedure (no return value).\n\n```fe\nprocedure name(params)\n    // code\nendprocedure\n```",
         "endprocedure": "**endprocedure** - End procedure\n\nMarks the end of a procedure declaration.",
 
+        // Classes
+        "class": "**class** - Class declaration\n\nDeclares a class with member variables and constructor.\n\n```fe\nclass ClassName\n    member1: Type1\n    member2: Type2\n    ClassName(param: Type)\n        self.member1 ← param\nendclass\n```",
+        "endclass": "**endclass** - End class\n\nMarks the end of a class declaration.",
+
         // Logical
         "and": "**and** - Logical AND\n\nReturns true if both operands are true.",
         "or": "**or** - Logical OR\n\nReturns true if either operand is true.",
