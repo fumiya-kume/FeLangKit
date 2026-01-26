@@ -685,7 +685,7 @@ public final class StatementExecutor: @unchecked Sendable {
         case .record:
             // Record type name cannot be inferred from runtime value
             return nil
-        case .function, .procedure, .null:
+        case .function, .procedure, .null, .undefined:
             return nil
         }
     }
@@ -693,6 +693,9 @@ public final class StatementExecutor: @unchecked Sendable {
     private func validateType(_ value: RuntimeValue, expected: DataType, context: String) throws {
         let matches: Bool
         switch (expected, value) {
+        case (_, .undefined):
+            // Undefined is compatible with any type (matches semantic analyzer behavior)
+            matches = true
         case (.integer, .integer):
             matches = true
         case (.real, .real):
@@ -795,6 +798,10 @@ public final class StatementExecutor: @unchecked Sendable {
     ) -> [Int] {
         var mismatchIndices: [Int] = []
         for (index, element) in elements.enumerated() {
+            if case .undefined = element {
+                // Undefined is compatible with any type
+                continue
+            }
             if let actualType = inferDataType(from: element) {
                 if !typesMatch(actualType, expected: expectedElementType) {
                     mismatchIndices.append(index)
@@ -827,6 +834,10 @@ public final class StatementExecutor: @unchecked Sendable {
         for field in definition {
             guard let value = fields[field.name] else {
                 return (false, "missing field '\(field.name)'")
+            }
+            if case .undefined = value {
+                // Undefined is compatible with any type
+                continue
             }
             if let actualType = inferDataType(from: value) {
                 if !typesMatch(actualType, expected: field.type) {

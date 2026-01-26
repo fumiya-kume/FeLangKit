@@ -15,6 +15,7 @@ struct ExpressionVisitorTests {
                 case .string(let value): return "string(\(value))"
                 case .character(let value): return "char(\(value))"
                 case .boolean(let value): return "bool(\(value))"
+                case .undefined: return "undefined"
                 }
             },
             visitIdentifier: { _ in "identifier" },
@@ -156,6 +157,7 @@ struct ExpressionVisitorTests {
                 case .string(let value): return "\"\(value)\""
                 case .character(let value): return "'\(value)'"
                 case .boolean(let value): return "\(value)"
+                case .undefined: return "未定義"
                 }
             case .identifier(let identifier):
                 return identifier

@@ -56,6 +56,11 @@ final class PrettyPrinterTests: XCTestCase {
         XCTAssertEqual(printer.print(falseExpr), "false")
     }
 
+    func testUndefinedLiteral() {
+        let expr = Expression.literal(.undefined)
+        XCTAssertEqual(printer.print(expr), "未定義")
+    }
+
     // MARK: - Identifier Tests
 
     func testIdentifier() {

@@ -604,6 +604,22 @@ struct CompletionProviderTests {
         let funcCompletion = completions.items.first { $0.label == "myFunc" }
         #expect(funcCompletion != nil)
     }
+
+    @Test func testUndefinedKeywordCompletion() {
+        let provider = CompletionProvider()
+        var doc = Document(
+            uri: "file:///test.fe",
+            languageId: "fe",
+            version: 1,
+            content: "x ← "
+        )
+
+        let completions = provider.complete(document: &doc, position: Position(line: 0, character: 4))
+
+        let undefinedCompletion = completions.items.first { $0.label == "未定義" }
+        #expect(undefinedCompletion != nil)
+        #expect(undefinedCompletion?.kind == .keyword)
+    }
 }
 
 // MARK: - HoverProvider Tests
@@ -715,6 +731,21 @@ struct HoverProviderTests {
         #expect(hover?.contents.value.contains("sqrt") == true)
         #expect(hover?.contents.value.contains("square root") == true)
     }
+
+    @Test func testUndefinedKeywordHover() {
+        let provider = HoverProvider()
+        var doc = Document(
+            uri: "file:///test.fe",
+            languageId: "fe",
+            version: 1,
+            content: "x ← 未定義"
+        )
+
+        let hover = provider.hover(document: &doc, position: Position(line: 0, character: 5))
+
+        #expect(hover != nil)
+        #expect(hover?.contents.value.contains("未定義") == true)
+    }
 }
 
 // MARK: - DefinitionProvider Tests
@@ -821,6 +852,20 @@ struct DefinitionProviderTests {
 
         #expect(location != nil)
         #expect(location?.range.start.line == 0)
+    }
+
+    @Test func testNoDefinitionForUndefinedKeyword() {
+        let provider = DefinitionProvider()
+        var doc = Document(
+            uri: "file:///test.fe",
+            languageId: "fe",
+            version: 1,
+            content: "x ← 未定義"
+        )
+
+        let location = provider.findDefinition(document: &doc, position: Position(line: 0, character: 5))
+
+        #expect(location == nil)
     }
 }
 

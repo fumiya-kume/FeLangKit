@@ -43,6 +43,11 @@ struct ExpressionParserTests {
         #expect(falseExpr == .literal(.boolean(false)))
     }
 
+    @Test func testUndefinedLiteral() throws {
+        let expr = try parseExpression("未定義")
+        #expect(expr == .literal(.undefined))
+    }
+
     @Test func testIdentifier() throws {
         let expr = try parseExpression("variable")
         #expect(expr == .identifier("variable"))
@@ -520,6 +525,28 @@ struct ExpressionParserTests {
         guard case .binary(.greater, .identifier("y"), .functionCall("min", _)) = right else {
             Issue.record("Expected 'y > min(a, b)' on right side")
             return
+        }
+    }
+
+    // MARK: - Codable Tests
+
+    @Test func testUndefinedLiteralCodableRoundTrip() throws {
+        let original = FEExpression.literal(.undefined)
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+
+        let data = try encoder.encode(original)
+        let decoded = try decoder.decode(FEExpression.self, from: data)
+
+        #expect(decoded == original)
+    }
+
+    @Test func testUndefinedLiteralCodableInvalidValue() throws {
+        let invalidJSON = #"{"literal":{"undefined":false}}"#
+        let decoder = JSONDecoder()
+
+        #expect(throws: DecodingError.self) {
+            _ = try decoder.decode(FEExpression.self, from: invalidJSON.data(using: .utf8)!)
         }
     }
 }
