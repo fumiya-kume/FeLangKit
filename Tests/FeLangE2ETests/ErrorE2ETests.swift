@@ -164,6 +164,16 @@ struct ErrorE2ETests {
         #expect(!result.succeeded)
     }
 
+    @Test("Non-integer array index returns error")
+    func testNonIntegerArrayIndex() throws {
+        let code = """
+        変数 arr: 配列 of 整数 ← [1, 2, 3]
+        println(arr["0"])
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(!result.succeeded)
+    }
+
     @Test("Type reassignment causes error")
     func testTypeReassignmentError() throws {
         // FeLang enforces type checking on assignment
@@ -254,6 +264,24 @@ struct ErrorE2ETests {
         """
         let result = InProcessTestHelper.execute(code)
         // Procedures should not return values (void-function-returns-value)
+        #expect(!result.succeeded)
+    }
+
+    // MARK: - Missing Return Value Tests
+
+    @Test("Missing return value in function causes error")
+    func testMissingReturnValue() throws {
+        // Function declares return type but not all paths return a value
+        let code = """
+        function abs1(n: 整数): 整数
+            if n > 0 then
+                return n
+            endif
+        endfunction
+        println(abs1(-1))
+        """
+        let result = InProcessTestHelper.execute(code)
+        // Should fail because function doesn't return value in all paths
         #expect(!result.succeeded)
     }
 }
