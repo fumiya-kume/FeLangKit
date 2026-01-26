@@ -80,6 +80,8 @@ public enum TokenizerUtilities {
     public static let operators: [(String, TokenType)] = [
         ("←", .assign),
         ("≠", .notEqual),
+        (">=", .greaterEqual),
+        ("<=", .lessEqual),
         ("≧", .greaterEqual),
         ("≦", .lessEqual),
         ("+", .plus),

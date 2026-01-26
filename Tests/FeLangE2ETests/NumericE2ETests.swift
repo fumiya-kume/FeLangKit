@@ -126,6 +126,32 @@ struct NumericE2ETests {
         #expect(output.lowercased().contains("true"))
     }
 
+    // MARK: - ASCII Comparison Operators (<=, >=)
+
+    @Test("Less than or equal (true): 3 <= 3")
+    func testLessOrEqualTrue() throws {
+        let output = try InProcessTestHelper.run("println(3 <= 3)")
+        #expect(output.lowercased().contains("true"))
+    }
+
+    @Test("Less than or equal (false): 4 <= 3")
+    func testLessOrEqualFalse() throws {
+        let output = try InProcessTestHelper.run("println(4 <= 3)")
+        #expect(output.lowercased().contains("false"))
+    }
+
+    @Test("Greater than or equal (false): 4 >= 5")
+    func testGreaterOrEqualFalse() throws {
+        let output = try InProcessTestHelper.run("println(4 >= 5)")
+        #expect(output.lowercased().contains("false"))
+    }
+
+    @Test("Greater than or equal (true): 5 >= 5")
+    func testGreaterOrEqualTrue() throws {
+        let output = try InProcessTestHelper.run("println(5 >= 5)")
+        #expect(output.lowercased().contains("true"))
+    }
+
     // MARK: - Operator Precedence Tests
 
     @Test("Multiplication before addition: 1 + 2 * 3 = 7")
