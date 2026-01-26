@@ -26,6 +26,13 @@ struct ErrorE2ETests {
         #expect(!result.succeeded)
     }
 
+    @Test("Return outside function returns error")
+    func testReturnOutsideFunction() throws {
+        let code = "return 1"
+        let result = InProcessTestHelper.execute(code)
+        #expect(!result.succeeded)
+    }
+
     // MARK: - File Error Tests
     // These tests require CLI because they test file path handling
 
