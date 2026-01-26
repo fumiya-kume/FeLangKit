@@ -14,7 +14,7 @@ struct TokenizerConsistencyTests {
             "配列名[添字] レコード名.フィールド名",
             "'Hello' 'A' 123 3.14 .5",  // Removed negative number
             "変数名 function123 _private",
-            "← = ≠ > ≧ < ≦ + - * / %",
+            "← = != ≠ > ≧ < ≦ + - * / %",
             "( ) [ ] { } , . ; :"
         ]
 
@@ -161,6 +161,24 @@ struct TokenizerConsistencyTests {
             #expect(originalTokens[0].lexeme == string)
             #expect(parsingTokens[0].lexeme == string)
         }
+    }
+
+    @Test func testASCIINotEqualOperator() throws {
+        // Test that both tokenizers handle ASCII != operator consistently
+        let testCase = "a != b"
+
+        let originalTokenizer = Tokenizer(input: testCase)
+        let parsingTokenizer = ParsingTokenizer()
+
+        let originalTokens = try originalTokenizer.tokenize()
+        let parsingTokens = try parsingTokenizer.tokenize(testCase)
+
+        // Both should produce the same tokens
+        #expect(originalTokens.count == parsingTokens.count)
+        #expect(originalTokens[1].type == .notEqual)
+        #expect(parsingTokens[1].type == .notEqual)
+        #expect(originalTokens[1].lexeme == "!=")
+        #expect(parsingTokens[1].lexeme == "!=")
     }
 
     @Test func testErrorHandlingConsistency() throws {
