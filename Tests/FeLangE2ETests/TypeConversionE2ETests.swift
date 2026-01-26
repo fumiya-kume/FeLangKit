@@ -131,7 +131,8 @@ struct TypeConversionE2ETests {
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-        #expect(lines.count >= 4)
+        #expect(lines.count >= 4, "Expected 4 output lines, got \(lines.count): \(lines)")
+        guard lines.count >= 4 else { return }
         #expect(lines[0] == "4" || lines[0] == "4.0")
         #expect(lines[1] == "ok")
         #expect(lines[2] == "A")
