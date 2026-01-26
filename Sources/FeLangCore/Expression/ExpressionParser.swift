@@ -160,6 +160,29 @@ public struct ExpressionParser {
             return Expression.arrayLiteral(elements)
         }
 
+        // Array literal expressions {e1, e2, ...} (FE pseudo-language syntax)
+        if token.type == .leftBrace {
+            var elements: [Expression] = []
+
+            // Handle empty array literal {}
+            if parser.peek()?.type == .rightBrace {
+                _ = parser.advance() // consume '}'
+                return Expression.arrayLiteral(elements)
+            }
+
+            // Parse first element
+            elements.append(try parseExpression(&parser))
+
+            // Parse remaining elements
+            while parser.peek()?.type == .comma {
+                _ = parser.advance() // consume ','
+                elements.append(try parseExpression(&parser))
+            }
+
+            try expectToken(&parser, .rightBrace)
+            return Expression.arrayLiteral(elements)
+        }
+
         throw ParsingError.expectedPrimaryExpression(token)
     }
 
