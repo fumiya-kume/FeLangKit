@@ -12,6 +12,7 @@ public struct HoverProvider: Sendable {
         "then": "**then** - Then clause\n\nMarks the beginning of the true branch in an if statement.",
         "else": "**else** - Else clause\n\nMarks the false branch in an if statement.",
         "elif": "**elif** - Else-if clause\n\nAdditional condition check in an if statement.",
+        "elseif": "**elseif** - Else-if clause\n\nAdditional condition check in an if statement. Equivalent to 'elif'.",
         "endif": "**endif** - End if\n\nMarks the end of an if statement.",
 
         // Loops

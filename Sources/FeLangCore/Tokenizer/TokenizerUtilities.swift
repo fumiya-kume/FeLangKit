@@ -28,6 +28,7 @@ public enum TokenizerUtilities {
         ("continue", .continueKeyword),
 
         // 6 characters
+        ("elseif", .elseifKeyword),
         ("return", .returnKeyword),
         ("endfor", .endforKeyword),
 
