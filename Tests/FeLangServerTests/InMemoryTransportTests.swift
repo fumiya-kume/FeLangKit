@@ -263,6 +263,19 @@ struct ConvenienceMethodsTests {
         await transport.close()
     }
 
+    @Test func testSendDidChange() async throws {
+        let transport = InMemoryTransport()
+
+        await transport.sendDidChange(uri: "file:///test.fe", version: 3, content: "updated")
+
+        let request = try await transport.readRequest()
+        #expect(request?.method == "textDocument/didChange")
+        #expect(request?.id == nil) // notification
+        #expect(request?.params != nil)
+
+        await transport.close()
+    }
+
     @Test func testSendCompletion() async throws {
         let transport = InMemoryTransport()
 

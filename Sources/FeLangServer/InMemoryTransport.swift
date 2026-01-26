@@ -49,6 +49,7 @@ public actor InMemoryTransport: JSONRPCTransport {
         if !pendingRequests.isEmpty {
             return pendingRequests.removeFirst()
         }
+        precondition(requestWaiter == nil, "Concurrent readRequest() calls are not supported")
         return await withCheckedContinuation { continuation in
             requestWaiter = continuation
         }
