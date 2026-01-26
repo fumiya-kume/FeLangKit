@@ -243,6 +243,7 @@ struct ErrorE2ETests {
         procedure bad()
             return 1
         endprocedure
+        bad()
         """
         let result = InProcessTestHelper.execute(code)
         // Procedures should not return values (void-function-returns-value)
