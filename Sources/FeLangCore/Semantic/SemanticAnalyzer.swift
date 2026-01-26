@@ -797,6 +797,8 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             return inferFieldAccessType(object, field: field, depth: depth + 1)
         case .functionCall(let name, let arguments):
             return inferFunctionCallType(name, arguments: arguments, depth: depth + 1)
+        case .methodCall(let receiver, _, let arguments):
+            return inferMethodCallType(receiver, arguments: arguments, depth: depth + 1)
         case .arrayLiteral(let elements):
             return inferArrayLiteralType(elements, depth: depth + 1)
         }
@@ -1047,6 +1049,17 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         _ = symbolTable.markAsUsed(name, position: position)
 
         return returnType ?? .void
+    }
+
+    private func inferMethodCallType(_ receiver: Expression, arguments: [Expression], depth: Int) -> FeType {
+        // Infer receiver type and argument types for basic type checking
+        _ = inferExpressionType(receiver, depth: depth)
+        for argument in arguments {
+            _ = inferExpressionType(argument, depth: depth)
+        }
+        // Method call type inference is deferred to runtime since class definitions
+        // are not yet fully implemented. Return unknown type for now.
+        return .unknown
     }
 
     // MARK: - Pass 3: Semantic Validation

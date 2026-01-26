@@ -69,6 +69,13 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
     ///   - arguments: The argument expressions
     public let visitFunctionCall: @Sendable (String, [Expression]) -> Result
 
+    /// Visits method call expressions.
+    /// - Parameters:
+    ///   - receiver: The receiver expression (object on which method is called)
+    ///   - method: The method name being called
+    ///   - arguments: The argument expressions
+    public let visitMethodCall: @Sendable (Expression, String, [Expression]) -> Result
+
     /// Visits array literal expressions.
     /// - Parameter elements: The array elements
     public let visitArrayLiteral: @Sendable ([Expression]) -> Result
@@ -84,6 +91,7 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
         visitArrayAccess: @escaping @Sendable (Expression, Expression) -> Result,
         visitFieldAccess: @escaping @Sendable (Expression, String) -> Result,
         visitFunctionCall: @escaping @Sendable (String, [Expression]) -> Result,
+        visitMethodCall: @escaping @Sendable (Expression, String, [Expression]) -> Result,
         visitArrayLiteral: @escaping @Sendable ([Expression]) -> Result
     ) {
         self.visitLiteral = visitLiteral
@@ -93,6 +101,7 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
         self.visitArrayAccess = visitArrayAccess
         self.visitFieldAccess = visitFieldAccess
         self.visitFunctionCall = visitFunctionCall
+        self.visitMethodCall = visitMethodCall
         self.visitArrayLiteral = visitArrayLiteral
     }
 
@@ -117,6 +126,8 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
             return visitFieldAccess(object, field)
         case .functionCall(let function, let arguments):
             return visitFunctionCall(function, arguments)
+        case .methodCall(let receiver, let method, let arguments):
+            return visitMethodCall(receiver, method, arguments)
         case .arrayLiteral(let elements):
             return visitArrayLiteral(elements)
         }
