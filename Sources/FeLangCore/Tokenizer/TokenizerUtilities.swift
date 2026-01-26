@@ -92,7 +92,10 @@ public enum TokenizerUtilities {
         ("%", .modulo),
         ("=", .equal),
         (">", .greater),
-        ("<", .less)
+        ("<", .less),
+        // NOTE: If multi-character operators starting with "!" (e.g., "!=") are added,
+        // they must appear before this single-character "!" entry to preserve longest-match behavior.
+        ("!", .notKeyword)
     ]
 
     /// Delimiter definitions with their token types
