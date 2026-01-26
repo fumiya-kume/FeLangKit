@@ -180,6 +180,12 @@ struct LogicalOperatorE2ETests {
         #expect(output.lowercased().contains("true"))
     }
 
+    @Test("boolean equality: false = true")
+    func testBooleanEqualityFalseTrue() throws {
+        let output = try InProcessTestHelper.run("println(false = true)")
+        #expect(output.lowercased().contains("false"))
+    }
+
     @Test("boolean inequality: true ≠ false")
     func testBooleanInequalityTrueFalse() throws {
         let output = try InProcessTestHelper.run("println(true ≠ false)")
@@ -198,6 +204,38 @@ struct LogicalOperatorE2ETests {
         #expect(output.lowercased().contains("false"))
     }
 
+    @Test("boolean inequality: false ≠ true")
+    func testBooleanInequalityFalseTrue() throws {
+        let output = try InProcessTestHelper.run("println(false ≠ true)")
+        #expect(output.lowercased().contains("true"))
+    }
+
+    // MARK: - ASCII Boolean Inequality Tests
+
+    @Test("ASCII boolean inequality: true != false")
+    func testAsciiBooleanInequalityTrueFalse() throws {
+        let output = try InProcessTestHelper.run("println(true != false)")
+        #expect(output.lowercased().contains("true"))
+    }
+
+    @Test("ASCII boolean inequality: true != true")
+    func testAsciiBooleanInequalityTrueTrue() throws {
+        let output = try InProcessTestHelper.run("println(true != true)")
+        #expect(output.lowercased().contains("false"))
+    }
+
+    @Test("ASCII boolean inequality: false != false")
+    func testAsciiBooleanInequalityFalseFalse() throws {
+        let output = try InProcessTestHelper.run("println(false != false)")
+        #expect(output.lowercased().contains("false"))
+    }
+
+    @Test("ASCII boolean inequality: false != true")
+    func testAsciiBooleanInequalityFalseTrue() throws {
+        let output = try InProcessTestHelper.run("println(false != true)")
+        #expect(output.lowercased().contains("true"))
+    }
+
     @Test("combined boolean equality and inequality")
     func testCombinedBooleanEqualityInequality() throws {
         let code = """
@@ -205,7 +243,7 @@ struct LogicalOperatorE2ETests {
         println(true ≠ false)
         """
         let output = try InProcessTestHelper.run(code)
-        let lines = output.lowercased().split(separator: "\n")
+        let lines = output.split(separator: "\n").map { $0.lowercased() }
         #expect(lines.count >= 2, "Expected 2 output lines, got \(lines.count): \(lines)")
         guard lines.count >= 2 else { return }
         #expect(lines[0].contains("false"))
