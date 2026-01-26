@@ -359,11 +359,11 @@ public struct UnicodeNormalizer {
             ("∆", "delta"),
             ("Ω", "omega"),
 
-                // Mathematical operators that might be confused
-                ("×", "*"),       // Multiplication sign to asterisk
-                // Note: ÷ is preserved as a valid division operator in FeLangKit
-                ("≈", "~="),      // Approximately equal
-                ("∞", "infinity")  // Infinity symbol
+            // Mathematical operators that might be confused
+            ("×", "*"),       // Multiplication sign to asterisk
+            // Note: ÷ is preserved as a valid division operator in FeLangKit
+            ("≈", "~="),      // Approximately equal
+            ("∞", "infinity")  // Infinity symbol
         ]
 
         for (original, replacement) in mathReplacements {
