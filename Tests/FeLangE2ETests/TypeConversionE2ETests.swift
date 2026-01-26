@@ -110,10 +110,37 @@ struct TypeConversionE2ETests {
         #expect(output.contains("Value: 42"))
     }
 
-    // MARK: - English Type Aliases
+    // MARK: - English Type Alias Tests
+
+    @Test("English type aliases: double/float/str/char/bool")
+    func testEnglishTypeAliasesDoubleFloatStr() throws {
+        let code = """
+        変数 r: double ← 1.5
+        変数 f: float ← 2.5
+        変数 s: str ← "ok"
+        変数 c: char ← 'A'
+        変数 b: bool ← true
+        println(r + f)
+        println(s)
+        println(c)
+        println(b)
+        """
+        let output = try InProcessTestHelper.run(code)
+        let lines = output
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        #expect(lines.count >= 4, "Expected 4 output lines, got \(lines.count): \(lines)")
+        guard lines.count >= 4 else { return }
+        #expect(lines[0] == "4" || lines[0] == "4.0")
+        #expect(lines[1] == "ok")
+        #expect(lines[2] == "A")
+        #expect(lines[3].lowercased() == "true")
+    }
 
     @Test("English type aliases in function declaration")
-    func testEnglishTypeAliases() throws {
+    func testEnglishTypeAliasesInFunction() throws {
         let code = """
         function describe(x: int, ok: bool): string
             if ok then

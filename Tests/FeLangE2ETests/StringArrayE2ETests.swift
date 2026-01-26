@@ -322,4 +322,16 @@ struct StringArrayE2ETests {
         let output = try InProcessTestHelper.run(code)
         #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "3")
     }
+
+    // MARK: - Japanese Array Type Syntax
+
+    @Test("Japanese '配列型 の' type syntax with integer array")
+    func testJapaneseArrayTypeNoSyntax() throws {
+        let code = """
+        変数 arr: 配列型 の 整数 ← [1, 2, 3]
+        println(length(arr))
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "3")
+    }
 }
