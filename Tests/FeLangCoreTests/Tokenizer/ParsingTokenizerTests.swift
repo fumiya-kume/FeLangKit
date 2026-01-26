@@ -44,6 +44,28 @@ struct ParsingTokenizerTests {
         #expect(tokens[10].type == .eof)
     }
 
+    @Test func testElseifKeyword() throws {
+        let input = "elseif"
+        let tokens = try ParsingTokenizer.tokenize(input)
+
+        #expect(tokens.count == 2) // elseif + eof
+        #expect(tokens[0].type == .elseifKeyword)
+        #expect(tokens[0].lexeme == "elseif")
+        #expect(tokens[1].type == .eof)
+    }
+
+    @Test func testElifAndElseifKeywords() throws {
+        let input = "elif elseif"
+        let tokens = try ParsingTokenizer.tokenize(input)
+
+        #expect(tokens.count == 3) // elif + elseif + eof
+        #expect(tokens[0].type == .elifKeyword)
+        #expect(tokens[0].lexeme == "elif")
+        #expect(tokens[1].type == .elseifKeyword)
+        #expect(tokens[1].lexeme == "elseif")
+        #expect(tokens[2].type == .eof)
+    }
+
     @Test func testUnicodeOperators() throws {
         let input = "← ≠ ≧ ≦"
         let tokens = try ParsingTokenizer.tokenize(input)

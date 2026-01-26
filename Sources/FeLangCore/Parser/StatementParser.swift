@@ -117,17 +117,17 @@ public struct StatementParser {
         let condition = try parseExpression(&parser)
         try expectToken(&parser, .thenKeyword) // consume 'then'
 
-        let thenBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .endifKeyword], nestingDepth: nestingDepth)
+        let thenBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .elseifKeyword, .endifKeyword], nestingDepth: nestingDepth)
 
         var elseIfs: [IfStatement.ElseIf] = []
         var elseBody: [Statement]?
 
-        // Handle ELIF clauses
-        while parser.peek()?.type == .elifKeyword {
-            _ = parser.advance() // consume 'elif'
+        // Handle ELIF/ELSEIF clauses
+        while parser.peek()?.type == .elifKeyword || parser.peek()?.type == .elseifKeyword {
+            _ = parser.advance() // consume 'elif' or 'elseif'
             let elifCondition = try parseExpression(&parser)
             try expectToken(&parser, .thenKeyword) // consume 'then'
-            let elifBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .endifKeyword], nestingDepth: nestingDepth)
+            let elifBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .elseifKeyword, .endifKeyword], nestingDepth: nestingDepth)
             elseIfs.append(IfStatement.ElseIf(condition: elifCondition, body: elifBody))
         }
 
@@ -703,6 +703,7 @@ public struct StatementParser {
         case .thenKeyword,      // IF condition ends, THEN block begins
              .elseKeyword,      // Previous block ends, ELSE block begins
              .elifKeyword,      // Previous block ends, ELIF condition begins
+             .elseifKeyword,    // Previous block ends, ELSEIF condition begins
              .doKeyword:        // WHILE/FOR condition ends, DO block begins
             return true
 

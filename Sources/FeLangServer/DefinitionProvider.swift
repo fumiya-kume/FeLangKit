@@ -153,7 +153,7 @@ public struct DefinitionProvider: Sendable {
 
         // Keywords
         let keywords = Set([
-            "if", "then", "else", "elif", "endif",
+            "if", "then", "else", "elif", "elseif", "endif",
             "while", "do", "endwhile",
             "for", "to", "step", "endfor", "in",
             "function", "endfunction", "procedure", "endprocedure",

@@ -118,6 +118,34 @@ struct StatementParserTests {
         #expect(ifStmt.elseBody?.count == 1)
     }
 
+    @Test("IF-ELSEIF-ELSE Statement")
+    func testIfElseifElseStatement() throws {
+        let statements = try parseStatements("if x > 0 then writeLine(\"positive\") elseif x < 0 then writeLine(\"negative\") else writeLine(\"zero\") endif")
+
+        #expect(statements.count == 1)
+        guard case .ifStatement(let ifStmt) = statements[0] else {
+            #expect(Bool(false), "Expected IF statement")
+            return
+        }
+
+        #expect(ifStmt.elseIfs.count == 1)
+        #expect(ifStmt.elseBody?.count == 1)
+    }
+
+    @Test("IF with mixed ELIF and ELSEIF")
+    func testIfWithMixedElifElseif() throws {
+        let statements = try parseStatements("if x > 0 then writeLine(\"a\") elif x < 0 then writeLine(\"b\") elseif x = 0 then writeLine(\"c\") else writeLine(\"d\") endif")
+
+        #expect(statements.count == 1)
+        guard case .ifStatement(let ifStmt) = statements[0] else {
+            #expect(Bool(false), "Expected IF statement")
+            return
+        }
+
+        #expect(ifStmt.elseIfs.count == 2)
+        #expect(ifStmt.elseBody?.count == 1)
+    }
+
     // MARK: - WHILE Statement Tests
 
     @Test("Basic WHILE Statement")

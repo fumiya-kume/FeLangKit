@@ -16,6 +16,7 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case thenKeyword = "then"
     case elseKeyword = "else"
     case elifKeyword = "elif"
+    case elseifKeyword = "elseif"
     case endifKeyword = "endif"
     case whileKeyword = "while"
     case doKeyword = "do"
@@ -103,7 +104,7 @@ extension TokenType {
     public var isKeyword: Bool {
         switch self {
         case .integerType, .realType, .characterType, .stringType, .booleanType,
-             .recordType, .arrayType, .ifKeyword, .thenKeyword, .elseKeyword, .elifKeyword, .endifKeyword,
+             .recordType, .arrayType, .ifKeyword, .thenKeyword, .elseKeyword, .elifKeyword, .elseifKeyword, .endifKeyword,
              .whileKeyword, .doKeyword, .endwhileKeyword, .forKeyword, .toKeyword, .stepKeyword, .inKeyword, .endforKeyword,
              .functionKeyword, .endfunctionKeyword, .procedureKeyword, .endprocedureKeyword,
              .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword, .continueKeyword,
