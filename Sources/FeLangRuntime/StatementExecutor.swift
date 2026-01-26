@@ -168,6 +168,7 @@ public final class StatementExecutor: @unchecked Sendable {
             capturedEnvironment: captured.values,
             capturedConstants: captured.constants,
             capturedTypes: captured.types,
+            capturedUninitialized: captured.uninitialized,
             returnType: decl.returnType
         )
         environment.define(decl.name, value: .function(functionValue))
@@ -184,7 +185,8 @@ public final class StatementExecutor: @unchecked Sendable {
             body: decl.body,
             capturedEnvironment: captured.values,
             capturedConstants: captured.constants,
-            capturedTypes: captured.types
+            capturedTypes: captured.types,
+            capturedUninitialized: captured.uninitialized
         )
         environment.define(decl.name, value: .procedure(procedureValue))
     }
@@ -563,11 +565,12 @@ public final class StatementExecutor: @unchecked Sendable {
         try environment.pushScope()
         defer { environment.popScope() }
 
-        // Import captured environment with constant metadata and type information preserved
+        // Import captured environment with constant metadata, type information, and uninitialized status preserved
         let capturedEnv = Environment.CapturedEnvironment(
             values: function.capturedEnvironment,
             constants: function.capturedConstants,
-            types: function.capturedTypes
+            types: function.capturedTypes,
+            uninitialized: function.capturedUninitialized
         )
         environment.importVariables(capturedEnv)
 
@@ -623,11 +626,12 @@ public final class StatementExecutor: @unchecked Sendable {
         try environment.pushScope()
         defer { environment.popScope() }
 
-        // Import captured environment with constant metadata and type information preserved
+        // Import captured environment with constant metadata, type information, and uninitialized status preserved
         let capturedEnv = Environment.CapturedEnvironment(
             values: procedure.capturedEnvironment,
             constants: procedure.capturedConstants,
-            types: procedure.capturedTypes
+            types: procedure.capturedTypes,
+            uninitialized: procedure.capturedUninitialized
         )
         environment.importVariables(capturedEnv)
 

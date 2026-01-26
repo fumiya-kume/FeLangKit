@@ -110,6 +110,18 @@ struct ErrorE2ETests {
         #expect(!result.succeeded)
     }
 
+    @Test("Variable assigned before access works correctly")
+    func testVariableAssignedBeforeAccess() throws {
+        let code = """
+        変数 x: 整数
+        x ← 5
+        println(x)
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(result.succeeded)
+        #expect(result.output.contains("5"))
+    }
+
     @Test("Undefined function returns error")
     func testUndefinedFunction() throws {
         let result = InProcessTestHelper.execute("println(notAFunction())")
