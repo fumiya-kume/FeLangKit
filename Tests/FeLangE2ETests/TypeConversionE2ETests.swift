@@ -109,4 +109,22 @@ struct TypeConversionE2ETests {
         let output = try InProcessTestHelper.run("println(concat(\"Value: \", toString(42)))")
         #expect(output.contains("Value: 42"))
     }
+
+    // MARK: - English Type Aliases
+
+    @Test("English type aliases in function declaration")
+    func testEnglishTypeAliases() throws {
+        let code = """
+        function describe(x: int, ok: bool): string
+            if ok then
+                return toString(x)
+            endif
+            return "no"
+        endfunction
+
+        println(describe(3, true))
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.contains("3"))
+    }
 }
