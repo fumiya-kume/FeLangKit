@@ -6,7 +6,7 @@ import Foundation
 /// **Design Pattern**: Strategy pattern with shared implementation
 /// **Thread Safety**: Stateless methods are thread-safe when used with distinct input/index parameters
 /// **Performance**: O(1) keyword lookup, optimized character classification, minimal memory allocation
-public enum SharedTokenizerImplementation {
+public enum TokenizerCore {
 
     // MARK: - Shared Token Data Type
 
@@ -14,12 +14,10 @@ public enum SharedTokenizerImplementation {
     public struct TokenData {
         public let type: TokenType
         public let lexeme: String
-        public let range: SourceRange?
 
-        public init(type: TokenType, lexeme: String, range: SourceRange? = nil) {
+        public init(type: TokenType, lexeme: String) {
             self.type = type
             self.lexeme = lexeme
-            self.range = range
         }
     }
 
@@ -435,6 +433,239 @@ public enum SharedTokenizerImplementation {
     }
 
     // MARK: - Whitespace and Comment Handling
+
+    // MARK: - Basic Number Parsing (Non-underscore variant)
+
+    /// Parses basic decimal numbers with support for leading decimal points.
+    /// This variant does not support underscores or alternative bases.
+    public static func parseBasicNumber(from input: String, at index: inout String.Index) -> TokenData? {
+        let start = index
+
+        // Check for leading dot decimal (e.g., .5, .25)
+        if index < input.endIndex && input[index] == "." {
+            let nextIndex = input.index(after: index)
+            if nextIndex < input.endIndex && input[nextIndex].isNumber {
+                index = nextIndex
+
+                // Read fractional part
+                while index < input.endIndex && input[index].isNumber {
+                    index = input.index(after: index)
+                }
+
+                let lexeme = String(input[start..<index])
+                return TokenData(type: .realLiteral, lexeme: lexeme)
+            } else {
+                return nil // Just a dot, not a number
+            }
+        }
+
+        // Must start with digit for regular numbers
+        guard index < input.endIndex && input[index].isNumber else {
+            return nil
+        }
+
+        var hasDecimal = false
+
+        // Read integer part
+        while index < input.endIndex && input[index].isNumber {
+            index = input.index(after: index)
+        }
+
+        // Check for decimal point
+        if index < input.endIndex && input[index] == "." {
+            let nextIndex = input.index(after: index)
+            if nextIndex < input.endIndex && input[nextIndex].isNumber {
+                hasDecimal = true
+                index = nextIndex
+
+                // Read fractional part
+                while index < input.endIndex && input[index].isNumber {
+                    index = input.index(after: index)
+                }
+            }
+        }
+
+        let lexeme = String(input[start..<index])
+        let tokenType = TokenizerUtilities.numberTokenType(hasDecimal: hasDecimal)
+        return TokenData(type: tokenType, lexeme: lexeme)
+    }
+
+    // MARK: - Basic String Parsing
+
+    /// Parses string literals with basic escape sequence support.
+    /// Returns nil if the string is unterminated or invalid.
+    public static func parseBasicString(from input: String, at index: inout String.Index) -> TokenData? {
+        guard index < input.endIndex else { return nil }
+
+        let quoteChar = input[index]
+        guard quoteChar == "\"" || quoteChar == "'" else { return nil }
+
+        let start = index
+        index = input.index(after: index) // Skip opening quote
+
+        var content = ""
+        var foundClosing = false
+
+        while index < input.endIndex {
+            let char = input[index]
+
+            if char == quoteChar {
+                foundClosing = true
+                index = input.index(after: index) // Skip closing quote
+                break
+            } else if char == "\n" {
+                // Unterminated string at newline
+                break
+            } else if char == "\\" {
+                // Handle basic escape sequences
+                let nextIndex = input.index(after: index)
+                if nextIndex < input.endIndex {
+                    let nextChar = input[nextIndex]
+                    switch nextChar {
+                    case "n":
+                        content.append("\n")
+                        index = input.index(after: nextIndex)
+                    case "t":
+                        content.append("\t")
+                        index = input.index(after: nextIndex)
+                    case "r":
+                        content.append("\r")
+                        index = input.index(after: nextIndex)
+                    case "\\":
+                        content.append("\\")
+                        index = input.index(after: nextIndex)
+                    case "\"":
+                        content.append("\"")
+                        index = input.index(after: nextIndex)
+                    case "'":
+                        content.append("'")
+                        index = input.index(after: nextIndex)
+                    default:
+                        content.append(nextChar)
+                        index = input.index(after: nextIndex)
+                    }
+                } else {
+                    index = nextIndex
+                }
+            } else {
+                content.append(char)
+                index = input.index(after: index)
+            }
+        }
+
+        // Return nil if unterminated (let caller handle the error)
+        guard foundClosing else { return nil }
+
+        let lexeme = String(input[start..<index])
+        let tokenType = TokenizerUtilities.stringLiteralTokenType(content: content)
+        return TokenData(type: tokenType, lexeme: lexeme)
+    }
+
+    // MARK: - Comment Parsing
+
+    /// Parses comments (single-line // and multi-line /* */)
+    /// Returns nil if no comment is found, skips over complete comments
+    public static func parseComment(from input: String, at index: inout String.Index) -> TokenData? {
+        guard index < input.endIndex && input[index] == "/" else { return nil }
+
+        let nextIndex = input.index(after: index)
+        guard nextIndex < input.endIndex else { return nil }
+
+        let nextChar = input[nextIndex]
+
+        if nextChar == "/" {
+            // Single-line comment
+            let start = index
+            index = nextIndex
+            index = input.index(after: index)
+
+            while index < input.endIndex && input[index] != "\n" {
+                index = input.index(after: index)
+            }
+
+            let lexeme = String(input[start..<index])
+            return TokenData(type: .comment, lexeme: lexeme)
+
+        } else if nextChar == "*" {
+            // Multi-line comment
+            let start = index
+            index = nextIndex
+            index = input.index(after: index)
+
+            while index < input.endIndex {
+                if input[index] == "*" {
+                    let afterStar = input.index(after: index)
+                    if afterStar < input.endIndex && input[afterStar] == "/" {
+                        index = input.index(after: afterStar)
+                        break
+                    }
+                }
+                index = input.index(after: index)
+            }
+
+            let lexeme = String(input[start..<index])
+            return TokenData(type: .comment, lexeme: lexeme)
+        }
+
+        return nil
+    }
+
+    // MARK: - Validation Utilities
+
+    /// Validates that a parsed token maintains proper word boundaries
+    public static func isValidTokenBoundary(in input: String, at endIndex: String.Index) -> Bool {
+        return endIndex == input.endIndex || !TokenizerUtilities.isIdentifierContinue(input[endIndex])
+    }
+
+    /// Checks if the current position is at a valid token start
+    public static func canStartToken(at char: Character) -> Bool {
+        return TokenizerUtilities.isIdentifierStart(char) ||
+               char.isNumber ||
+               char == "." ||
+               char == "\"" ||
+               char == "'" ||
+               char == "/" ||
+               isOperatorOrDelimiterChar(char)
+    }
+
+    /// Validates a number format without parsing
+    public static func isValidNumberFormat(_ lexeme: String) -> Bool {
+        if lexeme.isEmpty { return false }
+
+        let decimalCount = lexeme.filter { $0 == "." }.count
+        if decimalCount > 1 { return false }
+
+        guard let firstChar = lexeme.first else { return false }
+        if !(firstChar.isNumber || firstChar == ".") { return false }
+
+        for char in lexeme where !(char.isNumber || char == "." || char == "_" ||
+                                   char == "e" || char == "E" || char == "+" || char == "-" ||
+                                   char == "x" || char == "X" || char == "o" || char == "O" ||
+                                   char == "b" || char == "B" || (char >= "a" && char <= "f") ||
+                                   (char >= "A" && char <= "F")) {
+            return false
+        }
+
+        return true
+    }
+
+    /// Determines the expected number type from a lexeme
+    public static func inferNumberType(from lexeme: String) -> TokenType {
+        if lexeme.contains(".") || lexeme.contains("e") || lexeme.contains("E") {
+            return .realLiteral
+        } else {
+            return .integerLiteral
+        }
+    }
+
+    /// Checks if a character can be part of an operator or delimiter
+    private static func isOperatorOrDelimiterChar(_ char: Character) -> Bool {
+        let operatorChars: Set<Character> = ["←", "≠", "≧", "≦", "+", "-", "*", "/", "%", "=", ">", "<"]
+        let delimiterChars: Set<Character> = ["(", ")", "[", "]", "{", "}", ",", ".", ";", ":"]
+        return operatorChars.contains(char) || delimiterChars.contains(char)
+    }
+
+    // MARK: - Whitespace Handling
 
     /// Skips whitespace characters including full-width spaces
     /// Uses TokenizerUtilities for consistent whitespace classification

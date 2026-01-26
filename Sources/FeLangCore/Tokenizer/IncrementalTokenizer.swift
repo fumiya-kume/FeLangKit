@@ -48,7 +48,6 @@ public struct IncrementalParsingState: Equatable, Sendable {
 /// A tokenizer that supports incremental updates for efficient real-time editing
 public struct IncrementalTokenizer: Sendable {
     private let baseTokenizer: ParsingTokenizer
-    private let chunkProcessor: ChunkProcessor
 
     /// Threshold for using incremental vs full re-tokenization
     private let incrementalThreshold: Int
@@ -62,7 +61,6 @@ public struct IncrementalTokenizer: Sendable {
         maxReparseLength: Int = 10000
     ) {
         self.baseTokenizer = baseTokenizer
-        self.chunkProcessor = ChunkProcessor()
         self.incrementalThreshold = incrementalThreshold
         self.maxReparseLength = maxReparseLength
     }

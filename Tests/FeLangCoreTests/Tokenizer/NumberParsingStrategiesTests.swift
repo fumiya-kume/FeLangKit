@@ -11,7 +11,7 @@ struct NumberParsingStrategiesTests {
         let input = "123"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseDecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseDecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -22,7 +22,7 @@ struct NumberParsingStrategiesTests {
         let input = "123.456"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseDecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseDecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -34,7 +34,7 @@ struct NumberParsingStrategiesTests {
         let input = "456"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseDecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseDecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -45,7 +45,7 @@ struct NumberParsingStrategiesTests {
         let input = "0"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseDecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseDecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -56,7 +56,7 @@ struct NumberParsingStrategiesTests {
         let input = "0.0"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseDecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseDecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -69,7 +69,7 @@ struct NumberParsingStrategiesTests {
         let input = "0xff"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseHexadecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseHexadecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -80,7 +80,7 @@ struct NumberParsingStrategiesTests {
         let input = "0XFF"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseHexadecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseHexadecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -91,7 +91,7 @@ struct NumberParsingStrategiesTests {
         let input = "0xAbCdEf"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseHexadecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseHexadecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -102,7 +102,7 @@ struct NumberParsingStrategiesTests {
         let input = "0x12_34_AB"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseHexadecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseHexadecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -115,7 +115,7 @@ struct NumberParsingStrategiesTests {
         let input = "0b1010"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseBinaryNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseBinaryNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -126,7 +126,7 @@ struct NumberParsingStrategiesTests {
         let input = "0B1111"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseBinaryNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseBinaryNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -137,7 +137,7 @@ struct NumberParsingStrategiesTests {
         let input = "0b1010_1010"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseBinaryNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseBinaryNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -148,7 +148,7 @@ struct NumberParsingStrategiesTests {
         let input = "0b0000"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseBinaryNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseBinaryNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -161,7 +161,7 @@ struct NumberParsingStrategiesTests {
         let input = "0o777"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseOctalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseOctalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -172,7 +172,7 @@ struct NumberParsingStrategiesTests {
         let input = "0O123"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseOctalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseOctalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -183,7 +183,7 @@ struct NumberParsingStrategiesTests {
         let input = "0o12_34_56"
         var index = input.startIndex
         let start = index
-        let result = NumberParsingStrategies.parseOctalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseOctalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -195,7 +195,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberDecimal() throws {
         let input = "12345"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -205,7 +205,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberReal() throws {
         let input = "123.456"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -215,7 +215,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberLeadingDot() throws {
         let input = ".5"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -225,7 +225,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberHex() throws {
         let input = "0xFF"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -235,7 +235,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberBinary() throws {
         let input = "0b1010"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -245,7 +245,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberOctal() throws {
         let input = "0o777"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -255,7 +255,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberScientificPositive() throws {
         let input = "1e10"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -265,7 +265,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberScientificNegative() throws {
         let input = "1e-10"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -275,7 +275,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberScientificWithDecimal() throws {
         let input = "1.5e10"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -285,7 +285,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberWithUnderscores() throws {
         let input = "1_000_000"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -295,7 +295,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberReturnsNilForNonNumber() throws {
         let input = "abc"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result == nil)
     }
@@ -303,7 +303,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseAdvancedNumberDotAloneReturnsNil() throws {
         let input = "."
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result == nil)
     }
@@ -311,64 +311,64 @@ struct NumberParsingStrategiesTests {
     // MARK: - Validation Tests
 
     @Test func testIsValidNumberFormatInteger() throws {
-        #expect(NumberParsingStrategies.isValidNumberFormat("123") == true)
+        #expect(TokenizerCore.isValidNumberFormat("123") == true)
     }
 
     @Test func testIsValidNumberFormatReal() throws {
-        #expect(NumberParsingStrategies.isValidNumberFormat("123.456") == true)
+        #expect(TokenizerCore.isValidNumberFormat("123.456") == true)
     }
 
     @Test func testIsValidNumberFormatScientific() throws {
-        #expect(NumberParsingStrategies.isValidNumberFormat("1e10") == true)
-        #expect(NumberParsingStrategies.isValidNumberFormat("1E-10") == true)
+        #expect(TokenizerCore.isValidNumberFormat("1e10") == true)
+        #expect(TokenizerCore.isValidNumberFormat("1E-10") == true)
     }
 
     @Test func testIsValidNumberFormatHex() throws {
-        #expect(NumberParsingStrategies.isValidNumberFormat("0xFF") == true)
+        #expect(TokenizerCore.isValidNumberFormat("0xFF") == true)
     }
 
     @Test func testIsValidNumberFormatBinary() throws {
-        #expect(NumberParsingStrategies.isValidNumberFormat("0b1010") == true)
+        #expect(TokenizerCore.isValidNumberFormat("0b1010") == true)
     }
 
     @Test func testIsValidNumberFormatOctal() throws {
-        #expect(NumberParsingStrategies.isValidNumberFormat("0o777") == true)
+        #expect(TokenizerCore.isValidNumberFormat("0o777") == true)
     }
 
     @Test func testIsValidNumberFormatWithUnderscores() throws {
-        #expect(NumberParsingStrategies.isValidNumberFormat("1_000") == true)
+        #expect(TokenizerCore.isValidNumberFormat("1_000") == true)
     }
 
     @Test func testIsInvalidNumberFormatEmpty() throws {
-        #expect(NumberParsingStrategies.isValidNumberFormat("") == false)
+        #expect(TokenizerCore.isValidNumberFormat("") == false)
     }
 
     @Test func testIsInvalidNumberFormatMultipleDecimals() throws {
-        #expect(NumberParsingStrategies.isValidNumberFormat("1.2.3") == false)
+        #expect(TokenizerCore.isValidNumberFormat("1.2.3") == false)
     }
 
     @Test func testIsInvalidNumberFormatStartsWithLetter() throws {
-        #expect(NumberParsingStrategies.isValidNumberFormat("abc") == false)
+        #expect(TokenizerCore.isValidNumberFormat("abc") == false)
     }
 
     // MARK: - Type Inference Tests
 
     @Test func testInferNumberTypeInteger() throws {
-        #expect(NumberParsingStrategies.inferNumberType(from: "123") == .integerLiteral)
+        #expect(TokenizerCore.inferNumberType(from: "123") == .integerLiteral)
     }
 
     @Test func testInferNumberTypeReal() throws {
-        #expect(NumberParsingStrategies.inferNumberType(from: "123.456") == .realLiteral)
+        #expect(TokenizerCore.inferNumberType(from: "123.456") == .realLiteral)
     }
 
     @Test func testInferNumberTypeScientific() throws {
-        #expect(NumberParsingStrategies.inferNumberType(from: "1e10") == .realLiteral)
-        #expect(NumberParsingStrategies.inferNumberType(from: "1E10") == .realLiteral)
+        #expect(TokenizerCore.inferNumberType(from: "1e10") == .realLiteral)
+        #expect(TokenizerCore.inferNumberType(from: "1E10") == .realLiteral)
     }
 
     @Test func testInferNumberTypeHex() throws {
         // Hex numbers are integers
-        #expect(NumberParsingStrategies.inferNumberType(from: "0xFF") == .integerLiteral)
+        #expect(TokenizerCore.inferNumberType(from: "0xFF") == .integerLiteral)
     }
 
     // MARK: - Edge Cases
@@ -376,7 +376,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseNumberAtEndOfInput() throws {
         let input = "42"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(index == input.endIndex)
@@ -385,7 +385,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseNumberFollowedByOperator() throws {
         let input = "42+"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.lexeme == "42")
@@ -395,7 +395,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseNumberFollowedBySpace() throws {
         let input = "42 "
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.lexeme == "42")
@@ -405,7 +405,7 @@ struct NumberParsingStrategiesTests {
     @Test func testParseLeadingDotFollowedByNonDigit() throws {
         let input = ".abc"
         var index = input.startIndex
-        let result = NumberParsingStrategies.parseAdvancedNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result == nil)
     }

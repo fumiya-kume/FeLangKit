@@ -132,10 +132,7 @@ struct StringEscapeUtilitiesTests {
     func testTokenizerValidEscapeSequences() throws {
         // Test that the tokenizer accepts valid escape sequences
         let validInput = "'Hello\\nWorld\\t!'"
-        let tokenizer = Tokenizer(input: validInput)
-
-        // This should not throw
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(validInput)
 
         #expect(tokens.count >= 1)
         #expect(tokens[0].type == .stringLiteral)
@@ -146,9 +143,7 @@ struct StringEscapeUtilitiesTests {
     func testTokenizerUnicodeEscapeSequences() throws {
         // Test Unicode escape sequences in tokenizer
         let unicodeInput = "'\\u{1F600}'"
-        let tokenizer = Tokenizer(input: unicodeInput)
-
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(unicodeInput)
 
         #expect(tokens.count >= 1)
         #expect(tokens[0].type == .characterLiteral) // Single Unicode character
@@ -159,10 +154,8 @@ struct StringEscapeUtilitiesTests {
     func testTokenizerInvalidEscapeSequences() throws {
         // Test that the tokenizer properly detects invalid escape sequences
         let invalidInput = "'Hello\\x'"
-        let tokenizer = Tokenizer(input: invalidInput)
-
         #expect(throws: TokenizerError.self) {
-            try tokenizer.tokenize()
+            _ = try ParsingTokenizer.tokenize(invalidInput)
         }
     }
 
@@ -170,10 +163,8 @@ struct StringEscapeUtilitiesTests {
     func testTokenizerInvalidUnicodeEscape() throws {
         // Test invalid Unicode escape sequence
         let invalidInput = "'\\u{XYZ}'"
-        let tokenizer = Tokenizer(input: invalidInput)
-
         #expect(throws: TokenizerError.self) {
-            try tokenizer.tokenize()
+            _ = try ParsingTokenizer.tokenize(invalidInput)
         }
     }
 
@@ -214,8 +205,7 @@ struct StringEscapeUtilitiesTests {
 
         for testCase in successCases {
             // Test tokenization
-            let tokenizer = Tokenizer(input: testCase.input)
-            let tokens = try tokenizer.tokenize()
+            let tokens = try ParsingTokenizer.tokenize(testCase.input)
 
             #expect(tokens.count >= 1, "Should have at least one token for: \(testCase.description)")
             #expect(tokens[0].type == testCase.expectedType, "Expected \(testCase.expectedType) for: \(testCase.description)")
@@ -235,10 +225,8 @@ struct StringEscapeUtilitiesTests {
         ]
 
         for testCase in errorCases {
-            let tokenizer = Tokenizer(input: testCase.input)
-
             #expect(throws: TokenizerError.self) {
-                try tokenizer.tokenize()
+                _ = try ParsingTokenizer.tokenize(testCase.input)
             }
         }
     }
