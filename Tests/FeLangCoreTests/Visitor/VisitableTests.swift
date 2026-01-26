@@ -45,7 +45,8 @@ struct VisitableTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record" },
-            visitClassDeclaration: { _ in "class" }
+            visitClassDeclaration: { _ in "class" },
+            visitGlobalDeclaration: { _ in "global" }
         )
 
         let stmt = Statement.breakStatement
@@ -119,7 +120,8 @@ struct VisitableTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record" },
-            visitClassDeclaration: { _ in "class" }
+            visitClassDeclaration: { _ in "class" },
+            visitGlobalDeclaration: { _ in "global" }
         )
 
         // Test all statement types with convenience method
@@ -196,7 +198,8 @@ struct VisitableTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record" },
-            visitClassDeclaration: { _ in "class" }
+            visitClassDeclaration: { _ in "class" },
+            visitGlobalDeclaration: { _ in "global" }
         )
 
         let expr = Expression.literal(.integer(42))
@@ -239,7 +242,8 @@ struct VisitableTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record" },
-            visitClassDeclaration: { _ in "class" }
+            visitClassDeclaration: { _ in "class" },
+            visitGlobalDeclaration: { _ in "global" }
         )
 
         // Test that we can use visitors in async contexts
@@ -283,7 +287,8 @@ struct VisitableTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record" },
-            visitClassDeclaration: { _ in "class" }
+            visitClassDeclaration: { _ in "class" },
+            visitGlobalDeclaration: { _ in "global" }
         )
 
         let expr = Expression.literal(.integer(42))

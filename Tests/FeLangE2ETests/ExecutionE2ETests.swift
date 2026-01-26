@@ -194,4 +194,69 @@ struct ExecutionE2ETests {
         let output = try InProcessTestHelper.run(code)
         #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "5")
     }
+
+    // MARK: - Global Variable Tests
+
+    @Test("Global variable declaration with initial value")
+    func testGlobalVariableDeclaration() throws {
+        let code = """
+        大域: 整数型: count ← 0
+        println(count)
+        count ← count + 1
+        println(count)
+        count ← count + 1
+        println(count)
+        """
+        let output = try InProcessTestHelper.run(code)
+        let lines = output.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }
+        #expect(lines.count >= 3, "Expected 3 output lines, got \(lines.count): \(lines)")
+        guard lines.count >= 3 else { return }
+        #expect(lines[0] == "0")
+        #expect(lines[1] == "1")
+        #expect(lines[2] == "2")
+    }
+
+    @Test("Global variable with different types")
+    func testGlobalVariableWithDifferentTypes() throws {
+        let code = """
+        大域: 整数型: intVar ← 42
+        大域: 実数型: realVar ← 3.14
+        大域: 文字列型: strVar ← "hello"
+        大域: 論理型: boolVar ← true
+
+        println(intVar)
+        println(realVar)
+        println(strVar)
+        println(boolVar)
+        """
+        let output = try InProcessTestHelper.run(code)
+        let lines = output.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }
+        #expect(lines.count >= 4, "Expected 4 output lines, got \(lines.count): \(lines)")
+        guard lines.count >= 4 else { return }
+        #expect(lines[0] == "42")
+        #expect(lines[1] == "3.14")
+        #expect(lines[2] == "hello")
+        #expect(lines[3].lowercased() == "true")
+    }
+
+    @Test("Multiple global variables with assignment")
+    func testMultipleGlobalVariables() throws {
+        let code = """
+        大域: 整数型: x ← 1
+        大域: 整数型: y ← 2
+        大域: 整数型: z ← 3
+
+        println(x + y + z)
+        x ← 10
+        y ← 20
+        z ← 30
+        println(x + y + z)
+        """
+        let output = try InProcessTestHelper.run(code)
+        let lines = output.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }
+        #expect(lines.count >= 2, "Expected 2 output lines, got \(lines.count): \(lines)")
+        guard lines.count >= 2 else { return }
+        #expect(lines[0] == "6")
+        #expect(lines[1] == "60")
+    }
 }

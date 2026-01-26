@@ -132,6 +132,10 @@ public final class StatementExecutor: @unchecked Sendable {
         case .classDeclaration(let decl):
             executeClassDeclaration(decl)
             return .normal
+
+        case .globalDeclaration(let decl):
+            try executeGlobalDeclaration(decl)
+            return .normal
         }
     }
 
@@ -202,6 +206,20 @@ public final class StatementExecutor: @unchecked Sendable {
         // Validate type of initial value matches declaration
         try validateType(value, expected: decl.type, context: "constant '\(decl.name)' initialization")
         environment.define(decl.name, value: value, isConstant: true, type: decl.type)
+    }
+
+    private func executeGlobalDeclaration(_ decl: GlobalDeclaration) throws {
+        let value: RuntimeValue
+        let isInitialized: Bool
+        if let initialValue = decl.initialValue {
+            value = try evaluator.evaluate(initialValue)
+            try validateType(value, expected: decl.type, context: "global variable '\(decl.name)' initialization")
+            isInitialized = true
+        } else {
+            value = defaultValue(for: decl.type)
+            isInitialized = false
+        }
+        environment.defineGlobal(decl.name, value: value, type: decl.type, isInitialized: isInitialized)
     }
 
     private func executeFunctionDeclaration(_ decl: FunctionDeclaration) throws {

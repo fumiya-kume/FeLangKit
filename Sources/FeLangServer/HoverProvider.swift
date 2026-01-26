@@ -59,7 +59,10 @@ public struct HoverProvider: Sendable {
         "でなければ": "**でなければ** (else) - Else節\n\nif文の偽の分岐です。",
         "を実行": "**を実行** (endif) - End if\n\nif文の終了を示します。",
         "繰り返し": "**繰り返し** (while) - ループ\n\n条件が真の間、コードを繰り返します。",
-        "を繰り返す": "**を繰り返す** (endwhile) - ループ終了\n\nwhileループの終了を示します。"
+        "を繰り返す": "**を繰り返す** (endwhile) - ループ終了\n\nwhileループの終了を示します。",
+
+        // Global declaration
+        "大域": "**大域** (global) - グローバル変数宣言\n\nグローバルスコープに変数を宣言します。関数や手続きからアクセス・変更可能です。\n\n```fe\n大域: 整数型: count\n大域: 文字列型: name ← \"default\"\n```"
     ]
 
     /// Type documentation

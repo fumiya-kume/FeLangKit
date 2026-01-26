@@ -125,7 +125,8 @@ public enum ParsingBoundaryDetection {
 
         // Declaration statements
         case .variableKeyword,  // Variable declarations: 変数 name: type ← value
-             .constantKeyword:  // Constant declarations: 定数 name: type ← value
+             .constantKeyword,  // Constant declarations: 定数 name: type ← value
+             .globalKeyword:    // Global declarations: 大域: 型: 変数名
             return true
 
         // Function/procedure/class declarations

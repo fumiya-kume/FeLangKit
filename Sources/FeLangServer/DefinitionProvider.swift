@@ -160,7 +160,8 @@ public struct DefinitionProvider: Sendable {
             "class", "endclass",
             "return", "break", "continue",
             "and", "or", "not", "true", "false",
-            "未定義"
+            "未定義",
+            "大域"
         ])
 
         // Types

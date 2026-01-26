@@ -49,6 +49,7 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     /// Declaration keywords
     case variableKeyword = "変数"
     case constantKeyword = "定数"
+    case globalKeyword = "大域"
 
     /// Class keywords
     case classKeyword = "class"
@@ -123,7 +124,7 @@ extension TokenType {
              .whileKeyword, .doKeyword, .endwhileKeyword, .forKeyword, .toKeyword, .stepKeyword, .inKeyword, .endforKeyword,
              .functionKeyword, .endfunctionKeyword, .procedureKeyword, .endprocedureKeyword,
              .andKeyword, .orKeyword, .notKeyword, .modKeyword, .returnKeyword, .breakKeyword, .continueKeyword,
-             .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword,
+             .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword, .globalKeyword,
              .classKeyword, .endclassKeyword, .undefinedKeyword:
             return true
         default:
