@@ -390,9 +390,10 @@ public final class StatementExecutor: @unchecked Sendable {
         defer { loopDepth -= 1 }
 
         repeat {
+            // Execute body in its own scope (consistent with while/for loops)
             try environment.pushScope()
-            defer { environment.popScope() }
             let result = try execute(doWhileStmt.body)
+            environment.popScope()
 
             switch result {
             case .breakLoop:
@@ -405,6 +406,7 @@ public final class StatementExecutor: @unchecked Sendable {
                 break
             }
 
+            // Evaluate condition outside the body scope (consistent with while loops)
             let condition = try evaluator.evaluate(doWhileStmt.condition)
             guard case .boolean(let boolValue) = condition else {
                 throw RuntimeError.typeMismatch(
