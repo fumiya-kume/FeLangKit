@@ -693,6 +693,9 @@ public final class StatementExecutor: @unchecked Sendable {
     private func validateType(_ value: RuntimeValue, expected: DataType, context: String) throws {
         let matches: Bool
         switch (expected, value) {
+        case (_, .undefined):
+            // Undefined is compatible with any type (matches semantic analyzer behavior)
+            matches = true
         case (.integer, .integer):
             matches = true
         case (.real, .real):
