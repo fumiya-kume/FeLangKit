@@ -241,4 +241,22 @@ struct ErrorE2ETests {
         // Runtime error when trying to multiply string by integer
         #expect(!result.succeeded)
     }
+
+    // MARK: - Missing Return Value Tests
+
+    @Test("Missing return value in function causes error")
+    func testMissingReturnValue() throws {
+        // Function declares return type but not all paths return a value
+        let code = """
+        function abs1(n: 整数): 整数
+            if n > 0 then
+                return n
+            endif
+        endfunction
+        println(abs1(-1))
+        """
+        let result = InProcessTestHelper.execute(code)
+        // Should fail because function doesn't return value in all paths
+        #expect(!result.succeeded)
+    }
 }
