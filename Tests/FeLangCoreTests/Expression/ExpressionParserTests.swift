@@ -212,6 +212,63 @@ struct ExpressionParserTests {
         #expect(expr == expected)
     }
 
+    // MARK: - Bitwise AND Operator Tests
+
+    @Test func testBitwiseAnd() throws {
+        let expr = try parseExpression("5 ∧ 3")
+        let expected = Expression.binary(.bitwiseAnd, .literal(.integer(5)), .literal(.integer(3)))
+        #expect(expr == expected)
+    }
+
+    @Test func testBitwiseAndPrecedenceWithComparison() throws {
+        // 5 ∧ 3 > 0 should be parsed as (5 ∧ 3) > 0 (bitwiseAnd has lower precedence than comparison)
+        let expr = try parseExpression("5 ∧ 3 > 0")
+        let expected = Expression.binary(
+            .bitwiseAnd,
+            .literal(.integer(5)),
+            .binary(.greater, .literal(.integer(3)), .literal(.integer(0)))
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testBitwiseAndPrecedenceWithLogicalAnd() throws {
+        // true and 5 ∧ 3 = 1 should be parsed as true and ((5 ∧ 3) = 1)
+        // bitwiseAnd (3) has higher precedence than logical and (2)
+        let expr = try parseExpression("true and 5 ∧ 3 = 1")
+        let expected = Expression.binary(
+            .and,
+            .literal(.boolean(true)),
+            .binary(
+                .bitwiseAnd,
+                .literal(.integer(5)),
+                .binary(.equal, .literal(.integer(3)), .literal(.integer(1)))
+            )
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testBitwiseAndPrecedenceWithArithmetic() throws {
+        // 1 + 2 ∧ 3 should be parsed as (1 + 2) ∧ 3 (add has higher precedence than bitwiseAnd)
+        let expr = try parseExpression("1 + 2 ∧ 3")
+        let expected = Expression.binary(
+            .bitwiseAnd,
+            .binary(.add, .literal(.integer(1)), .literal(.integer(2))),
+            .literal(.integer(3))
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testBitwiseAndLeftAssociativity() throws {
+        // 7 ∧ 3 ∧ 1 should be parsed as ((7 ∧ 3) ∧ 1)
+        let expr = try parseExpression("7 ∧ 3 ∧ 1")
+        let expected = Expression.binary(
+            .bitwiseAnd,
+            .binary(.bitwiseAnd, .literal(.integer(7)), .literal(.integer(3))),
+            .literal(.integer(1))
+        )
+        #expect(expr == expected)
+    }
+
     // MARK: - Unary Operator Tests
 
     @Test func testUnaryNot() throws {

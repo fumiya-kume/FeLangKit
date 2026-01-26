@@ -884,8 +884,8 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             }
 
         case .bitwiseAnd:
-            // Bitwise AND only works with integers
-            if leftType.isCompatible(with: .integer) && rightType.isCompatible(with: .integer) {
+            // Bitwise AND only works with integers (strict check, no real allowed)
+            if case .integer = leftType, case .integer = rightType {
                 return .integer
             } else {
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
