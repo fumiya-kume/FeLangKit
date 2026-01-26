@@ -204,6 +204,9 @@ public struct ExpressionEvaluator: Sendable {
         guard case .integer(let rightInt) = right else {
             throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: "<<")
         }
+        guard rightInt >= 0 && rightInt < Int.bitWidth else {
+            throw RuntimeError.invalidOperand(operation: "<<", operandType: "shift amount \(rightInt) out of valid range (0..<\(Int.bitWidth))")
+        }
         return .integer(leftInt << rightInt)
     }
 
@@ -213,6 +216,9 @@ public struct ExpressionEvaluator: Sendable {
         }
         guard case .integer(let rightInt) = right else {
             throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: ">>")
+        }
+        guard rightInt >= 0 && rightInt < Int.bitWidth else {
+            throw RuntimeError.invalidOperand(operation: ">>", operandType: "shift amount \(rightInt) out of valid range (0..<\(Int.bitWidth))")
         }
         return .integer(leftInt >> rightInt)
     }
