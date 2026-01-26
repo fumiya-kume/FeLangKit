@@ -206,7 +206,8 @@ struct LogicalOperatorE2ETests {
         """
         let output = try InProcessTestHelper.run(code)
         let lines = output.lowercased().split(separator: "\n")
-        #expect(lines.count >= 2)
+        #expect(lines.count >= 2, "Expected 2 output lines, got \(lines.count): \(lines)")
+        guard lines.count >= 2 else { return }
         #expect(lines[0].contains("false"))
         #expect(lines[1].contains("true"))
     }
