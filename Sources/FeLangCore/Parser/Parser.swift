@@ -138,7 +138,7 @@ extension Parser {
     }
 
     /// Creates a parser with custom configuration
-    public init(configuration: Configuration) {
+    public init(configuration _: Configuration) {
         // For now, use default parsers
         // Future enhancement: pass configuration to underlying parsers
         self.tokenizer = ParsingTokenizer()

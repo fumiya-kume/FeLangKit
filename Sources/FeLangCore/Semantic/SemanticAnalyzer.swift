@@ -1191,7 +1191,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         }
     }
 
-    private func validateReturnStatement(_ stmt: ReturnStatement) {
+    private func validateReturnStatement(_ _: ReturnStatement) {
         if !symbolTable.isInFunction {
             let position = SourcePosition(line: 0, column: 0, offset: 0)
             errorReporter.collect(.returnOutsideFunction(position: position))
