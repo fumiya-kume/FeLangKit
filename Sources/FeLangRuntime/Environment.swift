@@ -213,15 +213,17 @@ public final class Environment: @unchecked Sendable {
     }
 
     /// Gets a variable, throwing if not found or uninitialized.
+    /// Uses single-pass lookup to avoid traversing the scope stack multiple times.
     public func get(_ name: String) throws -> RuntimeValue {
-        // Check if variable is uninitialized before returning
-        if isUninitialized(name) {
-            throw RuntimeError.uninitializedVariable(name: name)
+        for scope in scopes.reversed() {
+            if scope.uninitialized.contains(name) {
+                throw RuntimeError.uninitializedVariable(name: name)
+            }
+            if let value = scope.variables[name] {
+                return value
+            }
         }
-        guard let value = lookup(name) else {
-            throw RuntimeError.undefinedVariable(name: name)
-        }
-        return value
+        throw RuntimeError.undefinedVariable(name: name)
     }
 
     // MARK: - Bulk Operations
