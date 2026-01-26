@@ -89,6 +89,8 @@ public enum TokenizerUtilities {
         ("≠", .notEqual),
         (">=", .greaterEqual),
         ("<=", .lessEqual),
+        ("<<", .leftShift),
+        (">>", .rightShift),
         ("≧", .greaterEqual),
         ("≦", .lessEqual),
         ("+", .plus),

@@ -500,6 +500,52 @@ struct ExpressionEvaluatorTests {
         }
     }
 
+    @Test func testLeftShift() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.leftShift, .literal(.integer(1)), .literal(.integer(3)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(8))
+    }
+
+    @Test func testRightShift() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.rightShift, .literal(.integer(16)), .literal(.integer(2)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(4))
+    }
+
+    @Test func testLeftShiftTypeMismatchLeft() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.leftShift, .literal(.real(1.0)), .literal(.integer(3)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
+
+    @Test func testLeftShiftTypeMismatchRight() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.leftShift, .literal(.integer(1)), .literal(.real(3.0)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
+
+    @Test func testRightShiftTypeMismatchLeft() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.rightShift, .literal(.real(16.0)), .literal(.integer(2)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
+
+    @Test func testRightShiftTypeMismatchRight() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.rightShift, .literal(.integer(16)), .literal(.real(2.0)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
+
     // MARK: - Unary Operations
 
     @Test func testUnaryMinus() throws {

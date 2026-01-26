@@ -152,6 +152,10 @@ public struct ExpressionEvaluator: Sendable {
         // Bitwise
         case .bitwiseAnd:
             return try evaluateBitwiseAnd(left, right)
+        case .leftShift:
+            return try evaluateLeftShift(left, right)
+        case .rightShift:
+            return try evaluateRightShift(left, right)
 
         // Logical
         case .and:
@@ -191,6 +195,26 @@ public struct ExpressionEvaluator: Sendable {
             throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: "∧")
         }
         return .integer(leftInt & rightInt)
+    }
+
+    private func evaluateLeftShift(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
+        guard case .integer(let leftInt) = left else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: left.typeName, operation: "<<")
+        }
+        guard case .integer(let rightInt) = right else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: "<<")
+        }
+        return .integer(leftInt << rightInt)
+    }
+
+    private func evaluateRightShift(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
+        guard case .integer(let leftInt) = left else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: left.typeName, operation: ">>")
+        }
+        guard case .integer(let rightInt) = right else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: ">>")
+        }
+        return .integer(leftInt >> rightInt)
     }
 
     private func evaluateAdd(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
