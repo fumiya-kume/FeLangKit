@@ -100,6 +100,16 @@ struct ErrorE2ETests {
         #expect(!result.succeeded)
     }
 
+    @Test("Uninitialized variable reference returns error")
+    func testUninitializedVariableReference() throws {
+        let code = """
+        変数 x: 整数
+        println(x)
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(!result.succeeded)
+    }
+
     @Test("Undefined function returns error")
     func testUndefinedFunction() throws {
         let result = InProcessTestHelper.execute("println(notAFunction())")

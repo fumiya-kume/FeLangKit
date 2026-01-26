@@ -8,6 +8,7 @@ public final class Environment: @unchecked Sendable {
         var variables: [String: RuntimeValue] = [:]
         var constants: Set<String> = []
         var types: [String: DataType] = [:]
+        var uninitialized: Set<String> = []
     }
 
     /// Stack of scopes (innermost scope is last)
@@ -97,12 +98,19 @@ public final class Environment: @unchecked Sendable {
     ///   - value: The initial value
     ///   - isConstant: Whether this is a constant (default: false)
     ///   - type: Optional declared type for type checking
+    ///   - isUninitialized: Whether the variable is uninitialized (default: false)
     ///
     /// - Note: If a variable with the same name already exists in the current scope,
     ///   this method will overwrite it. The constant status is also updated: if
     ///   `isConstant` is false, any previous constant flag for this name is removed.
     ///   This handles redefinition scenarios correctly.
-    public func define(_ name: String, value: RuntimeValue, isConstant: Bool = false, type: DataType? = nil) {
+    public func define(
+        _ name: String,
+        value: RuntimeValue,
+        isConstant: Bool = false,
+        type: DataType? = nil,
+        isUninitialized: Bool = false
+    ) {
         guard var currentScope = scopes.last else { return }
         currentScope.variables[name] = value
         // Update constant status - remove if not constant (handles redefinition)
@@ -116,6 +124,12 @@ public final class Environment: @unchecked Sendable {
             currentScope.types[name] = type
         } else {
             currentScope.types.removeValue(forKey: name)
+        }
+        // Update uninitialized status
+        if isUninitialized {
+            currentScope.uninitialized.insert(name)
+        } else {
+            currentScope.uninitialized.remove(name)
         }
         scopes[scopes.count - 1] = currentScope
     }
@@ -173,16 +187,34 @@ public final class Environment: @unchecked Sendable {
         // Find and update the variable
         for index in (0..<scopes.count).reversed() where scopes[index].variables[name] != nil {
             scopes[index].variables[name] = value
+            // Mark as initialized when assigned
+            scopes[index].uninitialized.remove(name)
             return
         }
 
         throw RuntimeError.undefinedVariable(name: name)
     }
 
-    /// Gets a variable, throwing if not found.
+    /// Checks if a variable is uninitialized.
+    public func isUninitialized(_ name: String) -> Bool {
+        for scope in scopes.reversed() {
+            if scope.uninitialized.contains(name) {
+                return true
+            }
+            if scope.variables[name] != nil {
+                return false
+            }
+        }
+        return false
+    }
+
+    /// Gets a variable, throwing if not found or uninitialized.
     public func get(_ name: String) throws -> RuntimeValue {
         guard let value = lookup(name) else {
             throw RuntimeError.undefinedVariable(name: name)
+        }
+        if isUninitialized(name) {
+            throw RuntimeError.uninitializedVariable(name: name)
         }
         return value
     }
