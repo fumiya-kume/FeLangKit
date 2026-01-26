@@ -246,7 +246,7 @@ struct ErrorE2ETests {
                 return n
             endif
         endfunction
-        println(abs1(1))
+        println(abs1(-1))
         """
         let result = InProcessTestHelper.execute(code)
         // Should fail because function doesn't return value in all paths
