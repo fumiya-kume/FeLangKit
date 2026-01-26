@@ -121,7 +121,7 @@ struct StatementParserTests {
             .literal(.integer(1))
         ))
         #expect(arrayAccess.index == .literal(.integer(2)))
-        _ = value
+        #expect(value == .literal(.integer(42)))
     }
 
     // MARK: - Field Assignment Tests
