@@ -77,6 +77,9 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case less = "<"
     case lessEqual = "≦"
 
+    /// Bitwise operators
+    case bitwiseAnd = "∧"
+
     // MARK: - Delimiters
 
     case leftParen = "("
@@ -128,7 +131,8 @@ extension TokenType {
     public var isOperator: Bool {
         switch self {
         case .plus, .minus, .multiply, .divide, .modulo, .assign,
-             .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual:
+             .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual,
+             .bitwiseAnd:
             return true
         default:
             return false
