@@ -920,7 +920,8 @@ public struct StatementParser {
              .endwhileKeyword,  // WHILE statement block ends
              .endforKeyword,    // FOR statement block ends
              .endfunctionKeyword,   // FUNCTION declaration block ends
-             .endprocedureKeyword:  // PROCEDURE declaration block ends
+             .endprocedureKeyword,  // PROCEDURE declaration block ends
+             .endclassKeyword:      // CLASS declaration block ends
             return true
 
         // FOR loop specific keywords that separate expression components
@@ -1013,9 +1014,10 @@ public struct StatementParser {
              .constantKeyword:  // Constant declarations: 定数 name: type ← value
             return true
 
-        // Function/procedure declarations
+        // Function/procedure/class declarations
         case .functionKeyword,  // FUNCTION declarations with return values
-             .procedureKeyword: // PROCEDURE declarations without return values
+             .procedureKeyword, // PROCEDURE declarations without return values
+             .classKeyword:     // CLASS declarations
             return true
 
         // Flow control statements
