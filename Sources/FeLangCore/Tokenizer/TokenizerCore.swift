@@ -1,11 +1,6 @@
 import Foundation
 
-/// Shared tokenizer implementation that consolidates parsing logic used across multiple tokenizer types.
-/// This eliminates code duplication and ensures consistent behavior across all tokenizer implementations.
-/// 
-/// **Design Pattern**: Strategy pattern with shared implementation
-/// **Thread Safety**: Stateless methods are thread-safe when used with distinct input/index parameters
-/// **Performance**: O(1) keyword lookup, optimized character classification, minimal memory allocation
+/// Shared parsing logic for tokenization (keyword lookup, operator/delimiter/number/string parsing).
 public enum TokenizerCore {
 
     // MARK: - Shared Token Data Type
