@@ -234,4 +234,18 @@ struct ErrorE2ETests {
         // Runtime error when trying to multiply string by integer
         #expect(!result.succeeded)
     }
+
+    // MARK: - Procedure Error Tests
+
+    @Test("Procedure returning a value causes error")
+    func testProcedureReturnsValue() throws {
+        let code = """
+        procedure bad()
+            return 1
+        endprocedure
+        """
+        let result = InProcessTestHelper.execute(code)
+        // Procedures should not return values (void-function-returns-value)
+        #expect(!result.succeeded)
+    }
 }
