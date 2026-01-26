@@ -70,7 +70,7 @@ public enum RuntimeError: Error, Equatable, CustomStringConvertible {
             return "Runtime error: Undefined variable '\(name)'"
 
         case .uninitializedVariable(let name):
-            return "Runtime error: Variable '\(name)' is not initialized"
+            return "Runtime error: Variable '\(name)' used before initialization"
 
         case .undefinedFunction(let name):
             return "Runtime error: Undefined function '\(name)'"

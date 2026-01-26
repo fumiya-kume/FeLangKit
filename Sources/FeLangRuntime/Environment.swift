@@ -98,18 +98,21 @@ public final class Environment: @unchecked Sendable {
     ///   - value: The initial value
     ///   - isConstant: Whether this is a constant (default: false)
     ///   - type: Optional declared type for type checking
-    ///   - isUninitialized: Whether the variable is uninitialized (default: false)
+    ///   - isInitialized: Whether the variable is initialized (default: true)
     ///
     /// - Note: If a variable with the same name already exists in the current scope,
-    ///   this method will overwrite it. The constant status is also updated: if
-    ///   `isConstant` is false, any previous constant flag for this name is removed.
-    ///   This handles redefinition scenarios correctly.
+    ///   this method will overwrite it. The constant status is updated on
+    ///   redefinition: if `isConstant` is false, any previous constant flag for
+    ///   this name is removed. The initialization status is also updated: if
+    ///   `isInitialized` is true, the name is removed from the `uninitialized`
+    ///   set; otherwise, it is added to `uninitialized`. This ensures that both
+    ///   constant and initialization state are consistent after redefinition.
     public func define(
         _ name: String,
         value: RuntimeValue,
         isConstant: Bool = false,
         type: DataType? = nil,
-        isUninitialized: Bool = false
+        isInitialized: Bool = true
     ) {
         guard var currentScope = scopes.last else { return }
         currentScope.variables[name] = value
@@ -125,11 +128,11 @@ public final class Environment: @unchecked Sendable {
         } else {
             currentScope.types.removeValue(forKey: name)
         }
-        // Update uninitialized status
-        if isUninitialized {
-            currentScope.uninitialized.insert(name)
-        } else {
+        // Track initialization status
+        if isInitialized {
             currentScope.uninitialized.remove(name)
+        } else {
+            currentScope.uninitialized.insert(name)
         }
         scopes[scopes.count - 1] = currentScope
     }
@@ -157,6 +160,20 @@ public final class Environment: @unchecked Sendable {
             }
             if scope.variables[name] != nil {
                 // Found the variable but it's not a constant
+                return false
+            }
+        }
+        return false
+    }
+
+    /// Checks if a variable is uninitialized.
+    public func isUninitialized(_ name: String) -> Bool {
+        for scope in scopes.reversed() {
+            if scope.uninitialized.contains(name) {
+                return true
+            }
+            if scope.variables[name] != nil {
+                // Found the variable but it's not uninitialized
                 return false
             }
         }
@@ -195,19 +212,6 @@ public final class Environment: @unchecked Sendable {
         throw RuntimeError.undefinedVariable(name: name)
     }
 
-    /// Checks if a variable is uninitialized.
-    public func isUninitialized(_ name: String) -> Bool {
-        for scope in scopes.reversed() {
-            if scope.uninitialized.contains(name) {
-                return true
-            }
-            if scope.variables[name] != nil {
-                return false
-            }
-        }
-        return false
-    }
-
     /// Gets a variable, throwing if not found or uninitialized.
     /// Uses single-pass lookup to avoid traversing the scope stack multiple times.
     public func get(_ name: String) throws -> RuntimeValue {
@@ -224,7 +228,7 @@ public final class Environment: @unchecked Sendable {
 
     // MARK: - Bulk Operations
 
-    /// Represents a captured environment snapshot including constant metadata, type information, and uninitialized status.
+    /// Represents a captured environment snapshot including constant metadata, type information, and initialization status.
     public struct CapturedEnvironment {
         public let values: [String: RuntimeValue]
         public let constants: Set<String>
@@ -251,17 +255,12 @@ public final class Environment: @unchecked Sendable {
         }
     }
 
-    /// Imports variables from a captured environment, preserving constant metadata, type information, and uninitialized status.
+    /// Imports variables from a captured environment, preserving constant metadata, type information, and initialization status.
     public func importVariables(_ captured: CapturedEnvironment) {
         for (name, value) in captured.values {
             let type = captured.types[name]
-            define(
-                name,
-                value: value,
-                isConstant: captured.constants.contains(name),
-                type: type,
-                isUninitialized: captured.uninitialized.contains(name)
-            )
+            let isInitialized = !captured.uninitialized.contains(name)
+            define(name, value: value, isConstant: captured.constants.contains(name), type: type, isInitialized: isInitialized)
         }
     }
 
@@ -289,9 +288,9 @@ public final class Environment: @unchecked Sendable {
         return captured
     }
 
-    /// Creates a snapshot of the current environment for closures, including constant metadata, type information, and uninitialized status.
+    /// Creates a snapshot of the current environment for closures, including constant metadata, type information, and initialization status.
     /// This correctly handles shadowing: if an outer constant is shadowed by an inner non-constant,
-    /// the captured binding will be non-constant. Same applies to uninitialized status.
+    /// the captured binding will be non-constant.
     public func captureEnvironmentWithConstants() -> CapturedEnvironment {
         var capturedValues: [String: RuntimeValue] = [:]
         var capturedConstants: Set<String> = []
@@ -308,7 +307,7 @@ public final class Environment: @unchecked Sendable {
                     // Non-constant in this scope shadows any outer constant
                     capturedConstants.remove(name)
                 }
-                // Update uninitialized status based on current scope's binding
+                // Update initialization status based on current scope's binding
                 if scope.uninitialized.contains(name) {
                     capturedUninitialized.insert(name)
                 } else {

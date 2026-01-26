@@ -136,17 +136,17 @@ public final class StatementExecutor: @unchecked Sendable {
 
     private func executeVariableDeclaration(_ decl: VariableDeclaration) throws {
         let value: RuntimeValue
-        let isUninitialized: Bool
+        let isInitialized: Bool
         if let initialValue = decl.initialValue {
             value = try evaluator.evaluate(initialValue)
             // Validate type of initial value matches declaration
             try validateType(value, expected: decl.type, context: "variable '\(decl.name)' initialization")
-            isUninitialized = false
+            isInitialized = true
         } else {
             value = defaultValue(for: decl.type)
-            isUninitialized = true
+            isInitialized = false
         }
-        environment.define(decl.name, value: value, isConstant: false, type: decl.type, isUninitialized: isUninitialized)
+        environment.define(decl.name, value: value, isConstant: false, type: decl.type, isInitialized: isInitialized)
     }
 
     private func executeConstantDeclaration(_ decl: ConstantDeclaration) throws {
@@ -565,7 +565,7 @@ public final class StatementExecutor: @unchecked Sendable {
         try environment.pushScope()
         defer { environment.popScope() }
 
-        // Import captured environment with constant metadata, type information, and uninitialized status preserved
+        // Import captured environment with constant metadata, type information, and initialization status preserved
         let capturedEnv = Environment.CapturedEnvironment(
             values: function.capturedEnvironment,
             constants: function.capturedConstants,
@@ -626,7 +626,7 @@ public final class StatementExecutor: @unchecked Sendable {
         try environment.pushScope()
         defer { environment.popScope() }
 
-        // Import captured environment with constant metadata, type information, and uninitialized status preserved
+        // Import captured environment with constant metadata, type information, and initialization status preserved
         let capturedEnv = Environment.CapturedEnvironment(
             values: procedure.capturedEnvironment,
             constants: procedure.capturedConstants,

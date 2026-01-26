@@ -33,6 +33,21 @@ struct ErrorE2ETests {
         #expect(!result.succeeded)
     }
 
+    @Test("Uninitialized constant returns parse error")
+    func testUninitializedConstant() throws {
+        let code = """
+        定数 x: 整数
+        println(x)
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(!result.succeeded)
+        #expect(result.error != nil)
+        if let error = result.error {
+            let errorDescription = String(describing: error)
+            #expect(errorDescription.contains("assign"))
+        }
+    }
+
     // MARK: - File Error Tests
     // These tests require CLI because they test file path handling
 
@@ -110,8 +125,8 @@ struct ErrorE2ETests {
         #expect(!result.succeeded)
     }
 
-    @Test("Variable assigned before access works correctly")
-    func testVariableAssignedBeforeAccess() throws {
+    @Test("Variable becomes usable after assignment")
+    func testVariableUsableAfterAssignment() throws {
         let code = """
         変数 x: 整数
         x ← 5
@@ -119,7 +134,20 @@ struct ErrorE2ETests {
         """
         let result = InProcessTestHelper.execute(code)
         #expect(result.succeeded)
-        #expect(result.output.contains("5"))
+        #expect(result.output == "5\n")
+    }
+
+    @Test("Uninitialized variable in closure returns error")
+    func testUninitializedVariableInClosure() throws {
+        let code = """
+        変数 x: 整数
+        function foo(): 整数
+            return x
+        endfunction
+        println(foo())
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(!result.succeeded)
     }
 
     @Test("Undefined function returns error")
@@ -282,6 +310,22 @@ struct ErrorE2ETests {
         """
         let result = InProcessTestHelper.execute(code)
         // Should fail with type mismatch error
+        #expect(!result.succeeded)
+    }
+
+    // MARK: - Procedure Return Value Tests
+
+    @Test("Procedure returning value causes error")
+    func testProcedureReturnsValue() throws {
+        // Procedure should not return a value
+        let code = """
+        procedure bad()
+            return 1
+        endprocedure
+        bad()
+        """
+        let result = InProcessTestHelper.execute(code)
+        // Should fail when procedure attempts to return a value
         #expect(!result.succeeded)
     }
 
