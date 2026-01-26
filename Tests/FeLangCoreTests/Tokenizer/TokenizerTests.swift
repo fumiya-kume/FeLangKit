@@ -53,6 +53,21 @@ struct TokenizerTests {
         }
     }
 
+    @Test func testDivisionOperatorUnicode() throws {
+        let input = "10 ÷ 2"
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        #expect(tokens.count == 4) // integer, divide, integer, eof
+        #expect(tokens[0].type == .integerLiteral)
+        #expect(tokens[0].lexeme == "10")
+        #expect(tokens[1].type == .divide)
+        #expect(tokens[1].lexeme == "÷")
+        #expect(tokens[2].type == .integerLiteral)
+        #expect(tokens[2].lexeme == "2")
+        #expect(tokens[3].type == .eof)
+    }
+
     @Test func testDelimiters() throws {
         let input = "( ) [ ] { } , . ; :"
         let tokenizer = Tokenizer(input: input)
