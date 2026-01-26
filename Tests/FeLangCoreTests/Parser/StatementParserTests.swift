@@ -124,6 +124,71 @@ struct StatementParserTests {
         #expect(value == .literal(.integer(42)))
     }
 
+    // MARK: - Field Assignment Tests
+
+    @Test("Simple Field Assignment")
+    func testSimpleFieldAssignment() throws {
+        let statements = try parseStatements("p.x ← 10")
+
+        #expect(statements.count == 1)
+        guard case .assignment(.fieldAccess(let fieldAccess, let value)) = statements[0] else {
+            #expect(Bool(false), "Expected field access assignment")
+            return
+        }
+
+        #expect(fieldAccess.object == .identifier("p"))
+        #expect(fieldAccess.field == "x")
+        #expect(value == .literal(.integer(10)))
+    }
+
+    @Test("Chained Field Assignment")
+    func testChainedFieldAssignment() throws {
+        let statements = try parseStatements("obj.inner.field ← val")
+
+        #expect(statements.count == 1)
+        guard case .assignment(.fieldAccess(let fieldAccess, let value)) = statements[0] else {
+            #expect(Bool(false), "Expected field access assignment")
+            return
+        }
+
+        #expect(fieldAccess.object == .fieldAccess(.identifier("obj"), "inner"))
+        #expect(fieldAccess.field == "field")
+        #expect(value == .identifier("val"))
+    }
+
+    @Test("Field Assignment with Expression Value")
+    func testFieldAssignmentWithExpressionValue() throws {
+        let statements = try parseStatements("point.x ← a + b * 2")
+
+        #expect(statements.count == 1)
+        guard case .assignment(.fieldAccess(let fieldAccess, let value)) = statements[0] else {
+            #expect(Bool(false), "Expected field access assignment")
+            return
+        }
+
+        #expect(fieldAccess.object == .identifier("point"))
+        #expect(fieldAccess.field == "x")
+        guard case .binary(.add, .identifier("a"), .binary(.multiply, .identifier("b"), .literal(.integer(2)))) = value else {
+            #expect(Bool(false), "Expected binary expression as value")
+            return
+        }
+    }
+
+    @Test("Linked List Style Field Assignment")
+    func testLinkedListStyleFieldAssignment() throws {
+        let statements = try parseStatements("prev.next ← curr")
+
+        #expect(statements.count == 1)
+        guard case .assignment(.fieldAccess(let fieldAccess, let value)) = statements[0] else {
+            #expect(Bool(false), "Expected field access assignment")
+            return
+        }
+
+        #expect(fieldAccess.object == .identifier("prev"))
+        #expect(fieldAccess.field == "next")
+        #expect(value == .identifier("curr"))
+    }
+
     // MARK: - IF Statement Tests
 
     @Test("Basic IF Statement")

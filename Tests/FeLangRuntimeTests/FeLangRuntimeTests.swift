@@ -838,6 +838,87 @@ struct StatementExecutorTests {
         // Variable should not be visible outside block
         #expect(env.lookup("x") == nil)
     }
+
+    // MARK: - Field Assignment Tests
+
+    @Test func testRecordFieldAssignment() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define a record variable with initial fields
+        env.define("p", value: .record(["x": .integer(0), "y": .integer(0)]))
+
+        // Execute field assignment: p.x ← 10
+        let fieldAccess = Assignment.FieldAccess(object: .identifier("p"), field: "x")
+        let assignment = Statement.assignment(.fieldAccess(fieldAccess, .literal(.integer(10))))
+        _ = try executor.executeStatement(assignment)
+
+        // Verify the field was updated
+        guard case .record(let fields) = env.lookup("p") else {
+            #expect(Bool(false), "Expected record value")
+            return
+        }
+        #expect(fields["x"] == .integer(10))
+        #expect(fields["y"] == .integer(0))
+    }
+
+    @Test func testRecordFieldAssignmentWithExpression() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define variables
+        env.define("p", value: .record(["x": .integer(5), "y": .integer(0)]))
+        env.define("offset", value: .integer(3))
+
+        // Execute field assignment: p.y ← p.x + offset
+        let fieldAccess = Assignment.FieldAccess(object: .identifier("p"), field: "y")
+        let valueExpr = Expression.binary(.add, .fieldAccess(.identifier("p"), "x"), .identifier("offset"))
+        let assignment = Statement.assignment(.fieldAccess(fieldAccess, valueExpr))
+        _ = try executor.executeStatement(assignment)
+
+        // Verify the field was updated
+        guard case .record(let fields) = env.lookup("p") else {
+            #expect(Bool(false), "Expected record value")
+            return
+        }
+        #expect(fields["y"] == .integer(8))
+    }
+
+    @Test func testInvalidFieldAssignment() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define a record without the target field
+        env.define("p", value: .record(["x": .integer(0)]))
+
+        // Try to assign to non-existent field: p.z ← 10
+        let fieldAccess = Assignment.FieldAccess(object: .identifier("p"), field: "z")
+        let assignment = Statement.assignment(.fieldAccess(fieldAccess, .literal(.integer(10))))
+
+        #expect(throws: RuntimeError.self) {
+            _ = try executor.executeStatement(assignment)
+        }
+    }
+
+    @Test func testChainedFieldAssignmentNotSupported() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define nested records
+        env.define("obj", value: .record(["inner": .record(["field": .integer(0)])]))
+
+        // Try chained field assignment: obj.inner.field ← 10
+        // The parser supports this syntax, but runtime only handles simple identifiers
+        let chainedFieldAccess = Assignment.FieldAccess(
+            object: .fieldAccess(.identifier("obj"), "inner"),
+            field: "field"
+        )
+        let assignment = Statement.assignment(.fieldAccess(chainedFieldAccess, .literal(.integer(10))))
+
+        #expect(throws: RuntimeError.self) {
+            _ = try executor.executeStatement(assignment)
+        }
+    }
 }
 
 // MARK: - Interpreter Tests
