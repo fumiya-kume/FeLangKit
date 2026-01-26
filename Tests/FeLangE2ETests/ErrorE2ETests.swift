@@ -234,4 +234,15 @@ struct ErrorE2ETests {
         // Runtime error when trying to multiply string by integer
         #expect(!result.succeeded)
     }
+
+    @Test("Array literal type mismatch returns error")
+    func testArrayLiteralTypeMismatch() throws {
+        // Integer array with string element should fail
+        let code = """
+        変数 arr: 配列 of 整数 ← [1, 2, "3"]
+        """
+        let result = InProcessTestHelper.execute(code)
+        // Should fail with type mismatch error
+        #expect(!result.succeeded)
+    }
 }
