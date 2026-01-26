@@ -127,4 +127,40 @@ struct TypeConversionE2ETests {
         let output = try InProcessTestHelper.run(code)
         #expect(output.contains("3"))
     }
+
+    @Test("English type aliases: real and char in function")
+    func testEnglishTypeAliasesRealAndChar() throws {
+        let code = """
+        function formatValue(value: real, prefix: char): string
+            return concat(prefix, toString(value))
+        endfunction
+
+        println(formatValue(3.14, "x"))
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.contains("x3.14"))
+    }
+
+    @Test("English type aliases in variable declarations")
+    func testEnglishTypeAliasesInVariables() throws {
+        let code = """
+        変数 x: int ← 42
+        変数 pi: real ← 3.14
+        変数 name: string ← "test"
+        変数 flag: bool ← true
+        変数 ch: char ← "A"
+
+        println(x)
+        println(pi)
+        println(name)
+        println(flag)
+        println(ch)
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.contains("42"))
+        #expect(output.contains("3.14"))
+        #expect(output.contains("test"))
+        #expect(output.lowercased().contains("true"))
+        #expect(output.contains("A"))
+    }
 }
