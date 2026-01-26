@@ -100,9 +100,9 @@ jobs:
       matrix:
         include:
           - os: macos-15
-            coverage: "true"
+            coverage: true
           - os: ubuntu-22.04
-            coverage: "false"
+            coverage: false
       fail-fast: false
     steps:
       - name: Checkout source
@@ -153,7 +153,7 @@ jobs:
           path: |
             .build
             .swiftpm
-          key: swiftpm-test-${{ matrix.os }}-${{ matrix.coverage }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          key: swiftpm-test-${{ matrix.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
           restore-keys: |
             swiftpm-test-${{ matrix.os }}-
             swiftpm-debug-${{ matrix.os }}-
@@ -163,15 +163,15 @@ jobs:
         run: swift package resolve
 
       - name: Run tests (parallel + coverage)
-        if: ${{ matrix.coverage == 'true' }}
+        if: matrix.coverage
         run: swift test --parallel --enable-code-coverage
 
       - name: Run tests (parallel)
-        if: ${{ matrix.coverage != 'true' }}
+        if: matrix.coverage == false
         run: swift test --parallel
 
       - name: Upload coverage reports
-        if: ${{ matrix.coverage == 'true' }}  # Only upload from one platform to reduce redundancy
+        if: matrix.coverage  # Only upload from one platform to reduce redundancy
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
