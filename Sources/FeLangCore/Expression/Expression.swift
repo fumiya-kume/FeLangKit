@@ -222,7 +222,7 @@ extension BinaryOperator {
             self = .multiply
         case .divide:
             self = .divide
-        case .modulo:
+        case .modulo, .modKeyword:
             self = .modulo
         case .equal:
             self = .equal

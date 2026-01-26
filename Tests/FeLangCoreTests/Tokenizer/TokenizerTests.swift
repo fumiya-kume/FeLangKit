@@ -48,6 +48,21 @@ struct TokenizerTests {
         #expect(tokens[1].type == .eof)
     }
 
+    @Test func testModKeyword() throws {
+        let input = "7 mod 3"
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        #expect(tokens.count == 4) // integer, mod, integer, eof
+        #expect(tokens[0].type == .integerLiteral)
+        #expect(tokens[0].lexeme == "7")
+        #expect(tokens[1].type == .modKeyword)
+        #expect(tokens[1].lexeme == "mod")
+        #expect(tokens[2].type == .integerLiteral)
+        #expect(tokens[2].lexeme == "3")
+        #expect(tokens[3].type == .eof)
+    }
+
     @Test func testOperators() throws {
         let input = "+ - * / % ← = ≠ > ≧ < ≦ ∧"
         let tokenizer = Tokenizer(input: input)
