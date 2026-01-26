@@ -110,6 +110,12 @@ struct LogicalOperatorE2ETests {
         #expect(lines[1].contains("true"))
     }
 
+    @Test("! with comparison: !(5 = 3)")
+    func testExclamationWithComparison() throws {
+        let output = try InProcessTestHelper.run("println(!(5 = 3))")
+        #expect(output.lowercased().contains("true"))
+    }
+
     // MARK: - Complex Logical Expressions
 
     @Test("logical with comparison: (5 > 3) and (2 < 4)")
