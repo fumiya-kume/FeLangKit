@@ -403,7 +403,7 @@ struct UnicodeNormalizationTests {
         #expect(result.contains("pi"), "π should be normalized to pi")
         #expect(result.contains("*"), "× should be normalized to *")
         #expect(result.contains("alpha"), "α should be normalized to alpha")
-        #expect(result.contains("/"), "÷ should be normalized to /")
+        #expect(result.contains("÷"), "÷ should be preserved as a valid division operator")
         #expect(result.contains("beta"), "β should be normalized to beta")
         #expect(result.contains("~="), "≈ should be normalized to ~=")
         #expect(result.contains("infinity"), "∞ should be normalized to infinity")

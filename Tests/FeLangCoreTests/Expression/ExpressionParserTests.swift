@@ -74,6 +74,12 @@ struct ExpressionParserTests {
         #expect(expr == expected)
     }
 
+    @Test func testDivisionWithUnicodeOperator() throws {
+        let expr = try parseExpression("10 ÷ 2")
+        let expected = Expression.binary(.divide, .literal(.integer(10)), .literal(.integer(2)))
+        #expect(expr == expected)
+    }
+
     @Test func testModulo() throws {
         let expr = try parseExpression("7 % 3")
         let expected = Expression.binary(.modulo, .literal(.integer(7)), .literal(.integer(3)))

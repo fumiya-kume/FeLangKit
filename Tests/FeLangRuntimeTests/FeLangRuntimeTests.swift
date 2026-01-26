@@ -357,6 +357,15 @@ struct ExpressionEvaluatorTests {
         #expect(result == .integer(3))
     }
 
+    @Test func testDivideWithUnicodeOperator() throws {
+        let evaluator = makeEvaluator()
+        let tokens = try ParsingTokenizer.tokenize("10 ÷ 3")
+        let parser = ExpressionParser()
+        let expr = try parser.parseExpression(from: tokens)
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(3))
+    }
+
     @Test func testDivideByZeroError() throws {
         let evaluator = makeEvaluator()
         let expr = Expression.binary(.divide, .literal(.integer(10)), .literal(.integer(0)))

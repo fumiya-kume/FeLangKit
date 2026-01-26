@@ -90,6 +90,7 @@ public enum TokenizerUtilities {
         ("-", .minus),
         ("*", .multiply),
         ("/", .divide),
+        ("÷", .divide),
         ("%", .modulo),
         ("=", .equal),
         (">", .greater),
