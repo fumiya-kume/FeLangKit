@@ -249,4 +249,18 @@ struct LogicalOperatorE2ETests {
         #expect(lines[0].contains("false"))
         #expect(lines[1].contains("true"))
     }
+
+    // MARK: - Boolean Type Alias Tests
+
+    @Test("ブール type alias: variable declaration and not operator")
+    func testBoolTypeAliasWithNotOperator() throws {
+        let code = """
+        変数 b: ブール ← false
+        if not b then
+            println("ok")
+        endif
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.contains("ok"))
+    }
 }
