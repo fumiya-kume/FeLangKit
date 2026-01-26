@@ -143,6 +143,8 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         case .classDeclaration:
             // Class declarations are handled at type level, not symbol level
             break
+        case .globalDeclaration(let decl):
+            collectSymbolsFromGlobalDeclaration(decl)
         case .assignment, .expressionStatement, .returnStatement, .breakStatement, .continueStatement:
             // These don't declare new symbols
             break
@@ -177,6 +179,24 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             kind: .constant,
             position: position,
             isInitialized: true
+        )
+
+        if case .failure(let error) = result {
+            errorReporter.collect(error)
+        }
+    }
+
+    private func collectSymbolsFromGlobalDeclaration(_ decl: GlobalDeclaration) {
+        let feType = convertDataTypeToFeType(decl.type)
+        let position = decl.position ?? SourcePosition(line: 0, column: 0, offset: 0)
+        let isInitialized = decl.initialValue != nil
+
+        let result = symbolTable.declare(
+            name: decl.name,
+            type: feType,
+            kind: .variable,
+            position: position,
+            isInitialized: isInitialized
         )
 
         if case .failure(let error) = result {
@@ -424,6 +444,8 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         case .classDeclaration:
             // Class type declarations don't need type checking here
             break
+        case .globalDeclaration(let decl):
+            typeCheckGlobalDeclaration(decl)
         case .breakStatement, .continueStatement:
             // No type checking needed
             break
@@ -447,6 +469,20 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     private func typeCheckConstantDeclaration(_ decl: ConstantDeclaration) {
         let expectedType = convertDataTypeToFeType(decl.type)
         let actualType = inferExpressionType(decl.initialValue)
+
+        if !actualType.canAssignTo(expectedType) {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.typeMismatch(expected: expectedType, actual: actualType, position: position))
+        }
+    }
+
+    private func typeCheckGlobalDeclaration(_ decl: GlobalDeclaration) {
+        guard let initialValue = decl.initialValue else {
+            return
+        }
+
+        let expectedType = convertDataTypeToFeType(decl.type)
+        let actualType = inferExpressionType(initialValue)
 
         if !actualType.canAssignTo(expectedType) {
             let position = SourcePosition(line: 0, column: 0, offset: 0)
@@ -1078,7 +1114,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         case .classDeclaration:
             // Class declarations are validated separately
             break
-        case .variableDeclaration, .constantDeclaration, .assignment, .expressionStatement:
+        case .variableDeclaration, .constantDeclaration, .globalDeclaration, .assignment, .expressionStatement:
             // These are validated in type checking pass
             break
         }

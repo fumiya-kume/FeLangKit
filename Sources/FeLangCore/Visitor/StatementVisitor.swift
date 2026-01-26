@@ -71,6 +71,9 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
     /// Visits class declarations.
     public let visitClassDeclaration: @Sendable (ClassDeclaration) -> Result
 
+    /// Visits global declarations.
+    public let visitGlobalDeclaration: @Sendable (GlobalDeclaration) -> Result
+
     // MARK: - Initialization
 
     /// Creates a new statement visitor with the specified visit closures.
@@ -89,7 +92,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         visitContinueStatement: @escaping @Sendable () -> Result,
         visitBlock: @escaping @Sendable ([Statement]) -> Result,
         visitRecordDeclaration: @escaping @Sendable (RecordDeclaration) -> Result,
-        visitClassDeclaration: @escaping @Sendable (ClassDeclaration) -> Result
+        visitClassDeclaration: @escaping @Sendable (ClassDeclaration) -> Result,
+        visitGlobalDeclaration: @escaping @Sendable (GlobalDeclaration) -> Result
     ) {
         self.visitIfStatement = visitIfStatement
         self.visitWhileStatement = visitWhileStatement
@@ -106,6 +110,7 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         self.visitBlock = visitBlock
         self.visitRecordDeclaration = visitRecordDeclaration
         self.visitClassDeclaration = visitClassDeclaration
+        self.visitGlobalDeclaration = visitGlobalDeclaration
     }
 
     // MARK: - Visit Method
@@ -145,6 +150,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
             return visitRecordDeclaration(recordDecl)
         case .classDeclaration(let classDecl):
             return visitClassDeclaration(classDecl)
+        case .globalDeclaration(let globalDecl):
+            return visitGlobalDeclaration(globalDecl)
         }
     }
 }

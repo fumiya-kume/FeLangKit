@@ -320,6 +320,9 @@ public struct PrettyPrinter {
 
         case .classDeclaration(let classDecl):
             return printClassDeclaration(classDecl, indent: indent)
+
+        case .globalDeclaration(let globalDecl):
+            return indentStr + printGlobalDeclaration(globalDecl)
         }
     }
 
@@ -405,6 +408,14 @@ public struct PrettyPrinter {
 
     private func printConstantDeclaration(_ constDecl: ConstantDeclaration) -> String {
         return "定数 \(constDecl.name): \(printDataType(constDecl.type)) ← \(printExpression(constDecl.initialValue))"
+    }
+
+    private func printGlobalDeclaration(_ globalDecl: GlobalDeclaration) -> String {
+        var result = "大域: \(printDataType(globalDecl.type)): \(globalDecl.name)"
+        if let initialValue = globalDecl.initialValue {
+            result += " ← \(printExpression(initialValue))"
+        }
+        return result
     }
 
     private func printFunctionDeclaration(_ funcDecl: FunctionDeclaration, indent: Int) -> String {

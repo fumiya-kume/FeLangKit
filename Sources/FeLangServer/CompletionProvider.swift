@@ -51,7 +51,10 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "でなければ", kind: .keyword, detail: "Else clause"),
         CompletionItem(label: "を実行", kind: .keyword, detail: "End if statement"),
         CompletionItem(label: "繰り返し", kind: .keyword, detail: "ループ (while)", insertText: "繰り返し "),
-        CompletionItem(label: "を繰り返す", kind: .keyword, detail: "End while loop")
+        CompletionItem(label: "を繰り返す", kind: .keyword, detail: "End while loop"),
+
+        // Global declaration
+        CompletionItem(label: "大域", kind: .keyword, detail: "グローバル変数宣言 (global)", insertText: "大域: ")
     ]
 
     /// FE data types
@@ -293,7 +296,9 @@ public struct CompletionProvider: Sendable {
             // Japanese type names
             "整数型", "実数型", "文字列型", "文字型", "論理型", "配列型",
             // Undefined keyword
-            "未定義"
+            "未定義",
+            // Global declaration keyword
+            "大域"
         ])
         return keywords.contains(word.lowercased()) || keywords.contains(word)
     }

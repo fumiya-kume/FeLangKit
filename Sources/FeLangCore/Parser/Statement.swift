@@ -12,6 +12,7 @@ public indirect enum Statement: Equatable, Codable, Sendable {
     case variableDeclaration(VariableDeclaration)
     case constantDeclaration(ConstantDeclaration)
     case recordDeclaration(RecordDeclaration)
+    case globalDeclaration(GlobalDeclaration)
 
     // Function/Procedure
     case functionDeclaration(FunctionDeclaration)
@@ -256,6 +257,23 @@ public struct ConstantDeclaration: Equatable, Codable, Sendable {
     public let position: SourcePosition?
 
     public init(name: String, type: DataType, initialValue: Expression, position: SourcePosition? = nil) {
+        self.name = name
+        self.type = type
+        self.initialValue = initialValue
+        self.position = position
+    }
+}
+
+/// Represents a global variable declaration.
+/// A global declaration defines a variable in the global scope that can be accessed from functions and procedures.
+/// Syntax: `大域: 型: 変数名 [← 初期値]`
+public struct GlobalDeclaration: Equatable, Codable, Sendable {
+    public let name: String
+    public let type: DataType
+    public let initialValue: Expression?
+    public let position: SourcePosition?
+
+    public init(name: String, type: DataType, initialValue: Expression? = nil, position: SourcePosition? = nil) {
         self.name = name
         self.type = type
         self.initialValue = initialValue

@@ -910,4 +910,100 @@ struct StatementParserTests {
             return
         }
     }
+
+    // MARK: - Global Declaration Tests
+
+    @Test("Basic Global Declaration")
+    func testBasicGlobalDeclaration() throws {
+        let statements = try parseStatements("大域: 整数型: count")
+
+        #expect(statements.count == 1)
+        guard case .globalDeclaration(let globalDecl) = statements[0] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+
+        #expect(globalDecl.name == "count")
+        #expect(globalDecl.type == .integer)
+        #expect(globalDecl.initialValue == nil)
+    }
+
+    @Test("Global Declaration with Initial Value")
+    func testGlobalDeclarationWithInitialValue() throws {
+        let statements = try parseStatements("大域: 整数型: count ← 0")
+
+        #expect(statements.count == 1)
+        guard case .globalDeclaration(let globalDecl) = statements[0] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+
+        #expect(globalDecl.name == "count")
+        #expect(globalDecl.type == .integer)
+        #expect(globalDecl.initialValue == .literal(.integer(0)))
+    }
+
+    @Test("Global Declaration with String Type")
+    func testGlobalDeclarationWithStringType() throws {
+        let statements = try parseStatements("大域: 文字列型: name ← \"default\"")
+
+        #expect(statements.count == 1)
+        guard case .globalDeclaration(let globalDecl) = statements[0] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+
+        #expect(globalDecl.name == "name")
+        #expect(globalDecl.type == .string)
+        #expect(globalDecl.initialValue == .literal(.string("default")))
+    }
+
+    @Test("Global Declaration with Real Type")
+    func testGlobalDeclarationWithRealType() throws {
+        let statements = try parseStatements("大域: 実数型: pi ← 3.14159")
+
+        #expect(statements.count == 1)
+        guard case .globalDeclaration(let globalDecl) = statements[0] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+
+        #expect(globalDecl.name == "pi")
+        #expect(globalDecl.type == .real)
+        #expect(globalDecl.initialValue == .literal(.real(3.14159)))
+    }
+
+    @Test("Multiple Global Declarations")
+    func testMultipleGlobalDeclarations() throws {
+        let input = """
+        大域: 整数型: count ← 0
+        大域: 文字列型: name
+        大域: 論理型: flag ← true
+        """
+        let statements = try parseStatements(input)
+
+        #expect(statements.count == 3)
+
+        guard case .globalDeclaration(let globalDecl1) = statements[0] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+        #expect(globalDecl1.name == "count")
+        #expect(globalDecl1.type == .integer)
+
+        guard case .globalDeclaration(let globalDecl2) = statements[1] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+        #expect(globalDecl2.name == "name")
+        #expect(globalDecl2.type == .string)
+        #expect(globalDecl2.initialValue == nil)
+
+        guard case .globalDeclaration(let globalDecl3) = statements[2] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+        #expect(globalDecl3.name == "flag")
+        #expect(globalDecl3.type == .boolean)
+    }
 }

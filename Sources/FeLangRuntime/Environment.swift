@@ -94,6 +94,37 @@ public final class Environment: @unchecked Sendable {
 
     // MARK: - Variable Operations
 
+    /// Defines a new variable in the global (first) scope.
+    ///
+    /// - Parameters:
+    ///   - name: The variable name
+    ///   - value: The initial value
+    ///   - type: Optional declared type for type checking
+    ///   - isInitialized: Whether the variable is initialized (default: true)
+    ///
+    /// - Note: This method always defines the variable in the first (global) scope,
+    ///   regardless of the current scope depth. This is used for global variable
+    ///   declarations that should be accessible from all scopes.
+    public func defineGlobal(
+        _ name: String,
+        value: RuntimeValue,
+        type: DataType? = nil,
+        isInitialized: Bool = true
+    ) {
+        guard !scopes.isEmpty else { return }
+        scopes[0].variables[name] = value
+        if let type = type {
+            scopes[0].types[name] = type
+        } else {
+            scopes[0].types.removeValue(forKey: name)
+        }
+        if isInitialized {
+            scopes[0].uninitialized.remove(name)
+        } else {
+            scopes[0].uninitialized.insert(name)
+        }
+    }
+
     /// Defines a new variable in the current scope.
     ///
     /// - Parameters:

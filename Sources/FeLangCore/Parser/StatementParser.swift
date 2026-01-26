@@ -86,6 +86,8 @@ public struct StatementParser {
             return .variableDeclaration(try parseVariableDeclaration(&parser))
         case .constantKeyword:
             return .constantDeclaration(try parseConstantDeclaration(&parser))
+        case .globalKeyword:
+            return .globalDeclaration(try parseGlobalDeclaration(&parser))
         case .functionKeyword:
             return .functionDeclaration(try parseFunctionDeclaration(&parser, nestingDepth: nestingDepth))
         case .procedureKeyword:
@@ -429,6 +431,35 @@ public struct StatementParser {
             type: components.type,
             initialValue: initialValue,
             position: components.position
+        )
+    }
+
+    /// Parses a global variable declaration (大域: 型: 変数名 [← 初期値]).
+    private func parseGlobalDeclaration(_ parser: inout TokenStream) throws -> GlobalDeclaration {
+        let position = parser.peek()?.position
+
+        try expectToken(&parser, .globalKeyword)
+        try expectToken(&parser, .colon)
+
+        let type = try parseDataType(&parser)
+        try expectToken(&parser, .colon)
+
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw StatementParsingError.expectedIdentifier
+        }
+        let name = nameToken.lexeme
+
+        var initialValue: Expression?
+        if parser.peek()?.type == .assign {
+            _ = parser.advance()
+            initialValue = try parseExpression(&parser)
+        }
+
+        return GlobalDeclaration(
+            name: name,
+            type: type,
+            initialValue: initialValue,
+            position: position
         )
     }
 
@@ -1032,7 +1063,8 @@ public struct StatementParser {
 
         // Declaration statements
         case .variableKeyword,  // Variable declarations: 変数 name: type ← value
-             .constantKeyword:  // Constant declarations: 定数 name: type ← value
+             .constantKeyword,  // Constant declarations: 定数 name: type ← value
+             .globalKeyword:    // Global declarations: 大域: 型: 変数名
             return true
 
         // Function/procedure/class declarations
