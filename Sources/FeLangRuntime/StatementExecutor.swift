@@ -658,8 +658,10 @@ public final class StatementExecutor: @unchecked Sendable {
         var fields: [String: RuntimeValue] = [:]
 
         // Merge superclass members first (inheritance)
-        if let superclassName = classDef.superclassName,
-           let superclassDef = environment.lookupClassDefinition(superclassName) {
+        if let superclassName = classDef.superclassName {
+            guard let superclassDef = environment.lookupClassDefinition(superclassName) else {
+                throw RuntimeError.generic(message: "Superclass '\(superclassName)' not found for class '\(classDef.name)'")
+            }
             // Recursively collect all inherited members from the superclass chain
             var visited: Set<String> = [classDef.name]
             let inheritedMembers = try collectInheritedMembers(from: superclassDef, visited: &visited)

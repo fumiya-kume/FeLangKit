@@ -1271,4 +1271,29 @@ struct ClassInheritanceTests {
             #expect(error.description.contains("Circular inheritance"))
         }
     }
+
+    @Test func testUndefinedSuperclassError() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define class that extends a non-existent superclass
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "NonExistentAnimal",
+            members: [MemberDeclaration(name: "breed", type: .string)],
+            constructor: nil,
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        // Attempting to create an instance should throw a superclass not found error
+        do {
+            _ = try executor.callFunction("Dog", arguments: [])
+            Issue.record("Expected superclass not found error")
+        } catch let error as RuntimeError {
+            #expect(error.description.contains("Superclass"))
+            #expect(error.description.contains("not found"))
+        }
+    }
 }
