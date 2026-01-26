@@ -147,11 +147,17 @@ public enum TokenizerCore {
             if nextIndex < input.endIndex {
                 let nextChar = input[nextIndex]
                 if nextChar == "x" || nextChar == "X" {
-                    return parseHexadecimalNumber(from: input, at: &index, start: start)
+                    if let result = parseHexadecimalNumber(from: input, at: &index, start: start) {
+                        return result
+                    }
                 } else if nextChar == "b" || nextChar == "B" {
-                    return parseBinaryNumber(from: input, at: &index, start: start)
+                    if let result = parseBinaryNumber(from: input, at: &index, start: start) {
+                        return result
+                    }
                 } else if nextChar == "o" || nextChar == "O" {
-                    return parseOctalNumber(from: input, at: &index, start: start)
+                    if let result = parseOctalNumber(from: input, at: &index, start: start) {
+                        return result
+                    }
                 }
             }
         }
@@ -240,6 +246,7 @@ public enum TokenizerCore {
     /// Parses hexadecimal numbers (0x1234, 0xFF, etc.)
     /// Supports underscore separators for readability (0x12_34_AB_CD)
     public static func parseHexadecimalNumber(from input: String, at index: inout String.Index, start: String.Index) -> TokenData? {
+        let savedIndex = index
         index = input.index(after: index) // consume '0'
         index = input.index(after: index) // consume 'x' or 'X'
 
@@ -247,6 +254,7 @@ public enum TokenizerCore {
         guard index < input.endIndex,
               let firstScalar = String(input[index]).unicodeScalars.first,
               TokenizerUtilities.isHexDigit(firstScalar) || input[index] == "_" else {
+            index = savedIndex
             return nil
         }
 
@@ -267,6 +275,7 @@ public enum TokenizerCore {
     /// Parses binary numbers (0b1010, 0B1111, etc.)
     /// Supports underscore separators for readability (0b1010_1010)
     public static func parseBinaryNumber(from input: String, at index: inout String.Index, start: String.Index) -> TokenData? {
+        let savedIndex = index
         index = input.index(after: index) // consume '0'
         index = input.index(after: index) // consume 'b' or 'B'
 
@@ -274,6 +283,7 @@ public enum TokenizerCore {
         guard index < input.endIndex,
               let firstScalar = String(input[index]).unicodeScalars.first,
               TokenizerUtilities.isBinaryDigit(firstScalar) || input[index] == "_" else {
+            index = savedIndex
             return nil
         }
 
@@ -294,6 +304,7 @@ public enum TokenizerCore {
     /// Parses octal numbers (0o777, 0O123, etc.)
     /// Supports underscore separators for readability (0o12_34_56)
     public static func parseOctalNumber(from input: String, at index: inout String.Index, start: String.Index) -> TokenData? {
+        let savedIndex = index
         index = input.index(after: index) // consume '0'
         index = input.index(after: index) // consume 'o' or 'O'
 
@@ -301,6 +312,7 @@ public enum TokenizerCore {
         guard index < input.endIndex,
               let firstScalar = String(input[index]).unicodeScalars.first,
               TokenizerUtilities.isOctalDigit(firstScalar) || input[index] == "_" else {
+            index = savedIndex
             return nil
         }
 
@@ -345,6 +357,7 @@ public enum TokenizerCore {
 
         // Check for scientific notation
         if index < input.endIndex && (input[index] == "e" || input[index] == "E") {
+            let savedIndex = index // Save position before consuming 'e'/'E'
             index = input.index(after: index) // consume 'e' or 'E'
 
             // Optional sign
@@ -353,16 +366,17 @@ public enum TokenizerCore {
             }
 
             // Must have at least one digit in exponent
-            guard index < input.endIndex && (input[index].isNumber || input[index] == "_") else {
-                return nil // Invalid scientific notation
-            }
+            if index < input.endIndex && (input[index].isNumber || input[index] == "_") {
+                // Read exponent digits (including underscores)
+                while index < input.endIndex && (input[index].isNumber || input[index] == "_") {
+                    index = input.index(after: index)
+                }
 
-            // Read exponent digits (including underscores)
-            while index < input.endIndex && (input[index].isNumber || input[index] == "_") {
-                index = input.index(after: index)
+                hasDecimal = true // Scientific notation is always real
+            } else {
+                // Invalid scientific notation - backtrack to before 'e'/'E'
+                index = savedIndex
             }
-
-            hasDecimal = true // Scientific notation is always real
         }
 
         let lexeme = String(input[start..<index])

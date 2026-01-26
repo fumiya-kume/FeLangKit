@@ -47,23 +47,59 @@ struct EnhancedNumberTests {
     }
 
     @Test func testInvalidScientificNotation() throws {
-        // ParsingTokenizer does not throw errors for invalid scientific notation.
-        // Instead, it silently consumes the prefix or splits into multiple tokens.
+        // Invalid scientific notation backtracks to before 'e'/'E',
+        // producing the number without the exponent part.
 
-        // Cases where the entire input is consumed silently (only eof produced)
-        let silentlyConsumedCases = ["1e", "1E", "1e+", "1e-"]
-        for input in silentlyConsumedCases {
-            let tokens = try ParsingTokenizer.tokenize(input)
-            #expect(tokens.count == 1, "Expected only eof for input: '\(input)'")
-            #expect(tokens[0].type == .eof)
+        // "1e" => integerLiteral("1") + identifier("e") + eof
+        do {
+            let tokens = try ParsingTokenizer.tokenize("1e")
+            #expect(tokens.count == 3)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "1")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "e")
         }
 
-        // "1ee5" => the "1e" prefix is consumed, then "e5" is parsed as identifier
+        // "1E" => integerLiteral("1") + identifier("E") + eof
+        do {
+            let tokens = try ParsingTokenizer.tokenize("1E")
+            #expect(tokens.count == 3)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "1")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "E")
+        }
+
+        // "1e+" => integerLiteral("1") + identifier("e") + plus + eof
+        do {
+            let tokens = try ParsingTokenizer.tokenize("1e+")
+            #expect(tokens.count == 4)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "1")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "e")
+            #expect(tokens[2].type == .plus)
+        }
+
+        // "1e-" => integerLiteral("1") + identifier("e") + minus + eof
+        do {
+            let tokens = try ParsingTokenizer.tokenize("1e-")
+            #expect(tokens.count == 4)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "1")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "e")
+            #expect(tokens[2].type == .minus)
+        }
+
+        // "1ee5" => integerLiteral("1") + identifier("ee5") + eof
         do {
             let tokens = try ParsingTokenizer.tokenize("1ee5")
-            #expect(tokens.count == 2) // identifier('e5') + eof
-            #expect(tokens[0].type == .identifier)
-            #expect(tokens[0].lexeme == "e5")
+            #expect(tokens.count == 3)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "1")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "ee5")
         }
 
         // "1e5e" => "1e5" is a valid realLiteral, then "e" is an identifier
@@ -118,31 +154,47 @@ struct EnhancedNumberTests {
     }
 
     @Test func testInvalidHexadecimalNumbers() throws {
-        // ParsingTokenizer does not throw errors for invalid hex numbers.
-        // Instead, it silently consumes the "0x" prefix or splits into multiple tokens.
+        // Invalid hex prefix backtracks, falling through to decimal parsing.
+        // "0" is parsed as integerLiteral, then "x"/remaining as identifier.
 
-        // Cases where the "0x"/"0X" prefix is consumed silently (only eof produced)
-        let silentlyConsumedCases = ["0x", "0X"]
-        for input in silentlyConsumedCases {
-            let tokens = try ParsingTokenizer.tokenize(input)
-            #expect(tokens.count == 1, "Expected only eof for input: '\(input)'")
-            #expect(tokens[0].type == .eof)
+        // "0x" => integerLiteral("0") + identifier("x") + eof
+        do {
+            let tokens = try ParsingTokenizer.tokenize("0x")
+            #expect(tokens.count == 3)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "0")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "x")
         }
 
-        // "0xG" => "0x" consumed, "G" parsed as identifier
+        // "0X" => integerLiteral("0") + identifier("X") + eof
+        do {
+            let tokens = try ParsingTokenizer.tokenize("0X")
+            #expect(tokens.count == 3)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "0")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "X")
+        }
+
+        // "0xG" => integerLiteral("0") + identifier("xG") + eof
         do {
             let tokens = try ParsingTokenizer.tokenize("0xG")
-            #expect(tokens.count == 2) // identifier('G') + eof
-            #expect(tokens[0].type == .identifier)
-            #expect(tokens[0].lexeme == "G")
+            #expect(tokens.count == 3)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "0")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "xG")
         }
 
-        // "0xZ123" => "0x" consumed, "Z123" parsed as identifier
+        // "0xZ123" => integerLiteral("0") + identifier("xZ123") + eof
         do {
             let tokens = try ParsingTokenizer.tokenize("0xZ123")
-            #expect(tokens.count == 2) // identifier('Z123') + eof
-            #expect(tokens[0].type == .identifier)
-            #expect(tokens[0].lexeme == "Z123")
+            #expect(tokens.count == 3)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "0")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "xZ123")
         }
 
         // "0x12G3" => "0x12" is valid hex, "G3" parsed as identifier
@@ -194,23 +246,37 @@ struct EnhancedNumberTests {
     }
 
     @Test func testInvalidBinaryNumbers() throws {
-        // ParsingTokenizer does not throw errors for invalid binary numbers.
-        // Instead, it silently consumes the "0b" prefix or splits into multiple tokens.
+        // Invalid binary prefix backtracks, falling through to decimal parsing.
+        // "0" is parsed as integerLiteral, then "b"/remaining as identifier.
 
-        // Cases where the "0b"/"0B" prefix is consumed silently (only eof produced)
-        let silentlyConsumedCases = ["0b", "0B"]
-        for input in silentlyConsumedCases {
-            let tokens = try ParsingTokenizer.tokenize(input)
-            #expect(tokens.count == 1, "Expected only eof for input: '\(input)'")
-            #expect(tokens[0].type == .eof)
+        // "0b" => integerLiteral("0") + identifier("b") + eof
+        do {
+            let tokens = try ParsingTokenizer.tokenize("0b")
+            #expect(tokens.count == 3)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "0")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "b")
         }
 
-        // "0b2" => "0b" consumed, "2" parsed as integer
+        // "0B" => integerLiteral("0") + identifier("B") + eof
+        do {
+            let tokens = try ParsingTokenizer.tokenize("0B")
+            #expect(tokens.count == 3)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "0")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "B")
+        }
+
+        // "0b2" => integerLiteral("0") + identifier("b2") + eof
         do {
             let tokens = try ParsingTokenizer.tokenize("0b2")
-            #expect(tokens.count == 2) // integerLiteral('2') + eof
+            #expect(tokens.count == 3)
             #expect(tokens[0].type == .integerLiteral)
-            #expect(tokens[0].lexeme == "2")
+            #expect(tokens[0].lexeme == "0")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "b2")
         }
 
         // "0b102" => "0b10" is valid binary, "2" parsed as integer
@@ -271,23 +337,37 @@ struct EnhancedNumberTests {
     }
 
     @Test func testInvalidOctalNumbers() throws {
-        // ParsingTokenizer does not throw errors for invalid octal numbers.
-        // Instead, it silently consumes the "0o" prefix or splits into multiple tokens.
+        // Invalid octal prefix backtracks, falling through to decimal parsing.
+        // "0" is parsed as integerLiteral, then "o"/remaining as identifier.
 
-        // Cases where the "0o"/"0O" prefix is consumed silently (only eof produced)
-        let silentlyConsumedCases = ["0o", "0O"]
-        for input in silentlyConsumedCases {
-            let tokens = try ParsingTokenizer.tokenize(input)
-            #expect(tokens.count == 1, "Expected only eof for input: '\(input)'")
-            #expect(tokens[0].type == .eof)
+        // "0o" => integerLiteral("0") + identifier("o") + eof
+        do {
+            let tokens = try ParsingTokenizer.tokenize("0o")
+            #expect(tokens.count == 3)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "0")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "o")
         }
 
-        // "0o8" => "0o" consumed, "8" parsed as integer
+        // "0O" => integerLiteral("0") + identifier("O") + eof
+        do {
+            let tokens = try ParsingTokenizer.tokenize("0O")
+            #expect(tokens.count == 3)
+            #expect(tokens[0].type == .integerLiteral)
+            #expect(tokens[0].lexeme == "0")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "O")
+        }
+
+        // "0o8" => integerLiteral("0") + identifier("o8") + eof
         do {
             let tokens = try ParsingTokenizer.tokenize("0o8")
-            #expect(tokens.count == 2) // integerLiteral('8') + eof
+            #expect(tokens.count == 3)
             #expect(tokens[0].type == .integerLiteral)
-            #expect(tokens[0].lexeme == "8")
+            #expect(tokens[0].lexeme == "0")
+            #expect(tokens[1].type == .identifier)
+            #expect(tokens[1].lexeme == "o8")
         }
 
         // "0o789" => "0o7" is valid octal, "89" parsed as integer
