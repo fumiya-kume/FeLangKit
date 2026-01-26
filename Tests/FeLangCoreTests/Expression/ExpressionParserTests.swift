@@ -97,6 +97,17 @@ struct ExpressionParserTests {
         #expect(expr == expected)
     }
 
+    @Test func testModKeywordPrecedence() throws {
+        // 10 + 7 mod 3 should be parsed as 10 + (7 mod 3) since mod has same precedence as * and /
+        let expr = try parseExpression("10 + 7 mod 3")
+        let expected = Expression.binary(
+            .add,
+            .literal(.integer(10)),
+            .binary(.modulo, .literal(.integer(7)), .literal(.integer(3)))
+        )
+        #expect(expr == expected)
+    }
+
     // MARK: - Precedence Tests
 
     @Test func testArithmeticPrecedence() throws {
