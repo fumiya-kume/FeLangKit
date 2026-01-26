@@ -853,10 +853,11 @@ public struct StatementParser {
         // Get the starting position
         let startIndex = parser.index
 
-        // Find the end of the expression using balanced parentheses/brackets
+        // Find the end of the expression using balanced parentheses/brackets/braces
         var endIndex = startIndex
         var parenDepth = 0
         var bracketDepth = 0
+        var braceDepth = 0
 
         // Scan forward to find expression boundary
         var scanIndex = startIndex
@@ -870,7 +871,7 @@ public struct StatementParser {
                 break
             }
 
-            // Track parentheses and bracket depth
+            // Track parentheses, bracket, and brace depth
             if tokenType == .leftParen {
                 parenDepth += 1
             } else if tokenType == .rightParen {
@@ -887,16 +888,24 @@ public struct StatementParser {
                     endIndex = scanIndex
                     break
                 }
+            } else if tokenType == .leftBrace {
+                braceDepth += 1
+            } else if tokenType == .rightBrace {
+                braceDepth -= 1
+                if braceDepth < 0 {
+                    endIndex = scanIndex
+                    break
+                }
             }
 
-            // Stop at statement terminators only when we're not inside parentheses/brackets
-            if parenDepth == 0 && bracketDepth == 0 && isStatementTerminator(tokenType) {
+            // Stop at statement terminators only when we're not inside parentheses/brackets/braces
+            if parenDepth == 0 && bracketDepth == 0 && braceDepth == 0 && isStatementTerminator(tokenType) {
                 endIndex = scanIndex
                 break
             }
 
             // Also stop if we detect the start of a new statement (when newlines are filtered out)
-            if parenDepth == 0 && bracketDepth == 0 && scanIndex > startIndex && isStartOfNewStatement(parser, at: scanIndex) {
+            if parenDepth == 0 && bracketDepth == 0 && braceDepth == 0 && scanIndex > startIndex && isStartOfNewStatement(parser, at: scanIndex) {
                 endIndex = scanIndex
                 break
             }

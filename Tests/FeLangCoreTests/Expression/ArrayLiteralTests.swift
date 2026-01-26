@@ -306,4 +306,46 @@ struct ArrayLiteralTests {
             return
         }
     }
+
+    // MARK: - Mixed Bracket-Brace Nesting Tests
+
+    @Test func bracketContainingBraceArrays() throws {
+        let expr = try parseExpression("[{1, 2}, {3, 4}]")
+
+        guard case .arrayLiteral(let elements) = expr else {
+            Issue.record("Expected arrayLiteral but got \(expr)")
+            return
+        }
+
+        #expect(elements.count == 2)
+
+        guard case .arrayLiteral(let firstArray) = elements[0],
+              case .arrayLiteral(let secondArray) = elements[1] else {
+            Issue.record("Expected nested array literals")
+            return
+        }
+
+        #expect(firstArray.count == 2)
+        #expect(secondArray.count == 2)
+    }
+
+    @Test func braceContainingBracketArrays() throws {
+        let expr = try parseExpression("{[1, 2], [3, 4]}")
+
+        guard case .arrayLiteral(let elements) = expr else {
+            Issue.record("Expected arrayLiteral but got \(expr)")
+            return
+        }
+
+        #expect(elements.count == 2)
+
+        guard case .arrayLiteral(let firstArray) = elements[0],
+              case .arrayLiteral(let secondArray) = elements[1] else {
+            Issue.record("Expected nested array literals")
+            return
+        }
+
+        #expect(firstArray.count == 2)
+        #expect(secondArray.count == 2)
+    }
 }
