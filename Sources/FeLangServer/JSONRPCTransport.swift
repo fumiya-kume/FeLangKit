@@ -191,6 +191,7 @@ public protocol JSONRPCTransport: Sendable {
 
 // MARK: - Standard I/O Transport
 
+#if !os(iOS) && !os(tvOS) && !os(watchOS)
 /// JSON-RPC transport using stdin/stdout.
 public actor StdioTransport: JSONRPCTransport {
     private let encoder = JSONEncoder()
@@ -282,6 +283,7 @@ public actor StdioTransport: JSONRPCTransport {
         }
     }
 }
+#endif
 
 // MARK: - Codable Extensions
 
