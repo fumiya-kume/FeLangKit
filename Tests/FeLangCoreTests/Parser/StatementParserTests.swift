@@ -213,6 +213,119 @@ struct StatementParserTests {
         #expect(whileStmt.body.count == 1)
     }
 
+    // MARK: - DO-WHILE Statement Tests
+
+    @Test("Basic DO-WHILE Statement")
+    func testBasicDoWhileStatement() throws {
+        let statements = try parseStatements("do i ← i + 1 while (i < 10)")
+
+        #expect(statements.count == 1)
+        guard case .doWhileStatement(let doWhileStmt) = statements[0] else {
+            #expect(Bool(false), "Expected DO-WHILE statement")
+            return
+        }
+
+        #expect(doWhileStmt.condition == .binary(.less, .identifier("i"), .literal(.integer(10))))
+        #expect(doWhileStmt.body.count == 1)
+    }
+
+    @Test("DO-WHILE Statement with Multiple Body Statements")
+    func testDoWhileStatementWithMultipleBodyStatements() throws {
+        let input = """
+        do
+            x ← x + 1
+            writeLine(x)
+        while (x < 5)
+        """
+        let statements = try parseStatements(input)
+
+        #expect(statements.count == 1)
+        guard case .doWhileStatement(let doWhileStmt) = statements[0] else {
+            #expect(Bool(false), "Expected DO-WHILE statement")
+            return
+        }
+
+        #expect(doWhileStmt.body.count == 2)
+        #expect(doWhileStmt.condition == .binary(.less, .identifier("x"), .literal(.integer(5))))
+    }
+
+    @Test("DO-WHILE Statement with Complex Condition")
+    func testDoWhileStatementWithComplexCondition() throws {
+        let statements = try parseStatements("do x ← x + 1 while (x < 10 and y > 0)")
+
+        #expect(statements.count == 1)
+        guard case .doWhileStatement(let doWhileStmt) = statements[0] else {
+            #expect(Bool(false), "Expected DO-WHILE statement")
+            return
+        }
+
+        guard case .binary(.and, _, _) = doWhileStmt.condition else {
+            #expect(Bool(false), "Expected AND condition")
+            return
+        }
+    }
+
+    @Test("Nested DO-WHILE Statements")
+    func testNestedDoWhileStatements() throws {
+        let input = """
+        do
+            do
+                x ← x + 1
+            while (x < 5)
+        while (y < 10)
+        """
+        let statements = try parseStatements(input)
+
+        #expect(statements.count == 1)
+        guard case .doWhileStatement(let outerDoWhile) = statements[0] else {
+            #expect(Bool(false), "Expected outer DO-WHILE statement")
+            return
+        }
+
+        #expect(outerDoWhile.body.count == 1)
+        guard case .doWhileStatement(let innerDoWhile) = outerDoWhile.body[0] else {
+            #expect(Bool(false), "Expected inner DO-WHILE statement")
+            return
+        }
+
+        #expect(innerDoWhile.condition == .binary(.less, .identifier("x"), .literal(.integer(5))))
+        #expect(outerDoWhile.condition == .binary(.less, .identifier("y"), .literal(.integer(10))))
+    }
+
+    @Test("DO-WHILE with Nested While Loop")
+    func testDoWhileWithNestedWhileLoop() throws {
+        // This tests that a nested while loop inside do-while is correctly parsed
+        // The parser must distinguish between `while condition do` (nested while loop)
+        // and `while (condition)` (terminating condition of do-while)
+        let input = """
+        do
+            while x < 5 do
+                x ← x + 1
+            endwhile
+        while (y < 10)
+        """
+        let statements = try parseStatements(input)
+
+        #expect(statements.count == 1)
+        guard case .doWhileStatement(let doWhileStmt) = statements[0] else {
+            #expect(Bool(false), "Expected DO-WHILE statement")
+            return
+        }
+
+        // The body should contain the nested while loop
+        #expect(doWhileStmt.body.count == 1)
+        guard case .whileStatement(let nestedWhile) = doWhileStmt.body[0] else {
+            #expect(Bool(false), "Expected nested WHILE statement in do-while body")
+            return
+        }
+
+        // Verify the nested while loop's condition
+        #expect(nestedWhile.condition == .binary(.less, .identifier("x"), .literal(.integer(5))))
+
+        // Verify the do-while's terminating condition
+        #expect(doWhileStmt.condition == .binary(.less, .identifier("y"), .literal(.integer(10))))
+    }
+
     // MARK: - FOR Statement Tests
 
     @Test("Range-based FOR Statement")

@@ -119,6 +119,7 @@ public enum ParsingBoundaryDetection {
         // Control flow statements
         case .ifKeyword,        // IF-THEN-ELSE conditional statements
              .whileKeyword,     // WHILE-DO loop statements
+             .doKeyword,        // DO-WHILE loop statements
              .forKeyword:       // FOR loop statements (range or forEach)
             return true
 
@@ -293,6 +294,8 @@ public enum ParsingBoundaryDetection {
 
     /// Determines if a token marks the start of a block structure
     /// Used for detecting nested control flow structures
+    /// Note: doKeyword is not included because do-while loops have a different termination pattern
+    /// (they end with 'while (condition)' instead of an 'enddo' keyword)
     public static func isBlockStartToken(_ tokenType: TokenType) -> Bool {
         switch tokenType {
         case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword, .classKeyword:

@@ -31,6 +31,9 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
     /// Visits while statements.
     public let visitWhileStatement: @Sendable (WhileStatement) -> Result
 
+    /// Visits do-while statements.
+    public let visitDoWhileStatement: @Sendable (DoWhileStatement) -> Result
+
     /// Visits for statements.
     public let visitForStatement: @Sendable (ForStatement) -> Result
 
@@ -77,6 +80,7 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
     public init(
         visitIfStatement: @escaping @Sendable (IfStatement) -> Result,
         visitWhileStatement: @escaping @Sendable (WhileStatement) -> Result,
+        visitDoWhileStatement: @escaping @Sendable (DoWhileStatement) -> Result,
         visitForStatement: @escaping @Sendable (ForStatement) -> Result,
         visitAssignment: @escaping @Sendable (Assignment) -> Result,
         visitVariableDeclaration: @escaping @Sendable (VariableDeclaration) -> Result,
@@ -93,6 +97,7 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
     ) {
         self.visitIfStatement = visitIfStatement
         self.visitWhileStatement = visitWhileStatement
+        self.visitDoWhileStatement = visitDoWhileStatement
         self.visitForStatement = visitForStatement
         self.visitAssignment = visitAssignment
         self.visitVariableDeclaration = visitVariableDeclaration
@@ -119,6 +124,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
             return visitIfStatement(ifStmt)
         case .whileStatement(let whileStmt):
             return visitWhileStatement(whileStmt)
+        case .doWhileStatement(let doWhileStmt):
+            return visitDoWhileStatement(doWhileStmt)
         case .forStatement(let forStmt):
             return visitForStatement(forStmt)
         case .assignment(let assignment):

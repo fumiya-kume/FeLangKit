@@ -31,6 +31,7 @@ struct VisitableTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -92,6 +93,7 @@ struct VisitableTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { forStmt in
                 switch forStmt {
                 case .range: return "for_range"
@@ -178,6 +180,7 @@ struct VisitableTests {
         let stmtVisitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -219,6 +222,7 @@ struct VisitableTests {
         let stmtVisitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -261,6 +265,7 @@ struct VisitableTests {
         let stmtVisitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },

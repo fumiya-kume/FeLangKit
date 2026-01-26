@@ -17,7 +17,7 @@ public struct HoverProvider: Sendable {
 
         // Loops
         "while": "**while** - While loop\n\nRepeats code while a condition is true.\n\n```fe\nwhile condition do\n    // code\nendwhile\n```",
-        "do": "**do** - Do clause\n\nMarks the beginning of a loop body.",
+        "do": "**do** - Do clause\n\nMarks the beginning of a loop body in while/for loops.\n\nAlso starts a do-while loop:\n\n```fe\ndo\n    // code (executes at least once)\nwhile (condition)\n```",
         "endwhile": "**endwhile** - End while\n\nMarks the end of a while loop.",
         "for": "**for** - For loop\n\nIterates over a range or collection.\n\n```fe\nfor i ← 1 to 10 do\n    // code\nendfor\n```",
         "to": "**to** - Range end\n\nSpecifies the end of a range in a for loop.",

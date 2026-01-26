@@ -50,6 +50,8 @@ public struct StatementParser {
             }
 
             // Track nesting depth for security
+            // Note: doKeyword is not included because do-while loops don't have an enddo keyword
+            // (they terminate with 'while (condition)'), so the depth would never be decremented
             switch token.type {
             case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword, .classKeyword:
                 nestingDepth += 1
@@ -80,6 +82,8 @@ public struct StatementParser {
             return .ifStatement(try parseIfStatement(&parser, nestingDepth: nestingDepth))
         case .whileKeyword:
             return .whileStatement(try parseWhileStatement(&parser, nestingDepth: nestingDepth))
+        case .doKeyword:
+            return .doWhileStatement(try parseDoWhileStatement(&parser, nestingDepth: nestingDepth))
         case .forKeyword:
             return .forStatement(try parseForStatement(&parser, nestingDepth: nestingDepth))
         case .variableKeyword:
@@ -156,6 +160,58 @@ public struct StatementParser {
         try expectToken(&parser, .endwhileKeyword) // consume 'endwhile'
 
         return WhileStatement(condition: condition, body: body)
+    }
+
+    /// Parses a DO-WHILE statement (do ... while (condition)).
+    /// The body is executed at least once, then the condition is checked.
+    /// Uses lookahead to distinguish terminating `while (` from nested `while condition do`.
+    private func parseDoWhileStatement(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> DoWhileStatement {
+        try expectToken(&parser, .doKeyword) // consume 'do'
+
+        let body = try parseDoWhileBody(&parser, nestingDepth: nestingDepth)
+
+        try expectToken(&parser, .whileKeyword) // consume 'while'
+        try expectToken(&parser, .leftParen) // consume '('
+        let condition = try parseExpression(&parser)
+        try expectToken(&parser, .rightParen) // consume ')'
+
+        return DoWhileStatement(body: body, condition: condition)
+    }
+
+    /// Parses the body of a do-while statement until the terminating `while (` is found.
+    /// Distinguishes between terminating `while (` and nested `while condition do` using lookahead.
+    private func parseDoWhileBody(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> [Statement] {
+        // Check nesting depth for security
+        guard nestingDepth < 100 else {
+            throw StatementParsingError.nestingTooDeep
+        }
+
+        var statements: [Statement] = []
+
+        while let token = parser.peek(), token.type != .eof {
+            // Skip newlines and whitespace
+            if token.type == .newline || token.type == .whitespace {
+                _ = parser.advance()
+                continue
+            }
+
+            // Check if this is the terminating `while (` of the do-while
+            // The terminating while is followed by `(`, while a nested while loop
+            // is followed by a condition expression and then `do`
+            if token.type == .whileKeyword {
+                // Lookahead to check if next token is `(`
+                if let nextToken = parser.peek(offset: 1), nextToken.type == .leftParen {
+                    // This is the terminating `while (` - stop parsing body
+                    break
+                }
+                // Otherwise, this is a nested while loop - continue parsing as statement
+            }
+
+            let statement = try parseStatement(&parser, nestingDepth: nestingDepth + 1)
+            statements.append(statement)
+        }
+
+        return statements
     }
 
     /// Parses a FOR statement (range-based or forEach).
@@ -1027,6 +1083,7 @@ public struct StatementParser {
         // Control flow statements
         case .ifKeyword,        // IF-THEN-ELSE conditional statements
              .whileKeyword,     // WHILE-DO loop statements
+             .doKeyword,        // DO-WHILE loop statements
              .forKeyword:       // FOR loop statements (range or forEach)
             return true
 
