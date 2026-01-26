@@ -187,8 +187,14 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     }
 
     private func collectSymbolsFromGlobalDeclaration(_ decl: GlobalDeclaration) {
-        let feType = convertDataTypeToFeType(decl.type)
         let position = decl.position ?? SourcePosition(line: 0, column: 0, offset: 0)
+
+        if symbolTable.isInFunction {
+            errorReporter.collect(.globalDeclarationInsideFunction(position: position))
+            return
+        }
+
+        let feType = convertDataTypeToFeType(decl.type)
         let isInitialized = decl.initialValue != nil
 
         let result = symbolTable.declare(
@@ -485,7 +491,7 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         let actualType = inferExpressionType(initialValue)
 
         if !actualType.canAssignTo(expectedType) {
-            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            let position = decl.position ?? SourcePosition(line: 0, column: 0, offset: 0)
             errorReporter.collect(.typeMismatch(expected: expectedType, actual: actualType, position: position))
         }
     }
