@@ -263,6 +263,22 @@ struct ErrorE2ETests {
         #expect(!result.succeeded)
     }
 
+    // MARK: - Procedure Return Value Tests
+
+    @Test("Procedure returning value causes error")
+    func testProcedureReturnsValue() throws {
+        // Procedure should not return a value
+        let code = """
+        procedure bad()
+            return 1
+        endprocedure
+        bad()
+        """
+        let result = InProcessTestHelper.execute(code)
+        // Should fail when procedure attempts to return a value
+        #expect(!result.succeeded)
+    }
+
     // MARK: - Missing Return Value Tests
 
     @Test("Missing return value in function causes error")
