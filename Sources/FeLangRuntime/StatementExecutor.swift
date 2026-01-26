@@ -391,8 +391,15 @@ public final class StatementExecutor: @unchecked Sendable {
 
         repeat {
             // Execute body in its own scope (consistent with while/for loops)
+            // Use do-catch to ensure popScope is called even on exception
             try environment.pushScope()
-            let result = try execute(doWhileStmt.body)
+            let result: ControlFlow
+            do {
+                result = try execute(doWhileStmt.body)
+            } catch {
+                environment.popScope()
+                throw error
+            }
             environment.popScope()
 
             switch result {
