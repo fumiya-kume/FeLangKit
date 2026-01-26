@@ -241,6 +241,40 @@ struct StatementParserTests {
         #expect(outerDoWhile.condition == .binary(.less, .identifier("y"), .literal(.integer(10))))
     }
 
+    @Test("DO-WHILE with Nested While Loop")
+    func testDoWhileWithNestedWhileLoop() throws {
+        // This tests that a nested while loop inside do-while is correctly parsed
+        // The parser must distinguish between `while condition do` (nested while loop)
+        // and `while (condition)` (terminating condition of do-while)
+        let input = """
+        do
+            while x < 5 do
+                x ← x + 1
+            endwhile
+        while (y < 10)
+        """
+        let statements = try parseStatements(input)
+
+        #expect(statements.count == 1)
+        guard case .doWhileStatement(let doWhileStmt) = statements[0] else {
+            #expect(Bool(false), "Expected DO-WHILE statement")
+            return
+        }
+
+        // The body should contain the nested while loop
+        #expect(doWhileStmt.body.count == 1)
+        guard case .whileStatement(let nestedWhile) = doWhileStmt.body[0] else {
+            #expect(Bool(false), "Expected nested WHILE statement in do-while body")
+            return
+        }
+
+        // Verify the nested while loop's condition
+        #expect(nestedWhile.condition == .binary(.less, .identifier("x"), .literal(.integer(5))))
+
+        // Verify the do-while's terminating condition
+        #expect(doWhileStmt.condition == .binary(.less, .identifier("y"), .literal(.integer(10))))
+    }
+
     // MARK: - FOR Statement Tests
 
     @Test("Range-based FOR Statement")

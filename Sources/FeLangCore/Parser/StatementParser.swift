@@ -162,10 +162,11 @@ public struct StatementParser {
 
     /// Parses a DO-WHILE statement (do ... while (condition)).
     /// The body is executed at least once, then the condition is checked.
+    /// Uses lookahead to distinguish terminating `while (` from nested `while condition do`.
     private func parseDoWhileStatement(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> DoWhileStatement {
         try expectToken(&parser, .doKeyword) // consume 'do'
 
-        let body = try parseBlock(&parser, until: [.whileKeyword], nestingDepth: nestingDepth)
+        let body = try parseDoWhileBody(&parser, nestingDepth: nestingDepth)
 
         try expectToken(&parser, .whileKeyword) // consume 'while'
         try expectToken(&parser, .leftParen) // consume '('
@@ -173,6 +174,42 @@ public struct StatementParser {
         try expectToken(&parser, .rightParen) // consume ')'
 
         return DoWhileStatement(body: body, condition: condition)
+    }
+
+    /// Parses the body of a do-while statement until the terminating `while (` is found.
+    /// Distinguishes between terminating `while (` and nested `while condition do` using lookahead.
+    private func parseDoWhileBody(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> [Statement] {
+        // Check nesting depth for security
+        guard nestingDepth < 100 else {
+            throw StatementParsingError.nestingTooDeep
+        }
+
+        var statements: [Statement] = []
+
+        while let token = parser.peek(), token.type != .eof {
+            // Skip newlines and whitespace
+            if token.type == .newline || token.type == .whitespace {
+                _ = parser.advance()
+                continue
+            }
+
+            // Check if this is the terminating `while (` of the do-while
+            // The terminating while is followed by `(`, while a nested while loop
+            // is followed by a condition expression and then `do`
+            if token.type == .whileKeyword {
+                // Lookahead to check if next token is `(`
+                if let nextToken = parser.peek(offset: 1), nextToken.type == .leftParen {
+                    // This is the terminating `while (` - stop parsing body
+                    break
+                }
+                // Otherwise, this is a nested while loop - continue parsing as statement
+            }
+
+            let statement = try parseStatement(&parser, nestingDepth: nestingDepth + 1)
+            statements.append(statement)
+        }
+
+        return statements
     }
 
     /// Parses a FOR statement (range-based or forEach).
