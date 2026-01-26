@@ -41,21 +41,19 @@ gh pr list --state merged --limit 100 --json number,title,body,mergedAt
 
 For each open issue, check whether a merged PR addresses it. Use two detection methods:
 
-#### Method A: PR Title Matching
+#### Method A: PR Auto-Close Keyword Matching
 
-Scan merged PR titles for auto-close keywords referencing the issue number:
-- `Resolve #N`
-- `Fixes #N`
-- `Closes #N`
-- `Fix #N`
-- `Close #N`
+Scan merged PR titles and bodies for GitHub's auto-close keywords followed by an issue reference (e.g., `#N` or `owner/repo#N`). GitHub treats these keywords case-insensitively in PR titles, bodies, and commit messages:
+- `close #N`, `closes #N`, `closed #N`
+- `fix #N`, `fixes #N`, `fixed #N`
+- `resolve #N`, `resolves #N`, `resolved #N`
 
 #### Method B: Timeline Event Analysis
 
-Run the bundled script to query GitHub GraphQL API for cross-referenced events:
+Run the bundled script from the repository root to query GitHub GraphQL API for cross-referenced events:
 
 ```bash
-bash scripts/check-issue-references.sh OWNER REPO ISSUE_NUMBER [ISSUE_NUMBER...]
+bash .claude/skills/close-fixed-issue/scripts/check-issue-references.sh OWNER REPO ISSUE_NUMBER [ISSUE_NUMBER...]
 ```
 
 Extract the repository owner and name from `gh repo view --json owner,name`.
