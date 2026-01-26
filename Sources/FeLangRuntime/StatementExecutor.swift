@@ -136,14 +136,17 @@ public final class StatementExecutor: @unchecked Sendable {
 
     private func executeVariableDeclaration(_ decl: VariableDeclaration) throws {
         let value: RuntimeValue
+        let isInitialized: Bool
         if let initialValue = decl.initialValue {
             value = try evaluator.evaluate(initialValue)
             // Validate type of initial value matches declaration
             try validateType(value, expected: decl.type, context: "variable '\(decl.name)' initialization")
+            isInitialized = true
         } else {
             value = defaultValue(for: decl.type)
+            isInitialized = false
         }
-        environment.define(decl.name, value: value, isConstant: false, type: decl.type)
+        environment.define(decl.name, value: value, isConstant: false, type: decl.type, isInitialized: isInitialized)
     }
 
     private func executeConstantDeclaration(_ decl: ConstantDeclaration) throws {
