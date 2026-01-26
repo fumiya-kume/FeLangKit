@@ -661,7 +661,8 @@ public final class StatementExecutor: @unchecked Sendable {
         if let superclassName = classDef.superclassName,
            let superclassDef = environment.lookupClassDefinition(superclassName) {
             // Recursively collect all inherited members from the superclass chain
-            let inheritedMembers = collectInheritedMembers(from: superclassDef)
+            var visited: Set<String> = [classDef.name]
+            let inheritedMembers = try collectInheritedMembers(from: superclassDef, visited: &visited)
             for (memberName, memberType) in inheritedMembers {
                 fields[memberName] = defaultValue(for: memberType)
             }
@@ -673,7 +674,8 @@ public final class StatementExecutor: @unchecked Sendable {
         }
 
         // Create the instance with merged class definition for method resolution
-        let mergedClassDef = createMergedClassDefinition(classDef)
+        var mergedVisited: Set<String> = []
+        let mergedClassDef = try createMergedClassDefinition(classDef, visited: &mergedVisited)
         var instance = InstanceValue(
             className: classDef.name,
             classDefinition: mergedClassDef,
@@ -715,13 +717,23 @@ public final class StatementExecutor: @unchecked Sendable {
     }
 
     /// Collects all inherited members from a class and its superclass chain.
-    private func collectInheritedMembers(from classDef: ClassDefinition) -> [String: DataType] {
+    /// Uses a visited set to detect circular inheritance.
+    private func collectInheritedMembers(
+        from classDef: ClassDefinition,
+        visited: inout Set<String>
+    ) throws -> [String: DataType] {
+        // Check for circular inheritance
+        guard !visited.contains(classDef.name) else {
+            throw RuntimeError.generic(message: "Circular inheritance detected involving class '\(classDef.name)'")
+        }
+        visited.insert(classDef.name)
+
         var members: [String: DataType] = [:]
 
         // First collect from superclass (if any)
         if let superclassName = classDef.superclassName,
            let superclassDef = environment.lookupClassDefinition(superclassName) {
-            let superMembers = collectInheritedMembers(from: superclassDef)
+            let superMembers = try collectInheritedMembers(from: superclassDef, visited: &visited)
             for (name, type) in superMembers {
                 members[name] = type
             }
@@ -737,14 +749,24 @@ public final class StatementExecutor: @unchecked Sendable {
 
     /// Creates a merged class definition that includes inherited methods for method resolution.
     /// Subclass methods take priority over superclass methods (method override).
-    private func createMergedClassDefinition(_ classDef: ClassDefinition) -> ClassDefinition {
+    /// Uses a visited set to detect circular inheritance.
+    private func createMergedClassDefinition(
+        _ classDef: ClassDefinition,
+        visited: inout Set<String>
+    ) throws -> ClassDefinition {
+        // Check for circular inheritance
+        guard !visited.contains(classDef.name) else {
+            throw RuntimeError.generic(message: "Circular inheritance detected involving class '\(classDef.name)'")
+        }
+        visited.insert(classDef.name)
+
         var mergedMethods: [String: MethodDefinition] = [:]
         var mergedMembers: [String: DataType] = [:]
 
         // Collect methods and members from superclass chain first
         if let superclassName = classDef.superclassName,
            let superclassDef = environment.lookupClassDefinition(superclassName) {
-            let mergedSuperclass = createMergedClassDefinition(superclassDef)
+            let mergedSuperclass = try createMergedClassDefinition(superclassDef, visited: &visited)
             mergedMethods = mergedSuperclass.methods
             mergedMembers = mergedSuperclass.members
         }

@@ -1237,4 +1237,38 @@ struct ClassInheritanceTests {
         #expect(inst.fields["warmBlooded"] != nil)
         #expect(inst.fields["breed"] != nil)
     }
+
+    @Test func testCircularInheritanceDetection() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define class A that extends B
+        let classA = ClassDeclaration(
+            name: "A",
+            superclass: "B",
+            members: [MemberDeclaration(name: "valueA", type: .integer)],
+            constructor: nil,
+            methods: []
+        )
+
+        // Define class B that extends A (circular inheritance)
+        let classB = ClassDeclaration(
+            name: "B",
+            superclass: "A",
+            members: [MemberDeclaration(name: "valueB", type: .integer)],
+            constructor: nil,
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(classA))
+        _ = try executor.executeStatement(.classDeclaration(classB))
+
+        // Attempting to create an instance should throw a circular inheritance error
+        do {
+            _ = try executor.callFunction("A", arguments: [])
+            Issue.record("Expected circular inheritance error")
+        } catch let error as RuntimeError {
+            #expect(error.description.contains("Circular inheritance"))
+        }
+    }
 }
