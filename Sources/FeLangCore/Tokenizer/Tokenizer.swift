@@ -119,6 +119,12 @@ public final class Tokenizer {
             return Token(type: .assign, lexeme: "←", position: position)
         case "=":
             return Token(type: .equal, lexeme: "=", position: position)
+        case "!":
+            if match("=") {
+                return Token(type: .notEqual, lexeme: "!=", position: position)
+            } else {
+                throw TokenizerError.unexpectedCharacter(char, position)
+            }
         case "≠":
             return Token(type: .notEqual, lexeme: "≠", position: position)
         case "≧":

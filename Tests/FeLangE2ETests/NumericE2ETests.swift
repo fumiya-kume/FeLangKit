@@ -175,4 +175,26 @@ struct NumericE2ETests {
         let output = try InProcessTestHelper.run("println(10 + 7 % 3)")
         #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "11")
     }
+
+    // MARK: - ASCII Not-Equal Operator Tests
+
+    @Test("ASCII not-equal operator: 1 != 2 should be true")
+    func testASCIINotEqualTrue() throws {
+        let output = try InProcessTestHelper.run("println(1 != 2)")
+        #expect(output.lowercased().contains("true"))
+    }
+
+    @Test("ASCII not-equal operator: 1 != 1 should be false")
+    func testASCIINotEqualFalse() throws {
+        let output = try InProcessTestHelper.run("println(1 != 1)")
+        #expect(output.lowercased().contains("false"))
+    }
+
+    @Test("ASCII not-equal should work same as Unicode ≠")
+    func testASCIINotEqualEquivalence() throws {
+        let asciiOutput = try InProcessTestHelper.run("println(5 != 3)")
+        let unicodeOutput = try InProcessTestHelper.run("println(5 ≠ 3)")
+        #expect(asciiOutput.trimmingCharacters(in: .whitespacesAndNewlines) ==
+                unicodeOutput.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
 }

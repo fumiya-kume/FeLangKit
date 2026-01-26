@@ -79,6 +79,7 @@ public enum TokenizerUtilities {
     /// Ordered with longer operators first to ensure proper matching
     public static let operators: [(String, TokenType)] = [
         ("←", .assign),
+        ("!=", .notEqual),
         ("≠", .notEqual),
         ("≧", .greaterEqual),
         ("≦", .lessEqual),
