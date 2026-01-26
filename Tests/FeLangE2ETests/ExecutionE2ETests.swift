@@ -180,4 +180,18 @@ struct ExecutionE2ETests {
         #expect(output.contains("HELLO WORLD"))
         #expect(output.contains("11"))
     }
+
+    @Test("Japanese identifiers in variable and function names")
+    func testJapaneseIdentifiers() throws {
+        let code = """
+        変数 合計: 整数 ← 0
+        function 加算(a: 整数, b: 整数): 整数
+            return a + b
+        endfunction
+        合計 ← 加算(2, 3)
+        println(合計)
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "5")
+    }
 }
