@@ -195,7 +195,7 @@ struct EdgeCaseE2ETests {
         """
         let result = try CLITestHelper.run(arguments: ["run", "--code", code])
         #expect(result.exitCode == 0)
-        #expect(result.stdout.contains("2"))
+        #expect(result.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "2")
     }
 
     // MARK: - Special Syntax
