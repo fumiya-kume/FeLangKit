@@ -89,7 +89,8 @@ public enum TokenizerUtilities {
         ("%", .modulo),
         ("=", .equal),
         (">", .greater),
-        ("<", .less)
+        ("<", .less),
+        ("!", .notKeyword)
     ]
 
     /// Delimiter definitions with their token types

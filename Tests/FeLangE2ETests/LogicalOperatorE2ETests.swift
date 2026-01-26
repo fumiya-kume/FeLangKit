@@ -77,6 +77,39 @@ struct LogicalOperatorE2ETests {
         #expect(output.lowercased().contains("true"))
     }
 
+    // MARK: - Exclamation Mark (!) as NOT Operator Tests
+
+    @Test("! operator: !true = false")
+    func testExclamationTrue() throws {
+        let output = try InProcessTestHelper.run("println(!true)")
+        #expect(output.lowercased().contains("false"))
+    }
+
+    @Test("! operator: !false = true")
+    func testExclamationFalse() throws {
+        let output = try InProcessTestHelper.run("println(!false)")
+        #expect(output.lowercased().contains("true"))
+    }
+
+    @Test("double ! negation: !!true = true")
+    func testDoubleExclamation() throws {
+        let output = try InProcessTestHelper.run("println(!!true)")
+        #expect(output.lowercased().contains("true"))
+    }
+
+    @Test("combined ! output: println(!true) and println(!false)")
+    func testExclamationCombinedOutput() throws {
+        let code = """
+        println(!true)
+        println(!false)
+        """
+        let output = try InProcessTestHelper.run(code)
+        let lines = output.split(separator: "\n").map { $0.lowercased() }
+        #expect(lines.count >= 2)
+        #expect(lines[0].contains("false"))
+        #expect(lines[1].contains("true"))
+    }
+
     // MARK: - Complex Logical Expressions
 
     @Test("logical with comparison: (5 > 3) and (2 < 4)")
