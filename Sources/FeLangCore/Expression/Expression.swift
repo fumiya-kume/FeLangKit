@@ -16,6 +16,7 @@ public indirect enum Expression: Equatable, Codable, Sendable {
     case arrayAccess(Expression, Expression)
     case fieldAccess(Expression, String)
     case functionCall(String, [Expression])
+    case methodCall(Expression, String, [Expression])
 
     // Collection expressions
     case arrayLiteral([Expression])
@@ -221,7 +222,7 @@ extension BinaryOperator {
             self = .multiply
         case .divide:
             self = .divide
-        case .modulo:
+        case .modulo, .modKeyword:
             self = .modulo
         case .equal:
             self = .equal

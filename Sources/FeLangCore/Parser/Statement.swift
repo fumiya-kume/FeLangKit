@@ -3,6 +3,7 @@ public indirect enum Statement: Equatable, Codable, Sendable {
     // Control flow
     case ifStatement(IfStatement)
     case whileStatement(WhileStatement)
+    case doWhileStatement(DoWhileStatement)
     case forStatement(ForStatement)
 
     // Assignments
@@ -62,6 +63,18 @@ public struct WhileStatement: Equatable, Codable, Sendable {
     public init(condition: Expression, body: [Statement]) {
         self.condition = condition
         self.body = body
+    }
+}
+
+/// Represents a DO-WHILE statement (post-condition loop).
+/// The body is executed at least once, then the condition is checked.
+public struct DoWhileStatement: Equatable, Codable, Sendable {
+    public let body: [Statement]
+    public let condition: Expression
+
+    public init(body: [Statement], condition: Expression) {
+        self.body = body
+        self.condition = condition
     }
 }
 

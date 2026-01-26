@@ -39,6 +39,9 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case orKeyword = "or"
     case notKeyword = "not"
 
+    /// Arithmetic keyword operators
+    case modKeyword = "mod"
+
     /// Boolean literals
     case trueKeyword = "true"
     case falseKeyword = "false"
@@ -118,7 +121,7 @@ extension TokenType {
              .recordType, .arrayType, .ifKeyword, .thenKeyword, .elseKeyword, .elifKeyword, .elseifKeyword, .endifKeyword,
              .whileKeyword, .doKeyword, .endwhileKeyword, .forKeyword, .toKeyword, .stepKeyword, .inKeyword, .endforKeyword,
              .functionKeyword, .endfunctionKeyword, .procedureKeyword, .endprocedureKeyword,
-             .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword, .continueKeyword,
+             .andKeyword, .orKeyword, .notKeyword, .modKeyword, .returnKeyword, .breakKeyword, .continueKeyword,
              .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword, .globalKeyword,
              .classKeyword, .endclassKeyword, .undefinedKeyword:
             return true

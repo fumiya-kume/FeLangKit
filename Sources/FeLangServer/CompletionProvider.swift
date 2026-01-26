@@ -45,6 +45,9 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "or", kind: .keyword, detail: "Logical OR"),
         CompletionItem(label: "not", kind: .keyword, detail: "Logical NOT"),
 
+        // Arithmetic operators
+        CompletionItem(label: "mod", kind: .keyword, detail: "Modulo operator"),
+
         // Japanese keywords
         CompletionItem(label: "もし", kind: .keyword, detail: "条件分岐 (if)", insertText: "もし "),
         CompletionItem(label: "ならば", kind: .keyword, detail: "Then clause"),
@@ -289,7 +292,7 @@ public struct CompletionProvider: Sendable {
             "function", "endfunction", "procedure", "endprocedure",
             "class", "endclass",
             "return", "break", "continue",
-            "and", "or", "not", "true", "false",
+            "and", "or", "not", "mod", "true", "false",
             "integer", "real", "string", "character", "boolean", "array",
             // Japanese keywords
             "もし", "ならば", "でなければ", "を実行", "繰り返し", "を繰り返す",

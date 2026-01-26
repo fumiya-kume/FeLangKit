@@ -50,6 +50,9 @@ public enum RuntimeError: Error, Equatable, CustomStringConvertible {
     /// Not a callable value
     case notCallable(type: String)
 
+    /// Method call not supported (class definitions not yet implemented)
+    case methodCallNotSupported(method: String)
+
     /// Generic runtime error
     case generic(message: String)
 
@@ -104,6 +107,9 @@ public enum RuntimeError: Error, Equatable, CustomStringConvertible {
 
         case .notCallable(let type):
             return "Runtime error: Value of type '\(type)' is not callable"
+
+        case .methodCallNotSupported(let method):
+            return "Runtime error: Method call '\(method)' is not supported (class definitions not yet implemented)"
 
         case .generic(let message):
             return "Runtime error: \(message)"

@@ -87,6 +87,9 @@ public final class StatementExecutor: @unchecked Sendable {
         case .whileStatement(let whileStmt):
             return try executeWhileStatement(whileStmt)
 
+        case .doWhileStatement(let doWhileStmt):
+            return try executeDoWhileStatement(doWhileStmt)
+
         case .forStatement(let forStmt):
             return try executeForStatement(forStmt)
 
@@ -489,6 +492,47 @@ public final class StatementExecutor: @unchecked Sendable {
         }
 
         return .normal
+    }
+
+    private func executeDoWhileStatement(_ doWhileStmt: DoWhileStatement) throws -> ControlFlow {
+        loopDepth += 1
+        defer { loopDepth -= 1 }
+
+        repeat {
+            // Execute body in its own scope (consistent with while/for loops)
+            // Use do-catch to ensure popScope is called even on exception
+            try environment.pushScope()
+            let result: ControlFlow
+            do {
+                result = try execute(doWhileStmt.body)
+            } catch {
+                environment.popScope()
+                throw error
+            }
+            environment.popScope()
+
+            switch result {
+            case .breakLoop:
+                return .normal
+            case .continueLoop:
+                break
+            case .returnValue:
+                return result
+            case .normal:
+                break
+            }
+
+            // Evaluate condition outside the body scope (consistent with while loops)
+            let condition = try evaluator.evaluate(doWhileStmt.condition)
+            guard case .boolean(let boolValue) = condition else {
+                throw RuntimeError.typeMismatch(
+                    expected: "Boolean",
+                    actual: condition.typeName,
+                    operation: "do-while condition"
+                )
+            }
+            guard boolValue else { return .normal }
+        } while true
     }
 
     private func executeForStatement(_ forStmt: ForStatement) throws -> ControlFlow {

@@ -56,6 +56,7 @@ public enum TokenizerUtilities {
         ("論理型", .booleanType),
         ("and", .andKeyword),
         ("not", .notKeyword),
+        ("mod", .modKeyword),
         ("for", .forKeyword),
 
         // 3 characters (Japanese)

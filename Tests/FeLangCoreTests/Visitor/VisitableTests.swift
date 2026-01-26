@@ -15,6 +15,7 @@ struct VisitableTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
@@ -31,6 +32,7 @@ struct VisitableTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -76,6 +78,7 @@ struct VisitableTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, field in "field_access(\(field))" },
             visitFunctionCall: { function, _ in "function_call(\(function))" },
+            visitMethodCall: { _, method, _ in "method_call(\(method))" },
             visitArrayLiteral: { elements in "array_literal(\(elements.count))" }
         )
 
@@ -93,6 +96,7 @@ struct VisitableTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { forStmt in
                 switch forStmt {
                 case .range: return "for_range"
@@ -174,12 +178,14 @@ struct VisitableTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
         let stmtVisitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -216,12 +222,14 @@ struct VisitableTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
         let stmtVisitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -259,12 +267,14 @@ struct VisitableTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
         let stmtVisitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },

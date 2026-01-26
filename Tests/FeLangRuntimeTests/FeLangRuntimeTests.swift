@@ -536,6 +536,14 @@ struct ExpressionEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .array([.integer(1), .integer(2)]))
     }
+
+    @Test func testMethodCallThrowsNotSupportedError() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.methodCall(.identifier("obj"), "getValue", [])
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
 }
 
 // MARK: - StatementExecutor Tests
@@ -696,6 +704,109 @@ struct StatementExecutorTests {
         #expect(env.lookup("sum") == .integer(9))
     }
 
+    @Test func testDoWhileLoop() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+
+        let increment = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [increment],
+            condition: .binary(.less, .identifier("count"), .literal(.integer(5)))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        #expect(env.lookup("count") == .integer(5))
+    }
+
+    @Test func testDoWhileLoopExecutesAtLeastOnce() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+
+        let increment = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [increment],
+            condition: .literal(.boolean(false))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        #expect(env.lookup("count") == .integer(1))
+    }
+
+    @Test func testDoWhileLoopBreak() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+
+        let increment = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let ifBreak = Statement.ifStatement(IfStatement(
+            condition: .binary(.equal, .identifier("count"), .literal(.integer(3))),
+            thenBody: [.breakStatement],
+            elseIfs: [],
+            elseBody: nil
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [increment, ifBreak],
+            condition: .literal(.boolean(true))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        #expect(env.lookup("count") == .integer(3))
+    }
+
+    @Test func testDoWhileLoopContinue() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+        env.define("sum", value: .integer(0))
+
+        let incrementCount = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let ifContinue = Statement.ifStatement(IfStatement(
+            condition: .binary(.equal,
+                               .binary(.modulo, .identifier("count"), .literal(.integer(2))),
+                               .literal(.integer(0))),
+            thenBody: [.continueStatement],
+            elseIfs: [],
+            elseBody: nil
+        ))
+
+        let addToSum = Statement.assignment(.variable(
+            "sum",
+            .binary(.add, .identifier("sum"), .identifier("count"))
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [incrementCount, ifContinue, addToSum],
+            condition: .binary(.less, .identifier("count"), .literal(.integer(5)))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        // sum = 1 + 3 + 5 = 9 (skipping 2 and 4)
+        #expect(env.lookup("sum") == .integer(9))
+    }
+
     @Test func testBreakOutsideLoopError() throws {
         let env = Environment()
         let executor = StatementExecutor(environment: env)
@@ -734,6 +845,87 @@ struct StatementExecutorTests {
         _ = try executor.executeStatement(block)
         // Variable should not be visible outside block
         #expect(env.lookup("x") == nil)
+    }
+
+    // MARK: - Field Assignment Tests
+
+    @Test func testRecordFieldAssignment() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define a record variable with initial fields
+        env.define("p", value: .record(["x": .integer(0), "y": .integer(0)]))
+
+        // Execute field assignment: p.x ← 10
+        let fieldAccess = Assignment.FieldAccess(object: .identifier("p"), field: "x")
+        let assignment = Statement.assignment(.fieldAccess(fieldAccess, .literal(.integer(10))))
+        _ = try executor.executeStatement(assignment)
+
+        // Verify the field was updated
+        guard case .record(let fields) = env.lookup("p") else {
+            #expect(Bool(false), "Expected record value")
+            return
+        }
+        #expect(fields["x"] == .integer(10))
+        #expect(fields["y"] == .integer(0))
+    }
+
+    @Test func testRecordFieldAssignmentWithExpression() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define variables
+        env.define("p", value: .record(["x": .integer(5), "y": .integer(0)]))
+        env.define("offset", value: .integer(3))
+
+        // Execute field assignment: p.y ← p.x + offset
+        let fieldAccess = Assignment.FieldAccess(object: .identifier("p"), field: "y")
+        let valueExpr = Expression.binary(.add, .fieldAccess(.identifier("p"), "x"), .identifier("offset"))
+        let assignment = Statement.assignment(.fieldAccess(fieldAccess, valueExpr))
+        _ = try executor.executeStatement(assignment)
+
+        // Verify the field was updated
+        guard case .record(let fields) = env.lookup("p") else {
+            #expect(Bool(false), "Expected record value")
+            return
+        }
+        #expect(fields["y"] == .integer(8))
+    }
+
+    @Test func testInvalidFieldAssignment() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define a record without the target field
+        env.define("p", value: .record(["x": .integer(0)]))
+
+        // Try to assign to non-existent field: p.z ← 10
+        let fieldAccess = Assignment.FieldAccess(object: .identifier("p"), field: "z")
+        let assignment = Statement.assignment(.fieldAccess(fieldAccess, .literal(.integer(10))))
+
+        #expect(throws: RuntimeError.self) {
+            _ = try executor.executeStatement(assignment)
+        }
+    }
+
+    @Test func testChainedFieldAssignmentNotSupported() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define nested records
+        env.define("obj", value: .record(["inner": .record(["field": .integer(0)])]))
+
+        // Try chained field assignment: obj.inner.field ← 10
+        // The parser supports this syntax, but runtime only handles simple identifiers
+        let chainedFieldAccess = Assignment.FieldAccess(
+            object: .fieldAccess(.identifier("obj"), "inner"),
+            field: "field"
+        )
+        let assignment = Statement.assignment(.fieldAccess(chainedFieldAccess, .literal(.integer(10))))
+
+        #expect(throws: RuntimeError.self) {
+            _ = try executor.executeStatement(assignment)
+        }
     }
 }
 
@@ -990,5 +1182,11 @@ struct RuntimeErrorTests {
     @Test func testStackOverflowDescription() {
         let error = RuntimeError.stackOverflow
         #expect(error.description.contains("Stack overflow"))
+    }
+
+    @Test func testMethodCallNotSupportedDescription() {
+        let error = RuntimeError.methodCallNotSupported(method: "getValue")
+        #expect(error.description.contains("getValue"))
+        #expect(error.description.contains("not supported"))
     }
 }

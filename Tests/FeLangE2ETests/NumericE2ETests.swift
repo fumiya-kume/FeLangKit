@@ -202,6 +202,20 @@ struct NumericE2ETests {
         #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "11")
     }
 
+    @Test("Modulo with mod keyword: 7 mod 3 = 1")
+    func testModKeyword() throws {
+        let output = try InProcessTestHelper.run("println(7 mod 3)")
+        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "1")
+    }
+
+    @Test("mod keyword should work same as % operator")
+    func testModKeywordEquivalence() throws {
+        let modOutput = try InProcessTestHelper.run("println(17 mod 5)")
+        let percentOutput = try InProcessTestHelper.run("println(17 % 5)")
+        #expect(modOutput.trimmingCharacters(in: .whitespacesAndNewlines) ==
+                percentOutput.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
     // MARK: - ASCII Not-Equal Operator Tests
 
     @Test("ASCII not-equal operator: 1 != 2 should be true")
