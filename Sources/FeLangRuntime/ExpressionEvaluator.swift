@@ -55,6 +55,9 @@ public struct ExpressionEvaluator: Sendable {
             let args = try arguments.map { try evaluate($0) }
             return try callFunction(name, args)
 
+        case .methodCall(_, let method, _):
+            throw RuntimeError.methodCallNotSupported(method: method)
+
         case .arrayLiteral(let elements):
             return try evaluateArrayLiteral(elements)
         }

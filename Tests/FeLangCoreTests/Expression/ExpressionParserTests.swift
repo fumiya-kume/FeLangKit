@@ -588,4 +588,76 @@ struct ExpressionParserTests {
             _ = try decoder.decode(FEExpression.self, from: invalidJSON.data(using: .utf8)!)
         }
     }
+
+    // MARK: - Method Call Tests
+
+    @Test func testSimpleMethodCall() throws {
+        let expr = try parseExpression("obj.method()")
+        let expected = Expression.methodCall(.identifier("obj"), "method", [])
+        #expect(expr == expected)
+    }
+
+    @Test func testMethodCallWithArguments() throws {
+        let expr = try parseExpression("obj.method(a, b)")
+        let expected = Expression.methodCall(
+            .identifier("obj"),
+            "method",
+            [.identifier("a"), .identifier("b")]
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testMethodCallWithExpressionArguments() throws {
+        let expr = try parseExpression("queue.enqueue(val + 1)")
+        let expected = Expression.methodCall(
+            .identifier("queue"),
+            "enqueue",
+            [.binary(.add, .identifier("val"), .literal(.integer(1)))]
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testChainedMethodCalls() throws {
+        let expr = try parseExpression("obj.method1().method2()")
+        let expected = Expression.methodCall(
+            .methodCall(.identifier("obj"), "method1", []),
+            "method2",
+            []
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testFieldAccessThenMethodCall() throws {
+        let expr = try parseExpression("obj.field.method(x)")
+        let expected = Expression.methodCall(
+            .fieldAccess(.identifier("obj"), "field"),
+            "method",
+            [.identifier("x")]
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testMethodCallOnArrayAccess() throws {
+        let expr = try parseExpression("arr[0].method()")
+        let expected = Expression.methodCall(
+            .arrayAccess(.identifier("arr"), .literal(.integer(0))),
+            "method",
+            []
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testFieldAccessVsMethodCall() throws {
+        let fieldExpr = try parseExpression("obj.field")
+        let methodExpr = try parseExpression("obj.method()")
+
+        #expect(fieldExpr == .fieldAccess(.identifier("obj"), "field"))
+        #expect(methodExpr == .methodCall(.identifier("obj"), "method", []))
+    }
+
+    @Test func testMethodCallSize() throws {
+        let expr = try parseExpression("list.size()")
+        let expected = Expression.methodCall(.identifier("list"), "size", [])
+        #expect(expr == expected)
+    }
 }

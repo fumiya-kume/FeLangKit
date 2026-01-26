@@ -24,6 +24,7 @@ struct ExpressionVisitorTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
@@ -43,6 +44,7 @@ struct ExpressionVisitorTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
@@ -59,6 +61,7 @@ struct ExpressionVisitorTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
@@ -81,6 +84,7 @@ struct ExpressionVisitorTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
@@ -99,6 +103,7 @@ struct ExpressionVisitorTests {
             visitArrayAccess: { array, index in "array_access(\(array), \(index))" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
@@ -117,6 +122,7 @@ struct ExpressionVisitorTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { object, field in "field_access(\(object), \(field))" },
             visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
@@ -136,6 +142,7 @@ struct ExpressionVisitorTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { function, arguments in "function_call(\(function), \(arguments.count) args)" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
@@ -175,6 +182,9 @@ struct ExpressionVisitorTests {
             case .arrayLiteral(let elements):
                 let elementStrings = elements.map(stringifyExpression)
                 return "[\(elementStrings.joined(separator: ", "))]"
+            case .methodCall(let receiver, let method, let arguments):
+                let argStrings = arguments.map(stringifyExpression)
+                return "\(stringifyExpression(receiver)).\(method)(\(argStrings.joined(separator: ", ")))"
             }
         }
 
@@ -215,6 +225,7 @@ struct ExpressionVisitorTests {
             visitArrayAccess: { _, _ in "array_access" },
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { _, _, _ in "method_call" },
             visitArrayLiteral: { _ in "array_literal" }
         )
 
@@ -291,6 +302,19 @@ struct ExpressionVisitorTests {
                     }
                 }
                 return result
+            case .methodCall(let receiver, _, let arguments):
+                var result = ["method_call": 1]
+                let receiverCounts = countExpressionTypes(receiver)
+                for (key, value) in receiverCounts {
+                    result[key, default: 0] += value
+                }
+                for arg in arguments {
+                    let argCounts = countExpressionTypes(arg)
+                    for (key, value) in argCounts {
+                        result[key, default: 0] += value
+                    }
+                }
+                return result
             }
         }
 
@@ -328,6 +352,8 @@ struct ExpressionVisitorTests {
                 return arguments.map(countNodes).reduce(1, +)
             case .arrayLiteral(let elements):
                 return elements.map(countNodes).reduce(1, +)
+            case .methodCall(let receiver, _, let arguments):
+                return countNodes(receiver) + arguments.map(countNodes).reduce(1, +)
             }
         }
 

@@ -153,6 +153,9 @@ public struct PrettyPrinter {
         case .functionCall(let name, let args):
             return printFunctionCall(name: name, args: args, indent: indent)
 
+        case .methodCall(let receiver, let method, let args):
+            return printMethodCall(receiver: receiver, method: method, args: args, indent: indent)
+
         case .arrayLiteral(let elements):
             return printArrayLiteral(elements: elements, indent: indent)
         }
@@ -173,6 +176,24 @@ public struct PrettyPrinter {
 
         // Multi-line format with wrapping
         return wrapItems(argStrings, separator: ", ", indent: indent, prefix: "\(name)(", suffix: ")")
+    }
+
+    /// Prints a method call with optional line wrapping.
+    private func printMethodCall(receiver: Expression, method: String, args: [Expression], indent: Int) -> String {
+        let receiverStr = printExpression(receiver, indent: indent)
+        if args.isEmpty {
+            return "\(receiverStr).\(method)()"
+        }
+
+        let argStrings = args.map { printExpression($0, indent: indent + 1) }
+        let singleLine = "\(receiverStr).\(method)(\(argStrings.joined(separator: ", ")))"
+
+        if !shouldWrap(singleLine, currentIndent: indent) {
+            return singleLine
+        }
+
+        // Multi-line format with wrapping
+        return wrapItems(argStrings, separator: ", ", indent: indent, prefix: "\(receiverStr).\(method)(", suffix: ")")
     }
 
     /// Prints an array literal with optional line wrapping.
