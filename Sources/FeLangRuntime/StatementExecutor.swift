@@ -168,6 +168,7 @@ public final class StatementExecutor: @unchecked Sendable {
 
         let classDef = ClassDefinition(
             name: decl.name,
+            superclassName: decl.superclass,
             members: members,
             constructorParameters: constructorParams,
             constructorParameterTypes: constructorParamTypes,
@@ -653,16 +654,29 @@ public final class StatementExecutor: @unchecked Sendable {
             }
         }
 
-        // Initialize member fields with default values
+        // Initialize member fields with default values, starting with inherited members
         var fields: [String: RuntimeValue] = [:]
+
+        // Merge superclass members first (inheritance)
+        if let superclassName = classDef.superclassName,
+           let superclassDef = environment.lookupClassDefinition(superclassName) {
+            // Recursively collect all inherited members from the superclass chain
+            let inheritedMembers = collectInheritedMembers(from: superclassDef)
+            for (memberName, memberType) in inheritedMembers {
+                fields[memberName] = defaultValue(for: memberType)
+            }
+        }
+
+        // Add this class's own members (may override inherited members)
         for (memberName, memberType) in classDef.members {
             fields[memberName] = defaultValue(for: memberType)
         }
 
-        // Create the instance
+        // Create the instance with merged class definition for method resolution
+        let mergedClassDef = createMergedClassDefinition(classDef)
         var instance = InstanceValue(
             className: classDef.name,
-            classDefinition: classDef,
+            classDefinition: mergedClassDef,
             fields: fields
         )
 
@@ -698,6 +712,62 @@ public final class StatementExecutor: @unchecked Sendable {
         }
 
         return .instance(instance)
+    }
+
+    /// Collects all inherited members from a class and its superclass chain.
+    private func collectInheritedMembers(from classDef: ClassDefinition) -> [String: DataType] {
+        var members: [String: DataType] = [:]
+
+        // First collect from superclass (if any)
+        if let superclassName = classDef.superclassName,
+           let superclassDef = environment.lookupClassDefinition(superclassName) {
+            let superMembers = collectInheritedMembers(from: superclassDef)
+            for (name, type) in superMembers {
+                members[name] = type
+            }
+        }
+
+        // Then add this class's members (may override)
+        for (name, type) in classDef.members {
+            members[name] = type
+        }
+
+        return members
+    }
+
+    /// Creates a merged class definition that includes inherited methods for method resolution.
+    /// Subclass methods take priority over superclass methods (method override).
+    private func createMergedClassDefinition(_ classDef: ClassDefinition) -> ClassDefinition {
+        var mergedMethods: [String: MethodDefinition] = [:]
+        var mergedMembers: [String: DataType] = [:]
+
+        // Collect methods and members from superclass chain first
+        if let superclassName = classDef.superclassName,
+           let superclassDef = environment.lookupClassDefinition(superclassName) {
+            let mergedSuperclass = createMergedClassDefinition(superclassDef)
+            mergedMethods = mergedSuperclass.methods
+            mergedMembers = mergedSuperclass.members
+        }
+
+        // Add this class's members (may override inherited)
+        for (name, type) in classDef.members {
+            mergedMembers[name] = type
+        }
+
+        // Add this class's methods (may override inherited)
+        for (name, method) in classDef.methods {
+            mergedMethods[name] = method
+        }
+
+        return ClassDefinition(
+            name: classDef.name,
+            superclassName: classDef.superclassName,
+            members: mergedMembers,
+            constructorParameters: classDef.constructorParameters,
+            constructorParameterTypes: classDef.constructorParameterTypes,
+            constructorBody: classDef.constructorBody,
+            methods: mergedMethods
+        )
     }
 
     private func callFunctionValue(
