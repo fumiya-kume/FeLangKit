@@ -155,6 +155,8 @@ public struct ExpressionEvaluator: Sendable {
         // Bitwise
         case .bitwiseAnd:
             return try evaluateBitwiseAnd(left, right)
+        case .bitwiseOr:
+            return try evaluateBitwiseOr(left, right)
         case .leftShift:
             return try evaluateLeftShift(left, right)
         case .rightShift:
@@ -198,6 +200,16 @@ public struct ExpressionEvaluator: Sendable {
             throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: "∧")
         }
         return .integer(leftInt & rightInt)
+    }
+
+    private func evaluateBitwiseOr(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
+        guard case .integer(let leftInt) = left else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: left.typeName, operation: "∨")
+        }
+        guard case .integer(let rightInt) = right else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: "∨")
+        }
+        return .integer(leftInt | rightInt)
     }
 
     private func evaluateLeftShift(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {

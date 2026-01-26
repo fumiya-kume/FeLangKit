@@ -147,6 +147,8 @@ public final class Tokenizer {
             }
         case "∧":
             return Token(type: .bitwiseAnd, lexeme: "∧", position: position)
+        case "∨":
+            return Token(type: .bitwiseOr, lexeme: "∨", position: position)
         case "(":
             return Token(type: .leftParen, lexeme: "(", position: position)
         case ")":

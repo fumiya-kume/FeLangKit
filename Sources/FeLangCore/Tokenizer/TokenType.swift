@@ -91,6 +91,7 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
 
     /// Bitwise operators
     case bitwiseAnd = "∧"
+    case bitwiseOr = "∨"
     case leftShift = "<<"
     case rightShift = ">>"
 
@@ -147,7 +148,7 @@ extension TokenType {
         switch self {
         case .plus, .minus, .multiply, .divide, .modulo, .assign,
              .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual,
-             .bitwiseAnd, .leftShift, .rightShift:
+             .bitwiseAnd, .bitwiseOr, .leftShift, .rightShift:
             return true
         default:
             return false

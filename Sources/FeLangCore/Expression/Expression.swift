@@ -162,6 +162,7 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
 
     // Bitwise operators
     case bitwiseAnd = "∧"
+    case bitwiseOr = "∨"
     case leftShift = "<<"
     case rightShift = ">>"
 
@@ -178,7 +179,7 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
             return 1
         case .and:
             return 2
-        case .bitwiseAnd:
+        case .bitwiseAnd, .bitwiseOr:
             return 3
         case .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual:
             return 4
@@ -240,6 +241,8 @@ extension BinaryOperator {
             self = .lessEqual
         case .bitwiseAnd:
             self = .bitwiseAnd
+        case .bitwiseOr:
+            self = .bitwiseOr
         case .leftShift:
             self = .leftShift
         case .rightShift:
