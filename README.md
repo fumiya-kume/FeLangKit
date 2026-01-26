@@ -20,7 +20,7 @@ dependencies: [
 Xcode:
 1. File > Add Packages...
 2. `https://github.com/fumiya-kume/FeLangKit.git`
-3. Add the product you need: `FeLangCore`, `FeLangKit`, or `FeLangRuntime`
+3. Add the product you need: `FeLangCore`, `FeLangKit`, `FeLangRuntime`, or `FeLangServer`
 
 ## Quick Start
 
@@ -35,6 +35,41 @@ let expression = try expressionParser.parseExpression(from: tokens)
 
 let statementParser = StatementParser()
 let statements = try statementParser.parseStatements(from: tokens)
+```
+
+## iOS Usage
+
+### Code Execution
+
+```swift
+import FeLangRuntime
+
+let interpreter = Interpreter.withCustomIO(
+    printHandler: { text in /* Display output in UI */ },
+    inputHandler: { /* Get input from UI */ return nil }
+)
+try interpreter.execute("x: integer ← 42\nprint(x)")
+```
+
+### IDE Features (Completion, Diagnostics, Hover)
+
+```swift
+import FeLangServer
+
+let (server, transport) = LanguageServer.createInMemory()
+Task { await server.run() }
+
+await transport.sendInitialize()
+await transport.sendDidOpen(uri: "file:///main.fe", content: sourceCode)
+
+for await message in transport.output {
+    switch message {
+    case .response(let response):
+        // Handle response
+    case .notification(let method, let params):
+        // Handle diagnostics etc.
+    }
+}
 ```
 
 ## Modules

@@ -39,8 +39,17 @@ public actor LanguageServer {
     }
 
     /// Create a server with standard I/O transport.
+    #if !os(iOS) && !os(tvOS) && !os(watchOS)
     public static func createStdio() -> LanguageServer {
         LanguageServer(transport: StdioTransport())
+    }
+    #endif
+
+    /// Create a server with in-memory transport for embedding in apps.
+    public static func createInMemory() -> (server: LanguageServer, transport: InMemoryTransport) {
+        let transport = InMemoryTransport()
+        let server = LanguageServer(transport: transport)
+        return (server, transport)
     }
 
     // MARK: - Main Loop

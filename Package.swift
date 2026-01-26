@@ -8,10 +8,10 @@ let package = Package(
         .iOS(.v17)
     ],
     products: [
-        .library(name: "FeLangCore", targets: ["FeLangCore"]),
-        .library(name: "FeLangKit", targets: ["FeLangKit"]),
-        .library(name: "FeLangRuntime", targets: ["FeLangRuntime"]),
-        .library(name: "FeLangServer", targets: ["FeLangServer"])
+        .library(name: "FeLangCore", type: .static, targets: ["FeLangCore"]),
+        .library(name: "FeLangKit", type: .static, targets: ["FeLangKit"]),
+        .library(name: "FeLangRuntime", type: .static, targets: ["FeLangRuntime"]),
+        .library(name: "FeLangServer", type: .static, targets: ["FeLangServer"])
     ],
     dependencies: [
         .package(url: "https://github.com/pointfreeco/swift-parsing.git", from: "0.5.0"),
