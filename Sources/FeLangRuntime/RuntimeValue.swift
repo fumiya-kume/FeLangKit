@@ -155,6 +155,9 @@ public struct FunctionValue: Equatable, Sendable {
     /// The captured types from the closure environment
     public let capturedTypes: [String: DataType]
 
+    /// The captured uninitialized variables from the closure environment
+    public let capturedUninitialized: Set<String>
+
     /// The return type
     public let returnType: DataType?
 
@@ -166,6 +169,7 @@ public struct FunctionValue: Equatable, Sendable {
         capturedEnvironment: [String: RuntimeValue] = [:],
         capturedConstants: Set<String> = [],
         capturedTypes: [String: DataType] = [:],
+        capturedUninitialized: Set<String> = [],
         returnType: DataType?
     ) {
         self.name = name
@@ -175,6 +179,7 @@ public struct FunctionValue: Equatable, Sendable {
         self.capturedEnvironment = capturedEnvironment
         self.capturedConstants = capturedConstants
         self.capturedTypes = capturedTypes
+        self.capturedUninitialized = capturedUninitialized
         self.returnType = returnType
     }
 }
@@ -202,6 +207,9 @@ public struct ProcedureValue: Equatable, Sendable {
     /// The captured types from the closure environment
     public let capturedTypes: [String: DataType]
 
+    /// The captured uninitialized variables from the closure environment
+    public let capturedUninitialized: Set<String>
+
     public init(
         name: String,
         parameters: [String],
@@ -209,7 +217,8 @@ public struct ProcedureValue: Equatable, Sendable {
         body: [Statement],
         capturedEnvironment: [String: RuntimeValue] = [:],
         capturedConstants: Set<String> = [],
-        capturedTypes: [String: DataType] = [:]
+        capturedTypes: [String: DataType] = [:],
+        capturedUninitialized: Set<String> = []
     ) {
         self.name = name
         self.parameters = parameters
@@ -218,5 +227,6 @@ public struct ProcedureValue: Equatable, Sendable {
         self.capturedEnvironment = capturedEnvironment
         self.capturedConstants = capturedConstants
         self.capturedTypes = capturedTypes
+        self.capturedUninitialized = capturedUninitialized
     }
 }
