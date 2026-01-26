@@ -109,4 +109,26 @@ struct TypeConversionE2ETests {
         let output = try InProcessTestHelper.run("println(concat(\"Value: \", toString(42)))")
         #expect(output.contains("Value: 42"))
     }
+
+    // MARK: - English Type Alias Tests
+
+    @Test("English type aliases: double/float/str/char/bool")
+    func testEnglishTypeAliases() throws {
+        let code = """
+        変数 r: double ← 1.5
+        変数 f: float ← 2.5
+        変数 s: str ← "ok"
+        変数 c: char ← 'A'
+        変数 b: bool ← true
+        println(r + f)
+        println(s)
+        println(c)
+        println(b)
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.contains("4"))
+        #expect(output.contains("ok"))
+        #expect(output.contains("A"))
+        #expect(output.lowercased().contains("true"))
+    }
 }
