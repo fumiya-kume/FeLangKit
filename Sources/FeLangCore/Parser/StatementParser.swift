@@ -50,8 +50,10 @@ public struct StatementParser {
             }
 
             // Track nesting depth for security
+            // Note: doKeyword is not included because do-while loops don't have an enddo keyword
+            // (they terminate with 'while (condition)'), so the depth would never be decremented
             switch token.type {
-            case .ifKeyword, .whileKeyword, .doKeyword, .forKeyword, .functionKeyword, .procedureKeyword:
+            case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword:
                 nestingDepth += 1
                 guard nestingDepth <= maxNestingDepth else {
                     throw StatementParsingError.nestingTooDeep
