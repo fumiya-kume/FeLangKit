@@ -186,6 +186,18 @@ struct EdgeCaseE2ETests {
         }
     }
 
+    @Test("nested array with Japanese の particle")
+    func testNestedArrayWithJapaneseParticle() throws {
+        // Test multi-dimensional array type with Japanese の particle
+        let code = """
+        変数 arr: 配列 の 配列 の 整数 ← [[1, 2], [3, 4]]
+        println(arr[0][1])
+        """
+        let result = try CLITestHelper.run(arguments: ["run", "--code", code])
+        #expect(result.exitCode == 0)
+        #expect(result.stdout.contains("2"))
+    }
+
     // MARK: - Special Syntax
 
     @Test("empty procedure body")
