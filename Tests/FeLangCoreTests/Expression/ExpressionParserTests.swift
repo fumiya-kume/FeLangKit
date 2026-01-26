@@ -404,6 +404,45 @@ struct ExpressionParserTests {
         #expect(expr == expected)
     }
 
+    @Test func test2DArrayAccessWithCommaSyntax() throws {
+        let expr = try parseExpression("matrix[0, 1]")
+        let expected = Expression.arrayAccess(
+            .arrayAccess(.identifier("matrix"), .literal(.integer(0))),
+            .literal(.integer(1))
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func test2DArrayAccessWithExpressions() throws {
+        let expr = try parseExpression("matrix[i + 1, j * 2]")
+        let expected = Expression.arrayAccess(
+            .arrayAccess(
+                .identifier("matrix"),
+                .binary(.add, .identifier("i"), .literal(.integer(1)))
+            ),
+            .binary(.multiply, .identifier("j"), .literal(.integer(2)))
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func test3DArrayAccessWithCommaSyntax() throws {
+        let expr = try parseExpression("cube[0, 1, 2]")
+        let expected = Expression.arrayAccess(
+            .arrayAccess(
+                .arrayAccess(.identifier("cube"), .literal(.integer(0))),
+                .literal(.integer(1))
+            ),
+            .literal(.integer(2))
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testCommaSyntaxEquivalentToChainedSyntax() throws {
+        let commaSyntax = try parseExpression("matrix[1, 2]")
+        let chainedSyntax = try parseExpression("matrix[1][2]")
+        #expect(commaSyntax == chainedSyntax)
+    }
+
     @Test func testMixedPostfixOperations() throws {
         // func(x)[0] should be parsed as (func(x))[0]
         let expr = try parseExpression("getValue()[0]")

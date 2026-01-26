@@ -258,15 +258,29 @@ public struct StatementParser {
 
         // Check if it's array element assignment
         if parser.peek()?.type == .leftBracket {
-            // Array element assignment: array[index] ← expression
+            // Array element assignment: array[index] ← expression or array[row, col] ← expression
             _ = parser.advance() // consume '['
-            let indexExpr = try parseExpression(&parser)
+            let firstIndexExpr = try parseExpression(&parser)
+            var arrayExpr: Expression = .arrayAccess(.identifier(identifier), firstIndexExpr)
+
+            // Handle comma-separated indices for multi-dimensional array access
+            // e.g., matrix[1, 2] ← value is desugared to matrix[1][2] ← value
+            while parser.peek()?.type == .comma {
+                _ = parser.advance() // consume ','
+                let nextIndexExpr = try parseExpression(&parser)
+                arrayExpr = .arrayAccess(arrayExpr, nextIndexExpr)
+            }
+
             try expectToken(&parser, .rightBracket) // consume ']'
             try expectToken(&parser, .assign) // consume '←'
             let valueExpr = try parseExpression(&parser)
 
-            let arrayAccess = Assignment.ArrayAccess(array: .identifier(identifier), index: indexExpr)
-            return .arrayElement(arrayAccess, valueExpr)
+            // Extract the final array access for the assignment
+            guard case .arrayAccess(let array, let index) = arrayExpr else {
+                throw StatementParsingError.expectedToken(.leftBracket)
+            }
+            let arrayAccessStruct = Assignment.ArrayAccess(array: array, index: index)
+            return .arrayElement(arrayAccessStruct, valueExpr)
         } else if parser.peek()?.type == .assign {
             // Variable assignment: variable ← expression
             _ = parser.advance() // consume '←'
