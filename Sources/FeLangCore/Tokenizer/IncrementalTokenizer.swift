@@ -180,14 +180,14 @@ public struct IncrementalTokenizer: Sendable {
         // Step 6: Adjust positions of tokens after the change
         let lineDelta = countNewlines(in: newText) - countNewlines(in: originalText[range])
         // Calculate edit end line from actual edit position, not from token positions
-        let editEndPosition = calculatePosition(at: range.upperBound, in: originalText)
-        let editEndLine = editEndPosition.line
-        // Calculate column delta for same-line edits
-        let columnDelta = lineDelta == 0 ? offsetDelta : 0
-        let adjustedSuffixTokens = adjustTokenPositionsAfterEdit(
-            tokens: Array(previousTokens[safeEndIndex...]),
-            offsetDelta: offsetDelta,
-            lineDelta: lineDelta,
+	        let editEndPosition = calculatePosition(at: range.upperBound, in: originalText)
+	        let editEndLine = editEndPosition.line
+	        // Calculate column delta for same-line edits
+	        let columnDelta = lineDelta == 0 ? (newText.count - originalText[range].count) : 0
+	        let adjustedSuffixTokens = adjustTokenPositionsAfterEdit(
+	            tokens: Array(previousTokens[safeEndIndex...]),
+	            offsetDelta: offsetDelta,
+	            lineDelta: lineDelta,
             columnDelta: columnDelta,
             editEndLine: editEndLine
         )
@@ -618,7 +618,8 @@ public struct IncrementalMetrics: Sendable {
     /// Efficiency ratio (0.0 to 1.0, higher is better)
     public var efficiency: Double {
         guard reparsedCharacters > 0 else { return 1.0 }
-        return 1.0 - (Double(reparsedCharacters) / Double(max(originalTokenCount, newTokenCount) * 10))
+        let ratio = 1.0 - (Double(reparsedCharacters) / Double(max(originalTokenCount, newTokenCount) * 10))
+        return max(0.0, min(1.0, ratio))
     }
 
     public init(
