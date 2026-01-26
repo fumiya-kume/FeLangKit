@@ -30,6 +30,12 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
     /// A procedure value
     case procedure(ProcedureValue)
 
+    /// A class definition
+    case classDefinition(ClassDefinition)
+
+    /// A class instance
+    case instance(InstanceValue)
+
     /// Represents nil/null/void
     case null
 
@@ -50,6 +56,8 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
         case .record: return "Record"
         case .function: return "Function"
         case .procedure: return "Procedure"
+        case .classDefinition(let classDef): return "Class<\(classDef.name)>"
+        case .instance(let inst): return inst.className
         case .null: return "Null"
         case .undefined: return "Undefined"
         }
@@ -124,6 +132,11 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
             return "<function \(functionValue.name)>"
         case .procedure(let proc):
             return "<procedure \(proc.name)>"
+        case .classDefinition(let classDef):
+            return "<class \(classDef.name)>"
+        case .instance(let inst):
+            let fieldStrings = inst.fields.map { "\($0.key): \($0.value.toString())" }
+            return "\(inst.className){\(fieldStrings.joined(separator: ", "))}"
         case .null:
             return "null"
         case .undefined:
@@ -234,5 +247,96 @@ public struct ProcedureValue: Equatable, Sendable {
         self.capturedConstants = capturedConstants
         self.capturedTypes = capturedTypes
         self.capturedUninitialized = capturedUninitialized
+    }
+}
+
+/// Represents a class definition that can be instantiated.
+public struct ClassDefinition: Equatable, Sendable {
+    /// The name of the class
+    public let name: String
+
+    /// Member variable names and their types
+    public let members: [String: DataType]
+
+    /// Constructor parameters
+    public let constructorParameters: [String]
+
+    /// Constructor parameter types
+    public let constructorParameterTypes: [DataType]
+
+    /// Constructor body statements
+    public let constructorBody: [Statement]
+
+    /// Method definitions
+    public let methods: [String: MethodDefinition]
+
+    public init(
+        name: String,
+        members: [String: DataType] = [:],
+        constructorParameters: [String] = [],
+        constructorParameterTypes: [DataType] = [],
+        constructorBody: [Statement] = [],
+        methods: [String: MethodDefinition] = [:]
+    ) {
+        self.name = name
+        self.members = members
+        self.constructorParameters = constructorParameters
+        self.constructorParameterTypes = constructorParameterTypes
+        self.constructorBody = constructorBody
+        self.methods = methods
+    }
+}
+
+/// Represents a method definition within a class.
+public struct MethodDefinition: Equatable, Sendable {
+    /// The name of the method
+    public let name: String
+
+    /// Parameter names
+    public let parameters: [String]
+
+    /// Parameter types
+    public let parameterTypes: [DataType]
+
+    /// Return type (nil for void methods)
+    public let returnType: DataType?
+
+    /// Method body statements
+    public let body: [Statement]
+
+    public init(
+        name: String,
+        parameters: [String],
+        parameterTypes: [DataType] = [],
+        returnType: DataType? = nil,
+        body: [Statement]
+    ) {
+        self.name = name
+        self.parameters = parameters
+        self.parameterTypes = parameterTypes
+        self.returnType = returnType
+        self.body = body
+    }
+}
+
+/// Represents an instance of a class.
+public struct InstanceValue: Equatable, Sendable {
+    /// The name of the class this instance belongs to
+    public let className: String
+
+    /// The class definition reference
+    public let classDefinition: ClassDefinition
+
+    /// Instance field values (mutable through copy-on-write)
+    public var fields: [String: RuntimeValue]
+
+    public init(
+        className: String,
+        classDefinition: ClassDefinition,
+        fields: [String: RuntimeValue] = [:]
+    ) {
+        self.className = className
+        self.classDefinition = classDefinition
+        self.fields = fields
     }
 }

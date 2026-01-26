@@ -202,6 +202,9 @@ public enum ASTWalker {
                     return collectIdentifiers(from: arrayAccess.array)
                         .union(collectIdentifiers(from: arrayAccess.index))
                         .union(collectIdentifiers(from: expr))
+                case .fieldAccess(let fieldAccess, let expr):
+                    return collectIdentifiers(from: fieldAccess.object)
+                        .union(collectIdentifiers(from: expr))
                 }
             },
             visitVariableDeclaration: { varDecl in
@@ -255,6 +258,11 @@ public enum ASTWalker {
             visitRecordDeclaration: { recordDecl in
                 var identifiers = Set([recordDecl.name])
                 identifiers.formUnion(Set(recordDecl.fields.map { $0.name }))
+                return identifiers
+            },
+            visitClassDeclaration: { classDecl in
+                var identifiers = Set([classDecl.name])
+                identifiers.formUnion(Set(classDecl.members.map { $0.name }))
                 return identifiers
             }
         )
@@ -319,6 +327,8 @@ public enum ASTWalker {
                     return 1 + countNodes(in: expr)
                 case .arrayElement(let arrayAccess, let expr):
                     return 1 + countNodes(in: arrayAccess.array) + countNodes(in: arrayAccess.index) + countNodes(in: expr)
+                case .fieldAccess(let fieldAccess, let expr):
+                    return 1 + countNodes(in: fieldAccess.object) + countNodes(in: expr)
                 }
             },
             visitVariableDeclaration: { varDecl in
@@ -362,6 +372,9 @@ public enum ASTWalker {
             },
             visitRecordDeclaration: { recordDecl in
                 return 1 + recordDecl.fields.count
+            },
+            visitClassDeclaration: { classDecl in
+                return 1 + classDecl.members.count
             }
         )
 
@@ -436,6 +449,13 @@ public enum ASTWalker {
                     let transformedExpr = transformExpression(expr, transform)
                     return .assignment(.arrayElement(
                         Assignment.ArrayAccess(array: transformedArray, index: transformedIndex),
+                        transformedExpr
+                    ))
+                case .fieldAccess(let fieldAccess, let expr):
+                    let transformedObject = transformExpression(fieldAccess.object, transform)
+                    let transformedExpr = transformExpression(expr, transform)
+                    return .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: transformedObject, field: fieldAccess.field),
                         transformedExpr
                     ))
                 }
@@ -513,6 +533,9 @@ public enum ASTWalker {
                     fields: recordDecl.fields,
                     position: recordDecl.position
                 ))
+            },
+            visitClassDeclaration: { classDecl in
+                return .classDeclaration(classDecl)
             }
         )
 

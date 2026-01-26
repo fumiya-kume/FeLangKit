@@ -27,7 +27,8 @@ public enum ParsingBoundaryDetection {
              .endwhileKeyword,  // WHILE statement block ends
              .endforKeyword,    // FOR statement block ends
              .endfunctionKeyword,   // FUNCTION declaration block ends
-             .endprocedureKeyword:  // PROCEDURE declaration block ends
+             .endprocedureKeyword,  // PROCEDURE declaration block ends
+             .endclassKeyword:      // CLASS declaration block ends
             return true
 
         // FOR loop specific keywords that separate expression components
@@ -126,9 +127,10 @@ public enum ParsingBoundaryDetection {
              .constantKeyword:  // Constant declarations: 定数 name: type ← value
             return true
 
-        // Function/procedure declarations
+        // Function/procedure/class declarations
         case .functionKeyword,  // FUNCTION declarations with return values
-             .procedureKeyword: // PROCEDURE declarations without return values
+             .procedureKeyword, // PROCEDURE declarations without return values
+             .classKeyword:     // CLASS declarations
             return true
 
         // Flow control statements
@@ -293,7 +295,7 @@ public enum ParsingBoundaryDetection {
     /// Used for detecting nested control flow structures
     public static func isBlockStartToken(_ tokenType: TokenType) -> Bool {
         switch tokenType {
-        case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword:
+        case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword, .classKeyword:
             return true
         default:
             return false
@@ -304,7 +306,7 @@ public enum ParsingBoundaryDetection {
     /// Used for matching block start/end pairs
     public static func isBlockEndToken(_ tokenType: TokenType) -> Bool {
         switch tokenType {
-        case .endifKeyword, .endwhileKeyword, .endforKeyword, .endfunctionKeyword, .endprocedureKeyword:
+        case .endifKeyword, .endwhileKeyword, .endforKeyword, .endfunctionKeyword, .endprocedureKeyword, .endclassKeyword:
             return true
         default:
             return false
@@ -353,7 +355,8 @@ public enum ParsingBoundaryDetection {
              (.whileKeyword, .endwhileKeyword),
              (.forKeyword, .endforKeyword),
              (.functionKeyword, .endfunctionKeyword),
-             (.procedureKeyword, .endprocedureKeyword):
+             (.procedureKeyword, .endprocedureKeyword),
+             (.classKeyword, .endclassKeyword):
             return true
         default:
             return false

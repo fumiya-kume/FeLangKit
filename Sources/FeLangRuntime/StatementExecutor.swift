@@ -125,6 +125,10 @@ public final class StatementExecutor: @unchecked Sendable {
         case .recordDeclaration(let decl):
             executeRecordDeclaration(decl)
             return .normal
+
+        case .classDeclaration(let decl):
+            executeClassDeclaration(decl)
+            return .normal
         }
     }
 
@@ -132,6 +136,46 @@ public final class StatementExecutor: @unchecked Sendable {
 
     private func executeRecordDeclaration(_ decl: RecordDeclaration) {
         environment.defineRecord(decl.name, fields: decl.fields)
+    }
+
+    private func executeClassDeclaration(_ decl: ClassDeclaration) {
+        var members: [String: DataType] = [:]
+        for member in decl.members {
+            members[member.name] = member.type
+        }
+
+        var constructorParams: [String] = []
+        var constructorParamTypes: [DataType] = []
+        var constructorBody: [Statement] = []
+
+        if let constructor = decl.constructor {
+            constructorParams = constructor.parameters.map { $0.name }
+            constructorParamTypes = constructor.parameters.map { $0.type }
+            constructorBody = constructor.body
+        }
+
+        var methods: [String: MethodDefinition] = [:]
+        for method in decl.methods {
+            let methodDef = MethodDefinition(
+                name: method.name,
+                parameters: method.parameters.map { $0.name },
+                parameterTypes: method.parameters.map { $0.type },
+                returnType: method.returnType,
+                body: method.body
+            )
+            methods[method.name] = methodDef
+        }
+
+        let classDef = ClassDefinition(
+            name: decl.name,
+            members: members,
+            constructorParameters: constructorParams,
+            constructorParameterTypes: constructorParamTypes,
+            constructorBody: constructorBody,
+            methods: methods
+        )
+
+        environment.defineClass(decl.name, definition: classDef)
     }
 
     private func executeVariableDeclaration(_ decl: VariableDeclaration) throws {
@@ -206,6 +250,53 @@ public final class StatementExecutor: @unchecked Sendable {
         case .arrayElement(let arrayAccess, let expr):
             let value = try evaluator.evaluate(expr)
             try assignArrayElement(arrayAccess, value: value)
+
+        case .fieldAccess(let fieldAccess, let expr):
+            let value = try evaluator.evaluate(expr)
+            try assignFieldAccess(fieldAccess, value: value)
+        }
+    }
+
+    private func assignFieldAccess(_ access: Assignment.FieldAccess, value: RuntimeValue) throws {
+        let objectValue = try evaluator.evaluate(access.object)
+
+        switch objectValue {
+        case .instance(var inst):
+            // Validate field exists
+            guard inst.fields[access.field] != nil else {
+                throw RuntimeError.invalidFieldAccess(field: access.field, type: inst.className)
+            }
+
+            // Validate type if member has a declared type
+            if let expectedType = inst.classDefinition.members[access.field] {
+                try validateType(value, expected: expectedType, context: "assignment to '\(access.field)'")
+            }
+
+            inst.fields[access.field] = value
+
+            // Update the instance in the environment
+            switch access.object {
+            case .identifier(let name):
+                try environment.assign(name, value: .instance(inst))
+            default:
+                throw RuntimeError.generic(message: "Cannot assign to field of complex expression")
+            }
+
+        case .record(var fields):
+            guard fields[access.field] != nil else {
+                throw RuntimeError.invalidFieldAccess(field: access.field, type: "record")
+            }
+            fields[access.field] = value
+
+            switch access.object {
+            case .identifier(let name):
+                try environment.assign(name, value: .record(fields))
+            default:
+                throw RuntimeError.generic(message: "Cannot assign to field of complex expression")
+            }
+
+        default:
+            throw RuntimeError.invalidFieldAccess(field: access.field, type: objectValue.typeName)
         }
     }
 
@@ -527,12 +618,86 @@ public final class StatementExecutor: @unchecked Sendable {
             }
         }
 
+        // Check if this is a class instantiation
+        if let classDef = environment.lookupClassDefinition(name) {
+            return try createInstance(classDef, arguments: arguments)
+        }
+
         // Then try external function resolver (for standard library functions)
         if let resolver = externalFunctionResolver {
             return try resolver(name, arguments)
         }
 
         throw RuntimeError.undefinedFunction(name: name)
+    }
+
+    private func createInstance(
+        _ classDef: ClassDefinition,
+        arguments: [RuntimeValue]
+    ) throws -> RuntimeValue {
+        // Validate constructor argument count
+        guard arguments.count == classDef.constructorParameters.count else {
+            throw RuntimeError.wrongArgumentCount(
+                function: classDef.name,
+                expected: classDef.constructorParameters.count,
+                actual: arguments.count
+            )
+        }
+
+        // Validate constructor parameter types
+        if !classDef.constructorParameterTypes.isEmpty {
+            for (index, (param, arg)) in zip(classDef.constructorParameters, arguments).enumerated() {
+                guard index < classDef.constructorParameterTypes.count else { continue }
+                let expectedType = classDef.constructorParameterTypes[index]
+                try validateType(arg, expected: expectedType, context: "parameter '\(param)' of '\(classDef.name)' constructor")
+            }
+        }
+
+        // Initialize member fields with default values
+        var fields: [String: RuntimeValue] = [:]
+        for (memberName, memberType) in classDef.members {
+            fields[memberName] = defaultValue(for: memberType)
+        }
+
+        // Create the instance
+        var instance = InstanceValue(
+            className: classDef.name,
+            classDefinition: classDef,
+            fields: fields
+        )
+
+        // Execute constructor body if present
+        if !classDef.constructorBody.isEmpty {
+            try environment.enterCall()
+            defer { environment.exitCall() }
+
+            functionDepth += 1
+            defer { functionDepth -= 1 }
+
+            try environment.pushScope()
+            defer { environment.popScope() }
+
+            // Bind constructor parameters
+            for (index, (param, arg)) in zip(classDef.constructorParameters, arguments).enumerated() {
+                let paramType = index < classDef.constructorParameterTypes.count
+                    ? classDef.constructorParameterTypes[index]
+                    : nil
+                environment.define(param, value: arg, type: paramType)
+            }
+
+            // Define 'self' as the instance being constructed
+            environment.define("self", value: .instance(instance))
+
+            // Execute constructor body
+            _ = try execute(classDef.constructorBody)
+
+            // Retrieve the potentially modified 'self' instance
+            if case .instance(let modifiedInstance) = try environment.get("self") {
+                instance = modifiedInstance
+            }
+        }
+
+        return .instance(instance)
     }
 
     private func callFunctionValue(
@@ -685,7 +850,7 @@ public final class StatementExecutor: @unchecked Sendable {
         case .record:
             // Record type name cannot be inferred from runtime value
             return nil
-        case .function, .procedure, .null, .undefined:
+        case .function, .procedure, .null, .classDefinition, .instance, .undefined:
             return nil
         }
     }

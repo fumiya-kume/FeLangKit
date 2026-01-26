@@ -42,7 +42,8 @@ struct VisitableTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record" }
+            visitRecordDeclaration: { _ in "record" },
+            visitClassDeclaration: { _ in "class" }
         )
 
         let stmt = Statement.breakStatement
@@ -101,6 +102,7 @@ struct VisitableTests {
                 switch assignment {
                 case .variable: return "assign_var"
                 case .arrayElement: return "assign_array"
+                case .fieldAccess: return "assign_field"
                 }
             },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -112,7 +114,8 @@ struct VisitableTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record" }
+            visitRecordDeclaration: { _ in "record" },
+            visitClassDeclaration: { _ in "class" }
         )
 
         // Test all statement types with convenience method
@@ -186,7 +189,8 @@ struct VisitableTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record" }
+            visitRecordDeclaration: { _ in "record" },
+            visitClassDeclaration: { _ in "class" }
         )
 
         let expr = Expression.literal(.integer(42))
@@ -226,7 +230,8 @@ struct VisitableTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record" }
+            visitRecordDeclaration: { _ in "record" },
+            visitClassDeclaration: { _ in "class" }
         )
 
         // Test that we can use visitors in async contexts
@@ -267,7 +272,8 @@ struct VisitableTests {
             visitBreakStatement: { "break" },
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
-            visitRecordDeclaration: { _ in "record" }
+            visitRecordDeclaration: { _ in "record" },
+            visitClassDeclaration: { _ in "class" }
         )
 
         let expr = Expression.literal(.integer(42))

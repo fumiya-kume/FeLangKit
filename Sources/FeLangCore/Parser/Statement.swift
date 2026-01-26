@@ -18,6 +18,9 @@ public indirect enum Statement: Equatable, Codable, Sendable {
     case procedureDeclaration(ProcedureDeclaration)
     case returnStatement(ReturnStatement)
 
+    // Class
+    case classDeclaration(ClassDeclaration)
+
     // Other
     case expressionStatement(Expression)
     case breakStatement
@@ -99,6 +102,7 @@ public enum ForStatement: Equatable, Codable, Sendable {
 public enum Assignment: Equatable, Codable, Sendable {
     case variable(String, Expression)
     case arrayElement(ArrayAccess, Expression)
+    case fieldAccess(FieldAccess, Expression)
 
     public struct ArrayAccess: Equatable, Codable, Sendable {
         public let array: Expression
@@ -107,6 +111,16 @@ public enum Assignment: Equatable, Codable, Sendable {
         public init(array: Expression, index: Expression) {
             self.array = array
             self.index = index
+        }
+    }
+
+    public struct FieldAccess: Equatable, Codable, Sendable {
+        public let object: Expression
+        public let field: String
+
+        public init(object: Expression, field: String) {
+            self.object = object
+            self.field = field
         }
     }
 }
@@ -287,5 +301,73 @@ public struct RecordDeclaration: Equatable, Codable, Sendable {
         self.name = name
         self.fields = fields
         self.position = position
+    }
+}
+
+/// Represents a class declaration with member variables, constructor, and methods.
+public struct ClassDeclaration: Equatable, Codable, Sendable {
+    public let name: String
+    public let superclass: String?
+    public let members: [MemberDeclaration]
+    public let constructor: ConstructorDeclaration?
+    public let methods: [MethodDeclaration]
+    public let position: SourcePosition?
+
+    public init(
+        name: String,
+        superclass: String? = nil,
+        members: [MemberDeclaration] = [],
+        constructor: ConstructorDeclaration? = nil,
+        methods: [MethodDeclaration] = [],
+        position: SourcePosition? = nil
+    ) {
+        self.name = name
+        self.superclass = superclass
+        self.members = members
+        self.constructor = constructor
+        self.methods = methods
+        self.position = position
+    }
+}
+
+/// Represents a member variable declaration in a class.
+public struct MemberDeclaration: Equatable, Codable, Sendable {
+    public let name: String
+    public let type: DataType
+
+    public init(name: String, type: DataType) {
+        self.name = name
+        self.type = type
+    }
+}
+
+/// Represents a constructor declaration in a class.
+public struct ConstructorDeclaration: Equatable, Codable, Sendable {
+    public let parameters: [Parameter]
+    public let body: [Statement]
+
+    public init(parameters: [Parameter], body: [Statement]) {
+        self.parameters = parameters
+        self.body = body
+    }
+}
+
+/// Represents a method declaration in a class.
+public struct MethodDeclaration: Equatable, Codable, Sendable {
+    public let name: String
+    public let parameters: [Parameter]
+    public let returnType: DataType?
+    public let body: [Statement]
+
+    public init(
+        name: String,
+        parameters: [Parameter],
+        returnType: DataType? = nil,
+        body: [Statement]
+    ) {
+        self.name = name
+        self.parameters = parameters
+        self.returnType = returnType
+        self.body = body
     }
 }

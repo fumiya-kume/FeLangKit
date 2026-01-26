@@ -47,6 +47,10 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case variableKeyword = "変数"
     case constantKeyword = "定数"
 
+    /// Class keywords
+    case classKeyword = "class"
+    case endclassKeyword = "endclass"
+
     /// Undefined keyword
     case undefinedKeyword = "未定義"
 
@@ -114,7 +118,8 @@ extension TokenType {
              .whileKeyword, .doKeyword, .endwhileKeyword, .forKeyword, .toKeyword, .stepKeyword, .inKeyword, .endforKeyword,
              .functionKeyword, .endfunctionKeyword, .procedureKeyword, .endprocedureKeyword,
              .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword, .continueKeyword,
-             .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword, .undefinedKeyword:
+             .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword,
+             .classKeyword, .endclassKeyword, .undefinedKeyword:
             return true
         default:
             return false

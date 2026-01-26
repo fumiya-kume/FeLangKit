@@ -51,12 +51,12 @@ public struct StatementParser {
 
             // Track nesting depth for security
             switch token.type {
-            case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword:
+            case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword, .classKeyword:
                 nestingDepth += 1
                 guard nestingDepth <= maxNestingDepth else {
                     throw StatementParsingError.nestingTooDeep
                 }
-            case .endifKeyword, .endwhileKeyword, .endforKeyword, .endfunctionKeyword, .endprocedureKeyword:
+            case .endifKeyword, .endwhileKeyword, .endforKeyword, .endfunctionKeyword, .endprocedureKeyword, .endclassKeyword:
                 nestingDepth = max(0, nestingDepth - 1)
             default:
                 break
@@ -90,6 +90,8 @@ public struct StatementParser {
             return .functionDeclaration(try parseFunctionDeclaration(&parser, nestingDepth: nestingDepth))
         case .procedureKeyword:
             return .procedureDeclaration(try parseProcedureDeclaration(&parser, nestingDepth: nestingDepth))
+        case .classKeyword:
+            return .classDeclaration(try parseClassDeclaration(&parser, nestingDepth: nestingDepth))
         case .returnKeyword:
             return .returnStatement(try parseReturnStatement(&parser))
         case .breakKeyword:
@@ -244,12 +246,37 @@ public struct StatementParser {
             }
         }
 
+        // Check for field access assignment: identifier.field ←
+        if let nextToken = parser.peek(offset: 1), nextToken.type == .dot {
+            // Skip through field accesses (could be chained like a.b.c)
+            var offset = 2  // Start after the '.'
+
+            while let token = parser.peek(offset: offset) {
+                if token.type == .identifier {
+                    offset += 1
+                    // Check if followed by another dot (chained access)
+                    if let nextDot = parser.peek(offset: offset), nextDot.type == .dot {
+                        offset += 1
+                        continue
+                    }
+                    break
+                } else {
+                    break
+                }
+            }
+
+            // Check if followed by assignment operator
+            if let assignToken = parser.peek(offset: offset), assignToken.type == .assign {
+                return .assignment(try parseAssignment(&parser))
+            }
+        }
+
         // Not an assignment, parse as expression
         let expression = try parseExpression(&parser)
         return .expressionStatement(expression)
     }
 
-    /// Parses an assignment statement (variable ← expression or array[index] ← expression).
+    /// Parses an assignment statement (variable ← expression, array[index] ← expression, or object.field ← expression).
     private func parseAssignment(_ parser: inout TokenStream) throws -> Assignment {
         guard let identifierToken = parser.advance(), identifierToken.type == .identifier else {
             throw StatementParsingError.expectedIdentifier
@@ -287,6 +314,28 @@ public struct StatementParser {
             } else {
                 preconditionFailure("Internal parser error: expected final arrayExpr to be .arrayAccess")
             }
+        } else if parser.peek()?.type == .dot {
+            // Field access assignment: object.field ← expression (possibly chained like a.b.c)
+            var currentExpr: Expression = .identifier(identifier)
+
+            while parser.peek()?.type == .dot {
+                _ = parser.advance() // consume '.'
+                guard let fieldToken = parser.advance(), fieldToken.type == .identifier else {
+                    throw StatementParsingError.expectedIdentifier
+                }
+                currentExpr = .fieldAccess(currentExpr, fieldToken.lexeme)
+            }
+
+            try expectToken(&parser, .assign) // consume '←'
+            let valueExpr = try parseExpression(&parser)
+
+            // Extract the final field access for the assignment
+            guard case .fieldAccess(let objectExpr, let fieldName) = currentExpr else {
+                throw StatementParsingError.expectedToken(.assign)
+            }
+
+            let fieldAccess = Assignment.FieldAccess(object: objectExpr, field: fieldName)
+            return .fieldAccess(fieldAccess, valueExpr)
         } else if parser.peek()?.type == .assign {
             // Variable assignment: variable ← expression
             _ = parser.advance() // consume '←'
@@ -464,6 +513,166 @@ public struct StatementParser {
         }
 
         return ReturnStatement(expression: expression)
+    }
+
+    /// Parses a class declaration.
+    /// Syntax: class ClassName
+    ///           member1: Type1
+    ///           member2: Type2
+    ///           ClassName(param1: Type1, param2: Type2)
+    ///             body
+    ///         endclass
+    private func parseClassDeclaration(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> ClassDeclaration {
+        let position = parser.peek()?.position
+
+        try expectToken(&parser, .classKeyword) // consume 'class'
+
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw StatementParsingError.expectedIdentifier
+        }
+        let className = nameToken.lexeme
+
+        var members: [MemberDeclaration] = []
+        var constructor: ConstructorDeclaration?
+        var methods: [MethodDeclaration] = []
+
+        // Parse class body until endclass
+        while let token = parser.peek(), token.type != .endclassKeyword && token.type != .eof {
+            // Skip newlines and whitespace
+            if token.type == .newline || token.type == .whitespace {
+                _ = parser.advance()
+                continue
+            }
+
+            // Check if this is a constructor (identifier matching class name followed by '(')
+            if token.type == .identifier && token.lexeme == className {
+                if let nextToken = parser.peek(offset: 1), nextToken.type == .leftParen {
+                    constructor = try parseConstructorDeclaration(&parser, className: className)
+                    continue
+                }
+            }
+
+            // Check if this is a method (function keyword)
+            if token.type == .functionKeyword {
+                methods.append(try parseMethodDeclaration(&parser, nestingDepth: nestingDepth))
+                continue
+            }
+
+            // Otherwise, try to parse as member declaration (name: Type)
+            if token.type == .identifier {
+                if let nextToken = parser.peek(offset: 1), nextToken.type == .colon {
+                    members.append(try parseMemberDeclaration(&parser))
+                    continue
+                }
+            }
+
+            // Unknown token in class body
+            throw StatementParsingError.unexpectedToken(token, expected: .endclassKeyword)
+        }
+
+        try expectToken(&parser, .endclassKeyword) // consume 'endclass'
+
+        return ClassDeclaration(
+            name: className,
+            superclass: nil,
+            members: members,
+            constructor: constructor,
+            methods: methods,
+            position: position
+        )
+    }
+
+    /// Parses a member declaration (name: Type).
+    private func parseMemberDeclaration(_ parser: inout TokenStream) throws -> MemberDeclaration {
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw StatementParsingError.expectedIdentifier
+        }
+        let name = nameToken.lexeme
+
+        try expectToken(&parser, .colon) // consume ':'
+        let type = try parseDataType(&parser)
+
+        return MemberDeclaration(name: name, type: type)
+    }
+
+    /// Parses a constructor declaration (ClassName(params) body).
+    private func parseConstructorDeclaration(_ parser: inout TokenStream, className: String) throws -> ConstructorDeclaration {
+        // Consume constructor name (same as class name)
+        guard let nameToken = parser.advance(), nameToken.type == .identifier && nameToken.lexeme == className else {
+            throw StatementParsingError.expectedIdentifier
+        }
+
+        try expectToken(&parser, .leftParen) // consume '('
+        let parameters = try parseParameterList(&parser)
+        try expectToken(&parser, .rightParen) // consume ')'
+
+        // Parse constructor body until we hit another member, method, or endclass
+        let body = try parseClassMemberBody(&parser)
+
+        return ConstructorDeclaration(parameters: parameters, body: body)
+    }
+
+    /// Parses a method declaration (function name(params): ReturnType body endfunction).
+    private func parseMethodDeclaration(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> MethodDeclaration {
+        try expectToken(&parser, .functionKeyword) // consume 'function'
+
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw StatementParsingError.expectedIdentifier
+        }
+        let name = nameToken.lexeme
+
+        try expectToken(&parser, .leftParen) // consume '('
+        let parameters = try parseParameterList(&parser)
+        try expectToken(&parser, .rightParen) // consume ')'
+
+        // Optional return type
+        var returnType: DataType?
+        if parser.peek()?.type == .colon {
+            _ = parser.advance() // consume ':'
+            returnType = try parseDataType(&parser)
+        }
+
+        // Parse method body
+        let body = try parseBlock(&parser, until: [.endfunctionKeyword], nestingDepth: nestingDepth)
+        try expectToken(&parser, .endfunctionKeyword) // consume 'endfunction'
+
+        return MethodDeclaration(name: name, parameters: parameters, returnType: returnType, body: body)
+    }
+
+    /// Parses a constructor body (statements until next member/method/endclass).
+    private func parseClassMemberBody(_ parser: inout TokenStream) throws -> [Statement] {
+        var statements: [Statement] = []
+
+        while let token = parser.peek() {
+            // Skip newlines and whitespace
+            if token.type == .newline || token.type == .whitespace {
+                _ = parser.advance()
+                continue
+            }
+
+            // Stop at endclass or function keyword (method) or identifier followed by colon (member) or identifier followed by '(' (constructor)
+            if token.type == .endclassKeyword || token.type == .functionKeyword {
+                break
+            }
+
+            // Check for member declaration (identifier followed by colon)
+            if token.type == .identifier {
+                if let nextToken = parser.peek(offset: 1) {
+                    if nextToken.type == .colon || nextToken.type == .leftParen {
+                        break
+                    }
+                }
+            }
+
+            if token.type == .eof {
+                break
+            }
+
+            let statement = try parseStatement(&parser)
+            statements.append(statement)
+        }
+
+        return statements
     }
 
     // MARK: - Helper Parsing Methods
@@ -732,7 +941,8 @@ public struct StatementParser {
              .endwhileKeyword,  // WHILE statement block ends
              .endforKeyword,    // FOR statement block ends
              .endfunctionKeyword,   // FUNCTION declaration block ends
-             .endprocedureKeyword:  // PROCEDURE declaration block ends
+             .endprocedureKeyword,  // PROCEDURE declaration block ends
+             .endclassKeyword:      // CLASS declaration block ends
             return true
 
         // FOR loop specific keywords that separate expression components
@@ -825,9 +1035,10 @@ public struct StatementParser {
              .constantKeyword:  // Constant declarations: 定数 name: type ← value
             return true
 
-        // Function/procedure declarations
+        // Function/procedure/class declarations
         case .functionKeyword,  // FUNCTION declarations with return values
-             .procedureKeyword: // PROCEDURE declarations without return values
+             .procedureKeyword, // PROCEDURE declarations without return values
+             .classKeyword:     // CLASS declarations
             return true
 
         // Flow control statements

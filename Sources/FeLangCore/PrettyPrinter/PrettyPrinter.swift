@@ -317,6 +317,9 @@ public struct PrettyPrinter {
 
         case .recordDeclaration(let recordDecl):
             return printRecordDeclaration(recordDecl, indent: indent)
+
+        case .classDeclaration(let classDecl):
+            return printClassDeclaration(classDecl, indent: indent)
         }
     }
 
@@ -386,6 +389,9 @@ public struct PrettyPrinter {
 
         case .arrayElement(let arrayAccess, let expr):
             return "\(printExpression(arrayAccess.array))[\(printExpression(arrayAccess.index))] ← \(printExpression(expr))"
+
+        case .fieldAccess(let fieldAccess, let expr):
+            return "\(printExpression(fieldAccess.object)).\(fieldAccess.field) ← \(printExpression(expr))"
         }
     }
 
@@ -471,6 +477,29 @@ public struct PrettyPrinter {
 
         let newlineBeforeEnd = hasContent ? "" : "\n"
         result += "\(newlineBeforeEnd)\(indentStr)endrecord"
+        return result
+    }
+
+    private func printClassDeclaration(_ classDecl: ClassDeclaration, indent: Int) -> String {
+        let indentStr = makeIndent(indent)
+        var result = "\(indentStr)class \(classDecl.name)"
+
+        var hasContent = appendContentLines(classDecl.members, to: &result, indent: indent + 1) {
+            "\($0.name): \(printDataType($0.type))"
+        }
+
+        if let constructor = classDecl.constructor {
+            if !hasContent {
+                result += "\n"
+                hasContent = true
+            }
+            let params = constructor.parameters.map { "\($0.name): \(printDataType($0.type))" }.joined(separator: ", ")
+            result += makeIndent(indent + 1) + "\(classDecl.name)(\(params))\n"
+            result += printStatements(constructor.body, indent: indent + 2) + "\n"
+        }
+
+        let newlineBeforeEnd = hasContent ? "" : "\n"
+        result += "\(newlineBeforeEnd)\(indentStr)endclass"
         return result
     }
 

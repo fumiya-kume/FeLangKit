@@ -157,6 +157,7 @@ public struct DefinitionProvider: Sendable {
             "while", "do", "endwhile",
             "for", "to", "step", "endfor", "in",
             "function", "endfunction", "procedure", "endprocedure",
+            "class", "endclass",
             "return", "break", "continue",
             "and", "or", "not", "true", "false",
             "未定義"
