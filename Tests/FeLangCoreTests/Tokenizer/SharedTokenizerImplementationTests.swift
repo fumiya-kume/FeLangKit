@@ -660,4 +660,185 @@ struct TokenizerCoreTests {
         #expect(tokenData.type == .identifier)
         #expect(tokenData.lexeme == "test")
     }
+
+    // MARK: - parseBasicNumber Tests
+
+    @Test func testParseBasicNumberInteger() throws {
+        let input = "42abc"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicNumber(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.type == .integerLiteral)
+        #expect(result?.lexeme == "42")
+    }
+
+    @Test func testParseBasicNumberDecimal() throws {
+        let input = "3.14rest"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicNumber(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.type == .realLiteral)
+        #expect(result?.lexeme == "3.14")
+    }
+
+    @Test func testParseBasicNumberLeadingDot() throws {
+        let input = ".5rest"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicNumber(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.type == .realLiteral)
+        #expect(result?.lexeme == ".5")
+    }
+
+    @Test func testParseBasicNumberNotANumber() throws {
+        let input = "abc"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicNumber(from: input, at: &index)
+
+        #expect(result == nil)
+    }
+
+    // MARK: - parseBasicString Tests
+
+    @Test func testParseBasicStringDoubleQuote() throws {
+        let input = "\"hello\"rest"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicString(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.lexeme == "\"hello\"")
+    }
+
+    @Test func testParseBasicStringSingleQuote() throws {
+        let input = "'a'rest"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicString(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.lexeme == "'a'")
+    }
+
+    @Test func testParseBasicStringWithEscapes() throws {
+        let input = "\"hello\\nworld\"rest"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicString(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.lexeme == "\"hello\\nworld\"")
+    }
+
+    @Test func testParseBasicStringUnterminated() throws {
+        let input = "\"unterminated"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicString(from: input, at: &index)
+
+        #expect(result == nil)
+    }
+
+    @Test func testParseBasicStringUnknownEscape() throws {
+        let input = "\"hello\\xworld\""
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicString(from: input, at: &index)
+
+        #expect(result == nil)
+        #expect(index == input.startIndex) // index should be reset
+    }
+
+    // MARK: - parseComment Tests
+
+    @Test func testParseCommentSingleLine() throws {
+        let input = "// single line\nabc"
+        var index = input.startIndex
+        let result = TokenizerCore.parseComment(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.type == .comment)
+        #expect(result?.lexeme == "// single line")
+    }
+
+    @Test func testParseCommentMultiLine() throws {
+        let input = "/* multi\nline */abc"
+        var index = input.startIndex
+        let result = TokenizerCore.parseComment(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.type == .comment)
+        #expect(result?.lexeme == "/* multi\nline */")
+    }
+
+    @Test func testParseCommentMultiLineUnterminated() throws {
+        let input = "/* unterminated"
+        var index = input.startIndex
+        let result = TokenizerCore.parseComment(from: input, at: &index)
+
+        #expect(result == nil)
+        #expect(index == input.startIndex) // index should be reset
+    }
+
+    @Test func testParseCommentNotAComment() throws {
+        let input = "abc"
+        var index = input.startIndex
+        let result = TokenizerCore.parseComment(from: input, at: &index)
+
+        #expect(result == nil)
+    }
+
+    // MARK: - isValidTokenBoundary Tests
+
+    @Test func testIsValidTokenBoundaryAtEnd() throws {
+        let input = "abc"
+        let result = TokenizerCore.isValidTokenBoundary(in: input, at: input.endIndex)
+
+        #expect(result == true)
+    }
+
+    @Test func testIsValidTokenBoundaryBeforeSpace() throws {
+        let input = "abc def"
+        let index = input.index(input.startIndex, offsetBy: 3) // at space
+        let result = TokenizerCore.isValidTokenBoundary(in: input, at: index)
+
+        #expect(result == true)
+    }
+
+    @Test func testIsValidTokenBoundaryBeforeIdentifier() throws {
+        let input = "abcdef"
+        let index = input.index(input.startIndex, offsetBy: 3) // at 'd'
+        let result = TokenizerCore.isValidTokenBoundary(in: input, at: index)
+
+        #expect(result == false) // 'd' can continue an identifier
+    }
+
+    // MARK: - canStartToken Tests
+
+    @Test func testCanStartTokenWithLetter() throws {
+        #expect(TokenizerCore.canStartToken(at: "a") == true)
+    }
+
+    @Test func testCanStartTokenWithDigit() throws {
+        #expect(TokenizerCore.canStartToken(at: "0") == true)
+    }
+
+    @Test func testCanStartTokenWithDot() throws {
+        #expect(TokenizerCore.canStartToken(at: ".") == true)
+    }
+
+    @Test func testCanStartTokenWithQuote() throws {
+        #expect(TokenizerCore.canStartToken(at: "\"") == true)
+        #expect(TokenizerCore.canStartToken(at: "'") == true)
+    }
+
+    @Test func testCanStartTokenWithSlash() throws {
+        #expect(TokenizerCore.canStartToken(at: "/") == true)
+    }
+
+    @Test func testCanStartTokenWithSpace() throws {
+        #expect(TokenizerCore.canStartToken(at: " ") == false)
+    }
+
+    @Test func testCanStartTokenWithNewline() throws {
+        #expect(TokenizerCore.canStartToken(at: "\n") == false)
+    }
 }

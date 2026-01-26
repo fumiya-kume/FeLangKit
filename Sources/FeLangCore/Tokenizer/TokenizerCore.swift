@@ -170,15 +170,18 @@ public enum TokenizerCore {
 
     /// Enhanced number parsing with improved error detection and validation.
     /// Detects multiple decimal points, invalid formats, and provides detailed error context.
-    public static func parseNumberWithValidation(from input: String, at index: inout String.Index) -> Result<TokenData, TokenizerError> {
+    public static func parseNumberWithValidation(from input: String, at index: inout String.Index, startIndex: String.Index? = nil) -> Result<TokenData, TokenizerError> {
+        let baseIndex = startIndex ?? input.startIndex
         let nullScalar: UnicodeScalar = "\0"
         guard index < input.endIndex else {
-            return .failure(.unexpectedCharacter(nullScalar, SourcePosition(line: 1, column: 1, offset: 0)))
+            let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: index)
+            return .failure(.unexpectedCharacter(nullScalar, position))
         }
 
         guard input[index].isNumber || input[index] == "." else {
             let scalar = input[index].unicodeScalars.first ?? nullScalar
-            return .failure(.unexpectedCharacter(scalar, SourcePosition(line: 1, column: 1, offset: 0)))
+            let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: index)
+            return .failure(.unexpectedCharacter(scalar, position))
         }
 
         let start = index
@@ -189,7 +192,8 @@ public enum TokenizerCore {
         if input[index] == "." {
             let nextIndex = input.index(after: index)
             guard nextIndex < input.endIndex && input[nextIndex].isNumber else {
-                return .failure(.invalidNumberFormat(".", SourcePosition(line: 1, column: 1, offset: 0)))
+                let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: index)
+                return .failure(.invalidNumberFormat(".", position))
             }
             hasDecimal = true
             decimalCount = 1
@@ -227,14 +231,16 @@ public enum TokenizerCore {
                 index = input.index(after: index)
             }
             let lexeme = String(input[start..<index])
-            return .failure(.invalidNumberFormat(lexeme, SourcePosition(line: 1, column: 1, offset: 0)))
+            let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: start)
+            return .failure(.invalidNumberFormat(lexeme, position))
         }
 
         let lexeme = String(input[start..<index])
 
         // Check for invalid number format (multiple decimal points)
         if decimalCount > 1 || lexeme.filter({ $0 == "." }).count > 1 {
-            return .failure(.invalidNumberFormat(lexeme, SourcePosition(line: 1, column: 1, offset: 0)))
+            let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: start)
+            return .failure(.invalidNumberFormat(lexeme, position))
         }
 
         let tokenType = TokenizerUtilities.numberTokenType(hasDecimal: hasDecimal)
@@ -388,7 +394,8 @@ public enum TokenizerCore {
 
     /// Parses string literals with escape sequence support
     /// Handles both single and double quotes, with proper escape sequence validation
-    public static func parseStringLiteral(from input: String, at index: inout String.Index, quoteChar: Character) -> Result<TokenData, TokenizerError> {
+    public static func parseStringLiteral(from input: String, at index: inout String.Index, quoteChar: Character, startIndex: String.Index? = nil) -> Result<TokenData, TokenizerError> {
+        let baseIndex = startIndex ?? input.startIndex
         let start = index
         index = input.index(after: index) // consume opening quote
 
@@ -409,7 +416,8 @@ public enum TokenizerCore {
                 // Handle escape sequence
                 let nextIndex = input.index(after: index)
                 guard nextIndex < input.endIndex else {
-                    return .failure(.unterminatedString(SourcePosition(line: 1, column: 1, offset: 0)))
+                    let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: index)
+                    return .failure(.unterminatedString(position))
                 }
 
                 let escapedChar = input[nextIndex]
@@ -427,7 +435,8 @@ public enum TokenizerCore {
                 case "'":
                     content.append("'")
                 default:
-                    return .failure(.invalidEscapeSequence(SourcePosition(line: 1, column: 1, offset: 0)))
+                    let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: index)
+                    return .failure(.invalidEscapeSequence(position))
                 }
 
                 index = input.index(after: nextIndex) // consume both \ and escaped char
@@ -438,7 +447,8 @@ public enum TokenizerCore {
         }
 
         // Reached end of input without closing quote
-        return .failure(.unterminatedString(SourcePosition(line: 1, column: 1, offset: 0)))
+        let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: start)
+        return .failure(.unterminatedString(position))
     }
 
     // MARK: - Whitespace and Comment Handling
@@ -550,8 +560,9 @@ public enum TokenizerCore {
                         content.append("'")
                         index = input.index(after: nextIndex)
                     default:
-                        content.append(nextChar)
-                        index = input.index(after: nextIndex)
+                        // Unknown escape sequence - return nil to let caller handle error
+                        index = start
+                        return nil
                     }
                 } else {
                     index = nextIndex
@@ -601,15 +612,22 @@ public enum TokenizerCore {
             index = nextIndex
             index = input.index(after: index)
 
+            var foundTerminator = false
             while index < input.endIndex {
                 if input[index] == "*" {
                     let afterStar = input.index(after: index)
                     if afterStar < input.endIndex && input[afterStar] == "/" {
                         index = input.index(after: afterStar)
+                        foundTerminator = true
                         break
                     }
                 }
                 index = input.index(after: index)
+            }
+
+            guard foundTerminator else {
+                index = start
+                return nil
             }
 
             let lexeme = String(input[start..<index])
