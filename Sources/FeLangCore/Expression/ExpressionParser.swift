@@ -77,11 +77,20 @@ public struct ExpressionParser {
         // Parse postfix operations
         while true {
             if parser.peek()?.type == .leftBracket {
-                // Array access: expr[index]
+                // Array access: expr[index] or expr[row, col] for 2D arrays
                 _ = parser.advance() // consume '['
-                let indexExpr = try parseExpression(&parser)
+                let firstIndexExpr = try parseExpression(&parser)
+                expr = Expression.arrayAccess(expr, firstIndexExpr)
+
+                // Handle comma-separated indices for multi-dimensional array access
+                // e.g., matrix[1, 2] is desugared to matrix[1][2]
+                while parser.peek()?.type == .comma {
+                    _ = parser.advance() // consume ','
+                    let nextIndexExpr = try parseExpression(&parser)
+                    expr = Expression.arrayAccess(expr, nextIndexExpr)
+                }
+
                 try expectToken(&parser, .rightBracket)
-                expr = Expression.arrayAccess(expr, indexExpr)
             } else if parser.peek()?.type == .dot {
                 // Field access: expr.field
                 _ = parser.advance() // consume '.'

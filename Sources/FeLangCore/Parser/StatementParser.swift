@@ -258,15 +258,35 @@ public struct StatementParser {
 
         // Check if it's array element assignment
         if parser.peek()?.type == .leftBracket {
-            // Array element assignment: array[index] ← expression
+            // Array element assignment: array[index] ← expression or array[row, col] ← expression
             _ = parser.advance() // consume '['
-            let indexExpr = try parseExpression(&parser)
+            let firstIndexExpr = try parseExpression(&parser)
+            var arrayExpr: Expression = .arrayAccess(.identifier(identifier), firstIndexExpr)
+
+            // Handle comma-separated indices for multi-dimensional array access
+            // e.g., matrix[1, 2] ← value is desugared to matrix[1][2] ← value
+            while parser.peek()?.type == .comma {
+                _ = parser.advance() // consume ','
+                let nextIndexExpr = try parseExpression(&parser)
+                arrayExpr = .arrayAccess(arrayExpr, nextIndexExpr)
+            }
+
             try expectToken(&parser, .rightBracket) // consume ']'
             try expectToken(&parser, .assign) // consume '←'
             let valueExpr = try parseExpression(&parser)
 
-            let arrayAccess = Assignment.ArrayAccess(array: .identifier(identifier), index: indexExpr)
-            return .arrayElement(arrayAccess, valueExpr)
+            // Extract the final array access for the assignment.
+            // At this point, arrayExpr is guaranteed to be .arrayAccess because it is
+            // initialized as .arrayAccess above and only ever wrapped into further
+            // .arrayAccess cases in the loop. If this assumption is violated in the
+            // future, treat it as an internal parser logic error rather than a
+            // user-facing syntax error.
+            if case let .arrayAccess(array, index) = arrayExpr {
+                let arrayAccessStruct = Assignment.ArrayAccess(array: array, index: index)
+                return .arrayElement(arrayAccessStruct, valueExpr)
+            } else {
+                preconditionFailure("Internal parser error: expected final arrayExpr to be .arrayAccess")
+            }
         } else if parser.peek()?.type == .assign {
             // Variable assignment: variable ← expression
             _ = parser.advance() // consume '←'
