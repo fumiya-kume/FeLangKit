@@ -8,15 +8,14 @@
 /// ```
 /// import FeLangCore
 ///
-/// let tokenizer = Tokenizer(input: "example code")
-/// let tokens = tokenizer.tokenize()
+/// let tokens = try ParsingTokenizer.tokenize("example code")
 /// let parser = Parser(tokens: tokens)
 /// let ast = parser.parse()
 /// print(ast)
 /// ```
 ///
 /// # Public API
-/// - `Tokenizer`: Used for breaking input strings into tokens.
+/// - `ParsingTokenizer`: Used for breaking input strings into tokens.
 /// - `Parser`: Converts tokens into an abstract syntax tree (AST).
 /// - `ASTNode`: Represents nodes in the abstract syntax tree.
 /// - `PrettyPrinter`: Converts AST nodes back to canonical FE pseudo-language source code.

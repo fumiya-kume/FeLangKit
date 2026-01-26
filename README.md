@@ -86,7 +86,7 @@ for await message in transport.output {
 - Development: `docs/DEVELOPMENT.md`
 - Migration: `docs/MIGRATION.md`
 - Design docs: `docs/design/`
-- Performance notes: `docs/performance-analysis-summary.md`
+- Performance notes: `docs/KEYWORD_PERFORMANCE_BENCHMARKS.md`
 
 ## License
 

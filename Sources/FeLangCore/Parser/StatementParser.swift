@@ -242,7 +242,7 @@ public struct StatementParser {
             }
 
             try expectToken(&parser, .doKeyword) // consume 'do'
-            let body = try parseBlock(&parser, until: [.endforKeyword])
+            let body = try parseBlock(&parser, until: [.endforKeyword], nestingDepth: nestingDepth)
             try expectToken(&parser, .endforKeyword) // consume 'endfor'
 
             let rangeFor = ForStatement.RangeFor(variable: variable, start: start, end: end, step: step, body: body)
@@ -253,7 +253,7 @@ public struct StatementParser {
 
             let iterable = try parseExpression(&parser)
             try expectToken(&parser, .doKeyword) // consume 'do'
-            let body = try parseBlock(&parser, until: [.endforKeyword])
+            let body = try parseBlock(&parser, until: [.endforKeyword], nestingDepth: nestingDepth)
             try expectToken(&parser, .endforKeyword) // consume 'endfor'
 
             let forEach = ForStatement.ForEachLoop(variable: variable, iterable: iterable, body: body)
@@ -545,7 +545,7 @@ public struct StatementParser {
         }
 
         // Parse local variable declarations and body
-        let (localVariables, body) = try parseFunctionBody(&parser, endToken: .endfunctionKeyword)
+        let (localVariables, body) = try parseFunctionBody(&parser, endToken: .endfunctionKeyword, nestingDepth: nestingDepth)
 
         try expectToken(&parser, .endfunctionKeyword) // consume 'endfunction'
 
@@ -576,7 +576,7 @@ public struct StatementParser {
         try expectToken(&parser, .rightParen) // consume ')'
 
         // Parse local variable declarations and body
-        let (localVariables, body) = try parseFunctionBody(&parser, endToken: .endprocedureKeyword)
+        let (localVariables, body) = try parseFunctionBody(&parser, endToken: .endprocedureKeyword, nestingDepth: nestingDepth)
 
         try expectToken(&parser, .endprocedureKeyword) // consume 'endprocedure'
 
@@ -912,7 +912,12 @@ public struct StatementParser {
     }
 
     /// Parses function/procedure body with local variable declarations.
-    private func parseFunctionBody(_ parser: inout TokenStream, endToken: TokenType) throws -> ([VariableDeclaration], [Statement]) {
+    private func parseFunctionBody(_ parser: inout TokenStream, endToken: TokenType, nestingDepth: Int = 0) throws -> ([VariableDeclaration], [Statement]) {
+        // Check nesting depth for security
+        guard nestingDepth < 100 else {
+            throw StatementParsingError.nestingTooDeep
+        }
+
         let localVariables: [VariableDeclaration] = []
         var statements: [Statement] = []
 
@@ -927,7 +932,7 @@ public struct StatementParser {
                 continue
             }
 
-            let statement = try parseStatement(&parser)
+            let statement = try parseStatement(&parser, nestingDepth: nestingDepth + 1)
             statements.append(statement)
         }
 
@@ -1217,16 +1222,6 @@ private struct TokenStream {
         let token = tokens[index]
         index += 1
         return token
-    }
-
-    /// Returns true if at end of token stream
-    var isAtEnd: Bool {
-        return index >= endIndex
-    }
-
-    /// Returns remaining token count
-    var remainingCount: Int {
-        return max(0, endIndex - index)
     }
 }
 

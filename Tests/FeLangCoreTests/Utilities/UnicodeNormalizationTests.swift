@@ -585,21 +585,4 @@ struct UnicodeNormalizationTests {
         #expect(stats.fullwidthConversions > 0, "Should track statistics")
     }
 
-    @Test("Tokenizer Integration Enhanced")
-    func testTokenizerIntegrationEnhanced() throws {
-        // Test that the main Tokenizer now uses enhanced Unicode normalization
-        let complexInput = "変数　ＶＡＲ　＝　π　×　２"
-        let tokenizer = Tokenizer(input: complexInput)
-
-        let tokens = try tokenizer.tokenize()
-
-        // Verify that tokens are properly normalized
-        let identifierTokens = tokens.filter { $0.type == .identifier }
-        let varToken = identifierTokens.first { $0.lexeme == "VAR" }
-        #expect(varToken != nil, "Should find normalized VAR identifier")
-
-        // The π should be normalized to "pi" and tokenized as identifier
-        let piToken = identifierTokens.first { $0.lexeme == "pi" }
-        #expect(piToken != nil, "Should find normalized pi identifier")
-    }
 }

@@ -61,29 +61,29 @@ public struct ParsingTokenizer: Sendable {
         return tokens
     }
 
-    private func parseNextToken(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenData? {
+    private func parseNextToken(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenizerCore.TokenData? {
         // Try to parse comments first (skip them, don't return tokens)
         if try parseComment(from: input, at: &index, startIndex: startIndex) != nil {
             return nil // Comments are skipped
         }
 
         // Try to parse keywords
-        if let token = parseKeyword(from: input, at: &index) {
+        if let token = TokenizerCore.parseKeyword(from: input, at: &index) {
             return token
         }
 
         // Try to parse operators
-        if let token = parseOperator(from: input, at: &index) {
+        if let token = TokenizerCore.parseOperator(from: input, at: &index) {
             return token
         }
 
         // Try to parse numbers (including leading-dot decimals) before delimiters
-        if let token = parseNumber(from: input, at: &index) {
+        if let token = TokenizerCore.parseNumber(from: input, at: &index) {
             return token
         }
 
         // Try to parse delimiters
-        if let token = parseDelimiter(from: input, at: &index) {
+        if let token = TokenizerCore.parseDelimiter(from: input, at: &index) {
             return token
         }
 
@@ -102,7 +102,7 @@ public struct ParsingTokenizer: Sendable {
 
     // MARK: - Parsing Methods
 
-    private func parseComment(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenData? {
+    private func parseComment(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenizerCore.TokenData? {
         guard index < input.endIndex else { return nil }
 
         // Single line comment
@@ -116,7 +116,7 @@ public struct ParsingTokenizer: Sendable {
             }
 
             let lexeme = String(input[start..<index])
-            return TokenData(type: .comment, lexeme: lexeme)
+            return TokenizerCore.TokenData(type: .comment, lexeme: lexeme)
         }
 
         // Multi-line comment
@@ -142,40 +142,13 @@ public struct ParsingTokenizer: Sendable {
             }
 
             let lexeme = String(input[commentStart..<index])
-            return TokenData(type: .comment, lexeme: lexeme)
+            return TokenizerCore.TokenData(type: .comment, lexeme: lexeme)
         }
 
         return nil
     }
 
-    private func parseKeyword(from input: String, at index: inout String.Index) -> TokenData? {
-        // Use shared implementation for consistent behavior across all tokenizers
-        guard let sharedTokenData = SharedTokenizerImplementation.parseKeyword(from: input, at: &index) else { return nil }
-        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
-    }
-
-    private func parseOperator(from input: String, at index: inout String.Index) -> TokenData? {
-        // Use shared implementation for consistent behavior across all tokenizers
-        guard let sharedTokenData = SharedTokenizerImplementation.parseOperator(from: input, at: &index) else { return nil }
-        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
-    }
-
-    private func parseDelimiter(from input: String, at index: inout String.Index) -> TokenData? {
-        // Use shared implementation for consistent behavior across all tokenizers
-        guard let sharedTokenData = SharedTokenizerImplementation.parseDelimiter(from: input, at: &index) else { return nil }
-        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
-    }
-
-    private func parseNumber(from input: String, at index: inout String.Index) -> TokenData? {
-        // Use shared implementation for consistent behavior across all tokenizers
-        guard let sharedTokenData = SharedTokenizerImplementation.parseNumber(from: input, at: &index) else { return nil }
-        return TokenData(type: sharedTokenData.type, lexeme: sharedTokenData.lexeme)
-    }
-
-    // ✅ REMOVED: Individual number parsing methods have been consolidated into SharedTokenizerImplementation
-    // This eliminates ~80 lines of duplicated code while maintaining identical functionality
-
-    private func parseString(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenData? {
+    private func parseString(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenizerCore.TokenData? {
         guard index < input.endIndex else { return nil }
 
         let quoteChar = input[index]
@@ -257,13 +230,13 @@ public struct ParsingTokenizer: Sendable {
         do {
             let processedContent = try StringEscapeUtilities.processEscapeSequences(content)
             let tokenType = TokenizerUtilities.stringLiteralTokenType(content: processedContent)
-            return TokenData(type: tokenType, lexeme: lexeme)
+            return TokenizerCore.TokenData(type: tokenType, lexeme: lexeme)
         } catch let error as StringEscapeUtilities.EscapeSequenceError {
             throw TokenizerError.invalidEscapeSequenceWithMessage(error.message, position)
         }
     }
 
-    private func parseIdentifier(from input: String, at index: inout String.Index) -> TokenData? {
+    private func parseIdentifier(from input: String, at index: inout String.Index) -> TokenizerCore.TokenData? {
         guard index < input.endIndex && TokenizerUtilities.isIdentifierStart(input[index]) else { return nil }
 
         let start = index
@@ -275,7 +248,7 @@ public struct ParsingTokenizer: Sendable {
         }
 
         let lexeme = String(input[start..<index])
-        return TokenData(type: .identifier, lexeme: lexeme)
+        return TokenizerCore.TokenData(type: .identifier, lexeme: lexeme)
     }
 
     // MARK: - Helper Methods
@@ -283,13 +256,6 @@ public struct ParsingTokenizer: Sendable {
     private func sourcePosition(from input: String, startIndex: String.Index, currentIndex: String.Index) -> SourcePosition {
         return TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: currentIndex)
     }
-}
-
-// MARK: - Helper Types
-
-private struct TokenData {
-    let type: TokenType
-    let lexeme: String
 }
 
 // MARK: - Public Interface

@@ -2,15 +2,15 @@ import Foundation
 import Testing
 @testable import FeLangCore
 
-@Suite("SharedTokenizerImplementation Tests")
-struct SharedTokenizerImplementationTests {
+@Suite("TokenizerCore Tests")
+struct TokenizerCoreTests {
 
     // MARK: - Keyword and Identifier Parsing Tests
 
     @Test func testParseKeywordOrIdentifierWithKeyword() throws {
         let input = "if"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseKeywordOrIdentifier(from: input, at: &index)
+        let result = TokenizerCore.parseKeywordOrIdentifier(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .ifKeyword)
@@ -21,7 +21,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseKeywordOrIdentifierWithIdentifier() throws {
         let input = "myVariable"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseKeywordOrIdentifier(from: input, at: &index)
+        let result = TokenizerCore.parseKeywordOrIdentifier(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .identifier)
@@ -32,7 +32,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseKeywordOrIdentifierWithUnderscore() throws {
         let input = "_privateVar"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseKeywordOrIdentifier(from: input, at: &index)
+        let result = TokenizerCore.parseKeywordOrIdentifier(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .identifier)
@@ -42,7 +42,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseKeywordOrIdentifierWithNumbers() throws {
         let input = "var123"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseKeywordOrIdentifier(from: input, at: &index)
+        let result = TokenizerCore.parseKeywordOrIdentifier(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .identifier)
@@ -52,7 +52,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseKeywordOrIdentifierReturnsNilForNumber() throws {
         let input = "123abc"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseKeywordOrIdentifier(from: input, at: &index)
+        let result = TokenizerCore.parseKeywordOrIdentifier(from: input, at: &index)
 
         #expect(result == nil)
         #expect(index == input.startIndex)
@@ -61,7 +61,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseKeywordOnly() throws {
         let input = "while"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseKeyword(from: input, at: &index)
+        let result = TokenizerCore.parseKeyword(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .whileKeyword)
@@ -72,7 +72,7 @@ struct SharedTokenizerImplementationTests {
         let input = "notAKeyword"
         var index = input.startIndex
         let startIndex = index
-        let result = SharedTokenizerImplementation.parseKeyword(from: input, at: &index)
+        let result = TokenizerCore.parseKeyword(from: input, at: &index)
 
         #expect(result == nil)
         #expect(index == startIndex)
@@ -81,7 +81,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseIdentifierOnly() throws {
         let input = "variableName"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseIdentifier(from: input, at: &index)
+        let result = TokenizerCore.parseIdentifier(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .identifier)
@@ -93,7 +93,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseOperatorPlus() throws {
         let input = "+"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseOperator(from: input, at: &index)
+        let result = TokenizerCore.parseOperator(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .plus)
@@ -103,7 +103,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseOperatorMinus() throws {
         let input = "-"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseOperator(from: input, at: &index)
+        let result = TokenizerCore.parseOperator(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .minus)
@@ -113,7 +113,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseOperatorMultiply() throws {
         let input = "*"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseOperator(from: input, at: &index)
+        let result = TokenizerCore.parseOperator(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .multiply)
@@ -123,7 +123,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseOperatorDivide() throws {
         let input = "/"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseOperator(from: input, at: &index)
+        let result = TokenizerCore.parseOperator(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .divide)
@@ -133,7 +133,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseOperatorModulo() throws {
         let input = "%"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseOperator(from: input, at: &index)
+        let result = TokenizerCore.parseOperator(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .modulo)
@@ -143,7 +143,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseOperatorEqual() throws {
         let input = "="
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseOperator(from: input, at: &index)
+        let result = TokenizerCore.parseOperator(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .equal)
@@ -155,7 +155,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseDelimiterLeftParen() throws {
         let input = "("
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseDelimiter(from: input, at: &index)
+        let result = TokenizerCore.parseDelimiter(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .leftParen)
@@ -165,7 +165,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseDelimiterRightParen() throws {
         let input = ")"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseDelimiter(from: input, at: &index)
+        let result = TokenizerCore.parseDelimiter(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .rightParen)
@@ -175,7 +175,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseDelimiterLeftBracket() throws {
         let input = "["
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseDelimiter(from: input, at: &index)
+        let result = TokenizerCore.parseDelimiter(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .leftBracket)
@@ -185,7 +185,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseDelimiterComma() throws {
         let input = ","
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseDelimiter(from: input, at: &index)
+        let result = TokenizerCore.parseDelimiter(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .comma)
@@ -195,7 +195,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseDelimiterSemicolon() throws {
         let input = ";"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseDelimiter(from: input, at: &index)
+        let result = TokenizerCore.parseDelimiter(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .semicolon)
@@ -205,7 +205,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseDelimiterColon() throws {
         let input = ":"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseDelimiter(from: input, at: &index)
+        let result = TokenizerCore.parseDelimiter(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .colon)
@@ -217,7 +217,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberInteger() throws {
         let input = "42"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -227,7 +227,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberReal() throws {
         let input = "3.14"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -237,7 +237,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberLeadingDot() throws {
         let input = ".5"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -247,7 +247,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberHexadecimal() throws {
         let input = "0xFF"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -257,7 +257,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberBinary() throws {
         let input = "0b1010"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -267,7 +267,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberOctal() throws {
         let input = "0o777"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -277,7 +277,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberWithUnderscores() throws {
         let input = "1_000_000"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -287,7 +287,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberScientificNotationPositive() throws {
         let input = "1.5e10"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -297,7 +297,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberScientificNotationNegative() throws {
         let input = "1.5e-10"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -307,7 +307,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberReturnsNilForNonNumber() throws {
         let input = "abc"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result == nil)
     }
@@ -315,7 +315,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberDotAloneReturnsNil() throws {
         let input = "."
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumber(from: input, at: &index)
+        let result = TokenizerCore.parseNumber(from: input, at: &index)
 
         #expect(result == nil)
     }
@@ -325,7 +325,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseStringLiteralSimple() throws {
         let input = "'hello'"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseStringLiteral(from: input, at: &index, quoteChar: "'")
+        let result = TokenizerCore.parseStringLiteral(from: input, at: &index, quoteChar: "'")
 
         switch result {
         case .success(let token):
@@ -338,7 +338,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseStringLiteralWithEscapeN() throws {
         let input = "'hello\\nworld'"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseStringLiteral(from: input, at: &index, quoteChar: "'")
+        let result = TokenizerCore.parseStringLiteral(from: input, at: &index, quoteChar: "'")
 
         switch result {
         case .success(let token):
@@ -351,7 +351,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseStringLiteralWithEscapeT() throws {
         let input = "'hello\\tworld'"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseStringLiteral(from: input, at: &index, quoteChar: "'")
+        let result = TokenizerCore.parseStringLiteral(from: input, at: &index, quoteChar: "'")
 
         switch result {
         case .success(let token):
@@ -364,7 +364,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseStringLiteralUnterminated() throws {
         let input = "'hello"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseStringLiteral(from: input, at: &index, quoteChar: "'")
+        let result = TokenizerCore.parseStringLiteral(from: input, at: &index, quoteChar: "'")
 
         switch result {
         case .success:
@@ -383,7 +383,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testSkipWhitespaceSpaces() throws {
         let input = "   abc"
         var index = input.startIndex
-        SharedTokenizerImplementation.skipWhitespace(from: input, at: &index)
+        TokenizerCore.skipWhitespace(from: input, at: &index)
 
         #expect(input[index] == "a")
     }
@@ -391,7 +391,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testSkipWhitespaceTabs() throws {
         let input = "\t\tabc"
         var index = input.startIndex
-        SharedTokenizerImplementation.skipWhitespace(from: input, at: &index)
+        TokenizerCore.skipWhitespace(from: input, at: &index)
 
         #expect(input[index] == "a")
     }
@@ -400,7 +400,7 @@ struct SharedTokenizerImplementationTests {
         // Note: TokenizerUtilities.isWhitespace does NOT consider newlines as whitespace
         let input = "\n\nabc"
         var index = input.startIndex
-        SharedTokenizerImplementation.skipWhitespace(from: input, at: &index)
+        TokenizerCore.skipWhitespace(from: input, at: &index)
 
         // Newlines are NOT skipped
         #expect(input[index] == "\n")
@@ -410,7 +410,7 @@ struct SharedTokenizerImplementationTests {
         // Note: TokenizerUtilities.isWhitespace only considers space, tab, and full-width space
         let input = " \t  abc"
         var index = input.startIndex
-        SharedTokenizerImplementation.skipWhitespace(from: input, at: &index)
+        TokenizerCore.skipWhitespace(from: input, at: &index)
 
         #expect(input[index] == "a")
     }
@@ -420,7 +420,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testSkipSingleLineComment() throws {
         let input = "// comment\nabc"
         var index = input.index(input.startIndex, offsetBy: 2) // Skip the "//"
-        SharedTokenizerImplementation.skipSingleLineComment(from: input, at: &index)
+        TokenizerCore.skipSingleLineComment(from: input, at: &index)
 
         #expect(input[index] == "\n")
     }
@@ -428,7 +428,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testSkipMultiLineCommentSimple() throws {
         let input = "/* comment */abc"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.skipMultiLineComment(from: input, at: &index)
+        let result = TokenizerCore.skipMultiLineComment(from: input, at: &index)
 
         switch result {
         case .success:
@@ -441,7 +441,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testSkipMultiLineCommentNested() throws {
         let input = "/* outer /* inner */ outer */abc"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.skipMultiLineComment(from: input, at: &index)
+        let result = TokenizerCore.skipMultiLineComment(from: input, at: &index)
 
         switch result {
         case .success:
@@ -454,7 +454,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testSkipMultiLineCommentUnterminated() throws {
         let input = "/* unterminated"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.skipMultiLineComment(from: input, at: &index)
+        let result = TokenizerCore.skipMultiLineComment(from: input, at: &index)
 
         switch result {
         case .success:
@@ -473,7 +473,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberWithValidationInteger() throws {
         let input = "123"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumberWithValidation(from: input, at: &index)
+        let result = TokenizerCore.parseNumberWithValidation(from: input, at: &index)
 
         switch result {
         case .success(let token):
@@ -487,7 +487,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberWithValidationReal() throws {
         let input = "123.456"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumberWithValidation(from: input, at: &index)
+        let result = TokenizerCore.parseNumberWithValidation(from: input, at: &index)
 
         switch result {
         case .success(let token):
@@ -501,7 +501,7 @@ struct SharedTokenizerImplementationTests {
     @Test func testParseNumberWithValidationLeadingDot() throws {
         let input = ".5"
         var index = input.startIndex
-        let result = SharedTokenizerImplementation.parseNumberWithValidation(from: input, at: &index)
+        let result = TokenizerCore.parseNumberWithValidation(from: input, at: &index)
 
         switch result {
         case .success(let token):
@@ -518,7 +518,7 @@ struct SharedTokenizerImplementationTests {
         let input = "0xabcdef"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseHexadecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseHexadecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -529,7 +529,7 @@ struct SharedTokenizerImplementationTests {
         let input = "0xABCDEF"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseHexadecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseHexadecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -540,7 +540,7 @@ struct SharedTokenizerImplementationTests {
         let input = "0x12_34_AB_CD"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseHexadecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseHexadecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -553,7 +553,7 @@ struct SharedTokenizerImplementationTests {
         let input = "0b1010"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseBinaryNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseBinaryNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -564,7 +564,7 @@ struct SharedTokenizerImplementationTests {
         let input = "0b1010_1010"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseBinaryNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseBinaryNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -577,7 +577,7 @@ struct SharedTokenizerImplementationTests {
         let input = "0o777"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseOctalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseOctalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -588,7 +588,7 @@ struct SharedTokenizerImplementationTests {
         let input = "0o12_34_56"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseOctalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseOctalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -601,7 +601,7 @@ struct SharedTokenizerImplementationTests {
         let input = "12345"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseDecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseDecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -612,7 +612,7 @@ struct SharedTokenizerImplementationTests {
         let input = "123.456"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseDecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseDecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -623,7 +623,7 @@ struct SharedTokenizerImplementationTests {
         let input = "1e10"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseDecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseDecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -634,7 +634,7 @@ struct SharedTokenizerImplementationTests {
         let input = "1e-10"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseDecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseDecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .realLiteral)
@@ -645,7 +645,7 @@ struct SharedTokenizerImplementationTests {
         let input = "1_000_000"
         var index = input.startIndex
         let start = index
-        let result = SharedTokenizerImplementation.parseDecimalNumber(from: input, at: &index, start: start)
+        let result = TokenizerCore.parseDecimalNumber(from: input, at: &index, start: start)
 
         #expect(result != nil)
         #expect(result?.type == .integerLiteral)
@@ -655,23 +655,190 @@ struct SharedTokenizerImplementationTests {
     // MARK: - TokenData Tests
 
     @Test func testTokenDataInitialization() throws {
-        let tokenData = SharedTokenizerImplementation.TokenData(type: .identifier, lexeme: "test")
+        let tokenData = TokenizerCore.TokenData(type: .identifier, lexeme: "test")
 
         #expect(tokenData.type == .identifier)
         #expect(tokenData.lexeme == "test")
-        #expect(tokenData.range == nil)
     }
 
-    @Test func testTokenDataWithRange() throws {
-        let range = SourceRange(
-            start: SourcePosition(line: 1, column: 1, offset: 0),
-            end: SourcePosition(line: 1, column: 5, offset: 4)
-        )
-        let tokenData = SharedTokenizerImplementation.TokenData(type: .identifier, lexeme: "test", range: range)
+    // MARK: - parseBasicNumber Tests
 
-        #expect(tokenData.type == .identifier)
-        #expect(tokenData.lexeme == "test")
-        #expect(tokenData.range != nil)
-        #expect(tokenData.range?.start.line == 1)
+    @Test func testParseBasicNumberInteger() throws {
+        let input = "42abc"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicNumber(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.type == .integerLiteral)
+        #expect(result?.lexeme == "42")
+    }
+
+    @Test func testParseBasicNumberDecimal() throws {
+        let input = "3.14rest"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicNumber(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.type == .realLiteral)
+        #expect(result?.lexeme == "3.14")
+    }
+
+    @Test func testParseBasicNumberLeadingDot() throws {
+        let input = ".5rest"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicNumber(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.type == .realLiteral)
+        #expect(result?.lexeme == ".5")
+    }
+
+    @Test func testParseBasicNumberNotANumber() throws {
+        let input = "abc"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicNumber(from: input, at: &index)
+
+        #expect(result == nil)
+    }
+
+    // MARK: - parseBasicString Tests
+
+    @Test func testParseBasicStringDoubleQuote() throws {
+        let input = "\"hello\"rest"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicString(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.lexeme == "\"hello\"")
+    }
+
+    @Test func testParseBasicStringSingleQuote() throws {
+        let input = "'a'rest"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicString(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.lexeme == "'a'")
+    }
+
+    @Test func testParseBasicStringWithEscapes() throws {
+        let input = "\"hello\\nworld\"rest"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicString(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.lexeme == "\"hello\\nworld\"")
+    }
+
+    @Test func testParseBasicStringUnterminated() throws {
+        let input = "\"unterminated"
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicString(from: input, at: &index)
+
+        #expect(result == nil)
+    }
+
+    @Test func testParseBasicStringUnknownEscape() throws {
+        let input = "\"hello\\xworld\""
+        var index = input.startIndex
+        let result = TokenizerCore.parseBasicString(from: input, at: &index)
+
+        #expect(result == nil)
+        #expect(index == input.startIndex) // index should be reset
+    }
+
+    // MARK: - parseComment Tests
+
+    @Test func testParseCommentSingleLine() throws {
+        let input = "// single line\nabc"
+        var index = input.startIndex
+        let result = TokenizerCore.parseComment(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.type == .comment)
+        #expect(result?.lexeme == "// single line")
+    }
+
+    @Test func testParseCommentMultiLine() throws {
+        let input = "/* multi\nline */abc"
+        var index = input.startIndex
+        let result = TokenizerCore.parseComment(from: input, at: &index)
+
+        #expect(result != nil)
+        #expect(result?.type == .comment)
+        #expect(result?.lexeme == "/* multi\nline */")
+    }
+
+    @Test func testParseCommentMultiLineUnterminated() throws {
+        let input = "/* unterminated"
+        var index = input.startIndex
+        let result = TokenizerCore.parseComment(from: input, at: &index)
+
+        #expect(result == nil)
+        #expect(index == input.startIndex) // index should be reset
+    }
+
+    @Test func testParseCommentNotAComment() throws {
+        let input = "abc"
+        var index = input.startIndex
+        let result = TokenizerCore.parseComment(from: input, at: &index)
+
+        #expect(result == nil)
+    }
+
+    // MARK: - isValidTokenBoundary Tests
+
+    @Test func testIsValidTokenBoundaryAtEnd() throws {
+        let input = "abc"
+        let result = TokenizerCore.isValidTokenBoundary(in: input, at: input.endIndex)
+
+        #expect(result == true)
+    }
+
+    @Test func testIsValidTokenBoundaryBeforeSpace() throws {
+        let input = "abc def"
+        let index = input.index(input.startIndex, offsetBy: 3) // at space
+        let result = TokenizerCore.isValidTokenBoundary(in: input, at: index)
+
+        #expect(result == true)
+    }
+
+    @Test func testIsValidTokenBoundaryBeforeIdentifier() throws {
+        let input = "abcdef"
+        let index = input.index(input.startIndex, offsetBy: 3) // at 'd'
+        let result = TokenizerCore.isValidTokenBoundary(in: input, at: index)
+
+        #expect(result == false) // 'd' can continue an identifier
+    }
+
+    // MARK: - canStartToken Tests
+
+    @Test func testCanStartTokenWithLetter() throws {
+        #expect(TokenizerCore.canStartToken(at: "a") == true)
+    }
+
+    @Test func testCanStartTokenWithDigit() throws {
+        #expect(TokenizerCore.canStartToken(at: "0") == true)
+    }
+
+    @Test func testCanStartTokenWithDot() throws {
+        #expect(TokenizerCore.canStartToken(at: ".") == true)
+    }
+
+    @Test func testCanStartTokenWithQuote() throws {
+        #expect(TokenizerCore.canStartToken(at: "\"") == true)
+        #expect(TokenizerCore.canStartToken(at: "'") == true)
+    }
+
+    @Test func testCanStartTokenWithSlash() throws {
+        #expect(TokenizerCore.canStartToken(at: "/") == true)
+    }
+
+    @Test func testCanStartTokenWithSpace() throws {
+        #expect(TokenizerCore.canStartToken(at: " ") == false)
+    }
+
+    @Test func testCanStartTokenWithNewline() throws {
+        #expect(TokenizerCore.canStartToken(at: "\n") == false)
     }
 }

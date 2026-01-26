@@ -129,7 +129,7 @@ public actor LanguageServer {
 
     // MARK: - Initialize
 
-    private func handleInitialize(_ params: AnyCodableValue?) async throws -> AnyCodableValue? {
+    private func handleInitialize(_ _: AnyCodableValue?) async throws -> AnyCodableValue? {
         initialized = true
 
         let capabilities = ServerCapabilities(

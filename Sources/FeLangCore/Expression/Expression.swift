@@ -106,10 +106,6 @@ extension Literal: Codable {
 private struct AnyCodable: Codable {
     let value: Any
 
-    init<T>(_ value: T) {
-        self.value = value
-    }
-
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
 

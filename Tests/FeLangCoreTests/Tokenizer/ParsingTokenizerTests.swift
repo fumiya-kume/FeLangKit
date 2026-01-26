@@ -82,6 +82,20 @@ struct ParsingTokenizerTests {
         #expect(tokens[4].type == .eof)
     }
 
+    @Test func testASCIIComparisonOperators() throws {
+        let input = "<= >= !="
+        let tokens = try ParsingTokenizer.tokenize(input)
+
+        #expect(tokens.count == 4) // 3 operators + eof
+        #expect(tokens[0].type == .lessEqual)
+        #expect(tokens[0].lexeme == "<=")
+        #expect(tokens[1].type == .greaterEqual)
+        #expect(tokens[1].lexeme == ">=")
+        #expect(tokens[2].type == .notEqual)
+        #expect(tokens[2].lexeme == "!=")
+        #expect(tokens[3].type == .eof)
+    }
+
     @Test func testBasicOperators() throws {
         let input = "+ - * / % = > <"
         let tokens = try ParsingTokenizer.tokenize(input)

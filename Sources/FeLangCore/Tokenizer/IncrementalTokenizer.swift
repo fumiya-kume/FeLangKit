@@ -48,7 +48,6 @@ public struct IncrementalParsingState: Equatable, Sendable {
 /// A tokenizer that supports incremental updates for efficient real-time editing
 public struct IncrementalTokenizer: Sendable {
     private let baseTokenizer: ParsingTokenizer
-    private let chunkProcessor: ChunkProcessor
 
     /// Threshold for using incremental vs full re-tokenization
     private let incrementalThreshold: Int
@@ -62,7 +61,6 @@ public struct IncrementalTokenizer: Sendable {
         maxReparseLength: Int = 10000
     ) {
         self.baseTokenizer = baseTokenizer
-        self.chunkProcessor = ChunkProcessor()
         self.incrementalThreshold = incrementalThreshold
         self.maxReparseLength = maxReparseLength
     }
@@ -182,14 +180,14 @@ public struct IncrementalTokenizer: Sendable {
         // Step 6: Adjust positions of tokens after the change
         let lineDelta = countNewlines(in: newText) - countNewlines(in: originalText[range])
         // Calculate edit end line from actual edit position, not from token positions
-        let editEndPosition = calculatePosition(at: range.upperBound, in: originalText)
-        let editEndLine = editEndPosition.line
-        // Calculate column delta for same-line edits
-        let columnDelta = lineDelta == 0 ? offsetDelta : 0
-        let adjustedSuffixTokens = adjustTokenPositionsAfterEdit(
-            tokens: Array(previousTokens[safeEndIndex...]),
-            offsetDelta: offsetDelta,
-            lineDelta: lineDelta,
+	        let editEndPosition = calculatePosition(at: range.upperBound, in: originalText)
+	        let editEndLine = editEndPosition.line
+	        // Calculate column delta for same-line edits
+	        let columnDelta = lineDelta == 0 ? (newText.count - originalText[range].count) : 0
+	        let adjustedSuffixTokens = adjustTokenPositionsAfterEdit(
+	            tokens: Array(previousTokens[safeEndIndex...]),
+	            offsetDelta: offsetDelta,
+	            lineDelta: lineDelta,
             columnDelta: columnDelta,
             editEndLine: editEndLine
         )
@@ -466,106 +464,6 @@ public struct IncrementalTokenizer: Sendable {
 
     // MARK: - Private Methods
 
-    private func findAffectedTokenRange(
-        range: Range<String.Index>,
-        in tokens: [Token],
-        originalText: String
-    ) -> AffectedRange {
-        // Use Unicode scalars for offset calculation (consistent with SourcePosition.offset)
-        let startOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.lowerBound)
-        let endOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.upperBound)
-
-        var startTokenIndex: Int?
-        var endTokenIndex: Int?
-
-        // Find first token that starts at or after the change start
-        for (index, token) in tokens.enumerated() {
-            if token.position.offset >= startOffset && startTokenIndex == nil {
-                startTokenIndex = index
-            }
-            if token.position.offset >= endOffset {
-                endTokenIndex = index
-                break
-            }
-        }
-
-        // Extend range to include tokens that might be affected
-        let safeStartIndex = max(0, (startTokenIndex ?? 0) - 2)
-        let safeEndIndex = min(tokens.count, (endTokenIndex ?? tokens.count) + 2)
-
-        return AffectedRange(
-            startTokenIndex: safeStartIndex,
-            endTokenIndex: safeEndIndex,
-            startOffset: startOffset,
-            endOffset: endOffset
-        )
-    }
-
-    private func calculateReparseRegion(
-        affectedRange: AffectedRange,
-        newText: String,
-        originalText: String,
-        range: Range<String.Index>
-    ) -> ReparseRegion {
-        // Calculate how the text length changed
-        let originalLength = originalText.distance(from: range.lowerBound, to: range.upperBound)
-        let newLength = newText.count
-        let lengthDelta = newLength - originalLength
-
-        // Extend reparse region to safe boundaries (e.g., line boundaries)
-        let startIndex = findSafeStart(from: range.lowerBound, in: originalText)
-        let endIndex = findSafeEnd(from: range.upperBound, in: originalText)
-
-        let startOffset = originalText.distance(from: originalText.startIndex, to: startIndex)
-        let endOffset = originalText.distance(from: originalText.startIndex, to: endIndex)
-
-        // Calculate position information
-        let position = calculatePosition(at: startIndex, in: originalText)
-
-        // Create the new text range after replacement
-        let newText = originalText.replacingCharacters(in: range, with: newText)
-        let newStartIndex = newText.index(newText.startIndex, offsetBy: startOffset)
-        let newEndOffset = endOffset + lengthDelta
-        let newEndIndex = newText.index(newText.startIndex, offsetBy: min(newEndOffset, newText.count))
-
-        return ReparseRegion(
-            textRange: newStartIndex..<newEndIndex,
-            baseOffset: startOffset,
-            baseLine: position.line,
-            baseColumn: position.column
-        )
-    }
-
-    private func findSafeStart(from index: String.Index, in text: String) -> String.Index {
-        var current = index
-
-        // Move back to the beginning of the current line
-        while current > text.startIndex {
-            let previous = text.index(before: current)
-            if text[previous] == "\n" {
-                break
-            }
-            current = previous
-        }
-
-        return current
-    }
-
-    private func findSafeEnd(from index: String.Index, in text: String) -> String.Index {
-        var current = index
-
-        // Move forward to the end of the current line or a safe boundary
-        while current < text.endIndex {
-            if text[current] == "\n" {
-                current = text.index(after: current)
-                break
-            }
-            current = text.index(after: current)
-        }
-
-        return current
-    }
-
     private func calculatePosition(at index: String.Index, in text: String) -> SourcePosition {
         var line = 1
         var column = 1
@@ -605,29 +503,6 @@ public struct IncrementalTokenizer: Sendable {
                 position: adjustedPosition
             )
         }
-    }
-
-    private func mergeTokens(
-        previousTokens: [Token],
-        newTokens: [Token],
-        affectedRange: AffectedRange
-    ) -> [Token] {
-        var result: [Token] = []
-
-        // Add tokens before the affected range
-        if affectedRange.startTokenIndex > 0 {
-            result.append(contentsOf: previousTokens[0..<affectedRange.startTokenIndex])
-        }
-
-        // Add new tokens
-        result.append(contentsOf: newTokens)
-
-        // Add tokens after the affected range
-        if affectedRange.endTokenIndex < previousTokens.count {
-            result.append(contentsOf: previousTokens[affectedRange.endTokenIndex...])
-        }
-
-        return result
     }
 
     private func createMetrics(
@@ -743,7 +618,8 @@ public struct IncrementalMetrics: Sendable {
     /// Efficiency ratio (0.0 to 1.0, higher is better)
     public var efficiency: Double {
         guard reparsedCharacters > 0 else { return 1.0 }
-        return 1.0 - (Double(reparsedCharacters) / Double(max(originalTokenCount, newTokenCount) * 10))
+        let ratio = 1.0 - (Double(reparsedCharacters) / Double(max(originalTokenCount, newTokenCount) * 10))
+        return max(0.0, min(1.0, ratio))
     }
 
     public init(

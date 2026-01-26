@@ -196,7 +196,6 @@ public protocol JSONRPCTransport: Sendable {
 public actor StdioTransport: JSONRPCTransport {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
-    private var inputBuffer = Data()
 
     public init() {}
 

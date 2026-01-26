@@ -6,8 +6,7 @@ struct TokenizerTests {
     // MARK: - Basic Token Tests
 
     @Test func testBasicTokens() throws {
-        let tokenizer = Tokenizer(input: "整数型: x")
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize("整数型: x")
 
         #expect(tokens.count == 4) // integerType, colon, identifier, eof
         #expect(tokens[0].type == .integerType)
@@ -21,8 +20,7 @@ struct TokenizerTests {
 
     @Test func testKeywords() throws {
         let input = "整数型 実数型 文字型 文字列型 論理型 レコード 配列 if while for and or not return break true false 未定義"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         let expectedTypes: [TokenType] = [
             .integerType, .realType, .characterType, .stringType, .booleanType,
@@ -39,8 +37,7 @@ struct TokenizerTests {
 
     @Test func testUndefinedKeyword() throws {
         let input = "未定義"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 2)
         #expect(tokens[0].type == .undefinedKeyword)
@@ -50,8 +47,7 @@ struct TokenizerTests {
 
     @Test func testModKeyword() throws {
         let input = "7 mod 3"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 4) // integer, mod, integer, eof
         #expect(tokens[0].type == .integerLiteral)
@@ -65,8 +61,7 @@ struct TokenizerTests {
 
     @Test func testOperators() throws {
         let input = "+ - * / % ← = ≠ > ≧ < ≦ ∧ ∨ << >>"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         let expectedTypes: [TokenType] = [
             .plus, .minus, .multiply, .divide, .modulo, .assign,
@@ -82,8 +77,7 @@ struct TokenizerTests {
 
     @Test func testShiftOperators() throws {
         let input = "1 << 3"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 4)
         #expect(tokens[0].type == .integerLiteral)
@@ -97,8 +91,7 @@ struct TokenizerTests {
 
     @Test func testShiftOperatorsDoNotConflictWithComparison() throws {
         let input = "a < b << c > d >> e"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         let expectedTypes: [TokenType] = [
             .identifier, .less, .identifier, .leftShift, .identifier,
@@ -113,8 +106,7 @@ struct TokenizerTests {
 
     @Test func testDivisionOperatorUnicode() throws {
         let input = "10 ÷ 2"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 4) // integer, divide, integer, eof
         #expect(tokens[0].type == .integerLiteral)
@@ -128,8 +120,7 @@ struct TokenizerTests {
 
     @Test func testDelimiters() throws {
         let input = "( ) [ ] { } , . ; :"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         let expectedTypes: [TokenType] = [
             .leftParen, .rightParen, .leftBracket, .rightBracket,
@@ -146,38 +137,39 @@ struct TokenizerTests {
 
     @Test func testIntegerLiterals() throws {
         let input = "123 -45 0"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
-        #expect(tokens.count == 4) // three integers + eof
+        #expect(tokens.count == 5) // integer, minus, integer, integer, eof
         #expect(tokens[0].type == .integerLiteral)
         #expect(tokens[0].lexeme == "123")
-        #expect(tokens[1].type == .integerLiteral)
-        #expect(tokens[1].lexeme == "-45")
+        #expect(tokens[1].type == .minus)
+        #expect(tokens[1].lexeme == "-")
         #expect(tokens[2].type == .integerLiteral)
-        #expect(tokens[2].lexeme == "0")
-        #expect(tokens[3].type == .eof)
+        #expect(tokens[2].lexeme == "45")
+        #expect(tokens[3].type == .integerLiteral)
+        #expect(tokens[3].lexeme == "0")
+        #expect(tokens[4].type == .eof)
     }
 
     @Test func testRealLiterals() throws {
         let input = "1.25 -52.325 0.0"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
-        #expect(tokens.count == 4) // three reals + eof
+        #expect(tokens.count == 5) // real, minus, real, real, eof
         #expect(tokens[0].type == .realLiteral)
         #expect(tokens[0].lexeme == "1.25")
-        #expect(tokens[1].type == .realLiteral)
-        #expect(tokens[1].lexeme == "-52.325")
+        #expect(tokens[1].type == .minus)
+        #expect(tokens[1].lexeme == "-")
         #expect(tokens[2].type == .realLiteral)
-        #expect(tokens[2].lexeme == "0.0")
-        #expect(tokens[3].type == .eof)
+        #expect(tokens[2].lexeme == "52.325")
+        #expect(tokens[3].type == .realLiteral)
+        #expect(tokens[3].lexeme == "0.0")
+        #expect(tokens[4].type == .eof)
     }
 
     @Test func testStringLiterals() throws {
         let input = "'Hello' 'PAFUTAMA' ''"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 4) // three strings + eof
         #expect(tokens[0].type == .stringLiteral)
@@ -191,8 +183,7 @@ struct TokenizerTests {
 
     @Test func testCharacterLiterals() throws {
         let input = "'A' 'B' '1'"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 4) // three characters + eof
         #expect(tokens[0].type == .characterLiteral)
@@ -208,8 +199,7 @@ struct TokenizerTests {
 
     @Test func testIdentifiers() throws {
         let input = "variable_name function123 _private 変数名"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 5) // four identifiers + eof
         #expect(tokens[0].type == .identifier)
@@ -227,22 +217,19 @@ struct TokenizerTests {
 
     @Test func testSingleLineComment() throws {
         let input = "x // This is a comment\ny"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
-        #expect(tokens.count == 4) // x, newline, y, eof
+        #expect(tokens.count == 3) // x, y, eof
         #expect(tokens[0].type == .identifier)
         #expect(tokens[0].lexeme == "x")
-        #expect(tokens[1].type == .newline)
-        #expect(tokens[2].type == .identifier)
-        #expect(tokens[2].lexeme == "y")
-        #expect(tokens[3].type == .eof)
+        #expect(tokens[1].type == .identifier)
+        #expect(tokens[1].lexeme == "y")
+        #expect(tokens[2].type == .eof)
     }
 
     @Test func testMultiLineComment() throws {
         let input = "x /* This is a\nmulti-line comment */ y"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 3) // x, y, eof
         #expect(tokens[0].type == .identifier)
@@ -256,47 +243,36 @@ struct TokenizerTests {
 
     @Test func testPositionTracking() throws {
         let input = "x\ny"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
-        #expect(tokens.count == 4) // x, newline, y, eof
+        #expect(tokens.count == 3) // x, y, eof
 
         // First token 'x' at line 1, column 1
         #expect(tokens[0].position.line == 1)
         #expect(tokens[0].position.column == 1)
 
-        // Newline at line 1, column 2
-        #expect(tokens[1].position.line == 1)
-        #expect(tokens[1].position.column == 2)
-
         // Second token 'y' at line 2, column 1
-        #expect(tokens[2].position.line == 2)
-        #expect(tokens[2].position.column == 1)
+        #expect(tokens[1].position.line == 2)
+        #expect(tokens[1].position.column == 1)
     }
 
     // MARK: - Error Tests
 
     @Test func testUnexpectedCharacter() throws {
-        let tokenizer = Tokenizer(input: "x @ y")
-
         #expect(throws: TokenizerError.self) {
-            try tokenizer.tokenize()
+            try ParsingTokenizer.tokenize("x @ y")
         }
     }
 
     @Test func testUnterminatedString() throws {
-        let tokenizer = Tokenizer(input: "'unterminated")
-
         #expect(throws: TokenizerError.self) {
-            try tokenizer.tokenize()
+            try ParsingTokenizer.tokenize("'unterminated")
         }
     }
 
     @Test func testUnterminatedComment() throws {
-        let tokenizer = Tokenizer(input: "/* unterminated comment")
-
         #expect(throws: TokenizerError.self) {
-            try tokenizer.tokenize()
+            try ParsingTokenizer.tokenize("/* unterminated comment")
         }
     }
 
@@ -304,8 +280,7 @@ struct TokenizerTests {
 
     @Test func testComplexExpression() throws {
         let input = "整数型: x ← 10 + 20 * 3"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         let expectedTypes: [TokenType] = [
             .integerType, .colon, .identifier, .assign, .integerLiteral,
@@ -320,8 +295,7 @@ struct TokenizerTests {
 
     @Test func testArrayAccess() throws {
         let input = "配列名[添字]"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 5) // identifier, [, identifier, ], eof
         #expect(tokens[0].type == .identifier)
@@ -335,8 +309,7 @@ struct TokenizerTests {
 
     @Test func testRecordAccess() throws {
         let input = "レコード名.フィールド名"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 4) // identifier, dot, identifier, eof
         #expect(tokens[0].type == .identifier)
@@ -350,41 +323,38 @@ struct TokenizerTests {
     // MARK: - Edge Cases
 
     @Test func testEmptyInput() throws {
-        let tokenizer = Tokenizer(input: "")
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize("")
 
         #expect(tokens.count == 1) // only eof
         #expect(tokens[0].type == .eof)
     }
 
     @Test func testWhitespaceOnly() throws {
-        let tokenizer = Tokenizer(input: "   \t  \n  ")
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize("   \t  \n  ")
 
-        #expect(tokens.count == 2) // newline + eof
-        #expect(tokens[0].type == .newline)
-        #expect(tokens[1].type == .eof)
+        #expect(tokens.count == 1) // only eof
+        #expect(tokens[0].type == .eof)
     }
 
     @Test func testMinusVsNegativeNumber() throws {
         let input = "x - 5 -10"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
-        #expect(tokens.count == 5) // x, minus, integer(5), integer(-10), eof
+        #expect(tokens.count == 6) // x, minus, integer(5), minus, integer(10), eof
         #expect(tokens[0].type == .identifier)
         #expect(tokens[1].type == .minus)
         #expect(tokens[2].type == .integerLiteral)
         #expect(tokens[2].lexeme == "5")
-        #expect(tokens[3].type == .integerLiteral)
-        #expect(tokens[3].lexeme == "-10")
-        #expect(tokens[4].type == .eof)
+        #expect(tokens[3].type == .minus)
+        #expect(tokens[3].lexeme == "-")
+        #expect(tokens[4].type == .integerLiteral)
+        #expect(tokens[4].lexeme == "10")
+        #expect(tokens[5].type == .eof)
     }
 
     @Test func testDotVsDecimal() throws {
         let input = "obj.field 3.14"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 5) // identifier, dot, identifier, real, eof
         #expect(tokens[0].type == .identifier)
@@ -400,8 +370,7 @@ struct TokenizerTests {
     @Test func testKeywordBoundariesWithEnglishKeywords() throws {
         // Test that keywords are properly bounded and don't match partial identifiers
         let input = "if ifVar variable_if if_var while whileLoop for forEach"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         let expectedTypes: [TokenType] = [
             .ifKeyword,     // "if" - exact keyword
@@ -424,8 +393,7 @@ struct TokenizerTests {
     @Test func testKeywordBoundariesWithJapaneseKeywords() throws {
         // Test that Japanese keywords are properly bounded
         let input = "整数型 整数型変数 変数整数型 整数型_var 実数型 実数型データ"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         let expectedTypes: [TokenType] = [
             .integerType,   // "整数型" - exact keyword
@@ -446,8 +414,7 @@ struct TokenizerTests {
     @Test func testKeywordBoundariesWithUnicodeCharacters() throws {
         // Test keyword boundaries with various Unicode characters
         let input = "if_test if123 if-var if.method"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         let expectedTypes: [TokenType] = [
             .identifier,    // "if_test"
@@ -470,18 +437,16 @@ struct TokenizerTests {
     @Test func testUnsupportedCharacterHandling() throws {
         // Test that unsupported characters (like emojis) are properly rejected
         let input = "if🚀"
-        let tokenizer = Tokenizer(input: input)
 
         #expect(throws: TokenizerError.self) {
-            try tokenizer.tokenize()
+            try ParsingTokenizer.tokenize(input)
         }
     }
 
     @Test func testKeywordBoundariesAtEndOfInput() throws {
         // Test keywords at the end of input (no following characters)
         let input = "if"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 2) // keyword + eof
         #expect(tokens[0].type == .ifKeyword)
@@ -492,14 +457,12 @@ struct TokenizerTests {
     @Test func testKeywordBoundariesWithWhitespace() throws {
         // Test keywords properly separated by whitespace
         let input = "if while\tfor\nreturn"
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         let expectedTypes: [TokenType] = [
             .ifKeyword,
             .whileKeyword,
             .forKeyword,
-            .newline,
             .returnKeyword,
             .eof
         ]
@@ -513,8 +476,7 @@ struct TokenizerTests {
     @Test func testExtendedCJKCharacters() throws {
         // Test that extended CJK characters are properly handled in identifiers
         let input = "変数名 𠀀test 㐀identifier"  // Using CJK Extension A and B characters
-        let tokenizer = Tokenizer(input: input)
-        let tokens = try tokenizer.tokenize()
+        let tokens = try ParsingTokenizer.tokenize(input)
 
         #expect(tokens.count == 4) // three identifiers + eof
         #expect(tokens[0].type == .identifier)

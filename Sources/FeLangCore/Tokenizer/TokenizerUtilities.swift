@@ -263,7 +263,7 @@ public enum TokenizerUtilities {
         let lines = processed.components(separatedBy: "\n")
         let line = lines.count
         let column = (lines.last?.count ?? 0) + 1
-        let offset = input.distance(from: startIndex, to: currentIndex)
+        let offset = input.unicodeScalars.distance(from: startIndex, to: currentIndex)
 
         return SourcePosition(line: line, column: column, offset: offset)
     }

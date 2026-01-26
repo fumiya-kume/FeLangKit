@@ -397,6 +397,13 @@ struct ExpressionEvaluatorTests {
         #expect(result == .integer(1))
     }
 
+    @Test func testModuloNegativeDividend() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.modulo, .literal(.integer(-17)), .literal(.integer(5)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(-2))
+    }
+
     // MARK: - Comparison Operations
 
     @Test func testEqual() throws {
@@ -1164,6 +1171,13 @@ struct StandardLibraryTests {
 
         let result = try stdlib.functions["sqrt"]?([.integer(16)])
         #expect(result == .real(4.0))
+    }
+
+    @Test func testPowFunction() throws {
+        let stdlib = StandardLibrary()
+
+        let result = try stdlib.functions["pow"]?([.integer(2), .integer(10)])
+        #expect(result == .real(1024.0))
     }
 
     @Test func testMinMaxFunctions() throws {
