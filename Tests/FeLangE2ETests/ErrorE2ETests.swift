@@ -41,6 +41,11 @@ struct ErrorE2ETests {
         """
         let result = InProcessTestHelper.execute(code)
         #expect(!result.succeeded)
+        #expect(result.error != nil)
+        if let error = result.error {
+            let errorDescription = String(describing: error)
+            #expect(errorDescription.contains("assign"))
+        }
     }
 
     // MARK: - File Error Tests
