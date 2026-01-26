@@ -151,6 +151,24 @@ struct ExpressionVisitorTests {
         #expect(result == "function_call(func, 2 args)")
     }
 
+    @Test func visitMethodCall() {
+        let visitor = ExpressionVisitor<String>(
+            visitLiteral: { _ in "literal" },
+            visitIdentifier: { _ in "identifier" },
+            visitBinary: { _, _, _ in "binary" },
+            visitUnary: { _, _ in "unary" },
+            visitArrayAccess: { _, _ in "array_access" },
+            visitFieldAccess: { _, _ in "field_access" },
+            visitFunctionCall: { _, _ in "function_call" },
+            visitMethodCall: { receiver, method, arguments in "method_call(\(receiver), \(method), \(arguments.count) args)" },
+            visitArrayLiteral: { _ in "array_literal" }
+        )
+
+        let expr = Expression.methodCall(.identifier("obj"), "getValue", [.literal(.integer(1)), .identifier("x")])
+        let result = visitor.visit(expr)
+        #expect(result.hasPrefix("method_call(identifier(\"obj\"), getValue, 2 args)"))
+    }
+
     // MARK: - Manual Recursive Visitor Test
 
     @Test func manualRecursiveVisitor() {

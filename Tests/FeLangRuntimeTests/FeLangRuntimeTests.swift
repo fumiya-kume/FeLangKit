@@ -536,6 +536,14 @@ struct ExpressionEvaluatorTests {
         let result = try evaluator.evaluate(expr)
         #expect(result == .array([.integer(1), .integer(2)]))
     }
+
+    @Test func testMethodCallThrowsNotSupportedError() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.methodCall(.identifier("obj"), "getValue", [])
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
 }
 
 // MARK: - StatementExecutor Tests
@@ -990,5 +998,11 @@ struct RuntimeErrorTests {
     @Test func testStackOverflowDescription() {
         let error = RuntimeError.stackOverflow
         #expect(error.description.contains("Stack overflow"))
+    }
+
+    @Test func testMethodCallNotSupportedDescription() {
+        let error = RuntimeError.methodCallNotSupported(method: "getValue")
+        #expect(error.description.contains("getValue"))
+        #expect(error.description.contains("not supported"))
     }
 }

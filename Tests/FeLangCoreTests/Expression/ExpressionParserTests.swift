@@ -660,4 +660,19 @@ struct ExpressionParserTests {
         let expected = Expression.methodCall(.identifier("list"), "size", [])
         #expect(expr == expected)
     }
+
+    @Test func testMethodCallCodableRoundTrip() throws {
+        let original = FEExpression.methodCall(
+            .identifier("obj"),
+            "getValue",
+            [.literal(.integer(1)), .identifier("x")]
+        )
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+
+        let data = try encoder.encode(original)
+        let decoded = try decoder.decode(FEExpression.self, from: data)
+
+        #expect(decoded == original)
+    }
 }
