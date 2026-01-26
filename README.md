@@ -20,7 +20,7 @@ dependencies: [
 Xcode:
 1. File > Add Packages...
 2. `https://github.com/fumiya-kume/FeLangKit.git`
-3. Add the product you need: `FeLangCore`, `FeLangKit`, or `FeLangRuntime`
+3. Add the product you need: `FeLangCore`, `FeLangKit`, `FeLangRuntime`, or `FeLangServer`
 
 ## Quick Start
 

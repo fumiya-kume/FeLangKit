@@ -59,6 +59,7 @@ public actor InMemoryTransport: JSONRPCTransport {
 
     /// Send a request from the client to the server.
     public func sendToServer(_ request: JSONRPCRequest) {
+        guard !isClosed else { return }
         if let waiter = requestWaiter {
             requestWaiter = nil
             waiter.resume(returning: request)
@@ -70,6 +71,7 @@ public actor InMemoryTransport: JSONRPCTransport {
     /// Close the transport.
     public func close() {
         isClosed = true
+        pendingRequests.removeAll()
         if let waiter = requestWaiter {
             requestWaiter = nil
             waiter.resume(returning: nil)
