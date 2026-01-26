@@ -68,13 +68,31 @@ public struct ExpressionEvaluator: Sendable {
 
     private func validateArrayElementTypes(_ values: [RuntimeValue]) throws {
         guard let firstValue = values.first else { return }
-        let expectedType = firstValue.typeName
-        for (index, value) in values.enumerated() where index > 0 && value.typeName != expectedType {
-            throw RuntimeError.typeMismatch(
-                expected: expectedType,
-                actual: value.typeName,
-                operation: "array literal element at index \(index)"
-            )
+        // Skip undefined values when determining expected type
+        let expectedType: String
+        if case .undefined = firstValue {
+            // If first element is undefined, find first non-undefined element
+            if let nonUndefined = values.first(where: { if case .undefined = $0 { return false } else { return true } }) {
+                expectedType = nonUndefined.typeName
+            } else {
+                // All elements are undefined, no type checking needed
+                return
+            }
+        } else {
+            expectedType = firstValue.typeName
+        }
+        for (index, value) in values.enumerated() where index > 0 {
+            if case .undefined = value {
+                // Undefined is compatible with any type
+                continue
+            }
+            if value.typeName != expectedType {
+                throw RuntimeError.typeMismatch(
+                    expected: expectedType,
+                    actual: value.typeName,
+                    operation: "array literal element at index \(index)"
+                )
+            }
         }
     }
 
@@ -92,6 +110,8 @@ public struct ExpressionEvaluator: Sendable {
             return .character(value)
         case .boolean(let value):
             return .boolean(value)
+        case .undefined:
+            return .undefined
         }
     }
 
@@ -129,6 +149,10 @@ public struct ExpressionEvaluator: Sendable {
         case .greaterEqual:
             return try evaluateComparison(left, right) { $0 >= $1 }
 
+        // Bitwise
+        case .bitwiseAnd:
+            return try evaluateBitwiseAnd(left, right)
+
         // Logical
         case .and:
             return try evaluateLogicalAnd(left, right)
@@ -157,6 +181,16 @@ public struct ExpressionEvaluator: Sendable {
             throw RuntimeError.typeMismatch(expected: "Boolean", actual: right.typeName, operation: "or")
         }
         return .boolean(leftBool || rightBool)
+    }
+
+    private func evaluateBitwiseAnd(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
+        guard case .integer(let leftInt) = left else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: left.typeName, operation: "∧")
+        }
+        guard case .integer(let rightInt) = right else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: "∧")
+        }
+        return .integer(leftInt & rightInt)
     }
 
     private func evaluateAdd(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {

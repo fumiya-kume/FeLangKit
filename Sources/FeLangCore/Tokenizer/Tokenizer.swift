@@ -115,6 +115,8 @@ public final class Tokenizer {
             return Token(type: .multiply, lexeme: "*", position: position)
         case "%":
             return Token(type: .modulo, lexeme: "%", position: position)
+        case "÷":
+            return Token(type: .divide, lexeme: "÷", position: position)
         case "←":
             return Token(type: .assign, lexeme: "←", position: position)
         case "=":
@@ -135,6 +137,8 @@ public final class Tokenizer {
             return Token(type: .greater, lexeme: ">", position: position)
         case "<":
             return Token(type: .less, lexeme: "<", position: position)
+        case "∧":
+            return Token(type: .bitwiseAnd, lexeme: "∧", position: position)
         case "(":
             return Token(type: .leftParen, lexeme: "(", position: position)
         case ")":

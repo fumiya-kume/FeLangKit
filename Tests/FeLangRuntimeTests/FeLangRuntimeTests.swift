@@ -54,6 +54,16 @@ struct RuntimeValueTests {
         #expect(value.toString() == "null")
     }
 
+    @Test func testUndefinedValue() {
+        let value = RuntimeValue.undefined
+        #expect(value.typeName == "Undefined")
+        #expect(value.toString() == "未定義")
+    }
+
+    @Test func testIsTruthyUndefined() {
+        #expect(RuntimeValue.undefined.isTruthy == false)
+    }
+
     // MARK: - Truthy Tests
 
     @Test func testIsTruthyBoolean() {
@@ -293,6 +303,12 @@ struct ExpressionEvaluatorTests {
         #expect(falseResult == .boolean(false))
     }
 
+    @Test func testEvaluateUndefinedLiteral() throws {
+        let evaluator = makeEvaluator()
+        let result = try evaluator.evaluate(.literal(.undefined))
+        #expect(result == .undefined)
+    }
+
     @Test func testEvaluateIdentifier() throws {
         let evaluator = makeEvaluator()
         let result = try evaluator.evaluate(.identifier("x"))
@@ -353,6 +369,15 @@ struct ExpressionEvaluatorTests {
     @Test func testDivide() throws {
         let evaluator = makeEvaluator()
         let expr = Expression.binary(.divide, .literal(.integer(10)), .literal(.integer(3)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(3))
+    }
+
+    @Test func testDivideWithUnicodeOperator() throws {
+        let evaluator = makeEvaluator()
+        let tokens = try ParsingTokenizer.tokenize("10 ÷ 3")
+        let parser = ExpressionParser()
+        let expr = try parser.parseExpression(from: tokens)
         let result = try evaluator.evaluate(expr)
         #expect(result == .integer(3))
     }
@@ -434,6 +459,45 @@ struct ExpressionEvaluatorTests {
 
         #expect(try evaluator.evaluate(falseOrTrue) == .boolean(true))
         #expect(try evaluator.evaluate(falseOrFalse) == .boolean(false))
+    }
+
+    // MARK: - Bitwise Operations
+
+    @Test func testBitwiseAnd() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.bitwiseAnd, .literal(.integer(5)), .literal(.integer(3)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(1))
+    }
+
+    @Test func testBitwiseAndWithZero() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.bitwiseAnd, .literal(.integer(255)), .literal(.integer(0)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(0))
+    }
+
+    @Test func testBitwiseAndWithAllOnes() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.bitwiseAnd, .literal(.integer(15)), .literal(.integer(15)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(15))
+    }
+
+    @Test func testBitwiseAndTypeMismatchLeft() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.bitwiseAnd, .literal(.real(5.0)), .literal(.integer(3)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
+
+    @Test func testBitwiseAndTypeMismatchRight() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.bitwiseAnd, .literal(.integer(5)), .literal(.real(3.0)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
     }
 
     // MARK: - Unary Operations

@@ -922,6 +922,33 @@ final class SemanticAnalyzerTests: XCTestCase {
         XCTAssertTrue(result.errors.isEmpty)
     }
 
+    // MARK: - Undefined Literal Tests
+
+    func testUndefinedLiteralInAssignment() {
+        let statements = [
+            Statement.variableDeclaration(VariableDeclaration(
+                name: "x",
+                type: .integer,
+                initialValue: nil
+            )),
+            Statement.assignment(.variable("x", .literal(.undefined)))
+        ]
+
+        let result = analyzer.analyze(statements)
+        XCTAssertTrue(result.isSuccessful)
+        XCTAssertTrue(result.errors.isEmpty)
+    }
+
+    func testUndefinedLiteralInExpression() {
+        let statements = [
+            Statement.expressionStatement(.literal(.undefined))
+        ]
+
+        let result = analyzer.analyze(statements)
+        XCTAssertTrue(result.isSuccessful)
+        XCTAssertTrue(result.errors.isEmpty)
+    }
+
     // MARK: - Performance Tests
 
     func testAnalysisPerformance() {

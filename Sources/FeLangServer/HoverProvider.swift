@@ -12,6 +12,7 @@ public struct HoverProvider: Sendable {
         "then": "**then** - Then clause\n\nMarks the beginning of the true branch in an if statement.",
         "else": "**else** - Else clause\n\nMarks the false branch in an if statement.",
         "elif": "**elif** - Else-if clause\n\nAdditional condition check in an if statement.",
+        "elseif": "**elseif** - Else-if clause\n\nAdditional condition check in an if statement. Equivalent to 'elif'.",
         "endif": "**endif** - End if\n\nMarks the end of an if statement.",
 
         // Loops
@@ -47,6 +48,7 @@ public struct HoverProvider: Sendable {
         // Literals
         "true": "**true** - Boolean true\n\nThe boolean value representing truth.",
         "false": "**false** - Boolean false\n\nThe boolean value representing falsehood.",
+        "未定義": "**未定義** (undefined) - 未定義値\n\n変数に値が格納されていない状態を表します。",
 
         // Japanese
         "もし": "**もし** (if) - 条件分岐\n\n条件に基づいてコードを実行します。",

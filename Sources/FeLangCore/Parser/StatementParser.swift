@@ -119,17 +119,17 @@ public struct StatementParser {
         let condition = try parseExpression(&parser)
         try expectToken(&parser, .thenKeyword) // consume 'then'
 
-        let thenBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .endifKeyword], nestingDepth: nestingDepth)
+        let thenBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .elseifKeyword, .endifKeyword], nestingDepth: nestingDepth)
 
         var elseIfs: [IfStatement.ElseIf] = []
         var elseBody: [Statement]?
 
-        // Handle ELIF clauses
-        while parser.peek()?.type == .elifKeyword {
-            _ = parser.advance() // consume 'elif'
+        // Handle ELIF/ELSEIF clauses
+        while parser.peek()?.type == .elifKeyword || parser.peek()?.type == .elseifKeyword {
+            _ = parser.advance() // consume 'elif' or 'elseif'
             let elifCondition = try parseExpression(&parser)
             try expectToken(&parser, .thenKeyword) // consume 'then'
-            let elifBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .endifKeyword], nestingDepth: nestingDepth)
+            let elifBody = try parseBlock(&parser, until: [.elseKeyword, .elifKeyword, .elseifKeyword, .endifKeyword], nestingDepth: nestingDepth)
             elseIfs.append(IfStatement.ElseIf(condition: elifCondition, body: elifBody))
         }
 
@@ -285,15 +285,35 @@ public struct StatementParser {
 
         // Check if it's array element assignment
         if parser.peek()?.type == .leftBracket {
-            // Array element assignment: array[index] ← expression
+            // Array element assignment: array[index] ← expression or array[row, col] ← expression
             _ = parser.advance() // consume '['
-            let indexExpr = try parseExpression(&parser)
+            let firstIndexExpr = try parseExpression(&parser)
+            var arrayExpr: Expression = .arrayAccess(.identifier(identifier), firstIndexExpr)
+
+            // Handle comma-separated indices for multi-dimensional array access
+            // e.g., matrix[1, 2] ← value is desugared to matrix[1][2] ← value
+            while parser.peek()?.type == .comma {
+                _ = parser.advance() // consume ','
+                let nextIndexExpr = try parseExpression(&parser)
+                arrayExpr = .arrayAccess(arrayExpr, nextIndexExpr)
+            }
+
             try expectToken(&parser, .rightBracket) // consume ']'
             try expectToken(&parser, .assign) // consume '←'
             let valueExpr = try parseExpression(&parser)
 
-            let arrayAccess = Assignment.ArrayAccess(array: .identifier(identifier), index: indexExpr)
-            return .arrayElement(arrayAccess, valueExpr)
+            // Extract the final array access for the assignment.
+            // At this point, arrayExpr is guaranteed to be .arrayAccess because it is
+            // initialized as .arrayAccess above and only ever wrapped into further
+            // .arrayAccess cases in the loop. If this assumption is violated in the
+            // future, treat it as an internal parser logic error rather than a
+            // user-facing syntax error.
+            if case let .arrayAccess(array, index) = arrayExpr {
+                let arrayAccessStruct = Assignment.ArrayAccess(array: array, index: index)
+                return .arrayElement(arrayAccessStruct, valueExpr)
+            } else {
+                preconditionFailure("Internal parser error: expected final arrayExpr to be .arrayAccess")
+            }
         } else if parser.peek()?.type == .dot {
             // Field access assignment: object.field ← expression (possibly chained like a.b.c)
             var currentExpr: Expression = .identifier(identifier)
@@ -912,6 +932,7 @@ public struct StatementParser {
         case .thenKeyword,      // IF condition ends, THEN block begins
              .elseKeyword,      // Previous block ends, ELSE block begins
              .elifKeyword,      // Previous block ends, ELIF condition begins
+             .elseifKeyword,    // Previous block ends, ELSEIF condition begins
              .doKeyword:        // WHILE/FOR condition ends, DO block begins
             return true
 

@@ -43,6 +43,11 @@ struct ExpressionParserTests {
         #expect(falseExpr == .literal(.boolean(false)))
     }
 
+    @Test func testUndefinedLiteral() throws {
+        let expr = try parseExpression("未定義")
+        #expect(expr == .literal(.undefined))
+    }
+
     @Test func testIdentifier() throws {
         let expr = try parseExpression("variable")
         #expect(expr == .identifier("variable"))
@@ -70,6 +75,12 @@ struct ExpressionParserTests {
 
     @Test func testSimpleDivision() throws {
         let expr = try parseExpression("10 / 2")
+        let expected = Expression.binary(.divide, .literal(.integer(10)), .literal(.integer(2)))
+        #expect(expr == expected)
+    }
+
+    @Test func testDivisionWithUnicodeOperator() throws {
+        let expr = try parseExpression("10 ÷ 2")
         let expected = Expression.binary(.divide, .literal(.integer(10)), .literal(.integer(2)))
         #expect(expr == expected)
     }
@@ -208,6 +219,63 @@ struct ExpressionParserTests {
             .and,
             .binary(.equal, .identifier("a"), .identifier("b")),
             .binary(.notEqual, .identifier("c"), .identifier("d"))
+        )
+        #expect(expr == expected)
+    }
+
+    // MARK: - Bitwise AND Operator Tests
+
+    @Test func testBitwiseAnd() throws {
+        let expr = try parseExpression("5 ∧ 3")
+        let expected = Expression.binary(.bitwiseAnd, .literal(.integer(5)), .literal(.integer(3)))
+        #expect(expr == expected)
+    }
+
+    @Test func testBitwiseAndPrecedenceWithComparison() throws {
+        // 5 ∧ 3 > 0 should be parsed as 5 ∧ (3 > 0) (comparison has higher precedence than bitwiseAnd)
+        let expr = try parseExpression("5 ∧ 3 > 0")
+        let expected = Expression.binary(
+            .bitwiseAnd,
+            .literal(.integer(5)),
+            .binary(.greater, .literal(.integer(3)), .literal(.integer(0)))
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testBitwiseAndPrecedenceWithLogicalAnd() throws {
+        // true and 5 ∧ 3 = 1 should be parsed as true and ((5 ∧ 3) = 1)
+        // bitwiseAnd (3) has higher precedence than logical and (2)
+        let expr = try parseExpression("true and 5 ∧ 3 = 1")
+        let expected = Expression.binary(
+            .and,
+            .literal(.boolean(true)),
+            .binary(
+                .bitwiseAnd,
+                .literal(.integer(5)),
+                .binary(.equal, .literal(.integer(3)), .literal(.integer(1)))
+            )
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testBitwiseAndPrecedenceWithArithmetic() throws {
+        // 1 + 2 ∧ 3 should be parsed as (1 + 2) ∧ 3 (add has higher precedence than bitwiseAnd)
+        let expr = try parseExpression("1 + 2 ∧ 3")
+        let expected = Expression.binary(
+            .bitwiseAnd,
+            .binary(.add, .literal(.integer(1)), .literal(.integer(2))),
+            .literal(.integer(3))
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testBitwiseAndLeftAssociativity() throws {
+        // 7 ∧ 3 ∧ 1 should be parsed as ((7 ∧ 3) ∧ 1)
+        let expr = try parseExpression("7 ∧ 3 ∧ 1")
+        let expected = Expression.binary(
+            .bitwiseAnd,
+            .binary(.bitwiseAnd, .literal(.integer(7)), .literal(.integer(3))),
+            .literal(.integer(1))
         )
         #expect(expr == expected)
     }
@@ -404,6 +472,45 @@ struct ExpressionParserTests {
         #expect(expr == expected)
     }
 
+    @Test func test2DArrayAccessWithCommaSyntax() throws {
+        let expr = try parseExpression("matrix[0, 1]")
+        let expected = Expression.arrayAccess(
+            .arrayAccess(.identifier("matrix"), .literal(.integer(0))),
+            .literal(.integer(1))
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func test2DArrayAccessWithExpressions() throws {
+        let expr = try parseExpression("matrix[i + 1, j * 2]")
+        let expected = Expression.arrayAccess(
+            .arrayAccess(
+                .identifier("matrix"),
+                .binary(.add, .identifier("i"), .literal(.integer(1)))
+            ),
+            .binary(.multiply, .identifier("j"), .literal(.integer(2)))
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func test3DArrayAccessWithCommaSyntax() throws {
+        let expr = try parseExpression("cube[0, 1, 2]")
+        let expected = Expression.arrayAccess(
+            .arrayAccess(
+                .arrayAccess(.identifier("cube"), .literal(.integer(0))),
+                .literal(.integer(1))
+            ),
+            .literal(.integer(2))
+        )
+        #expect(expr == expected)
+    }
+
+    @Test func testCommaSyntaxEquivalentToChainedSyntax() throws {
+        let commaSyntax = try parseExpression("matrix[1, 2]")
+        let chainedSyntax = try parseExpression("matrix[1][2]")
+        #expect(commaSyntax == chainedSyntax)
+    }
+
     @Test func testMixedPostfixOperations() throws {
         // func(x)[0] should be parsed as (func(x))[0]
         let expr = try parseExpression("getValue()[0]")
@@ -457,6 +564,28 @@ struct ExpressionParserTests {
         guard case .binary(.greater, .identifier("y"), .functionCall("min", _)) = right else {
             Issue.record("Expected 'y > min(a, b)' on right side")
             return
+        }
+    }
+
+    // MARK: - Codable Tests
+
+    @Test func testUndefinedLiteralCodableRoundTrip() throws {
+        let original = FEExpression.literal(.undefined)
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+
+        let data = try encoder.encode(original)
+        let decoded = try decoder.decode(FEExpression.self, from: data)
+
+        #expect(decoded == original)
+    }
+
+    @Test func testUndefinedLiteralCodableInvalidValue() throws {
+        let invalidJSON = #"{"literal":{"undefined":false}}"#
+        let decoder = JSONDecoder()
+
+        #expect(throws: DecodingError.self) {
+            _ = try decoder.decode(FEExpression.self, from: invalidJSON.data(using: .utf8)!)
         }
     }
 }

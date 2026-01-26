@@ -18,6 +18,7 @@ public enum ParsingBoundaryDetection {
         case .thenKeyword,      // IF condition ends, THEN block begins
              .elseKeyword,      // Previous block ends, ELSE block begins
              .elifKeyword,      // Previous block ends, ELIF condition begins
+             .elseifKeyword,    // Previous block ends, ELSEIF condition begins
              .doKeyword:        // WHILE/FOR condition ends, DO block begins
             return true
 

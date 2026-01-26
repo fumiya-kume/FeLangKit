@@ -73,6 +73,57 @@ struct StatementParserTests {
         #expect(value == .identifier("value"))
     }
 
+    @Test("2D Array Element Assignment with Comma Syntax")
+    func test2DArrayElementAssignmentWithCommaSyntax() throws {
+        let statements = try parseStatements("matrix[1, 2] ← 99")
+
+        #expect(statements.count == 1)
+        guard case .assignment(.arrayElement(let arrayAccess, let value)) = statements[0] else {
+            #expect(Bool(false), "Expected array element assignment")
+            return
+        }
+
+        #expect(arrayAccess.array == .arrayAccess(.identifier("matrix"), .literal(.integer(1))))
+        #expect(arrayAccess.index == .literal(.integer(2)))
+        #expect(value == .literal(.integer(99)))
+    }
+
+    @Test("2D Array Element Assignment with Expressions")
+    func test2DArrayElementAssignmentWithExpressions() throws {
+        let statements = try parseStatements("matrix[i + 1, j * 2] ← x + y")
+
+        #expect(statements.count == 1)
+        guard case .assignment(.arrayElement(let arrayAccess, let value)) = statements[0] else {
+            #expect(Bool(false), "Expected array element assignment")
+            return
+        }
+
+        #expect(arrayAccess.array == .arrayAccess(
+            .identifier("matrix"),
+            .binary(.add, .identifier("i"), .literal(.integer(1)))
+        ))
+        #expect(arrayAccess.index == .binary(.multiply, .identifier("j"), .literal(.integer(2))))
+        #expect(value == .binary(.add, .identifier("x"), .identifier("y")))
+    }
+
+    @Test("3D Array Element Assignment with Comma Syntax")
+    func test3DArrayElementAssignmentWithCommaSyntax() throws {
+        let statements = try parseStatements("cube[0, 1, 2] ← 42")
+
+        #expect(statements.count == 1)
+        guard case .assignment(.arrayElement(let arrayAccess, let value)) = statements[0] else {
+            #expect(Bool(false), "Expected array element assignment")
+            return
+        }
+
+        #expect(arrayAccess.array == .arrayAccess(
+            .arrayAccess(.identifier("cube"), .literal(.integer(0))),
+            .literal(.integer(1))
+        ))
+        #expect(arrayAccess.index == .literal(.integer(2)))
+        #expect(value == .literal(.integer(42)))
+    }
+
     // MARK: - IF Statement Tests
 
     @Test("Basic IF Statement")
@@ -115,6 +166,34 @@ struct StatementParserTests {
         }
 
         #expect(ifStmt.elseIfs.count == 1)
+        #expect(ifStmt.elseBody?.count == 1)
+    }
+
+    @Test("IF-ELSEIF-ELSE Statement")
+    func testIfElseifElseStatement() throws {
+        let statements = try parseStatements("if x > 0 then writeLine(\"positive\") elseif x < 0 then writeLine(\"negative\") else writeLine(\"zero\") endif")
+
+        #expect(statements.count == 1)
+        guard case .ifStatement(let ifStmt) = statements[0] else {
+            #expect(Bool(false), "Expected IF statement")
+            return
+        }
+
+        #expect(ifStmt.elseIfs.count == 1)
+        #expect(ifStmt.elseBody?.count == 1)
+    }
+
+    @Test("IF with mixed ELIF and ELSEIF")
+    func testIfWithMixedElifElseif() throws {
+        let statements = try parseStatements("if x > 0 then writeLine(\"a\") elif x < 0 then writeLine(\"b\") elseif x = 0 then writeLine(\"c\") else writeLine(\"d\") endif")
+
+        #expect(statements.count == 1)
+        guard case .ifStatement(let ifStmt) = statements[0] else {
+            #expect(Bool(false), "Expected IF statement")
+            return
+        }
+
+        #expect(ifStmt.elseIfs.count == 2)
         #expect(ifStmt.elseBody?.count == 1)
     }
 

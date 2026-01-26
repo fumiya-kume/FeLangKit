@@ -361,7 +361,7 @@ public struct UnicodeNormalizer {
 
             // Mathematical operators that might be confused
             ("×", "*"),       // Multiplication sign to asterisk
-            ("÷", "/"),       // Division sign to slash
+            // Note: ÷ is preserved as a valid division operator in FeLangKit
             ("≈", "~="),      // Approximately equal
             ("∞", "infinity")  // Infinity symbol
         ]
@@ -582,7 +582,8 @@ public struct UnicodeNormalizer {
 
     /// Counts how many mathematical symbols need normalization
     private func countMathSymbolChanges(_ input: String) -> Int {
-        let mathSymbols = ["α", "β", "π", "∑", "∏", "∆", "Ω", "×", "÷", "≈", "∞"]
+        // Note: ÷ is excluded because it's preserved as a valid division operator in FeLangKit
+        let mathSymbols = ["α", "β", "π", "∑", "∏", "∆", "Ω", "×", "≈", "∞"]
         return mathSymbols.reduce(0) { count, symbol in
             count + input.components(separatedBy: symbol).count - 1
         }

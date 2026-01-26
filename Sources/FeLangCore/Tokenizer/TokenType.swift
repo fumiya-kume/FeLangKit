@@ -16,6 +16,7 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case thenKeyword = "then"
     case elseKeyword = "else"
     case elifKeyword = "elif"
+    case elseifKeyword = "elseif"
     case endifKeyword = "endif"
     case whileKeyword = "while"
     case doKeyword = "do"
@@ -50,6 +51,9 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case classKeyword = "class"
     case endclassKeyword = "endclass"
 
+    /// Undefined keyword
+    case undefinedKeyword = "未定義"
+
     // MARK: - Literals
 
     case integerLiteral
@@ -81,6 +85,9 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case less = "<"
     case lessEqual = "≦"
 
+    /// Bitwise operators
+    case bitwiseAnd = "∧"
+
     // MARK: - Delimiters
 
     case leftParen = "("
@@ -107,12 +114,12 @@ extension TokenType {
     public var isKeyword: Bool {
         switch self {
         case .integerType, .realType, .characterType, .stringType, .booleanType,
-             .recordType, .arrayType, .ifKeyword, .thenKeyword, .elseKeyword, .elifKeyword, .endifKeyword,
+             .recordType, .arrayType, .ifKeyword, .thenKeyword, .elseKeyword, .elifKeyword, .elseifKeyword, .endifKeyword,
              .whileKeyword, .doKeyword, .endwhileKeyword, .forKeyword, .toKeyword, .stepKeyword, .inKeyword, .endforKeyword,
              .functionKeyword, .endfunctionKeyword, .procedureKeyword, .endprocedureKeyword,
              .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword, .continueKeyword,
              .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword,
-             .classKeyword, .endclassKeyword:
+             .classKeyword, .endclassKeyword, .undefinedKeyword:
             return true
         default:
             return false
@@ -133,7 +140,8 @@ extension TokenType {
     public var isOperator: Bool {
         switch self {
         case .plus, .minus, .multiply, .divide, .modulo, .assign,
-             .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual:
+             .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual,
+             .bitwiseAnd:
             return true
         default:
             return false

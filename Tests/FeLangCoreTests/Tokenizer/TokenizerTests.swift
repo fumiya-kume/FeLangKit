@@ -20,7 +20,7 @@ struct TokenizerTests {
     }
 
     @Test func testKeywords() throws {
-        let input = "整数型 実数型 文字型 文字列型 論理型 レコード 配列 if while for and or not return break true false"
+        let input = "整数型 実数型 文字型 文字列型 論理型 レコード 配列 if while for and or not return break true false 未定義"
         let tokenizer = Tokenizer(input: input)
         let tokens = try tokenizer.tokenize()
 
@@ -28,7 +28,7 @@ struct TokenizerTests {
             .integerType, .realType, .characterType, .stringType, .booleanType,
                          .recordType, .arrayType, .ifKeyword, .whileKeyword, .forKeyword,
             .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword,
-            .trueKeyword, .falseKeyword, .eof
+            .trueKeyword, .falseKeyword, .undefinedKeyword, .eof
         ]
 
         #expect(tokens.count == expectedTypes.count)
@@ -37,20 +37,46 @@ struct TokenizerTests {
         }
     }
 
+    @Test func testUndefinedKeyword() throws {
+        let input = "未定義"
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        #expect(tokens.count == 2)
+        #expect(tokens[0].type == .undefinedKeyword)
+        #expect(tokens[0].lexeme == "未定義")
+        #expect(tokens[1].type == .eof)
+    }
+
     @Test func testOperators() throws {
-        let input = "+ - * / % ← = ≠ > ≧ < ≦"
+        let input = "+ - * / % ← = ≠ > ≧ < ≦ ∧"
         let tokenizer = Tokenizer(input: input)
         let tokens = try tokenizer.tokenize()
 
         let expectedTypes: [TokenType] = [
             .plus, .minus, .multiply, .divide, .modulo, .assign,
-            .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual, .eof
+            .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual, .bitwiseAnd, .eof
         ]
 
         #expect(tokens.count == expectedTypes.count)
         for (index, expectedType) in expectedTypes.enumerated() {
             #expect(tokens[index].type == expectedType)
         }
+    }
+
+    @Test func testDivisionOperatorUnicode() throws {
+        let input = "10 ÷ 2"
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        #expect(tokens.count == 4) // integer, divide, integer, eof
+        #expect(tokens[0].type == .integerLiteral)
+        #expect(tokens[0].lexeme == "10")
+        #expect(tokens[1].type == .divide)
+        #expect(tokens[1].lexeme == "÷")
+        #expect(tokens[2].type == .integerLiteral)
+        #expect(tokens[2].lexeme == "2")
+        #expect(tokens[3].type == .eof)
     }
 
     @Test func testDelimiters() throws {

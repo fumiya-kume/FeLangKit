@@ -12,6 +12,7 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "then", kind: .keyword, detail: "Then clause"),
         CompletionItem(label: "else", kind: .keyword, detail: "Else clause"),
         CompletionItem(label: "elif", kind: .keyword, detail: "Else-if clause", insertText: "elif "),
+        CompletionItem(label: "elseif", kind: .keyword, detail: "Else-if clause", insertText: "elseif "),
         CompletionItem(label: "endif", kind: .keyword, detail: "End if statement"),
 
         // Loops
@@ -43,10 +44,6 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "and", kind: .keyword, detail: "Logical AND"),
         CompletionItem(label: "or", kind: .keyword, detail: "Logical OR"),
         CompletionItem(label: "not", kind: .keyword, detail: "Logical NOT"),
-
-        // Boolean literals
-        CompletionItem(label: "true", kind: .keyword, detail: "Boolean true"),
-        CompletionItem(label: "false", kind: .keyword, detail: "Boolean false"),
 
         // Japanese keywords
         CompletionItem(label: "もし", kind: .keyword, detail: "条件分岐 (if)", insertText: "もし "),
@@ -112,6 +109,13 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "concat_arrays", kind: .function, detail: "Concatenate arrays", insertText: "concat_arrays(")
     ]
 
+    /// Literal values that can be used in expressions/assignments
+    private static let literals: [CompletionItem] = [
+        CompletionItem(label: "true", kind: .keyword, detail: "Boolean true"),
+        CompletionItem(label: "false", kind: .keyword, detail: "Boolean false"),
+        CompletionItem(label: "未定義", kind: .keyword, detail: "Undefined value (未定義値)")
+    ]
+
     public init() {}
 
     /// Provide completions at a position in a document.
@@ -124,6 +128,7 @@ public struct CompletionProvider: Sendable {
         switch context {
         case .keyword:
             items.append(contentsOf: Self.keywords)
+            items.append(contentsOf: Self.literals)
         case .type:
             items.append(contentsOf: Self.types)
         case .function:
@@ -132,8 +137,10 @@ public struct CompletionProvider: Sendable {
         case .variable:
             items.append(contentsOf: getVariables(document: document))
             items.append(contentsOf: Self.standardFunctions)
+            items.append(contentsOf: Self.literals)
         case .general:
             items.append(contentsOf: Self.keywords)
+            items.append(contentsOf: Self.literals)
             items.append(contentsOf: Self.types)
             items.append(contentsOf: Self.standardFunctions)
             items.append(contentsOf: getVariables(document: document))
@@ -273,7 +280,7 @@ public struct CompletionProvider: Sendable {
     private func isKeyword(_ word: String) -> Bool {
         let keywords = Set([
             // English keywords
-            "if", "then", "else", "elif", "endif",
+            "if", "then", "else", "elif", "elseif", "endif",
             "while", "do", "endwhile",
             "for", "to", "step", "endfor", "in",
             "function", "endfunction", "procedure", "endprocedure",
@@ -284,7 +291,9 @@ public struct CompletionProvider: Sendable {
             // Japanese keywords
             "もし", "ならば", "でなければ", "を実行", "繰り返し", "を繰り返す",
             // Japanese type names
-            "整数型", "実数型", "文字列型", "文字型", "論理型", "配列型"
+            "整数型", "実数型", "文字列型", "文字型", "論理型", "配列型",
+            // Undefined keyword
+            "未定義"
         ])
         return keywords.contains(word.lowercased()) || keywords.contains(word)
     }

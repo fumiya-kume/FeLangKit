@@ -212,6 +212,9 @@ public struct PrettyPrinter {
 
         case .boolean(let value):
             return value ? "true" : "false"
+
+        case .undefined:
+            return "未定義"
         }
     }
 

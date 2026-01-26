@@ -27,6 +27,7 @@ public enum TokenizerUtilities {
         ("continue", .continueKeyword),
 
         // 6 characters
+        ("elseif", .elseifKeyword),
         ("return", .returnKeyword),
         ("endfor", .endforKeyword),
 
@@ -56,6 +57,9 @@ public enum TokenizerUtilities {
         ("and", .andKeyword),
         ("not", .notKeyword),
         ("for", .forKeyword),
+
+        // 3 characters (Japanese)
+        ("未定義", .undefinedKeyword),
 
         // 2 characters
         ("配列", .arrayType),
@@ -91,10 +95,12 @@ public enum TokenizerUtilities {
         ("-", .minus),
         ("*", .multiply),
         ("/", .divide),
+        ("÷", .divide),
         ("%", .modulo),
         ("=", .equal),
         (">", .greater),
         ("<", .less),
+        ("∧", .bitwiseAnd),
         // NOTE: If multi-character operators starting with "!" (e.g., "!=") are added,
         // they must appear before this single-character "!" entry to preserve longest-match behavior.
         ("!", .notKeyword)

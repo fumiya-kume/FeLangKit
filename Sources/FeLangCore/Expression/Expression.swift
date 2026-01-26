@@ -28,6 +28,7 @@ public enum Literal: Equatable, Sendable {
     case string(String)
     case character(Character)
     case boolean(Bool)
+    case undefined
 }
 
 extension Literal: Codable {
@@ -44,6 +45,8 @@ extension Literal: Codable {
             try container.encode(["character": String(value)])
         case .boolean(let value):
             try container.encode(["boolean": value])
+        case .undefined:
+            try container.encode(["undefined": true])
         }
     }
 
@@ -61,6 +64,15 @@ extension Literal: Codable {
             self = .character(char)
         } else if let value = dict["boolean"]?.value as? Bool {
             self = .boolean(value)
+        } else if let undefinedEntry = dict["undefined"] {
+            if let boolValue = undefinedEntry.value as? Bool, boolValue == true {
+                self = .undefined
+            } else {
+                throw DecodingError.dataCorrupted(.init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Invalid literal value: expected `{\"undefined\": true}` for undefined literal"
+                ))
+            }
         } else {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid literal value"))
         }
@@ -147,6 +159,9 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
     case less = "<"
     case lessEqual = "≦"
 
+    // Bitwise operators
+    case bitwiseAnd = "∧"
+
     // Logical operators
     case and = "and"
     // swiftlint:disable:next identifier_name
@@ -160,12 +175,14 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
             return 1
         case .and:
             return 2
-        case .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual:
+        case .bitwiseAnd:
             return 3
-        case .add, .subtract:
+        case .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual:
             return 4
-        case .multiply, .divide, .modulo:
+        case .add, .subtract:
             return 5
+        case .multiply, .divide, .modulo:
+            return 6
         }
     }
 
@@ -183,9 +200,9 @@ public enum UnaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
     case minus = "-"
 
     /// Returns the precedence level of this operator.
-    /// Unary operators have high precedence (6).
+    /// Unary operators have high precedence (7).
     public var precedence: Int {
-        return 6
+        return 7
     }
 }
 
@@ -218,6 +235,8 @@ extension BinaryOperator {
             self = .less
         case .lessEqual:
             self = .lessEqual
+        case .bitwiseAnd:
+            self = .bitwiseAnd
         case .andKeyword:
             self = .and
         case .orKeyword:
@@ -281,6 +300,8 @@ extension Literal {
             self = .boolean(true)
         case .falseKeyword:
             self = .boolean(false)
+        case .undefinedKeyword:
+            self = .undefined
         default:
             return nil
         }

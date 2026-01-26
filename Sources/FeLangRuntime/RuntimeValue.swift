@@ -39,6 +39,9 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
     /// Represents nil/null/void
     case null
 
+    /// Represents an undefined value (未定義)
+    case undefined
+
     // MARK: - Properties
 
     /// Returns the type name of this value
@@ -56,6 +59,7 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
         case .classDefinition(let classDef): return "Class<\(classDef.name)>"
         case .instance(let inst): return inst.className
         case .null: return "Null"
+        case .undefined: return "Undefined"
         }
     }
 
@@ -66,7 +70,7 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
             return value
         case .integer(let value):
             return value != 0
-        case .null:
+        case .null, .undefined:
             return false
         default:
             return true
@@ -135,6 +139,8 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
             return "\(inst.className){\(fieldStrings.joined(separator: ", "))}"
         case .null:
             return "null"
+        case .undefined:
+            return "未定義"
         }
     }
 
