@@ -796,6 +796,26 @@ struct StatementExecutorTests {
             _ = try executor.executeStatement(assignment)
         }
     }
+
+    @Test func testChainedFieldAssignmentNotSupported() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define nested records
+        env.define("obj", value: .record(["inner": .record(["field": .integer(0)])]))
+
+        // Try chained field assignment: obj.inner.field ← 10
+        // The parser supports this syntax, but runtime only handles simple identifiers
+        let chainedFieldAccess = Assignment.FieldAccess(
+            object: .fieldAccess(.identifier("obj"), "inner"),
+            field: "field"
+        )
+        let assignment = Statement.assignment(.fieldAccess(chainedFieldAccess, .literal(.integer(10))))
+
+        #expect(throws: RuntimeError.self) {
+            _ = try executor.executeStatement(assignment)
+        }
+    }
 }
 
 // MARK: - Interpreter Tests
