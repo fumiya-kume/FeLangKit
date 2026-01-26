@@ -64,18 +64,50 @@ struct TokenizerTests {
     }
 
     @Test func testOperators() throws {
-        let input = "+ - * / % ← = ≠ > ≧ < ≦ ∧"
+        let input = "+ - * / % ← = ≠ > ≧ < ≦ ∧ << >>"
         let tokenizer = Tokenizer(input: input)
         let tokens = try tokenizer.tokenize()
 
         let expectedTypes: [TokenType] = [
             .plus, .minus, .multiply, .divide, .modulo, .assign,
-            .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual, .bitwiseAnd, .eof
+            .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual,
+            .bitwiseAnd, .leftShift, .rightShift, .eof
         ]
 
         #expect(tokens.count == expectedTypes.count)
         for (index, expectedType) in expectedTypes.enumerated() {
             #expect(tokens[index].type == expectedType)
+        }
+    }
+
+    @Test func testShiftOperators() throws {
+        let input = "1 << 3"
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        #expect(tokens.count == 4)
+        #expect(tokens[0].type == .integerLiteral)
+        #expect(tokens[0].lexeme == "1")
+        #expect(tokens[1].type == .leftShift)
+        #expect(tokens[1].lexeme == "<<")
+        #expect(tokens[2].type == .integerLiteral)
+        #expect(tokens[2].lexeme == "3")
+        #expect(tokens[3].type == .eof)
+    }
+
+    @Test func testShiftOperatorsDoNotConflictWithComparison() throws {
+        let input = "a < b << c > d >> e"
+        let tokenizer = Tokenizer(input: input)
+        let tokens = try tokenizer.tokenize()
+
+        let expectedTypes: [TokenType] = [
+            .identifier, .less, .identifier, .leftShift, .identifier,
+            .greater, .identifier, .rightShift, .identifier, .eof
+        ]
+
+        #expect(tokens.count == expectedTypes.count)
+        for (index, expectedType) in expectedTypes.enumerated() {
+            #expect(tokens[index].type == expectedType, "Token \(index): expected \(expectedType), got \(tokens[index].type)")
         }
     }
 

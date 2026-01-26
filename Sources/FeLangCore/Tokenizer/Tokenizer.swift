@@ -134,9 +134,17 @@ public final class Tokenizer {
         case "≦":
             return Token(type: .lessEqual, lexeme: "≦", position: position)
         case ">":
-            return Token(type: .greater, lexeme: ">", position: position)
+            if match(">") {
+                return Token(type: .rightShift, lexeme: ">>", position: position)
+            } else {
+                return Token(type: .greater, lexeme: ">", position: position)
+            }
         case "<":
-            return Token(type: .less, lexeme: "<", position: position)
+            if match("<") {
+                return Token(type: .leftShift, lexeme: "<<", position: position)
+            } else {
+                return Token(type: .less, lexeme: "<", position: position)
+            }
         case "∧":
             return Token(type: .bitwiseAnd, lexeme: "∧", position: position)
         case "(":

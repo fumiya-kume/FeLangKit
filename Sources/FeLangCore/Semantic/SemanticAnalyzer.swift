@@ -925,8 +925,8 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 return .error
             }
 
-        case .bitwiseAnd:
-            // Bitwise AND only works with integers (strict check, no real allowed)
+        case .bitwiseAnd, .leftShift, .rightShift:
+            // Bitwise operators only work with integers (strict check, no real allowed)
             if case .integer = leftType, case .integer = rightType {
                 return .integer
             } else {
