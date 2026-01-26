@@ -1190,3 +1190,308 @@ struct RuntimeErrorTests {
         #expect(error.description.contains("not supported"))
     }
 }
+
+// MARK: - Class Inheritance Tests
+
+struct ClassInheritanceTests {
+
+    @Test func testSubclassInheritsSuperclassMemberVariables() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define superclass Animal with member 'name'
+        let animalClass = ClassDeclaration(
+            name: "Animal",
+            superclass: nil,
+            members: [MemberDeclaration(name: "name", type: .string)],
+            constructor: ConstructorDeclaration(
+                parameters: [Parameter(name: "n", type: .string)],
+                body: [
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "name"),
+                        .identifier("n")
+                    ))
+                ]
+            ),
+            methods: []
+        )
+
+        // Define subclass Dog that extends Animal with additional member 'breed'
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "Animal",
+            members: [MemberDeclaration(name: "breed", type: .string)],
+            constructor: ConstructorDeclaration(
+                parameters: [Parameter(name: "n", type: .string), Parameter(name: "b", type: .string)],
+                body: [
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "name"),
+                        .identifier("n")
+                    )),
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "breed"),
+                        .identifier("b")
+                    ))
+                ]
+            ),
+            methods: []
+        )
+
+        // Execute class declarations
+        _ = try executor.executeStatement(.classDeclaration(animalClass))
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        // Create Dog instance
+        let dogInstance = try executor.callFunction("Dog", arguments: [.string("Buddy"), .string("Labrador")])
+
+        // Verify the instance has both inherited 'name' and own 'breed' members
+        guard case .instance(let inst) = dogInstance else {
+            Issue.record("Expected instance value")
+            return
+        }
+
+        #expect(inst.fields["name"] == .string("Buddy"))
+        #expect(inst.fields["breed"] == .string("Labrador"))
+    }
+
+    @Test func testSubclassCanCallSuperclassMethod() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define superclass with a method
+        let animalClass = ClassDeclaration(
+            name: "Animal",
+            superclass: nil,
+            members: [MemberDeclaration(name: "age", type: .integer)],
+            constructor: ConstructorDeclaration(
+                parameters: [Parameter(name: "a", type: .integer)],
+                body: [
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "age"),
+                        .identifier("a")
+                    ))
+                ]
+            ),
+            methods: [
+                MethodDeclaration(
+                    name: "getAge",
+                    parameters: [],
+                    returnType: .integer,
+                    body: [
+                        .returnStatement(ReturnStatement(
+                            expression: .fieldAccess(.identifier("self"), "age")
+                        ))
+                    ]
+                )
+            ]
+        )
+
+        // Define subclass without overriding the method
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "Animal",
+            members: [MemberDeclaration(name: "breed", type: .string)],
+            constructor: ConstructorDeclaration(
+                parameters: [Parameter(name: "a", type: .integer), Parameter(name: "b", type: .string)],
+                body: [
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "age"),
+                        .identifier("a")
+                    )),
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "breed"),
+                        .identifier("b")
+                    ))
+                ]
+            ),
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(animalClass))
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        // Create Dog instance and verify it can use inherited method
+        let dogInstance = try executor.callFunction("Dog", arguments: [.integer(3), .string("Labrador")])
+
+        guard case .instance(let inst) = dogInstance else {
+            Issue.record("Expected instance value")
+            return
+        }
+
+        // Verify the inherited method exists in the class definition
+        #expect(inst.classDefinition.methods["getAge"] != nil)
+    }
+
+    @Test func testSubclassMethodOverridesSuperclassMethod() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define superclass with a method that returns 1
+        let animalClass = ClassDeclaration(
+            name: "Animal",
+            superclass: nil,
+            members: [],
+            constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "speak",
+                    parameters: [],
+                    returnType: .integer,
+                    body: [
+                        .returnStatement(ReturnStatement(expression: .literal(.integer(1))))
+                    ]
+                )
+            ]
+        )
+
+        // Define subclass that overrides the method to return 2
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "Animal",
+            members: [],
+            constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "speak",
+                    parameters: [],
+                    returnType: .integer,
+                    body: [
+                        .returnStatement(ReturnStatement(expression: .literal(.integer(2))))
+                    ]
+                )
+            ]
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(animalClass))
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        let dogInstance = try executor.callFunction("Dog", arguments: [])
+
+        guard case .instance(let inst) = dogInstance else {
+            Issue.record("Expected instance value")
+            return
+        }
+
+        // Verify the subclass method overrides the superclass method
+        let speakMethod = inst.classDefinition.methods["speak"]
+        #expect(speakMethod != nil)
+
+        // The method body should return 2 (subclass version), not 1 (superclass version)
+        if let method = speakMethod {
+            #expect(method.body.count == 1)
+            if case .returnStatement(let ret) = method.body[0],
+               case .literal(.integer(let value)) = ret.expression {
+                #expect(value == 2)
+            } else {
+                Issue.record("Expected return statement with integer literal")
+            }
+        }
+    }
+
+    @Test func testMultiLevelInheritance() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define base class
+        let animalClass = ClassDeclaration(
+            name: "Animal",
+            superclass: nil,
+            members: [MemberDeclaration(name: "alive", type: .boolean)],
+            constructor: nil,
+            methods: []
+        )
+
+        // Define intermediate class
+        let mammalClass = ClassDeclaration(
+            name: "Mammal",
+            superclass: "Animal",
+            members: [MemberDeclaration(name: "warmBlooded", type: .boolean)],
+            constructor: nil,
+            methods: []
+        )
+
+        // Define leaf class
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "Mammal",
+            members: [MemberDeclaration(name: "breed", type: .string)],
+            constructor: nil,
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(animalClass))
+        _ = try executor.executeStatement(.classDeclaration(mammalClass))
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        let dogInstance = try executor.callFunction("Dog", arguments: [])
+
+        guard case .instance(let inst) = dogInstance else {
+            Issue.record("Expected instance value")
+            return
+        }
+
+        // Verify all inherited members are present
+        #expect(inst.fields["alive"] != nil)
+        #expect(inst.fields["warmBlooded"] != nil)
+        #expect(inst.fields["breed"] != nil)
+    }
+
+    @Test func testCircularInheritanceDetection() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define class A that extends B
+        let classA = ClassDeclaration(
+            name: "A",
+            superclass: "B",
+            members: [MemberDeclaration(name: "valueA", type: .integer)],
+            constructor: nil,
+            methods: []
+        )
+
+        // Define class B that extends A (circular inheritance)
+        let classB = ClassDeclaration(
+            name: "B",
+            superclass: "A",
+            members: [MemberDeclaration(name: "valueB", type: .integer)],
+            constructor: nil,
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(classA))
+        _ = try executor.executeStatement(.classDeclaration(classB))
+
+        // Attempting to create an instance should throw a circular inheritance error
+        do {
+            _ = try executor.callFunction("A", arguments: [])
+            Issue.record("Expected circular inheritance error")
+        } catch let error as RuntimeError {
+            #expect(error.description.contains("Circular inheritance"))
+        }
+    }
+
+    @Test func testUndefinedSuperclassError() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define class that extends a non-existent superclass
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "NonExistentAnimal",
+            members: [MemberDeclaration(name: "breed", type: .string)],
+            constructor: nil,
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        // Attempting to create an instance should throw a superclass not found error
+        do {
+            _ = try executor.callFunction("Dog", arguments: [])
+            Issue.record("Expected superclass not found error")
+        } catch let error as RuntimeError {
+            #expect(error.description.contains("Superclass"))
+            #expect(error.description.contains("not found"))
+        }
+    }
+}

@@ -255,6 +255,9 @@ public struct ClassDefinition: Equatable, Sendable {
     /// The name of the class
     public let name: String
 
+    /// The name of the superclass (nil if no inheritance)
+    public let superclassName: String?
+
     /// Member variable names and their types
     public let members: [String: DataType]
 
@@ -272,6 +275,7 @@ public struct ClassDefinition: Equatable, Sendable {
 
     public init(
         name: String,
+        superclassName: String? = nil,
         members: [String: DataType] = [:],
         constructorParameters: [String] = [],
         constructorParameterTypes: [DataType] = [],
@@ -279,6 +283,7 @@ public struct ClassDefinition: Equatable, Sendable {
         methods: [String: MethodDefinition] = [:]
     ) {
         self.name = name
+        self.superclassName = superclassName
         self.members = members
         self.constructorParameters = constructorParameters
         self.constructorParameterTypes = constructorParameterTypes
