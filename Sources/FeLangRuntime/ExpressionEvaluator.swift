@@ -129,6 +129,10 @@ public struct ExpressionEvaluator: Sendable {
         case .greaterEqual:
             return try evaluateComparison(left, right) { $0 >= $1 }
 
+        // Bitwise
+        case .bitwiseAnd:
+            return try evaluateBitwiseAnd(left, right)
+
         // Logical
         case .and:
             return try evaluateLogicalAnd(left, right)
@@ -157,6 +161,16 @@ public struct ExpressionEvaluator: Sendable {
             throw RuntimeError.typeMismatch(expected: "Boolean", actual: right.typeName, operation: "or")
         }
         return .boolean(leftBool || rightBool)
+    }
+
+    private func evaluateBitwiseAnd(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
+        guard case .integer(let leftInt) = left else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: left.typeName, operation: "∧")
+        }
+        guard case .integer(let rightInt) = right else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: "∧")
+        }
+        return .integer(leftInt & rightInt)
     }
 
     private func evaluateAdd(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {

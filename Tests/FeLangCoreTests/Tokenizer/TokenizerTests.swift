@@ -38,13 +38,13 @@ struct TokenizerTests {
     }
 
     @Test func testOperators() throws {
-        let input = "+ - * / % ← = ≠ > ≧ < ≦"
+        let input = "+ - * / % ← = ≠ > ≧ < ≦ ∧"
         let tokenizer = Tokenizer(input: input)
         let tokens = try tokenizer.tokenize()
 
         let expectedTypes: [TokenType] = [
             .plus, .minus, .multiply, .divide, .modulo, .assign,
-            .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual, .eof
+            .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual, .bitwiseAnd, .eof
         ]
 
         #expect(tokens.count == expectedTypes.count)

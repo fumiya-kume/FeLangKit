@@ -883,6 +883,16 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 return .error
             }
 
+        case .bitwiseAnd:
+            // Bitwise AND only works with integers (strict check, no real allowed)
+            if case .integer = leftType, case .integer = rightType {
+                return .integer
+            } else {
+                let position = SourcePosition(line: 0, column: 0, offset: 0)
+                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+                return .error
+            }
+
         case .and, .or:
             // Logical operators work with boolean types
             if leftType.isCompatible(with: .boolean) && rightType.isCompatible(with: .boolean) {

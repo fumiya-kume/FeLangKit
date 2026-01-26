@@ -436,6 +436,45 @@ struct ExpressionEvaluatorTests {
         #expect(try evaluator.evaluate(falseOrFalse) == .boolean(false))
     }
 
+    // MARK: - Bitwise Operations
+
+    @Test func testBitwiseAnd() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.bitwiseAnd, .literal(.integer(5)), .literal(.integer(3)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(1))
+    }
+
+    @Test func testBitwiseAndWithZero() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.bitwiseAnd, .literal(.integer(255)), .literal(.integer(0)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(0))
+    }
+
+    @Test func testBitwiseAndWithAllOnes() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.bitwiseAnd, .literal(.integer(15)), .literal(.integer(15)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(15))
+    }
+
+    @Test func testBitwiseAndTypeMismatchLeft() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.bitwiseAnd, .literal(.real(5.0)), .literal(.integer(3)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
+
+    @Test func testBitwiseAndTypeMismatchRight() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.bitwiseAnd, .literal(.integer(5)), .literal(.real(3.0)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
+
     // MARK: - Unary Operations
 
     @Test func testUnaryMinus() throws {
