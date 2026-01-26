@@ -28,6 +28,7 @@ public enum Literal: Equatable, Sendable {
     case string(String)
     case character(Character)
     case boolean(Bool)
+    case undefined
 }
 
 extension Literal: Codable {
@@ -44,6 +45,8 @@ extension Literal: Codable {
             try container.encode(["character": String(value)])
         case .boolean(let value):
             try container.encode(["boolean": value])
+        case .undefined:
+            try container.encode(["undefined": true])
         }
     }
 
@@ -61,6 +64,8 @@ extension Literal: Codable {
             self = .character(char)
         } else if let value = dict["boolean"]?.value as? Bool {
             self = .boolean(value)
+        } else if dict["undefined"] != nil {
+            self = .undefined
         } else {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid literal value"))
         }
@@ -281,6 +286,8 @@ extension Literal {
             self = .boolean(true)
         case .falseKeyword:
             self = .boolean(false)
+        case .undefinedKeyword:
+            self = .undefined
         default:
             return nil
         }

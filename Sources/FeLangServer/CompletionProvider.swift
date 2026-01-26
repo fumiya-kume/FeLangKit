@@ -44,6 +44,9 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "true", kind: .keyword, detail: "Boolean true"),
         CompletionItem(label: "false", kind: .keyword, detail: "Boolean false"),
 
+        // Undefined literal
+        CompletionItem(label: "未定義", kind: .keyword, detail: "Undefined value (未定義値)"),
+
         // Japanese keywords
         CompletionItem(label: "もし", kind: .keyword, detail: "条件分岐 (if)", insertText: "もし "),
         CompletionItem(label: "ならば", kind: .keyword, detail: "Then clause"),
@@ -279,7 +282,9 @@ public struct CompletionProvider: Sendable {
             // Japanese keywords
             "もし", "ならば", "でなければ", "を実行", "繰り返し", "を繰り返す",
             // Japanese type names
-            "整数型", "実数型", "文字列型", "文字型", "論理型", "配列型"
+            "整数型", "実数型", "文字列型", "文字型", "論理型", "配列型",
+            // Undefined keyword
+            "未定義"
         ])
         return keywords.contains(word.lowercased()) || keywords.contains(word)
     }

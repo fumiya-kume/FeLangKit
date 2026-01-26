@@ -92,6 +92,8 @@ public struct ExpressionEvaluator: Sendable {
             return .character(value)
         case .boolean(let value):
             return .boolean(value)
+        case .undefined:
+            return .undefined
         }
     }
 

@@ -65,6 +65,7 @@ struct VisitableTests {
                 case .string(let value): return "string(\(value))"
                 case .character(let value): return "char(\(value))"
                 case .boolean(let value): return "bool(\(value))"
+                case .undefined: return "undefined"
                 }
             },
             visitIdentifier: { "id(\($0))" },

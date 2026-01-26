@@ -54,6 +54,16 @@ struct RuntimeValueTests {
         #expect(value.toString() == "null")
     }
 
+    @Test func testUndefinedValue() {
+        let value = RuntimeValue.undefined
+        #expect(value.typeName == "Undefined")
+        #expect(value.toString() == "未定義")
+    }
+
+    @Test func testIsTruthyUndefined() {
+        #expect(RuntimeValue.undefined.isTruthy == false)
+    }
+
     // MARK: - Truthy Tests
 
     @Test func testIsTruthyBoolean() {
@@ -291,6 +301,12 @@ struct ExpressionEvaluatorTests {
         let falseResult = try evaluator.evaluate(.literal(.boolean(false)))
         #expect(trueResult == .boolean(true))
         #expect(falseResult == .boolean(false))
+    }
+
+    @Test func testEvaluateUndefinedLiteral() throws {
+        let evaluator = makeEvaluator()
+        let result = try evaluator.evaluate(.literal(.undefined))
+        #expect(result == .undefined)
     }
 
     @Test func testEvaluateIdentifier() throws {

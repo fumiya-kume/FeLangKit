@@ -43,6 +43,11 @@ struct ExpressionParserTests {
         #expect(falseExpr == .literal(.boolean(false)))
     }
 
+    @Test func testUndefinedLiteral() throws {
+        let expr = try parseExpression("未定義")
+        #expect(expr == .literal(.undefined))
+    }
+
     @Test func testIdentifier() throws {
         let expr = try parseExpression("variable")
         #expect(expr == .identifier("variable"))

@@ -55,6 +55,9 @@ public enum TokenizerUtilities {
         ("not", .notKeyword),
         ("for", .forKeyword),
 
+        // 3 characters (Japanese)
+        ("未定義", .undefinedKeyword),
+
         // 2 characters
         ("配列", .arrayType),
         ("変数", .variableKeyword),

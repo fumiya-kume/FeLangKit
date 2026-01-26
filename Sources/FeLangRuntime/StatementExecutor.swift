@@ -685,7 +685,7 @@ public final class StatementExecutor: @unchecked Sendable {
         case .record:
             // Record type name cannot be inferred from runtime value
             return nil
-        case .function, .procedure, .null:
+        case .function, .procedure, .null, .undefined:
             return nil
         }
     }

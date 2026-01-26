@@ -807,6 +807,8 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             return .character
         case .boolean:
             return .boolean
+        case .undefined:
+            return .unknown
         }
     }
 
