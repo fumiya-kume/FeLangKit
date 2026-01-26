@@ -113,7 +113,7 @@ struct TypeConversionE2ETests {
     // MARK: - English Type Alias Tests
 
     @Test("English type aliases: double/float/str/char/bool")
-    func testEnglishTypeAliases() throws {
+    func testEnglishTypeAliasesDoubleFloatStr() throws {
         let code = """
         変数 r: double ← 1.5
         変数 f: float ← 2.5
@@ -137,6 +137,58 @@ struct TypeConversionE2ETests {
         #expect(lines[1] == "ok")
         #expect(lines[2] == "A")
         #expect(lines[3].lowercased() == "true")
+    }
+
+    @Test("English type aliases in function declaration")
+    func testEnglishTypeAliasesInFunction() throws {
+        let code = """
+        function describe(x: int, ok: bool): string
+            if ok then
+                return toString(x)
+            endif
+            return "no"
+        endfunction
+
+        println(describe(3, true))
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.contains("3"))
+    }
+
+    @Test("English type aliases: real and char in function")
+    func testEnglishTypeAliasesRealAndChar() throws {
+        let code = """
+        function formatValue(value: real, prefix: char): string
+            return concat(prefix, toString(value))
+        endfunction
+
+        println(formatValue(3.14, 'x'))
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.contains("x3.14"))
+    }
+
+    @Test("English type aliases in variable declarations")
+    func testEnglishTypeAliasesInVariables() throws {
+        let code = """
+        変数 x: int ← 42
+        変数 pi: real ← 3.14
+        変数 name: string ← "test"
+        変数 flag: bool ← true
+        変数 ch: char ← 'A'
+
+        println(x)
+        println(pi)
+        println(name)
+        println(flag)
+        println(ch)
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.contains("42"))
+        #expect(output.contains("3.14"))
+        #expect(output.contains("test"))
+        #expect(output.lowercased().contains("true"))
+        #expect(output.contains("A"))
     }
 
     // MARK: - Japanese Type Keywords Tests
