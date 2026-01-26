@@ -310,4 +310,16 @@ struct StringArrayE2ETests {
         let output = try InProcessTestHelper.run(code)
         #expect(output.contains("H"))
     }
+
+    // MARK: - English Array Type Syntax
+
+    @Test("English 'array of' type syntax with integer array")
+    func testEnglishArrayOfIntegerSyntax() throws {
+        let code = """
+        変数 arr: array of integer ← [1, 2, 3]
+        println(length(arr))
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "3")
+    }
 }
