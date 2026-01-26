@@ -64,8 +64,15 @@ extension Literal: Codable {
             self = .character(char)
         } else if let value = dict["boolean"]?.value as? Bool {
             self = .boolean(value)
-        } else if dict["undefined"] != nil {
-            self = .undefined
+        } else if let undefinedEntry = dict["undefined"] {
+            if let boolValue = undefinedEntry.value as? Bool, boolValue == true {
+                self = .undefined
+            } else {
+                throw DecodingError.dataCorrupted(.init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Invalid literal value: expected `{\"undefined\": true}` for undefined literal"
+                ))
+            }
         } else {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid literal value"))
         }

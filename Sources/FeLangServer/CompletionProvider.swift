@@ -40,13 +40,6 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "or", kind: .keyword, detail: "Logical OR"),
         CompletionItem(label: "not", kind: .keyword, detail: "Logical NOT"),
 
-        // Boolean literals
-        CompletionItem(label: "true", kind: .keyword, detail: "Boolean true"),
-        CompletionItem(label: "false", kind: .keyword, detail: "Boolean false"),
-
-        // Undefined literal
-        CompletionItem(label: "未定義", kind: .keyword, detail: "Undefined value (未定義値)"),
-
         // Japanese keywords
         CompletionItem(label: "もし", kind: .keyword, detail: "条件分岐 (if)", insertText: "もし "),
         CompletionItem(label: "ならば", kind: .keyword, detail: "Then clause"),
@@ -111,6 +104,13 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "concat_arrays", kind: .function, detail: "Concatenate arrays", insertText: "concat_arrays(")
     ]
 
+    /// Literal values that can be used in expressions/assignments
+    private static let literals: [CompletionItem] = [
+        CompletionItem(label: "true", kind: .keyword, detail: "Boolean true"),
+        CompletionItem(label: "false", kind: .keyword, detail: "Boolean false"),
+        CompletionItem(label: "未定義", kind: .keyword, detail: "Undefined value (未定義値)")
+    ]
+
     public init() {}
 
     /// Provide completions at a position in a document.
@@ -123,6 +123,7 @@ public struct CompletionProvider: Sendable {
         switch context {
         case .keyword:
             items.append(contentsOf: Self.keywords)
+            items.append(contentsOf: Self.literals)
         case .type:
             items.append(contentsOf: Self.types)
         case .function:
@@ -131,8 +132,10 @@ public struct CompletionProvider: Sendable {
         case .variable:
             items.append(contentsOf: getVariables(document: document))
             items.append(contentsOf: Self.standardFunctions)
+            items.append(contentsOf: Self.literals)
         case .general:
             items.append(contentsOf: Self.keywords)
+            items.append(contentsOf: Self.literals)
             items.append(contentsOf: Self.types)
             items.append(contentsOf: Self.standardFunctions)
             items.append(contentsOf: getVariables(document: document))
