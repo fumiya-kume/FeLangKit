@@ -87,6 +87,9 @@ public final class StatementExecutor: @unchecked Sendable {
         case .whileStatement(let whileStmt):
             return try executeWhileStatement(whileStmt)
 
+        case .doWhileStatement(let doWhileStmt):
+            return try executeDoWhileStatement(doWhileStmt)
+
         case .forStatement(let forStmt):
             return try executeForStatement(forStmt)
 
@@ -380,6 +383,38 @@ public final class StatementExecutor: @unchecked Sendable {
         }
 
         return .normal
+    }
+
+    private func executeDoWhileStatement(_ doWhileStmt: DoWhileStatement) throws -> ControlFlow {
+        loopDepth += 1
+        defer { loopDepth -= 1 }
+
+        repeat {
+            try environment.pushScope()
+            defer { environment.popScope() }
+            let result = try execute(doWhileStmt.body)
+
+            switch result {
+            case .breakLoop:
+                return .normal
+            case .continueLoop:
+                break
+            case .returnValue:
+                return result
+            case .normal:
+                break
+            }
+
+            let condition = try evaluator.evaluate(doWhileStmt.condition)
+            guard case .boolean(let boolValue) = condition else {
+                throw RuntimeError.typeMismatch(
+                    expected: "Boolean",
+                    actual: condition.typeName,
+                    operation: "do-while condition"
+                )
+            }
+            guard boolValue else { return .normal }
+        } while true
     }
 
     private func executeForStatement(_ forStmt: ForStatement) throws -> ControlFlow {

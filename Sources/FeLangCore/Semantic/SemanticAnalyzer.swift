@@ -129,6 +129,8 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             collectSymbolsFromIfStatement(stmt)
         case .whileStatement(let stmt):
             collectSymbolsFromWhileStatement(stmt)
+        case .doWhileStatement(let stmt):
+            collectSymbolsFromDoWhileStatement(stmt)
         case .forStatement(let stmt):
             collectSymbolsFromForStatement(stmt)
         case .block(let statements):
@@ -325,6 +327,14 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         symbolTable.popScope()
     }
 
+    private func collectSymbolsFromDoWhileStatement(_ stmt: DoWhileStatement) {
+        _ = symbolTable.pushScope(kind: .loop)
+        for bodyStmt in stmt.body {
+            collectSymbolsFromStatement(bodyStmt)
+        }
+        symbolTable.popScope()
+    }
+
     private func collectSymbolsFromForStatement(_ stmt: ForStatement) {
         switch stmt {
         case .range(let rangeFor):
@@ -399,6 +409,8 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             typeCheckIfStatement(stmt)
         case .whileStatement(let stmt):
             typeCheckWhileStatement(stmt)
+        case .doWhileStatement(let stmt):
+            typeCheckDoWhileStatement(stmt)
         case .forStatement(let stmt):
             typeCheckForStatement(stmt)
         case .returnStatement(let stmt):
@@ -548,6 +560,20 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             typeCheckStatement(bodyStmt)
         }
         symbolTable.popScope()
+    }
+
+    private func typeCheckDoWhileStatement(_ stmt: DoWhileStatement) {
+        _ = symbolTable.pushScope(kind: .loop)
+        for bodyStmt in stmt.body {
+            typeCheckStatement(bodyStmt)
+        }
+        symbolTable.popScope()
+
+        let conditionType = inferExpressionType(stmt.condition)
+        if !conditionType.isCompatible(with: .boolean) {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.typeMismatch(expected: .boolean, actual: conditionType, position: position))
+        }
     }
 
     private func typeCheckForStatement(_ stmt: ForStatement) {
@@ -1036,6 +1062,8 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             validateIfStatement(stmt)
         case .whileStatement(let stmt):
             validateWhileStatement(stmt)
+        case .doWhileStatement(let stmt):
+            validateDoWhileStatement(stmt)
         case .forStatement(let stmt):
             validateForStatement(stmt)
         case .functionDeclaration(let decl):
@@ -1103,6 +1131,14 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     }
 
     private func validateWhileStatement(_ stmt: WhileStatement) {
+        _ = symbolTable.pushScope(kind: .loop)
+        for bodyStmt in stmt.body {
+            validateStatement(bodyStmt)
+        }
+        symbolTable.popScope()
+    }
+
+    private func validateDoWhileStatement(_ stmt: DoWhileStatement) {
         _ = symbolTable.pushScope(kind: .loop)
         for bodyStmt in stmt.body {
             validateStatement(bodyStmt)

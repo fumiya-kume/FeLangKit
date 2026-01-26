@@ -51,7 +51,7 @@ public struct StatementParser {
 
             // Track nesting depth for security
             switch token.type {
-            case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword:
+            case .ifKeyword, .whileKeyword, .doKeyword, .forKeyword, .functionKeyword, .procedureKeyword:
                 nestingDepth += 1
                 guard nestingDepth <= maxNestingDepth else {
                     throw StatementParsingError.nestingTooDeep
@@ -80,6 +80,8 @@ public struct StatementParser {
             return .ifStatement(try parseIfStatement(&parser, nestingDepth: nestingDepth))
         case .whileKeyword:
             return .whileStatement(try parseWhileStatement(&parser, nestingDepth: nestingDepth))
+        case .doKeyword:
+            return .doWhileStatement(try parseDoWhileStatement(&parser, nestingDepth: nestingDepth))
         case .forKeyword:
             return .forStatement(try parseForStatement(&parser, nestingDepth: nestingDepth))
         case .variableKeyword:
@@ -154,6 +156,21 @@ public struct StatementParser {
         try expectToken(&parser, .endwhileKeyword) // consume 'endwhile'
 
         return WhileStatement(condition: condition, body: body)
+    }
+
+    /// Parses a DO-WHILE statement (do ... while (condition)).
+    /// The body is executed at least once, then the condition is checked.
+    private func parseDoWhileStatement(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> DoWhileStatement {
+        try expectToken(&parser, .doKeyword) // consume 'do'
+
+        let body = try parseBlock(&parser, until: [.whileKeyword], nestingDepth: nestingDepth)
+
+        try expectToken(&parser, .whileKeyword) // consume 'while'
+        try expectToken(&parser, .leftParen) // consume '('
+        let condition = try parseExpression(&parser)
+        try expectToken(&parser, .rightParen) // consume ')'
+
+        return DoWhileStatement(body: body, condition: condition)
     }
 
     /// Parses a FOR statement (range-based or forEach).
@@ -797,6 +814,7 @@ public struct StatementParser {
         // Control flow statements
         case .ifKeyword,        // IF-THEN-ELSE conditional statements
              .whileKeyword,     // WHILE-DO loop statements
+             .doKeyword,        // DO-WHILE loop statements
              .forKeyword:       // FOR loop statements (range or forEach)
             return true
 

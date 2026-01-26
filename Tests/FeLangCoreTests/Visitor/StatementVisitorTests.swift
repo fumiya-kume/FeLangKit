@@ -10,6 +10,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { ifStmt in "if(\(ifStmt.condition))" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -39,6 +40,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { whileStmt in "while(\(whileStmt.condition))" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -68,6 +70,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { forStmt in
                 switch forStmt {
                 case .range(let rangeFor):
@@ -113,6 +116,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { assignment in
                 switch assignment {
@@ -149,6 +153,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { varDecl in "var(\(varDecl.name))" },
@@ -197,6 +202,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -247,6 +253,9 @@ struct StatementVisitorTests {
             case .whileStatement(let whileStmt):
                 let body = whileStmt.body.map(stringifyStatement).joined(separator: "; ")
                 return "while (\(whileStmt.condition)) { \(body) }"
+            case .doWhileStatement(let doWhileStmt):
+                let body = doWhileStmt.body.map(stringifyStatement).joined(separator: "; ")
+                return "do { \(body) } while (\(doWhileStmt.condition))"
             case .forStatement(let forStmt):
                 switch forStmt {
                 case .range(let rangeFor):
@@ -323,6 +332,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -353,6 +363,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -388,6 +399,8 @@ struct StatementVisitorTests {
                 return 1 + ifStmt.thenBody.map(countStatements).reduce(0, +)
             case .whileStatement(let whileStmt):
                 return 1 + whileStmt.body.map(countStatements).reduce(0, +)
+            case .doWhileStatement(let doWhileStmt):
+                return 1 + doWhileStmt.body.map(countStatements).reduce(0, +)
             case .forStatement(let forStmt):
                 let body: [Statement]
                 switch forStmt {

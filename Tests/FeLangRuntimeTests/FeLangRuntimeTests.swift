@@ -632,6 +632,109 @@ struct StatementExecutorTests {
         #expect(env.lookup("sum") == .integer(9))
     }
 
+    @Test func testDoWhileLoop() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+
+        let increment = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [increment],
+            condition: .binary(.less, .identifier("count"), .literal(.integer(5)))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        #expect(env.lookup("count") == .integer(5))
+    }
+
+    @Test func testDoWhileLoopExecutesAtLeastOnce() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+
+        let increment = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [increment],
+            condition: .literal(.boolean(false))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        #expect(env.lookup("count") == .integer(1))
+    }
+
+    @Test func testDoWhileLoopBreak() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+
+        let increment = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let ifBreak = Statement.ifStatement(IfStatement(
+            condition: .binary(.equal, .identifier("count"), .literal(.integer(3))),
+            thenBody: [.breakStatement],
+            elseIfs: [],
+            elseBody: nil
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [increment, ifBreak],
+            condition: .literal(.boolean(true))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        #expect(env.lookup("count") == .integer(3))
+    }
+
+    @Test func testDoWhileLoopContinue() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+        env.define("sum", value: .integer(0))
+
+        let incrementCount = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let ifContinue = Statement.ifStatement(IfStatement(
+            condition: .binary(.equal,
+                               .binary(.modulo, .identifier("count"), .literal(.integer(2))),
+                               .literal(.integer(0))),
+            thenBody: [.continueStatement],
+            elseIfs: [],
+            elseBody: nil
+        ))
+
+        let addToSum = Statement.assignment(.variable(
+            "sum",
+            .binary(.add, .identifier("sum"), .identifier("count"))
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [incrementCount, ifContinue, addToSum],
+            condition: .binary(.less, .identifier("count"), .literal(.integer(5)))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        // sum = 1 + 3 + 5 = 9 (skipping 2 and 4)
+        #expect(env.lookup("sum") == .integer(9))
+    }
+
     @Test func testBreakOutsideLoopError() throws {
         let env = Environment()
         let executor = StatementExecutor(environment: env)

@@ -172,6 +172,13 @@ public enum ASTWalker {
                 })
                 return identifiers
             },
+            visitDoWhileStatement: { doWhileStmt in
+                var identifiers = collectIdentifiers(from: doWhileStmt.condition)
+                identifiers.formUnion(doWhileStmt.body.reduce(Set<String>()) { result, stmt in
+                    result.union(collectIdentifiers(from: stmt))
+                })
+                return identifiers
+            },
             visitForStatement: { forStmt in
                 var identifiers = Set<String>()
                 switch forStmt {
@@ -293,6 +300,13 @@ public enum ASTWalker {
                 }
                 return 1 + conditionCount + bodyCount
             },
+            visitDoWhileStatement: { doWhileStmt in
+                let conditionCount = countNodes(in: doWhileStmt.condition)
+                let bodyCount = doWhileStmt.body.reduce(0) { result, stmt in
+                    result + countNodes(in: stmt)
+                }
+                return 1 + conditionCount + bodyCount
+            },
             visitForStatement: { forStmt in
                 var count = 1
                 switch forStmt {
@@ -399,6 +413,14 @@ public enum ASTWalker {
                 return .whileStatement(WhileStatement(
                     condition: transformedCondition,
                     body: transformedBody
+                ))
+            },
+            visitDoWhileStatement: { doWhileStmt in
+                let transformedCondition = transformExpression(doWhileStmt.condition, transform)
+                let transformedBody = doWhileStmt.body.map { transformExpressions(in: $0, transform) }
+                return .doWhileStatement(DoWhileStatement(
+                    body: transformedBody,
+                    condition: transformedCondition
                 ))
             },
             visitForStatement: { forStmt in

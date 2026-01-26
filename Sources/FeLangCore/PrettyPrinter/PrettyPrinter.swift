@@ -279,6 +279,9 @@ public struct PrettyPrinter {
         case .whileStatement(let whileStmt):
             return printWhileStatement(whileStmt, indent: indent)
 
+        case .doWhileStatement(let doWhileStmt):
+            return printDoWhileStatement(doWhileStmt, indent: indent)
+
         case .forStatement(let forStmt):
             return printForStatement(forStmt, indent: indent)
 
@@ -351,6 +354,14 @@ public struct PrettyPrinter {
         var result = "\(indentStr)while \(printExpression(whileStmt.condition)) do\n"
         result += printStatements(whileStmt.body, indent: indent + 1)
         result += "\n\(indentStr)endwhile"
+        return result
+    }
+
+    private func printDoWhileStatement(_ doWhileStmt: DoWhileStatement, indent: Int) -> String {
+        let indentStr = makeIndent(indent)
+        var result = "\(indentStr)do\n"
+        result += printStatements(doWhileStmt.body, indent: indent + 1)
+        result += "\n\(indentStr)while (\(printExpression(doWhileStmt.condition)))"
         return result
     }
 
