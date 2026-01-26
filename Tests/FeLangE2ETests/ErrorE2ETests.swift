@@ -33,6 +33,16 @@ struct ErrorE2ETests {
         #expect(!result.succeeded)
     }
 
+    @Test("Uninitialized constant returns parse error")
+    func testUninitializedConstant() throws {
+        let code = """
+        定数 x: 整数
+        println(x)
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(!result.succeeded)
+    }
+
     // MARK: - File Error Tests
     // These tests require CLI because they test file path handling
 
