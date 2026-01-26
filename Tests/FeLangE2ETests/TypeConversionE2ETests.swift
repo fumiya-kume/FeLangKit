@@ -109,4 +109,33 @@ struct TypeConversionE2ETests {
         let output = try InProcessTestHelper.run("println(concat(\"Value: \", toString(42)))")
         #expect(output.contains("Value: 42"))
     }
+
+    // MARK: - Japanese Type Keywords Tests
+
+    @Test("Japanese type keywords (整数型/実数型/文字列型/文字型/論理型)")
+    func testJapaneseTypeKeywords() throws {
+        let code = """
+        変数 i: 整数型 ← 1
+        変数 r: 実数型 ← 1.5
+        変数 s: 文字列型 ← "ok"
+        変数 c: 文字型 ← 'A'
+        変数 b: 論理型 ← true
+        println(i)
+        println(r)
+        println(s)
+        println(c)
+        println(b)
+        """
+        let output = try InProcessTestHelper.run(code)
+        let lines = output.split(separator: "\n").map {
+            String($0).trimmingCharacters(in: .whitespaces)
+        }
+        #expect(lines.count >= 5, "Expected 5 output lines, got \(lines.count): \(lines)")
+        guard lines.count >= 5 else { return }
+        #expect(lines[0] == "1")
+        #expect(lines[1] == "1.5")
+        #expect(lines[2] == "ok")
+        #expect(lines[3] == "A")
+        #expect(lines[4].lowercased() == "true")
+    }
 }
