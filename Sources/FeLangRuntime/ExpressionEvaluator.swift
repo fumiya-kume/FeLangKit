@@ -68,13 +68,31 @@ public struct ExpressionEvaluator: Sendable {
 
     private func validateArrayElementTypes(_ values: [RuntimeValue]) throws {
         guard let firstValue = values.first else { return }
-        let expectedType = firstValue.typeName
-        for (index, value) in values.enumerated() where index > 0 && value.typeName != expectedType {
-            throw RuntimeError.typeMismatch(
-                expected: expectedType,
-                actual: value.typeName,
-                operation: "array literal element at index \(index)"
-            )
+        // Skip undefined values when determining expected type
+        let expectedType: String
+        if case .undefined = firstValue {
+            // If first element is undefined, find first non-undefined element
+            if let nonUndefined = values.first(where: { if case .undefined = $0 { return false } else { return true } }) {
+                expectedType = nonUndefined.typeName
+            } else {
+                // All elements are undefined, no type checking needed
+                return
+            }
+        } else {
+            expectedType = firstValue.typeName
+        }
+        for (index, value) in values.enumerated() where index > 0 {
+            if case .undefined = value {
+                // Undefined is compatible with any type
+                continue
+            }
+            if value.typeName != expectedType {
+                throw RuntimeError.typeMismatch(
+                    expected: expectedType,
+                    actual: value.typeName,
+                    operation: "array literal element at index \(index)"
+                )
+            }
         }
     }
 
