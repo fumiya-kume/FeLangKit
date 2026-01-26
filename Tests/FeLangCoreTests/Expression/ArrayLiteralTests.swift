@@ -207,4 +207,103 @@ struct ArrayLiteralTests {
         let result = printer.print(expr)
         #expect(result == "[[1, 2], [3, 4]]")
     }
+
+    // MARK: - Brace-based Array Literal Tests (FE pseudo-language syntax)
+
+    @Test func emptyBraceArrayLiteral() throws {
+        let expr = try parseExpression("{}")
+
+        guard case .arrayLiteral(let elements) = expr else {
+            Issue.record("Expected arrayLiteral but got \(expr)")
+            return
+        }
+
+        #expect(elements.isEmpty)
+    }
+
+    @Test func singleIntegerElementBrace() throws {
+        let expr = try parseExpression("{42}")
+
+        guard case .arrayLiteral(let elements) = expr else {
+            Issue.record("Expected arrayLiteral but got \(expr)")
+            return
+        }
+
+        #expect(elements.count == 1)
+        guard case .literal(.integer(42)) = elements[0] else {
+            Issue.record("Expected integer literal 42 but got \(elements[0])")
+            return
+        }
+    }
+
+    @Test func multipleIntegerElementsBrace() throws {
+        let expr = try parseExpression("{12, 34, 56}")
+
+        guard case .arrayLiteral(let elements) = expr else {
+            Issue.record("Expected arrayLiteral but got \(expr)")
+            return
+        }
+
+        #expect(elements.count == 3)
+        guard case .literal(.integer(12)) = elements[0],
+              case .literal(.integer(34)) = elements[1],
+              case .literal(.integer(56)) = elements[2] else {
+            Issue.record("Expected integer literals 12, 34, 56")
+            return
+        }
+    }
+
+    @Test func nestedBraceArrayLiteral() throws {
+        let expr = try parseExpression("{{1, 2}, {3, 4}}")
+
+        guard case .arrayLiteral(let elements) = expr else {
+            Issue.record("Expected arrayLiteral but got \(expr)")
+            return
+        }
+
+        #expect(elements.count == 2)
+
+        guard case .arrayLiteral(let firstArray) = elements[0],
+              case .arrayLiteral(let secondArray) = elements[1] else {
+            Issue.record("Expected nested array literals")
+            return
+        }
+
+        #expect(firstArray.count == 2)
+        #expect(secondArray.count == 2)
+    }
+
+    @Test func braceArrayWithExpressions() throws {
+        let expr = try parseExpression("{1 + 2, 3 * 4}")
+
+        guard case .arrayLiteral(let elements) = expr else {
+            Issue.record("Expected arrayLiteral but got \(expr)")
+            return
+        }
+
+        #expect(elements.count == 2)
+
+        guard case .binary(.add, _, _) = elements[0],
+              case .binary(.multiply, _, _) = elements[1] else {
+            Issue.record("Expected binary expressions")
+            return
+        }
+    }
+
+    @Test func braceArrayWithIdentifiers() throws {
+        let expr = try parseExpression("{x, y, z}")
+
+        guard case .arrayLiteral(let elements) = expr else {
+            Issue.record("Expected arrayLiteral but got \(expr)")
+            return
+        }
+
+        #expect(elements.count == 3)
+        guard case .identifier("x") = elements[0],
+              case .identifier("y") = elements[1],
+              case .identifier("z") = elements[2] else {
+            Issue.record("Expected identifiers x, y, z")
+            return
+        }
+    }
 }
