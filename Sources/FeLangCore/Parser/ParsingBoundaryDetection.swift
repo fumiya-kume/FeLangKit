@@ -51,7 +51,7 @@ public enum ParsingBoundaryDetection {
     private static func isExpressionContinuationToken(_ tokenType: TokenType) -> Bool {
         switch tokenType {
         // Binary operators
-        case .plus, .minus, .multiply, .divide, .modulo:
+        case .plus, .minus, .multiply, .divide, .modulo, .modKeyword:
             return true
         // Comparison operators
         case .equal, .notEqual, .less, .greater, .lessEqual, .greaterEqual:

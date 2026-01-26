@@ -964,7 +964,7 @@ public struct StatementParser {
     /// Used to distinguish between function calls as new statements vs function calls within expressions
     private func isExpressionContinuationToken(_ tokenType: TokenType) -> Bool {
         switch tokenType {
-        case .plus, .minus, .multiply, .divide, .modulo,
+        case .plus, .minus, .multiply, .divide, .modulo, .modKeyword,
              .equal, .notEqual, .less, .greater, .lessEqual, .greaterEqual,
              .andKeyword, .orKeyword,
              .leftParen, .leftBracket, .comma, .dot,
