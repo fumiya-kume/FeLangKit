@@ -445,6 +445,16 @@ public struct FastParsingTokenizer {
 
         let byte = utf8[bytePosition]
 
+        // Check for multi-character shift operators first
+        if byte == 60 && bytePosition + 1 < utf8.count && utf8[bytePosition + 1] == 60 { // "<<"
+            bytePosition += 2
+            return TokenData(type: .leftShift, lexeme: "<<")
+        }
+        if byte == 62 && bytePosition + 1 < utf8.count && utf8[bytePosition + 1] == 62 { // ">>"
+            bytePosition += 2
+            return TokenData(type: .rightShift, lexeme: ">>")
+        }
+
         // Use lookup table for O(1) operator matching
         guard let (tokenType, lexeme) = Self.asciiOperatorTable[byte] else {
             return nil
