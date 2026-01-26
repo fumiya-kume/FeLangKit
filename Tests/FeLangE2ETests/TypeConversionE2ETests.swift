@@ -162,7 +162,7 @@ struct TypeConversionE2ETests {
             return concat(prefix, toString(value))
         endfunction
 
-        println(formatValue(3.14, "x"))
+        println(formatValue(3.14, 'x'))
         """
         let output = try InProcessTestHelper.run(code)
         #expect(output.contains("x3.14"))
@@ -175,7 +175,7 @@ struct TypeConversionE2ETests {
         変数 pi: real ← 3.14
         変数 name: string ← "test"
         変数 flag: bool ← true
-        変数 ch: char ← "A"
+        変数 ch: char ← 'A'
 
         println(x)
         println(pi)
