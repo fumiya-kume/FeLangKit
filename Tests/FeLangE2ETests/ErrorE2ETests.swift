@@ -275,7 +275,7 @@ struct ErrorE2ETests {
         bad()
         """
         let result = InProcessTestHelper.execute(code)
-        // Should fail with void-function-returns-value error
+        // Should fail when procedure attempts to return a value
         #expect(!result.succeeded)
     }
 
