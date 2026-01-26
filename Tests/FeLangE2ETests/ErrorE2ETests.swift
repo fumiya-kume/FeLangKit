@@ -164,6 +164,16 @@ struct ErrorE2ETests {
         #expect(!result.succeeded)
     }
 
+    @Test("Non-integer array index returns error")
+    func testNonIntegerArrayIndex() throws {
+        let code = """
+        変数 arr: 配列 of 整数 ← [1, 2, 3]
+        println(arr["0"])
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(!result.succeeded)
+    }
+
     @Test("Type reassignment causes error")
     func testTypeReassignmentError() throws {
         // FeLang enforces type checking on assignment
