@@ -45,13 +45,19 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "or", kind: .keyword, detail: "Logical OR"),
         CompletionItem(label: "not", kind: .keyword, detail: "Logical NOT"),
 
+        // Arithmetic operators
+        CompletionItem(label: "mod", kind: .keyword, detail: "Modulo operator"),
+
         // Japanese keywords
         CompletionItem(label: "もし", kind: .keyword, detail: "条件分岐 (if)", insertText: "もし "),
         CompletionItem(label: "ならば", kind: .keyword, detail: "Then clause"),
         CompletionItem(label: "でなければ", kind: .keyword, detail: "Else clause"),
         CompletionItem(label: "を実行", kind: .keyword, detail: "End if statement"),
         CompletionItem(label: "繰り返し", kind: .keyword, detail: "ループ (while)", insertText: "繰り返し "),
-        CompletionItem(label: "を繰り返す", kind: .keyword, detail: "End while loop")
+        CompletionItem(label: "を繰り返す", kind: .keyword, detail: "End while loop"),
+
+        // Global declaration
+        CompletionItem(label: "大域", kind: .keyword, detail: "グローバル変数宣言 (global)", insertText: "大域: ")
     ]
 
     /// FE data types
@@ -286,14 +292,16 @@ public struct CompletionProvider: Sendable {
             "function", "endfunction", "procedure", "endprocedure",
             "class", "endclass",
             "return", "break", "continue",
-            "and", "or", "not", "true", "false",
+            "and", "or", "not", "mod", "true", "false",
             "integer", "real", "string", "character", "boolean", "array",
             // Japanese keywords
             "もし", "ならば", "でなければ", "を実行", "繰り返し", "を繰り返す",
             // Japanese type names
             "整数型", "実数型", "文字列型", "文字型", "論理型", "配列型",
             // Undefined keyword
-            "未定義"
+            "未定義",
+            // Global declaration keyword
+            "大域"
         ])
         return keywords.contains(word.lowercased()) || keywords.contains(word)
     }

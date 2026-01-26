@@ -173,6 +173,36 @@ final class PrettyPrinterTests: XCTestCase {
         XCTAssertEqual(printer.print(expr), "calculate(x + 1, getValue())")
     }
 
+    // MARK: - Method Call Tests
+
+    func testMethodCallNoArgs() {
+        let expr = Expression.methodCall(.identifier("obj"), "getValue", [])
+        XCTAssertEqual(printer.print(expr), "obj.getValue()")
+    }
+
+    func testMethodCallWithArgs() {
+        let expr = Expression.methodCall(.identifier("list"), "add", [.literal(.integer(1)), .literal(.integer(2))])
+        XCTAssertEqual(printer.print(expr), "list.add(1, 2)")
+    }
+
+    func testChainedMethodCalls() {
+        let expr = Expression.methodCall(
+            .methodCall(.identifier("builder"), "setName", [.literal(.string("test"))]),
+            "build",
+            []
+        )
+        XCTAssertEqual(printer.print(expr), "builder.setName(\"test\").build()")
+    }
+
+    func testMethodCallOnFieldAccess() {
+        let expr = Expression.methodCall(
+            .fieldAccess(.identifier("obj"), "list"),
+            "size",
+            []
+        )
+        XCTAssertEqual(printer.print(expr), "obj.list.size()")
+    }
+
     // MARK: - Assignment Statement Tests
 
     func testVariableAssignment() {

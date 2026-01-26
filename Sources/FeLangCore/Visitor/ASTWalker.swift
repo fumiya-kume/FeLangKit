@@ -49,6 +49,13 @@ public enum ASTWalker {
                     result.union(collectIdentifiers(from: arg))
                 }
             },
+            visitMethodCall: { receiver, _, arguments in
+                var identifiers = collectIdentifiers(from: receiver)
+                identifiers.formUnion(arguments.reduce(Set<String>()) { result, arg in
+                    result.union(collectIdentifiers(from: arg))
+                })
+                return identifiers
+            },
             visitArrayLiteral: { elements in
                 elements.reduce(Set<String>()) { result, element in
                     result.union(collectIdentifiers(from: element))
@@ -81,6 +88,11 @@ public enum ASTWalker {
             },
             visitFunctionCall: { _, arguments in
                 1 + arguments.reduce(0) { result, arg in
+                    result + countNodes(in: arg)
+                }
+            },
+            visitMethodCall: { receiver, _, arguments in
+                1 + countNodes(in: receiver) + arguments.reduce(0) { result, arg in
                     result + countNodes(in: arg)
                 }
             },
@@ -130,6 +142,11 @@ public enum ASTWalker {
                 let transformedArguments = arguments.map { transformExpression($0, transform) }
                 return transform(.functionCall(name, transformedArguments))
             },
+            visitMethodCall: { receiver, method, arguments in
+                let transformedReceiver = transformExpression(receiver, transform)
+                let transformedArguments = arguments.map { transformExpression($0, transform) }
+                return transform(.methodCall(transformedReceiver, method, transformedArguments))
+            },
             visitArrayLiteral: { elements in
                 let transformedElements = elements.map { transformExpression($0, transform) }
                 return transform(.arrayLiteral(transformedElements))
@@ -168,6 +185,13 @@ public enum ASTWalker {
             visitWhileStatement: { whileStmt in
                 var identifiers = collectIdentifiers(from: whileStmt.condition)
                 identifiers.formUnion(whileStmt.body.reduce(Set<String>()) { result, stmt in
+                    result.union(collectIdentifiers(from: stmt))
+                })
+                return identifiers
+            },
+            visitDoWhileStatement: { doWhileStmt in
+                var identifiers = collectIdentifiers(from: doWhileStmt.condition)
+                identifiers.formUnion(doWhileStmt.body.reduce(Set<String>()) { result, stmt in
                     result.union(collectIdentifiers(from: stmt))
                 })
                 return identifiers
@@ -264,6 +288,13 @@ public enum ASTWalker {
                 var identifiers = Set([classDecl.name])
                 identifiers.formUnion(Set(classDecl.members.map { $0.name }))
                 return identifiers
+            },
+            visitGlobalDeclaration: { globalDecl in
+                var identifiers = Set([globalDecl.name])
+                if let initialValue = globalDecl.initialValue {
+                    identifiers.formUnion(collectIdentifiers(from: initialValue))
+                }
+                return identifiers
             }
         )
 
@@ -297,6 +328,13 @@ public enum ASTWalker {
             visitWhileStatement: { whileStmt in
                 let conditionCount = countNodes(in: whileStmt.condition)
                 let bodyCount = whileStmt.body.reduce(0) { result, stmt in
+                    result + countNodes(in: stmt)
+                }
+                return 1 + conditionCount + bodyCount
+            },
+            visitDoWhileStatement: { doWhileStmt in
+                let conditionCount = countNodes(in: doWhileStmt.condition)
+                let bodyCount = doWhileStmt.body.reduce(0) { result, stmt in
                     result + countNodes(in: stmt)
                 }
                 return 1 + conditionCount + bodyCount
@@ -375,6 +413,12 @@ public enum ASTWalker {
             },
             visitClassDeclaration: { classDecl in
                 return 1 + classDecl.members.count
+            },
+            visitGlobalDeclaration: { globalDecl in
+                if let initialValue = globalDecl.initialValue {
+                    return 1 + countNodes(in: initialValue)
+                }
+                return 1
             }
         )
 
@@ -412,6 +456,14 @@ public enum ASTWalker {
                 return .whileStatement(WhileStatement(
                     condition: transformedCondition,
                     body: transformedBody
+                ))
+            },
+            visitDoWhileStatement: { doWhileStmt in
+                let transformedCondition = transformExpression(doWhileStmt.condition, transform)
+                let transformedBody = doWhileStmt.body.map { transformExpressions(in: $0, transform) }
+                return .doWhileStatement(DoWhileStatement(
+                    body: transformedBody,
+                    condition: transformedCondition
                 ))
             },
             visitForStatement: { forStmt in
@@ -536,6 +588,15 @@ public enum ASTWalker {
             },
             visitClassDeclaration: { classDecl in
                 return .classDeclaration(classDecl)
+            },
+            visitGlobalDeclaration: { globalDecl in
+                let transformedInitialValue = globalDecl.initialValue.map { transformExpression($0, transform) }
+                return .globalDeclaration(GlobalDeclaration(
+                    name: globalDecl.name,
+                    type: globalDecl.type,
+                    initialValue: transformedInitialValue,
+                    position: globalDecl.position
+                ))
             }
         )
 

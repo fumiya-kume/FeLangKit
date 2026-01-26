@@ -539,6 +539,52 @@ struct ExpressionEvaluatorTests {
         }
     }
 
+    @Test func testLeftShift() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.leftShift, .literal(.integer(1)), .literal(.integer(3)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(8))
+    }
+
+    @Test func testRightShift() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.rightShift, .literal(.integer(16)), .literal(.integer(2)))
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .integer(4))
+    }
+
+    @Test func testLeftShiftTypeMismatchLeft() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.leftShift, .literal(.real(1.0)), .literal(.integer(3)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
+
+    @Test func testLeftShiftTypeMismatchRight() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.leftShift, .literal(.integer(1)), .literal(.real(3.0)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
+
+    @Test func testRightShiftTypeMismatchLeft() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.rightShift, .literal(.real(16.0)), .literal(.integer(2)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
+
+    @Test func testRightShiftTypeMismatchRight() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.binary(.rightShift, .literal(.integer(16)), .literal(.real(2.0)))
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
+    }
+
     // MARK: - Unary Operations
 
     @Test func testUnaryMinus() throws {
@@ -574,6 +620,14 @@ struct ExpressionEvaluatorTests {
         let expr = Expression.arrayLiteral([.literal(.integer(1)), .literal(.integer(2))])
         let result = try evaluator.evaluate(expr)
         #expect(result == .array([.integer(1), .integer(2)]))
+    }
+
+    @Test func testMethodCallThrowsNotSupportedError() throws {
+        let evaluator = makeEvaluator()
+        let expr = Expression.methodCall(.identifier("obj"), "getValue", [])
+        #expect(throws: RuntimeError.self) {
+            _ = try evaluator.evaluate(expr)
+        }
     }
 }
 
@@ -735,6 +789,109 @@ struct StatementExecutorTests {
         #expect(env.lookup("sum") == .integer(9))
     }
 
+    @Test func testDoWhileLoop() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+
+        let increment = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [increment],
+            condition: .binary(.less, .identifier("count"), .literal(.integer(5)))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        #expect(env.lookup("count") == .integer(5))
+    }
+
+    @Test func testDoWhileLoopExecutesAtLeastOnce() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+
+        let increment = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [increment],
+            condition: .literal(.boolean(false))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        #expect(env.lookup("count") == .integer(1))
+    }
+
+    @Test func testDoWhileLoopBreak() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+
+        let increment = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let ifBreak = Statement.ifStatement(IfStatement(
+            condition: .binary(.equal, .identifier("count"), .literal(.integer(3))),
+            thenBody: [.breakStatement],
+            elseIfs: [],
+            elseBody: nil
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [increment, ifBreak],
+            condition: .literal(.boolean(true))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        #expect(env.lookup("count") == .integer(3))
+    }
+
+    @Test func testDoWhileLoopContinue() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        env.define("count", value: .integer(0))
+        env.define("sum", value: .integer(0))
+
+        let incrementCount = Statement.assignment(.variable(
+            "count",
+            .binary(.add, .identifier("count"), .literal(.integer(1)))
+        ))
+
+        let ifContinue = Statement.ifStatement(IfStatement(
+            condition: .binary(.equal,
+                               .binary(.modulo, .identifier("count"), .literal(.integer(2))),
+                               .literal(.integer(0))),
+            thenBody: [.continueStatement],
+            elseIfs: [],
+            elseBody: nil
+        ))
+
+        let addToSum = Statement.assignment(.variable(
+            "sum",
+            .binary(.add, .identifier("sum"), .identifier("count"))
+        ))
+
+        let doWhileStmt = DoWhileStatement(
+            body: [incrementCount, ifContinue, addToSum],
+            condition: .binary(.less, .identifier("count"), .literal(.integer(5)))
+        )
+
+        _ = try executor.executeStatement(.doWhileStatement(doWhileStmt))
+        // sum = 1 + 3 + 5 = 9 (skipping 2 and 4)
+        #expect(env.lookup("sum") == .integer(9))
+    }
+
     @Test func testBreakOutsideLoopError() throws {
         let env = Environment()
         let executor = StatementExecutor(environment: env)
@@ -773,6 +930,87 @@ struct StatementExecutorTests {
         _ = try executor.executeStatement(block)
         // Variable should not be visible outside block
         #expect(env.lookup("x") == nil)
+    }
+
+    // MARK: - Field Assignment Tests
+
+    @Test func testRecordFieldAssignment() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define a record variable with initial fields
+        env.define("p", value: .record(["x": .integer(0), "y": .integer(0)]))
+
+        // Execute field assignment: p.x ← 10
+        let fieldAccess = Assignment.FieldAccess(object: .identifier("p"), field: "x")
+        let assignment = Statement.assignment(.fieldAccess(fieldAccess, .literal(.integer(10))))
+        _ = try executor.executeStatement(assignment)
+
+        // Verify the field was updated
+        guard case .record(let fields) = env.lookup("p") else {
+            #expect(Bool(false), "Expected record value")
+            return
+        }
+        #expect(fields["x"] == .integer(10))
+        #expect(fields["y"] == .integer(0))
+    }
+
+    @Test func testRecordFieldAssignmentWithExpression() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define variables
+        env.define("p", value: .record(["x": .integer(5), "y": .integer(0)]))
+        env.define("offset", value: .integer(3))
+
+        // Execute field assignment: p.y ← p.x + offset
+        let fieldAccess = Assignment.FieldAccess(object: .identifier("p"), field: "y")
+        let valueExpr = Expression.binary(.add, .fieldAccess(.identifier("p"), "x"), .identifier("offset"))
+        let assignment = Statement.assignment(.fieldAccess(fieldAccess, valueExpr))
+        _ = try executor.executeStatement(assignment)
+
+        // Verify the field was updated
+        guard case .record(let fields) = env.lookup("p") else {
+            #expect(Bool(false), "Expected record value")
+            return
+        }
+        #expect(fields["y"] == .integer(8))
+    }
+
+    @Test func testInvalidFieldAssignment() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define a record without the target field
+        env.define("p", value: .record(["x": .integer(0)]))
+
+        // Try to assign to non-existent field: p.z ← 10
+        let fieldAccess = Assignment.FieldAccess(object: .identifier("p"), field: "z")
+        let assignment = Statement.assignment(.fieldAccess(fieldAccess, .literal(.integer(10))))
+
+        #expect(throws: RuntimeError.self) {
+            _ = try executor.executeStatement(assignment)
+        }
+    }
+
+    @Test func testChainedFieldAssignmentNotSupported() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define nested records
+        env.define("obj", value: .record(["inner": .record(["field": .integer(0)])]))
+
+        // Try chained field assignment: obj.inner.field ← 10
+        // The parser supports this syntax, but runtime only handles simple identifiers
+        let chainedFieldAccess = Assignment.FieldAccess(
+            object: .fieldAccess(.identifier("obj"), "inner"),
+            field: "field"
+        )
+        let assignment = Statement.assignment(.fieldAccess(chainedFieldAccess, .literal(.integer(10))))
+
+        #expect(throws: RuntimeError.self) {
+            _ = try executor.executeStatement(assignment)
+        }
     }
 }
 
@@ -1029,5 +1267,316 @@ struct RuntimeErrorTests {
     @Test func testStackOverflowDescription() {
         let error = RuntimeError.stackOverflow
         #expect(error.description.contains("Stack overflow"))
+    }
+
+    @Test func testMethodCallNotSupportedDescription() {
+        let error = RuntimeError.methodCallNotSupported(method: "getValue")
+        #expect(error.description.contains("getValue"))
+        #expect(error.description.contains("not supported"))
+    }
+}
+
+// MARK: - Class Inheritance Tests
+
+struct ClassInheritanceTests {
+
+    @Test func testSubclassInheritsSuperclassMemberVariables() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define superclass Animal with member 'name'
+        let animalClass = ClassDeclaration(
+            name: "Animal",
+            superclass: nil,
+            members: [MemberDeclaration(name: "name", type: .string)],
+            constructor: ConstructorDeclaration(
+                parameters: [Parameter(name: "n", type: .string)],
+                body: [
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "name"),
+                        .identifier("n")
+                    ))
+                ]
+            ),
+            methods: []
+        )
+
+        // Define subclass Dog that extends Animal with additional member 'breed'
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "Animal",
+            members: [MemberDeclaration(name: "breed", type: .string)],
+            constructor: ConstructorDeclaration(
+                parameters: [Parameter(name: "n", type: .string), Parameter(name: "b", type: .string)],
+                body: [
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "name"),
+                        .identifier("n")
+                    )),
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "breed"),
+                        .identifier("b")
+                    ))
+                ]
+            ),
+            methods: []
+        )
+
+        // Execute class declarations
+        _ = try executor.executeStatement(.classDeclaration(animalClass))
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        // Create Dog instance
+        let dogInstance = try executor.callFunction("Dog", arguments: [.string("Buddy"), .string("Labrador")])
+
+        // Verify the instance has both inherited 'name' and own 'breed' members
+        guard case .instance(let inst) = dogInstance else {
+            Issue.record("Expected instance value")
+            return
+        }
+
+        #expect(inst.fields["name"] == .string("Buddy"))
+        #expect(inst.fields["breed"] == .string("Labrador"))
+    }
+
+    @Test func testSubclassCanCallSuperclassMethod() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define superclass with a method
+        let animalClass = ClassDeclaration(
+            name: "Animal",
+            superclass: nil,
+            members: [MemberDeclaration(name: "age", type: .integer)],
+            constructor: ConstructorDeclaration(
+                parameters: [Parameter(name: "a", type: .integer)],
+                body: [
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "age"),
+                        .identifier("a")
+                    ))
+                ]
+            ),
+            methods: [
+                MethodDeclaration(
+                    name: "getAge",
+                    parameters: [],
+                    returnType: .integer,
+                    body: [
+                        .returnStatement(ReturnStatement(
+                            expression: .fieldAccess(.identifier("self"), "age")
+                        ))
+                    ]
+                )
+            ]
+        )
+
+        // Define subclass without overriding the method
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "Animal",
+            members: [MemberDeclaration(name: "breed", type: .string)],
+            constructor: ConstructorDeclaration(
+                parameters: [Parameter(name: "a", type: .integer), Parameter(name: "b", type: .string)],
+                body: [
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "age"),
+                        .identifier("a")
+                    )),
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "breed"),
+                        .identifier("b")
+                    ))
+                ]
+            ),
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(animalClass))
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        // Create Dog instance and verify it can use inherited method
+        let dogInstance = try executor.callFunction("Dog", arguments: [.integer(3), .string("Labrador")])
+
+        guard case .instance(let inst) = dogInstance else {
+            Issue.record("Expected instance value")
+            return
+        }
+
+        // Verify the inherited method exists in the class definition
+        #expect(inst.classDefinition.methods["getAge"] != nil)
+    }
+
+    @Test func testSubclassMethodOverridesSuperclassMethod() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define superclass with a method that returns 1
+        let animalClass = ClassDeclaration(
+            name: "Animal",
+            superclass: nil,
+            members: [],
+            constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "speak",
+                    parameters: [],
+                    returnType: .integer,
+                    body: [
+                        .returnStatement(ReturnStatement(expression: .literal(.integer(1))))
+                    ]
+                )
+            ]
+        )
+
+        // Define subclass that overrides the method to return 2
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "Animal",
+            members: [],
+            constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "speak",
+                    parameters: [],
+                    returnType: .integer,
+                    body: [
+                        .returnStatement(ReturnStatement(expression: .literal(.integer(2))))
+                    ]
+                )
+            ]
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(animalClass))
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        let dogInstance = try executor.callFunction("Dog", arguments: [])
+
+        guard case .instance(let inst) = dogInstance else {
+            Issue.record("Expected instance value")
+            return
+        }
+
+        // Verify the subclass method overrides the superclass method
+        let speakMethod = inst.classDefinition.methods["speak"]
+        #expect(speakMethod != nil)
+
+        // The method body should return 2 (subclass version), not 1 (superclass version)
+        if let method = speakMethod {
+            #expect(method.body.count == 1)
+            if case .returnStatement(let ret) = method.body[0],
+               case .literal(.integer(let value)) = ret.expression {
+                #expect(value == 2)
+            } else {
+                Issue.record("Expected return statement with integer literal")
+            }
+        }
+    }
+
+    @Test func testMultiLevelInheritance() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define base class
+        let animalClass = ClassDeclaration(
+            name: "Animal",
+            superclass: nil,
+            members: [MemberDeclaration(name: "alive", type: .boolean)],
+            constructor: nil,
+            methods: []
+        )
+
+        // Define intermediate class
+        let mammalClass = ClassDeclaration(
+            name: "Mammal",
+            superclass: "Animal",
+            members: [MemberDeclaration(name: "warmBlooded", type: .boolean)],
+            constructor: nil,
+            methods: []
+        )
+
+        // Define leaf class
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "Mammal",
+            members: [MemberDeclaration(name: "breed", type: .string)],
+            constructor: nil,
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(animalClass))
+        _ = try executor.executeStatement(.classDeclaration(mammalClass))
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        let dogInstance = try executor.callFunction("Dog", arguments: [])
+
+        guard case .instance(let inst) = dogInstance else {
+            Issue.record("Expected instance value")
+            return
+        }
+
+        // Verify all inherited members are present
+        #expect(inst.fields["alive"] != nil)
+        #expect(inst.fields["warmBlooded"] != nil)
+        #expect(inst.fields["breed"] != nil)
+    }
+
+    @Test func testCircularInheritanceDetection() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define class A that extends B
+        let classA = ClassDeclaration(
+            name: "A",
+            superclass: "B",
+            members: [MemberDeclaration(name: "valueA", type: .integer)],
+            constructor: nil,
+            methods: []
+        )
+
+        // Define class B that extends A (circular inheritance)
+        let classB = ClassDeclaration(
+            name: "B",
+            superclass: "A",
+            members: [MemberDeclaration(name: "valueB", type: .integer)],
+            constructor: nil,
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(classA))
+        _ = try executor.executeStatement(.classDeclaration(classB))
+
+        // Attempting to create an instance should throw a circular inheritance error
+        do {
+            _ = try executor.callFunction("A", arguments: [])
+            Issue.record("Expected circular inheritance error")
+        } catch let error as RuntimeError {
+            #expect(error.description.contains("Circular inheritance"))
+        }
+    }
+
+    @Test func testUndefinedSuperclassError() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        // Define class that extends a non-existent superclass
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "NonExistentAnimal",
+            members: [MemberDeclaration(name: "breed", type: .string)],
+            constructor: nil,
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        // Attempting to create an instance should throw a superclass not found error
+        do {
+            _ = try executor.callFunction("Dog", arguments: [])
+            Issue.record("Expected superclass not found error")
+        } catch let error as RuntimeError {
+            #expect(error.description.contains("Superclass"))
+            #expect(error.description.contains("not found"))
+        }
     }
 }

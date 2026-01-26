@@ -16,6 +16,7 @@ public indirect enum Expression: Equatable, Codable, Sendable {
     case arrayAccess(Expression, Expression)
     case fieldAccess(Expression, String)
     case functionCall(String, [Expression])
+    case methodCall(Expression, String, [Expression])
 
     // Collection expressions
     case arrayLiteral([Expression])
@@ -162,6 +163,8 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
     // Bitwise operators
     case bitwiseAnd = "∧"
     case bitwiseOr = "∨"
+    case leftShift = "<<"
+    case rightShift = ">>"
 
     // Logical operators
     case and = "and"
@@ -180,7 +183,7 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
             return 3
         case .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual:
             return 4
-        case .add, .subtract:
+        case .add, .subtract, .leftShift, .rightShift:
             return 5
         case .multiply, .divide, .modulo:
             return 6
@@ -222,7 +225,7 @@ extension BinaryOperator {
             self = .multiply
         case .divide:
             self = .divide
-        case .modulo:
+        case .modulo, .modKeyword:
             self = .modulo
         case .equal:
             self = .equal
@@ -240,6 +243,10 @@ extension BinaryOperator {
             self = .bitwiseAnd
         case .bitwiseOr:
             self = .bitwiseOr
+        case .leftShift:
+            self = .leftShift
+        case .rightShift:
+            self = .rightShift
         case .andKeyword:
             self = .and
         case .orKeyword:

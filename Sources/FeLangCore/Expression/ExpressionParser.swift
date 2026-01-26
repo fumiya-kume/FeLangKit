@@ -92,12 +92,20 @@ public struct ExpressionParser {
 
                 try expectToken(&parser, .rightBracket)
             } else if parser.peek()?.type == .dot {
-                // Field access: expr.field
+                // Field access or method call: expr.field or expr.method(args)
                 _ = parser.advance() // consume '.'
                 guard let fieldToken = parser.advance(), fieldToken.type == .identifier else {
                     throw ParsingError.expectedIdentifier
                 }
-                expr = Expression.fieldAccess(expr, fieldToken.lexeme)
+                // Check if this is a method call (followed by '(')
+                if parser.peek()?.type == .leftParen {
+                    _ = parser.advance() // consume '('
+                    let args = try parseArgumentList(&parser)
+                    try expectToken(&parser, .rightParen)
+                    expr = Expression.methodCall(expr, fieldToken.lexeme, args)
+                } else {
+                    expr = Expression.fieldAccess(expr, fieldToken.lexeme)
+                }
             } else if parser.peek()?.type == .leftParen,
                       case .identifier(let name) = expr {
                 // Function call: identifier(args...)
@@ -157,6 +165,29 @@ public struct ExpressionParser {
             }
 
             try expectToken(&parser, .rightBracket)
+            return Expression.arrayLiteral(elements)
+        }
+
+        // Array literal expressions {e1, e2, ...} (FE pseudo-language syntax)
+        if token.type == .leftBrace {
+            var elements: [Expression] = []
+
+            // Handle empty array literal {}
+            if parser.peek()?.type == .rightBrace {
+                _ = parser.advance() // consume '}'
+                return Expression.arrayLiteral(elements)
+            }
+
+            // Parse first element
+            elements.append(try parseExpression(&parser))
+
+            // Parse remaining elements
+            while parser.peek()?.type == .comma {
+                _ = parser.advance() // consume ','
+                elements.append(try parseExpression(&parser))
+            }
+
+            try expectToken(&parser, .rightBrace)
             return Expression.arrayLiteral(elements)
         }
 

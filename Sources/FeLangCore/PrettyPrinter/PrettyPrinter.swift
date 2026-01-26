@@ -153,6 +153,9 @@ public struct PrettyPrinter {
         case .functionCall(let name, let args):
             return printFunctionCall(name: name, args: args, indent: indent)
 
+        case .methodCall(let receiver, let method, let args):
+            return printMethodCall(receiver: receiver, method: method, args: args, indent: indent)
+
         case .arrayLiteral(let elements):
             return printArrayLiteral(elements: elements, indent: indent)
         }
@@ -173,6 +176,24 @@ public struct PrettyPrinter {
 
         // Multi-line format with wrapping
         return wrapItems(argStrings, separator: ", ", indent: indent, prefix: "\(name)(", suffix: ")")
+    }
+
+    /// Prints a method call with optional line wrapping.
+    private func printMethodCall(receiver: Expression, method: String, args: [Expression], indent: Int) -> String {
+        let receiverStr = printExpression(receiver, indent: indent)
+        if args.isEmpty {
+            return "\(receiverStr).\(method)()"
+        }
+
+        let argStrings = args.map { printExpression($0, indent: indent + 1) }
+        let singleLine = "\(receiverStr).\(method)(\(argStrings.joined(separator: ", ")))"
+
+        if !shouldWrap(singleLine, currentIndent: indent) {
+            return singleLine
+        }
+
+        // Multi-line format with wrapping
+        return wrapItems(argStrings, separator: ", ", indent: indent, prefix: "\(receiverStr).\(method)(", suffix: ")")
     }
 
     /// Prints an array literal with optional line wrapping.
@@ -282,6 +303,9 @@ public struct PrettyPrinter {
         case .whileStatement(let whileStmt):
             return printWhileStatement(whileStmt, indent: indent)
 
+        case .doWhileStatement(let doWhileStmt):
+            return printDoWhileStatement(doWhileStmt, indent: indent)
+
         case .forStatement(let forStmt):
             return printForStatement(forStmt, indent: indent)
 
@@ -320,6 +344,9 @@ public struct PrettyPrinter {
 
         case .classDeclaration(let classDecl):
             return printClassDeclaration(classDecl, indent: indent)
+
+        case .globalDeclaration(let globalDecl):
+            return indentStr + printGlobalDeclaration(globalDecl)
         }
     }
 
@@ -357,6 +384,14 @@ public struct PrettyPrinter {
         var result = "\(indentStr)while \(printExpression(whileStmt.condition)) do\n"
         result += printStatements(whileStmt.body, indent: indent + 1)
         result += "\n\(indentStr)endwhile"
+        return result
+    }
+
+    private func printDoWhileStatement(_ doWhileStmt: DoWhileStatement, indent: Int) -> String {
+        let indentStr = makeIndent(indent)
+        var result = "\(indentStr)do\n"
+        result += printStatements(doWhileStmt.body, indent: indent + 1)
+        result += "\n\(indentStr)while (\(printExpression(doWhileStmt.condition)))"
         return result
     }
 
@@ -405,6 +440,14 @@ public struct PrettyPrinter {
 
     private func printConstantDeclaration(_ constDecl: ConstantDeclaration) -> String {
         return "定数 \(constDecl.name): \(printDataType(constDecl.type)) ← \(printExpression(constDecl.initialValue))"
+    }
+
+    private func printGlobalDeclaration(_ globalDecl: GlobalDeclaration) -> String {
+        var result = "大域: \(printDataType(globalDecl.type)): \(globalDecl.name)"
+        if let initialValue = globalDecl.initialValue {
+            result += " ← \(printExpression(initialValue))"
+        }
+        return result
     }
 
     private func printFunctionDeclaration(_ funcDecl: FunctionDeclaration, indent: Int) -> String {

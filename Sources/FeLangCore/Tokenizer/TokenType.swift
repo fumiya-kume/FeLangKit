@@ -39,6 +39,9 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case orKeyword = "or"
     case notKeyword = "not"
 
+    /// Arithmetic keyword operators
+    case modKeyword = "mod"
+
     /// Boolean literals
     case trueKeyword = "true"
     case falseKeyword = "false"
@@ -46,6 +49,7 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     /// Declaration keywords
     case variableKeyword = "変数"
     case constantKeyword = "定数"
+    case globalKeyword = "大域"
 
     /// Class keywords
     case classKeyword = "class"
@@ -88,6 +92,8 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     /// Bitwise operators
     case bitwiseAnd = "∧"
     case bitwiseOr = "∨"
+    case leftShift = "<<"
+    case rightShift = ">>"
 
     // MARK: - Delimiters
 
@@ -118,8 +124,8 @@ extension TokenType {
              .recordType, .arrayType, .ifKeyword, .thenKeyword, .elseKeyword, .elifKeyword, .elseifKeyword, .endifKeyword,
              .whileKeyword, .doKeyword, .endwhileKeyword, .forKeyword, .toKeyword, .stepKeyword, .inKeyword, .endforKeyword,
              .functionKeyword, .endfunctionKeyword, .procedureKeyword, .endprocedureKeyword,
-             .andKeyword, .orKeyword, .notKeyword, .returnKeyword, .breakKeyword, .continueKeyword,
-             .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword,
+             .andKeyword, .orKeyword, .notKeyword, .modKeyword, .returnKeyword, .breakKeyword, .continueKeyword,
+             .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword, .globalKeyword,
              .classKeyword, .endclassKeyword, .undefinedKeyword:
             return true
         default:
@@ -142,7 +148,7 @@ extension TokenType {
         switch self {
         case .plus, .minus, .multiply, .divide, .modulo, .assign,
              .equal, .notEqual, .greater, .greaterEqual, .less, .lessEqual,
-             .bitwiseAnd, .bitwiseOr:
+             .bitwiseAnd, .bitwiseOr, .leftShift, .rightShift:
             return true
         default:
             return false

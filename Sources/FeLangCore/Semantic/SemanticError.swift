@@ -29,6 +29,7 @@ public enum SemanticError: Error, Equatable, Sendable {
     case breakOutsideLoop(position: SourcePosition)
     case continueOutsideLoop(position: SourcePosition)
     case returnOutsideFunction(position: SourcePosition)
+    case globalDeclarationInsideFunction(position: SourcePosition)
 
     // Array/indexing errors
     case invalidArrayAccess(position: SourcePosition)
@@ -193,6 +194,8 @@ extension SemanticError: LocalizedError {
             return "Continue statement outside loop at \(position)"
         case .returnOutsideFunction(let position):
             return "Return statement outside function at \(position)"
+        case .globalDeclarationInsideFunction(let position):
+            return "Global declaration must be at the top level, not inside a function or procedure at \(position)"
         case .invalidArrayAccess(let position):
             return "Invalid array access at \(position)"
         case .arrayIndexTypeMismatch(let expected, let actual, let position):
@@ -496,6 +499,7 @@ public final class SemanticErrorReporter: @unchecked Sendable {
              .breakOutsideLoop(let position),
              .continueOutsideLoop(let position),
              .returnOutsideFunction(let position),
+             .globalDeclarationInsideFunction(let position),
              .invalidArrayAccess(let position),
              .arrayIndexTypeMismatch(_, _, let position),
              .invalidArrayDimension(let position),

@@ -56,6 +56,7 @@ public enum TokenizerUtilities {
         ("論理型", .booleanType),
         ("and", .andKeyword),
         ("not", .notKeyword),
+        ("mod", .modKeyword),
         ("for", .forKeyword),
 
         // 3 characters (Japanese)
@@ -65,6 +66,7 @@ public enum TokenizerUtilities {
         ("配列", .arrayType),
         ("変数", .variableKeyword),
         ("定数", .constantKeyword),
+        ("大域", .globalKeyword),
         ("or", .orKeyword),
         ("to", .toKeyword),
         ("in", .inKeyword),
@@ -89,6 +91,8 @@ public enum TokenizerUtilities {
         ("≠", .notEqual),
         (">=", .greaterEqual),
         ("<=", .lessEqual),
+        ("<<", .leftShift),
+        (">>", .rightShift),
         ("≧", .greaterEqual),
         ("≦", .lessEqual),
         ("+", .plus),

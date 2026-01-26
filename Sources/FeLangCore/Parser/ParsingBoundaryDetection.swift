@@ -51,7 +51,7 @@ public enum ParsingBoundaryDetection {
     private static func isExpressionContinuationToken(_ tokenType: TokenType) -> Bool {
         switch tokenType {
         // Binary operators
-        case .plus, .minus, .multiply, .divide, .modulo:
+        case .plus, .minus, .multiply, .divide, .modulo, .modKeyword:
             return true
         // Comparison operators
         case .equal, .notEqual, .less, .greater, .lessEqual, .greaterEqual:
@@ -119,12 +119,14 @@ public enum ParsingBoundaryDetection {
         // Control flow statements
         case .ifKeyword,        // IF-THEN-ELSE conditional statements
              .whileKeyword,     // WHILE-DO loop statements
+             .doKeyword,        // DO-WHILE loop statements
              .forKeyword:       // FOR loop statements (range or forEach)
             return true
 
         // Declaration statements
         case .variableKeyword,  // Variable declarations: 変数 name: type ← value
-             .constantKeyword:  // Constant declarations: 定数 name: type ← value
+             .constantKeyword,  // Constant declarations: 定数 name: type ← value
+             .globalKeyword:    // Global declarations: 大域: 型: 変数名
             return true
 
         // Function/procedure/class declarations
@@ -293,6 +295,8 @@ public enum ParsingBoundaryDetection {
 
     /// Determines if a token marks the start of a block structure
     /// Used for detecting nested control flow structures
+    /// Note: doKeyword is not included because do-while loops have a different termination pattern
+    /// (they end with 'while (condition)' instead of an 'enddo' keyword)
     public static func isBlockStartToken(_ tokenType: TokenType) -> Bool {
         switch tokenType {
         case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword, .classKeyword:

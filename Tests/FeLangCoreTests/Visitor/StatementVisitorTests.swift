@@ -10,6 +10,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { ifStmt in "if(\(ifStmt.condition))" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -22,7 +23,8 @@ struct StatementVisitorTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
-            visitClassDeclaration: { _ in "class_decl" }
+            visitClassDeclaration: { _ in "class_decl" },
+            visitGlobalDeclaration: { _ in "global_decl" }
         )
 
         let ifStmt = IfStatement(
@@ -40,6 +42,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { whileStmt in "while(\(whileStmt.condition))" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -52,7 +55,8 @@ struct StatementVisitorTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
-            visitClassDeclaration: { _ in "class_decl" }
+            visitClassDeclaration: { _ in "class_decl" },
+            visitGlobalDeclaration: { _ in "global_decl" }
         )
 
         let whileStmt = WhileStatement(
@@ -70,6 +74,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { forStmt in
                 switch forStmt {
                 case .range(let rangeFor):
@@ -89,7 +94,8 @@ struct StatementVisitorTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
-            visitClassDeclaration: { _ in "class_decl" }
+            visitClassDeclaration: { _ in "class_decl" },
+            visitGlobalDeclaration: { _ in "global_decl" }
         )
 
         let rangeFor = ForStatement.RangeFor(
@@ -116,6 +122,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { assignment in
                 switch assignment {
@@ -137,7 +144,8 @@ struct StatementVisitorTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
-            visitClassDeclaration: { _ in "class_decl" }
+            visitClassDeclaration: { _ in "class_decl" },
+            visitGlobalDeclaration: { _ in "global_decl" }
         )
 
         let varAssignment = Statement.assignment(.variable("x", .literal(.integer(42))))
@@ -155,6 +163,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { varDecl in "var(\(varDecl.name))" },
@@ -167,7 +176,8 @@ struct StatementVisitorTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
-            visitClassDeclaration: { _ in "class_decl" }
+            visitClassDeclaration: { _ in "class_decl" },
+            visitGlobalDeclaration: { _ in "global_decl" }
         )
 
         let varDecl = Statement.variableDeclaration(VariableDeclaration(
@@ -204,6 +214,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -222,7 +233,8 @@ struct StatementVisitorTests {
             visitContinueStatement: { "continue" },
             visitBlock: { statements in "block(\(statements.count))" },
             visitRecordDeclaration: { _ in "record" },
-            visitClassDeclaration: { _ in "class_decl" }
+            visitClassDeclaration: { _ in "class_decl" },
+            visitGlobalDeclaration: { _ in "global_decl" }
         )
 
         let returnStmt = Statement.returnStatement(ReturnStatement(expression: .literal(.integer(42))))
@@ -255,6 +267,9 @@ struct StatementVisitorTests {
             case .whileStatement(let whileStmt):
                 let body = whileStmt.body.map(stringifyStatement).joined(separator: "; ")
                 return "while (\(whileStmt.condition)) { \(body) }"
+            case .doWhileStatement(let doWhileStmt):
+                let body = doWhileStmt.body.map(stringifyStatement).joined(separator: "; ")
+                return "do { \(body) } while (\(doWhileStmt.condition))"
             case .forStatement(let forStmt):
                 switch forStmt {
                 case .range(let rangeFor):
@@ -306,6 +321,12 @@ struct StatementVisitorTests {
                 return "record \(recordDecl.name)"
             case .classDeclaration(let classDecl):
                 return "class \(classDecl.name)"
+            case .globalDeclaration(let globalDecl):
+                if let initialValue = globalDecl.initialValue {
+                    return "global \(globalDecl.name): \(globalDecl.type) = \(initialValue)"
+                } else {
+                    return "global \(globalDecl.name): \(globalDecl.type)"
+                }
             }
         }
 
@@ -335,6 +356,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -347,7 +369,8 @@ struct StatementVisitorTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
-            visitClassDeclaration: { _ in "class_decl" }
+            visitClassDeclaration: { _ in "class_decl" },
+            visitGlobalDeclaration: { _ in "global_decl" }
         )
 
         let stmt = Statement.breakStatement
@@ -366,6 +389,7 @@ struct StatementVisitorTests {
         let visitor = StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
+            visitDoWhileStatement: { _ in "do_while" },
             visitForStatement: { _ in "for" },
             visitAssignment: { _ in "assignment" },
             visitVariableDeclaration: { _ in "var_decl" },
@@ -378,7 +402,8 @@ struct StatementVisitorTests {
             visitContinueStatement: { "continue" },
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
-            visitClassDeclaration: { _ in "class_decl" }
+            visitClassDeclaration: { _ in "class_decl" },
+            visitGlobalDeclaration: { _ in "global_decl" }
         )
 
         // Test simple statements
@@ -402,6 +427,8 @@ struct StatementVisitorTests {
                 return 1 + ifStmt.thenBody.map(countStatements).reduce(0, +)
             case .whileStatement(let whileStmt):
                 return 1 + whileStmt.body.map(countStatements).reduce(0, +)
+            case .doWhileStatement(let doWhileStmt):
+                return 1 + doWhileStmt.body.map(countStatements).reduce(0, +)
             case .forStatement(let forStmt):
                 let body: [Statement]
                 switch forStmt {
@@ -413,7 +440,7 @@ struct StatementVisitorTests {
                 return 1 + body.map(countStatements).reduce(0, +)
             case .assignment, .variableDeclaration, .constantDeclaration,
                  .returnStatement, .expressionStatement, .breakStatement, .continueStatement,
-                 .recordDeclaration, .classDeclaration:
+                 .recordDeclaration, .classDeclaration, .globalDeclaration:
                 return 1
             case .functionDeclaration(let funcDecl):
                 return 1 + funcDecl.body.map(countStatements).reduce(0, +)

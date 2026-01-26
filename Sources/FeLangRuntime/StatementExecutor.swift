@@ -87,6 +87,9 @@ public final class StatementExecutor: @unchecked Sendable {
         case .whileStatement(let whileStmt):
             return try executeWhileStatement(whileStmt)
 
+        case .doWhileStatement(let doWhileStmt):
+            return try executeDoWhileStatement(doWhileStmt)
+
         case .forStatement(let forStmt):
             return try executeForStatement(forStmt)
 
@@ -129,6 +132,10 @@ public final class StatementExecutor: @unchecked Sendable {
         case .classDeclaration(let decl):
             executeClassDeclaration(decl)
             return .normal
+
+        case .globalDeclaration(let decl):
+            try executeGlobalDeclaration(decl)
+            return .normal
         }
     }
 
@@ -168,6 +175,7 @@ public final class StatementExecutor: @unchecked Sendable {
 
         let classDef = ClassDefinition(
             name: decl.name,
+            superclassName: decl.superclass,
             members: members,
             constructorParameters: constructorParams,
             constructorParameterTypes: constructorParamTypes,
@@ -198,6 +206,20 @@ public final class StatementExecutor: @unchecked Sendable {
         // Validate type of initial value matches declaration
         try validateType(value, expected: decl.type, context: "constant '\(decl.name)' initialization")
         environment.define(decl.name, value: value, isConstant: true, type: decl.type)
+    }
+
+    private func executeGlobalDeclaration(_ decl: GlobalDeclaration) throws {
+        let value: RuntimeValue
+        let isInitialized: Bool
+        if let initialValue = decl.initialValue {
+            value = try evaluator.evaluate(initialValue)
+            try validateType(value, expected: decl.type, context: "global variable '\(decl.name)' initialization")
+            isInitialized = true
+        } else {
+            value = defaultValue(for: decl.type)
+            isInitialized = false
+        }
+        environment.defineGlobal(decl.name, value: value, type: decl.type, isInitialized: isInitialized)
     }
 
     private func executeFunctionDeclaration(_ decl: FunctionDeclaration) throws {
@@ -473,6 +495,47 @@ public final class StatementExecutor: @unchecked Sendable {
         return .normal
     }
 
+    private func executeDoWhileStatement(_ doWhileStmt: DoWhileStatement) throws -> ControlFlow {
+        loopDepth += 1
+        defer { loopDepth -= 1 }
+
+        repeat {
+            // Execute body in its own scope (consistent with while/for loops)
+            // Use do-catch to ensure popScope is called even on exception
+            try environment.pushScope()
+            let result: ControlFlow
+            do {
+                result = try execute(doWhileStmt.body)
+            } catch {
+                environment.popScope()
+                throw error
+            }
+            environment.popScope()
+
+            switch result {
+            case .breakLoop:
+                return .normal
+            case .continueLoop:
+                break
+            case .returnValue:
+                return result
+            case .normal:
+                break
+            }
+
+            // Evaluate condition outside the body scope (consistent with while loops)
+            let condition = try evaluator.evaluate(doWhileStmt.condition)
+            guard case .boolean(let boolValue) = condition else {
+                throw RuntimeError.typeMismatch(
+                    expected: "Boolean",
+                    actual: condition.typeName,
+                    operation: "do-while condition"
+                )
+            }
+            guard boolValue else { return .normal }
+        } while true
+    }
+
     private func executeForStatement(_ forStmt: ForStatement) throws -> ControlFlow {
         switch forStmt {
         case .range(let rangeFor):
@@ -653,16 +716,33 @@ public final class StatementExecutor: @unchecked Sendable {
             }
         }
 
-        // Initialize member fields with default values
+        // Initialize member fields with default values, starting with inherited members
         var fields: [String: RuntimeValue] = [:]
+
+        // Merge superclass members first (inheritance)
+        if let superclassName = classDef.superclassName {
+            guard let superclassDef = environment.lookupClassDefinition(superclassName) else {
+                throw RuntimeError.generic(message: "Superclass '\(superclassName)' not found for class '\(classDef.name)'")
+            }
+            // Recursively collect all inherited members from the superclass chain
+            var visited: Set<String> = [classDef.name]
+            let inheritedMembers = try collectInheritedMembers(from: superclassDef, visited: &visited)
+            for (memberName, memberType) in inheritedMembers {
+                fields[memberName] = defaultValue(for: memberType)
+            }
+        }
+
+        // Add this class's own members (may override inherited members)
         for (memberName, memberType) in classDef.members {
             fields[memberName] = defaultValue(for: memberType)
         }
 
-        // Create the instance
+        // Create the instance with merged class definition for method resolution
+        var mergedVisited: Set<String> = []
+        let mergedClassDef = try createMergedClassDefinition(classDef, visited: &mergedVisited)
         var instance = InstanceValue(
             className: classDef.name,
-            classDefinition: classDef,
+            classDefinition: mergedClassDef,
             fields: fields
         )
 
@@ -698,6 +778,82 @@ public final class StatementExecutor: @unchecked Sendable {
         }
 
         return .instance(instance)
+    }
+
+    /// Collects all inherited members from a class and its superclass chain.
+    /// Uses a visited set to detect circular inheritance.
+    private func collectInheritedMembers(
+        from classDef: ClassDefinition,
+        visited: inout Set<String>
+    ) throws -> [String: DataType] {
+        // Check for circular inheritance
+        guard !visited.contains(classDef.name) else {
+            throw RuntimeError.generic(message: "Circular inheritance detected involving class '\(classDef.name)'")
+        }
+        visited.insert(classDef.name)
+
+        var members: [String: DataType] = [:]
+
+        // First collect from superclass (if any)
+        if let superclassName = classDef.superclassName,
+           let superclassDef = environment.lookupClassDefinition(superclassName) {
+            let superMembers = try collectInheritedMembers(from: superclassDef, visited: &visited)
+            for (name, type) in superMembers {
+                members[name] = type
+            }
+        }
+
+        // Then add this class's members (may override)
+        for (name, type) in classDef.members {
+            members[name] = type
+        }
+
+        return members
+    }
+
+    /// Creates a merged class definition that includes inherited methods for method resolution.
+    /// Subclass methods take priority over superclass methods (method override).
+    /// Uses a visited set to detect circular inheritance.
+    private func createMergedClassDefinition(
+        _ classDef: ClassDefinition,
+        visited: inout Set<String>
+    ) throws -> ClassDefinition {
+        // Check for circular inheritance
+        guard !visited.contains(classDef.name) else {
+            throw RuntimeError.generic(message: "Circular inheritance detected involving class '\(classDef.name)'")
+        }
+        visited.insert(classDef.name)
+
+        var mergedMethods: [String: MethodDefinition] = [:]
+        var mergedMembers: [String: DataType] = [:]
+
+        // Collect methods and members from superclass chain first
+        if let superclassName = classDef.superclassName,
+           let superclassDef = environment.lookupClassDefinition(superclassName) {
+            let mergedSuperclass = try createMergedClassDefinition(superclassDef, visited: &visited)
+            mergedMethods = mergedSuperclass.methods
+            mergedMembers = mergedSuperclass.members
+        }
+
+        // Add this class's members (may override inherited)
+        for (name, type) in classDef.members {
+            mergedMembers[name] = type
+        }
+
+        // Add this class's methods (may override inherited)
+        for (name, method) in classDef.methods {
+            mergedMethods[name] = method
+        }
+
+        return ClassDefinition(
+            name: classDef.name,
+            superclassName: classDef.superclassName,
+            members: mergedMembers,
+            constructorParameters: classDef.constructorParameters,
+            constructorParameterTypes: classDef.constructorParameterTypes,
+            constructorBody: classDef.constructorBody,
+            methods: mergedMethods
+        )
     }
 
     private func callFunctionValue(

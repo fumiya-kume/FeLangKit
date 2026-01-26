@@ -124,6 +124,71 @@ struct StatementParserTests {
         #expect(value == .literal(.integer(42)))
     }
 
+    // MARK: - Field Assignment Tests
+
+    @Test("Simple Field Assignment")
+    func testSimpleFieldAssignment() throws {
+        let statements = try parseStatements("p.x ← 10")
+
+        #expect(statements.count == 1)
+        guard case .assignment(.fieldAccess(let fieldAccess, let value)) = statements[0] else {
+            #expect(Bool(false), "Expected field access assignment")
+            return
+        }
+
+        #expect(fieldAccess.object == .identifier("p"))
+        #expect(fieldAccess.field == "x")
+        #expect(value == .literal(.integer(10)))
+    }
+
+    @Test("Chained Field Assignment")
+    func testChainedFieldAssignment() throws {
+        let statements = try parseStatements("obj.inner.field ← val")
+
+        #expect(statements.count == 1)
+        guard case .assignment(.fieldAccess(let fieldAccess, let value)) = statements[0] else {
+            #expect(Bool(false), "Expected field access assignment")
+            return
+        }
+
+        #expect(fieldAccess.object == .fieldAccess(.identifier("obj"), "inner"))
+        #expect(fieldAccess.field == "field")
+        #expect(value == .identifier("val"))
+    }
+
+    @Test("Field Assignment with Expression Value")
+    func testFieldAssignmentWithExpressionValue() throws {
+        let statements = try parseStatements("point.x ← a + b * 2")
+
+        #expect(statements.count == 1)
+        guard case .assignment(.fieldAccess(let fieldAccess, let value)) = statements[0] else {
+            #expect(Bool(false), "Expected field access assignment")
+            return
+        }
+
+        #expect(fieldAccess.object == .identifier("point"))
+        #expect(fieldAccess.field == "x")
+        guard case .binary(.add, .identifier("a"), .binary(.multiply, .identifier("b"), .literal(.integer(2)))) = value else {
+            #expect(Bool(false), "Expected binary expression as value")
+            return
+        }
+    }
+
+    @Test("Linked List Style Field Assignment")
+    func testLinkedListStyleFieldAssignment() throws {
+        let statements = try parseStatements("prev.next ← curr")
+
+        #expect(statements.count == 1)
+        guard case .assignment(.fieldAccess(let fieldAccess, let value)) = statements[0] else {
+            #expect(Bool(false), "Expected field access assignment")
+            return
+        }
+
+        #expect(fieldAccess.object == .identifier("prev"))
+        #expect(fieldAccess.field == "next")
+        #expect(value == .identifier("curr"))
+    }
+
     // MARK: - IF Statement Tests
 
     @Test("Basic IF Statement")
@@ -211,6 +276,119 @@ struct StatementParserTests {
 
         #expect(whileStmt.condition == .binary(.less, .identifier("i"), .literal(.integer(10))))
         #expect(whileStmt.body.count == 1)
+    }
+
+    // MARK: - DO-WHILE Statement Tests
+
+    @Test("Basic DO-WHILE Statement")
+    func testBasicDoWhileStatement() throws {
+        let statements = try parseStatements("do i ← i + 1 while (i < 10)")
+
+        #expect(statements.count == 1)
+        guard case .doWhileStatement(let doWhileStmt) = statements[0] else {
+            #expect(Bool(false), "Expected DO-WHILE statement")
+            return
+        }
+
+        #expect(doWhileStmt.condition == .binary(.less, .identifier("i"), .literal(.integer(10))))
+        #expect(doWhileStmt.body.count == 1)
+    }
+
+    @Test("DO-WHILE Statement with Multiple Body Statements")
+    func testDoWhileStatementWithMultipleBodyStatements() throws {
+        let input = """
+        do
+            x ← x + 1
+            writeLine(x)
+        while (x < 5)
+        """
+        let statements = try parseStatements(input)
+
+        #expect(statements.count == 1)
+        guard case .doWhileStatement(let doWhileStmt) = statements[0] else {
+            #expect(Bool(false), "Expected DO-WHILE statement")
+            return
+        }
+
+        #expect(doWhileStmt.body.count == 2)
+        #expect(doWhileStmt.condition == .binary(.less, .identifier("x"), .literal(.integer(5))))
+    }
+
+    @Test("DO-WHILE Statement with Complex Condition")
+    func testDoWhileStatementWithComplexCondition() throws {
+        let statements = try parseStatements("do x ← x + 1 while (x < 10 and y > 0)")
+
+        #expect(statements.count == 1)
+        guard case .doWhileStatement(let doWhileStmt) = statements[0] else {
+            #expect(Bool(false), "Expected DO-WHILE statement")
+            return
+        }
+
+        guard case .binary(.and, _, _) = doWhileStmt.condition else {
+            #expect(Bool(false), "Expected AND condition")
+            return
+        }
+    }
+
+    @Test("Nested DO-WHILE Statements")
+    func testNestedDoWhileStatements() throws {
+        let input = """
+        do
+            do
+                x ← x + 1
+            while (x < 5)
+        while (y < 10)
+        """
+        let statements = try parseStatements(input)
+
+        #expect(statements.count == 1)
+        guard case .doWhileStatement(let outerDoWhile) = statements[0] else {
+            #expect(Bool(false), "Expected outer DO-WHILE statement")
+            return
+        }
+
+        #expect(outerDoWhile.body.count == 1)
+        guard case .doWhileStatement(let innerDoWhile) = outerDoWhile.body[0] else {
+            #expect(Bool(false), "Expected inner DO-WHILE statement")
+            return
+        }
+
+        #expect(innerDoWhile.condition == .binary(.less, .identifier("x"), .literal(.integer(5))))
+        #expect(outerDoWhile.condition == .binary(.less, .identifier("y"), .literal(.integer(10))))
+    }
+
+    @Test("DO-WHILE with Nested While Loop")
+    func testDoWhileWithNestedWhileLoop() throws {
+        // This tests that a nested while loop inside do-while is correctly parsed
+        // The parser must distinguish between `while condition do` (nested while loop)
+        // and `while (condition)` (terminating condition of do-while)
+        let input = """
+        do
+            while x < 5 do
+                x ← x + 1
+            endwhile
+        while (y < 10)
+        """
+        let statements = try parseStatements(input)
+
+        #expect(statements.count == 1)
+        guard case .doWhileStatement(let doWhileStmt) = statements[0] else {
+            #expect(Bool(false), "Expected DO-WHILE statement")
+            return
+        }
+
+        // The body should contain the nested while loop
+        #expect(doWhileStmt.body.count == 1)
+        guard case .whileStatement(let nestedWhile) = doWhileStmt.body[0] else {
+            #expect(Bool(false), "Expected nested WHILE statement in do-while body")
+            return
+        }
+
+        // Verify the nested while loop's condition
+        #expect(nestedWhile.condition == .binary(.less, .identifier("x"), .literal(.integer(5))))
+
+        // Verify the do-while's terminating condition
+        #expect(doWhileStmt.condition == .binary(.less, .identifier("y"), .literal(.integer(10))))
     }
 
     // MARK: - FOR Statement Tests
@@ -909,5 +1087,101 @@ struct StatementParserTests {
             #expect(Bool(false), "Expected binary multiplication with function call")
             return
         }
+    }
+
+    // MARK: - Global Declaration Tests
+
+    @Test("Basic Global Declaration")
+    func testBasicGlobalDeclaration() throws {
+        let statements = try parseStatements("大域: 整数型: count")
+
+        #expect(statements.count == 1)
+        guard case .globalDeclaration(let globalDecl) = statements[0] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+
+        #expect(globalDecl.name == "count")
+        #expect(globalDecl.type == .integer)
+        #expect(globalDecl.initialValue == nil)
+    }
+
+    @Test("Global Declaration with Initial Value")
+    func testGlobalDeclarationWithInitialValue() throws {
+        let statements = try parseStatements("大域: 整数型: count ← 0")
+
+        #expect(statements.count == 1)
+        guard case .globalDeclaration(let globalDecl) = statements[0] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+
+        #expect(globalDecl.name == "count")
+        #expect(globalDecl.type == .integer)
+        #expect(globalDecl.initialValue == .literal(.integer(0)))
+    }
+
+    @Test("Global Declaration with String Type")
+    func testGlobalDeclarationWithStringType() throws {
+        let statements = try parseStatements("大域: 文字列型: name ← \"default\"")
+
+        #expect(statements.count == 1)
+        guard case .globalDeclaration(let globalDecl) = statements[0] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+
+        #expect(globalDecl.name == "name")
+        #expect(globalDecl.type == .string)
+        #expect(globalDecl.initialValue == .literal(.string("default")))
+    }
+
+    @Test("Global Declaration with Real Type")
+    func testGlobalDeclarationWithRealType() throws {
+        let statements = try parseStatements("大域: 実数型: pi ← 3.14159")
+
+        #expect(statements.count == 1)
+        guard case .globalDeclaration(let globalDecl) = statements[0] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+
+        #expect(globalDecl.name == "pi")
+        #expect(globalDecl.type == .real)
+        #expect(globalDecl.initialValue == .literal(.real(3.14159)))
+    }
+
+    @Test("Multiple Global Declarations")
+    func testMultipleGlobalDeclarations() throws {
+        let input = """
+        大域: 整数型: count ← 0
+        大域: 文字列型: name
+        大域: 論理型: flag ← true
+        """
+        let statements = try parseStatements(input)
+
+        #expect(statements.count == 3)
+
+        guard case .globalDeclaration(let globalDecl1) = statements[0] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+        #expect(globalDecl1.name == "count")
+        #expect(globalDecl1.type == .integer)
+
+        guard case .globalDeclaration(let globalDecl2) = statements[1] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+        #expect(globalDecl2.name == "name")
+        #expect(globalDecl2.type == .string)
+        #expect(globalDecl2.initialValue == nil)
+
+        guard case .globalDeclaration(let globalDecl3) = statements[2] else {
+            #expect(Bool(false), "Expected global declaration")
+            return
+        }
+        #expect(globalDecl3.name == "flag")
+        #expect(globalDecl3.type == .boolean)
     }
 }

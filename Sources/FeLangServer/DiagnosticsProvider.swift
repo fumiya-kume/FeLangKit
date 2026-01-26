@@ -190,6 +190,7 @@ public struct DiagnosticsProvider: Sendable {
                  .breakOutsideLoop(let pos),
                  .continueOutsideLoop(let pos),
                  .returnOutsideFunction(let pos),
+                 .globalDeclarationInsideFunction(let pos),
                  .invalidArrayAccess(let pos),
                  .arrayIndexTypeMismatch(_, _, let pos),
                  .invalidArrayDimension(let pos),
@@ -231,6 +232,7 @@ public struct DiagnosticsProvider: Sendable {
         case .breakOutsideLoop: return "break-outside-loop"
         case .continueOutsideLoop: return "continue-outside-loop"
         case .returnOutsideFunction: return "return-outside-function"
+        case .globalDeclarationInsideFunction: return "global-declaration-inside-function"
         case .invalidArrayAccess: return "invalid-array-access"
         case .arrayIndexTypeMismatch: return "array-index-type-mismatch"
         case .invalidArrayDimension: return "invalid-array-dimension"

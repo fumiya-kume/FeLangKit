@@ -31,6 +31,9 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
     /// Visits while statements.
     public let visitWhileStatement: @Sendable (WhileStatement) -> Result
 
+    /// Visits do-while statements.
+    public let visitDoWhileStatement: @Sendable (DoWhileStatement) -> Result
+
     /// Visits for statements.
     public let visitForStatement: @Sendable (ForStatement) -> Result
 
@@ -71,12 +74,16 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
     /// Visits class declarations.
     public let visitClassDeclaration: @Sendable (ClassDeclaration) -> Result
 
+    /// Visits global declarations.
+    public let visitGlobalDeclaration: @Sendable (GlobalDeclaration) -> Result
+
     // MARK: - Initialization
 
     /// Creates a new statement visitor with the specified visit closures.
     public init(
         visitIfStatement: @escaping @Sendable (IfStatement) -> Result,
         visitWhileStatement: @escaping @Sendable (WhileStatement) -> Result,
+        visitDoWhileStatement: @escaping @Sendable (DoWhileStatement) -> Result,
         visitForStatement: @escaping @Sendable (ForStatement) -> Result,
         visitAssignment: @escaping @Sendable (Assignment) -> Result,
         visitVariableDeclaration: @escaping @Sendable (VariableDeclaration) -> Result,
@@ -89,10 +96,12 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         visitContinueStatement: @escaping @Sendable () -> Result,
         visitBlock: @escaping @Sendable ([Statement]) -> Result,
         visitRecordDeclaration: @escaping @Sendable (RecordDeclaration) -> Result,
-        visitClassDeclaration: @escaping @Sendable (ClassDeclaration) -> Result
+        visitClassDeclaration: @escaping @Sendable (ClassDeclaration) -> Result,
+        visitGlobalDeclaration: @escaping @Sendable (GlobalDeclaration) -> Result
     ) {
         self.visitIfStatement = visitIfStatement
         self.visitWhileStatement = visitWhileStatement
+        self.visitDoWhileStatement = visitDoWhileStatement
         self.visitForStatement = visitForStatement
         self.visitAssignment = visitAssignment
         self.visitVariableDeclaration = visitVariableDeclaration
@@ -106,6 +115,7 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         self.visitBlock = visitBlock
         self.visitRecordDeclaration = visitRecordDeclaration
         self.visitClassDeclaration = visitClassDeclaration
+        self.visitGlobalDeclaration = visitGlobalDeclaration
     }
 
     // MARK: - Visit Method
@@ -119,6 +129,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
             return visitIfStatement(ifStmt)
         case .whileStatement(let whileStmt):
             return visitWhileStatement(whileStmt)
+        case .doWhileStatement(let doWhileStmt):
+            return visitDoWhileStatement(doWhileStmt)
         case .forStatement(let forStmt):
             return visitForStatement(forStmt)
         case .assignment(let assignment):
@@ -145,6 +157,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
             return visitRecordDeclaration(recordDecl)
         case .classDeclaration(let classDecl):
             return visitClassDeclaration(classDecl)
+        case .globalDeclaration(let globalDecl):
+            return visitGlobalDeclaration(globalDecl)
         }
     }
 }

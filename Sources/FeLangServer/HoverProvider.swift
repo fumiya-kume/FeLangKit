@@ -17,7 +17,7 @@ public struct HoverProvider: Sendable {
 
         // Loops
         "while": "**while** - While loop\n\nRepeats code while a condition is true.\n\n```fe\nwhile condition do\n    // code\nendwhile\n```",
-        "do": "**do** - Do clause\n\nMarks the beginning of a loop body.",
+        "do": "**do** - Do clause\n\nMarks the beginning of a loop body in while/for loops.\n\nAlso starts a do-while loop:\n\n```fe\ndo\n    // code (executes at least once)\nwhile (condition)\n```",
         "endwhile": "**endwhile** - End while\n\nMarks the end of a while loop.",
         "for": "**for** - For loop\n\nIterates over a range or collection.\n\n```fe\nfor i ← 1 to 10 do\n    // code\nendfor\n```",
         "to": "**to** - Range end\n\nSpecifies the end of a range in a for loop.",
@@ -45,6 +45,9 @@ public struct HoverProvider: Sendable {
         "or": "**or** - Logical OR\n\nReturns true if either operand is true.",
         "not": "**not** - Logical NOT\n\nReturns the opposite of a boolean value.",
 
+        // Arithmetic operators
+        "mod": "**mod** - Modulo operator\n\nReturns the remainder of integer division.\n\n```fe\n7 mod 3  // returns 1\n```",
+
         // Literals
         "true": "**true** - Boolean true\n\nThe boolean value representing truth.",
         "false": "**false** - Boolean false\n\nThe boolean value representing falsehood.",
@@ -56,7 +59,10 @@ public struct HoverProvider: Sendable {
         "でなければ": "**でなければ** (else) - Else節\n\nif文の偽の分岐です。",
         "を実行": "**を実行** (endif) - End if\n\nif文の終了を示します。",
         "繰り返し": "**繰り返し** (while) - ループ\n\n条件が真の間、コードを繰り返します。",
-        "を繰り返す": "**を繰り返す** (endwhile) - ループ終了\n\nwhileループの終了を示します。"
+        "を繰り返す": "**を繰り返す** (endwhile) - ループ終了\n\nwhileループの終了を示します。",
+
+        // Global declaration
+        "大域": "**大域** (global) - グローバル変数宣言\n\nグローバルスコープに変数を宣言します。関数や手続きからアクセス・変更可能です。\n\n```fe\n大域: 整数型: count\n大域: 文字列型: name ← \"default\"\n```"
     ]
 
     /// Type documentation

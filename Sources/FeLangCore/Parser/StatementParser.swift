@@ -50,6 +50,8 @@ public struct StatementParser {
             }
 
             // Track nesting depth for security
+            // Note: doKeyword is not included because do-while loops don't have an enddo keyword
+            // (they terminate with 'while (condition)'), so the depth would never be decremented
             switch token.type {
             case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword, .classKeyword:
                 nestingDepth += 1
@@ -80,12 +82,16 @@ public struct StatementParser {
             return .ifStatement(try parseIfStatement(&parser, nestingDepth: nestingDepth))
         case .whileKeyword:
             return .whileStatement(try parseWhileStatement(&parser, nestingDepth: nestingDepth))
+        case .doKeyword:
+            return .doWhileStatement(try parseDoWhileStatement(&parser, nestingDepth: nestingDepth))
         case .forKeyword:
             return .forStatement(try parseForStatement(&parser, nestingDepth: nestingDepth))
         case .variableKeyword:
             return .variableDeclaration(try parseVariableDeclaration(&parser))
         case .constantKeyword:
             return .constantDeclaration(try parseConstantDeclaration(&parser))
+        case .globalKeyword:
+            return .globalDeclaration(try parseGlobalDeclaration(&parser))
         case .functionKeyword:
             return .functionDeclaration(try parseFunctionDeclaration(&parser, nestingDepth: nestingDepth))
         case .procedureKeyword:
@@ -156,6 +162,58 @@ public struct StatementParser {
         try expectToken(&parser, .endwhileKeyword) // consume 'endwhile'
 
         return WhileStatement(condition: condition, body: body)
+    }
+
+    /// Parses a DO-WHILE statement (do ... while (condition)).
+    /// The body is executed at least once, then the condition is checked.
+    /// Uses lookahead to distinguish terminating `while (` from nested `while condition do`.
+    private func parseDoWhileStatement(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> DoWhileStatement {
+        try expectToken(&parser, .doKeyword) // consume 'do'
+
+        let body = try parseDoWhileBody(&parser, nestingDepth: nestingDepth)
+
+        try expectToken(&parser, .whileKeyword) // consume 'while'
+        try expectToken(&parser, .leftParen) // consume '('
+        let condition = try parseExpression(&parser)
+        try expectToken(&parser, .rightParen) // consume ')'
+
+        return DoWhileStatement(body: body, condition: condition)
+    }
+
+    /// Parses the body of a do-while statement until the terminating `while (` is found.
+    /// Distinguishes between terminating `while (` and nested `while condition do` using lookahead.
+    private func parseDoWhileBody(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> [Statement] {
+        // Check nesting depth for security
+        guard nestingDepth < 100 else {
+            throw StatementParsingError.nestingTooDeep
+        }
+
+        var statements: [Statement] = []
+
+        while let token = parser.peek(), token.type != .eof {
+            // Skip newlines and whitespace
+            if token.type == .newline || token.type == .whitespace {
+                _ = parser.advance()
+                continue
+            }
+
+            // Check if this is the terminating `while (` of the do-while
+            // The terminating while is followed by `(`, while a nested while loop
+            // is followed by a condition expression and then `do`
+            if token.type == .whileKeyword {
+                // Lookahead to check if next token is `(`
+                if let nextToken = parser.peek(offset: 1), nextToken.type == .leftParen {
+                    // This is the terminating `while (` - stop parsing body
+                    break
+                }
+                // Otherwise, this is a nested while loop - continue parsing as statement
+            }
+
+            let statement = try parseStatement(&parser, nestingDepth: nestingDepth + 1)
+            statements.append(statement)
+        }
+
+        return statements
     }
 
     /// Parses a FOR statement (range-based or forEach).
@@ -429,6 +487,35 @@ public struct StatementParser {
             type: components.type,
             initialValue: initialValue,
             position: components.position
+        )
+    }
+
+    /// Parses a global variable declaration (大域: 型: 変数名 [← 初期値]).
+    private func parseGlobalDeclaration(_ parser: inout TokenStream) throws -> GlobalDeclaration {
+        let position = parser.peek()?.position
+
+        try expectToken(&parser, .globalKeyword)
+        try expectToken(&parser, .colon)
+
+        let type = try parseDataType(&parser)
+        try expectToken(&parser, .colon)
+
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw StatementParsingError.expectedIdentifier
+        }
+        let name = nameToken.lexeme
+
+        var initialValue: Expression?
+        if parser.peek()?.type == .assign {
+            _ = parser.advance()
+            initialValue = try parseExpression(&parser)
+        }
+
+        return GlobalDeclaration(
+            name: name,
+            type: type,
+            initialValue: initialValue,
+            position: position
         )
     }
 
@@ -853,10 +940,11 @@ public struct StatementParser {
         // Get the starting position
         let startIndex = parser.index
 
-        // Find the end of the expression using balanced parentheses/brackets
+        // Find the end of the expression using balanced parentheses/brackets/braces
         var endIndex = startIndex
         var parenDepth = 0
         var bracketDepth = 0
+        var braceDepth = 0
 
         // Scan forward to find expression boundary
         var scanIndex = startIndex
@@ -870,7 +958,7 @@ public struct StatementParser {
                 break
             }
 
-            // Track parentheses and bracket depth
+            // Track parentheses, bracket, and brace depth
             if tokenType == .leftParen {
                 parenDepth += 1
             } else if tokenType == .rightParen {
@@ -887,16 +975,24 @@ public struct StatementParser {
                     endIndex = scanIndex
                     break
                 }
+            } else if tokenType == .leftBrace {
+                braceDepth += 1
+            } else if tokenType == .rightBrace {
+                braceDepth -= 1
+                if braceDepth < 0 {
+                    endIndex = scanIndex
+                    break
+                }
             }
 
-            // Stop at statement terminators only when we're not inside parentheses/brackets
-            if parenDepth == 0 && bracketDepth == 0 && isStatementTerminator(tokenType) {
+            // Stop at statement terminators only when we're not inside parentheses/brackets/braces
+            if parenDepth == 0 && bracketDepth == 0 && braceDepth == 0 && isStatementTerminator(tokenType) {
                 endIndex = scanIndex
                 break
             }
 
             // Also stop if we detect the start of a new statement (when newlines are filtered out)
-            if parenDepth == 0 && bracketDepth == 0 && scanIndex > startIndex && isStartOfNewStatement(parser, at: scanIndex) {
+            if parenDepth == 0 && bracketDepth == 0 && braceDepth == 0 && scanIndex > startIndex && isStartOfNewStatement(parser, at: scanIndex) {
                 endIndex = scanIndex
                 break
             }
@@ -964,7 +1060,7 @@ public struct StatementParser {
     /// Used to distinguish between function calls as new statements vs function calls within expressions
     private func isExpressionContinuationToken(_ tokenType: TokenType) -> Bool {
         switch tokenType {
-        case .plus, .minus, .multiply, .divide, .modulo,
+        case .plus, .minus, .multiply, .divide, .modulo, .modKeyword,
              .equal, .notEqual, .less, .greater, .lessEqual, .greaterEqual,
              .andKeyword, .orKeyword,
              .leftParen, .leftBracket, .comma, .dot,
@@ -1027,12 +1123,14 @@ public struct StatementParser {
         // Control flow statements
         case .ifKeyword,        // IF-THEN-ELSE conditional statements
              .whileKeyword,     // WHILE-DO loop statements
+             .doKeyword,        // DO-WHILE loop statements
              .forKeyword:       // FOR loop statements (range or forEach)
             return true
 
         // Declaration statements
         case .variableKeyword,  // Variable declarations: 変数 name: type ← value
-             .constantKeyword:  // Constant declarations: 定数 name: type ← value
+             .constantKeyword,  // Constant declarations: 定数 name: type ← value
+             .globalKeyword:    // Global declarations: 大域: 型: 変数名
             return true
 
         // Function/procedure/class declarations

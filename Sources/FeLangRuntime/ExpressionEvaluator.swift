@@ -55,6 +55,9 @@ public struct ExpressionEvaluator: Sendable {
             let args = try arguments.map { try evaluate($0) }
             return try callFunction(name, args)
 
+        case .methodCall(_, let method, _):
+            throw RuntimeError.methodCallNotSupported(method: method)
+
         case .arrayLiteral(let elements):
             return try evaluateArrayLiteral(elements)
         }
@@ -154,6 +157,10 @@ public struct ExpressionEvaluator: Sendable {
             return try evaluateBitwiseAnd(left, right)
         case .bitwiseOr:
             return try evaluateBitwiseOr(left, right)
+        case .leftShift:
+            return try evaluateLeftShift(left, right)
+        case .rightShift:
+            return try evaluateRightShift(left, right)
 
         // Logical
         case .and:
@@ -203,6 +210,32 @@ public struct ExpressionEvaluator: Sendable {
             throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: "∨")
         }
         return .integer(leftInt | rightInt)
+    }
+
+    private func evaluateLeftShift(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
+        guard case .integer(let leftInt) = left else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: left.typeName, operation: "<<")
+        }
+        guard case .integer(let rightInt) = right else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: "<<")
+        }
+        guard rightInt >= 0 && rightInt < Int.bitWidth else {
+            throw RuntimeError.invalidOperand(operation: "<<", operandType: "shift amount \(rightInt) out of valid range (0..<\(Int.bitWidth))")
+        }
+        return .integer(leftInt << rightInt)
+    }
+
+    private func evaluateRightShift(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
+        guard case .integer(let leftInt) = left else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: left.typeName, operation: ">>")
+        }
+        guard case .integer(let rightInt) = right else {
+            throw RuntimeError.typeMismatch(expected: "Integer", actual: right.typeName, operation: ">>")
+        }
+        guard rightInt >= 0 && rightInt < Int.bitWidth else {
+            throw RuntimeError.invalidOperand(operation: ">>", operandType: "shift amount \(rightInt) out of valid range (0..<\(Int.bitWidth))")
+        }
+        return .integer(leftInt >> rightInt)
     }
 
     private func evaluateAdd(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
