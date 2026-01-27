@@ -98,6 +98,7 @@ public final class Environment: @unchecked Sendable {
     /// Called whenever the environment is modified.
     private func invalidateCache() {
         environmentVersion &+= 1
+        cachedCapture = nil
     }
 
     // MARK: - Initialization
