@@ -12,15 +12,15 @@ public struct ExpressionEvaluator: Sendable {
     /// Function to call external functions
     private let callFunction: @Sendable (String, [RuntimeValue]) throws -> RuntimeValue
 
-    /// Function to call methods on instances
-    private let callMethod: @Sendable (RuntimeValue, String, [RuntimeValue]) throws -> RuntimeValue
+    /// Function to call methods on instances, returns (returnValue, modifiedInstance)
+    private let callMethod: @Sendable (RuntimeValue, String, [RuntimeValue]) throws -> (RuntimeValue, RuntimeValue)
 
     // MARK: - Initialization
 
     public init(
         environment: Environment,
         callFunction: @escaping @Sendable (String, [RuntimeValue]) throws -> RuntimeValue,
-        callMethod: @escaping @Sendable (RuntimeValue, String, [RuntimeValue]) throws -> RuntimeValue
+        callMethod: @escaping @Sendable (RuntimeValue, String, [RuntimeValue]) throws -> (RuntimeValue, RuntimeValue)
     ) {
         self.environment = environment
         self.callFunction = callFunction
@@ -63,7 +63,12 @@ public struct ExpressionEvaluator: Sendable {
         case .methodCall(let receiver, let method, let arguments):
             let receiverValue = try evaluate(receiver)
             let args = try arguments.map { try evaluate($0) }
-            return try callMethod(receiverValue, method, args)
+            let (returnValue, modifiedInstance) = try callMethod(receiverValue, method, args)
+            // Update the receiver variable if it's an identifier to propagate instance state changes
+            if case .identifier(let name) = receiver {
+                try? environment.assign(name, value: modifiedInstance)
+            }
+            return returnValue
 
         case .arrayLiteral(let elements):
             return try evaluateArrayLiteral(elements)

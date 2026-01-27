@@ -45,7 +45,8 @@ public final class StatementExecutor: @unchecked Sendable {
             },
             callMethod: { [weak self] receiver, methodName, args in
                 guard let self = self else { throw RuntimeError.generic(message: "Executor deallocated") }
-                return try self.callMethod(receiver, methodName: methodName, arguments: args)
+                let result = try self.callMethod(receiver, methodName: methodName, arguments: args)
+                return (result.returnValue, result.modifiedInstance)
             }
         )
     }
@@ -701,17 +702,23 @@ public final class StatementExecutor: @unchecked Sendable {
         throw RuntimeError.undefinedFunction(name: name)
     }
 
+    /// Result of a method call, containing both the return value and the potentially modified instance.
+    public struct MethodCallResult: Sendable {
+        public let returnValue: RuntimeValue
+        public let modifiedInstance: RuntimeValue
+    }
+
     /// Calls a method on an instance.
     /// - Parameters:
     ///   - receiver: The receiver value (must be an instance)
     ///   - methodName: The name of the method to call
     ///   - arguments: The arguments to pass to the method
-    /// - Returns: The return value of the method
+    /// - Returns: A MethodCallResult containing the return value and the potentially modified instance
     public func callMethod(
         _ receiver: RuntimeValue,
         methodName: String,
         arguments: [RuntimeValue]
-    ) throws -> RuntimeValue {
+    ) throws -> MethodCallResult {
         guard case .instance(let inst) = receiver else {
             throw RuntimeError.generic(message: "Cannot call method '\(methodName)' on non-instance type '\(receiver.typeName)'")
         }
@@ -762,18 +769,21 @@ public final class StatementExecutor: @unchecked Sendable {
 
         let result = try execute(method.body)
 
+        // Retrieve the potentially modified 'self' instance (like constructor does)
+        let modifiedInstance = (try? environment.get("self")) ?? receiver
+
         switch result {
         case .returnValue(let value):
             let returnValue = value ?? .null
             if let expectedType = method.returnType {
                 try validateType(returnValue, expected: expectedType, context: "return value of '\(inst.className).\(methodName)'")
             }
-            return returnValue
+            return MethodCallResult(returnValue: returnValue, modifiedInstance: modifiedInstance)
         default:
             if method.returnType != nil {
                 throw RuntimeError.missingReturnValue(function: "\(inst.className).\(methodName)")
             }
-            return .null
+            return MethodCallResult(returnValue: .null, modifiedInstance: modifiedInstance)
         }
     }
 

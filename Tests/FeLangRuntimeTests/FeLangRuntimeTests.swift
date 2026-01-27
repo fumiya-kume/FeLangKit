@@ -1629,7 +1629,7 @@ struct MethodCallTests {
         let instance = try executor.callFunction("Counter", arguments: [])
         let result = try executor.callMethod(instance, methodName: "getValue", arguments: [])
 
-        #expect(result == .integer(0))
+        #expect(result.returnValue == .integer(0))
     }
 
     @Test func testMethodCallWithParameters() throws {
@@ -1663,7 +1663,7 @@ struct MethodCallTests {
         let instance = try executor.callFunction("Calculator", arguments: [])
         let result = try executor.callMethod(instance, methodName: "add", arguments: [.integer(3), .integer(5)])
 
-        #expect(result == .integer(8))
+        #expect(result.returnValue == .integer(8))
     }
 
     @Test func testMethodCallAccessesMemberVariables() throws {
@@ -1698,7 +1698,7 @@ struct MethodCallTests {
         let instance = try executor.callFunction("Counter", arguments: [.integer(42)])
         let result = try executor.callMethod(instance, methodName: "getCount", arguments: [])
 
-        #expect(result == .integer(42))
+        #expect(result.returnValue == .integer(42))
     }
 
     @Test func testMethodNotFoundError() throws {
@@ -1797,7 +1797,7 @@ struct MethodCallTests {
         let instance = try executor.callFunction("Test", arguments: [])
         let result = try executor.callMethod(instance, methodName: "doNothing", arguments: [])
 
-        #expect(result == .null)
+        #expect(result.returnValue == .null)
     }
 
     @Test func testInheritedMethodCall() throws {
@@ -1833,6 +1833,53 @@ struct MethodCallTests {
         let dog = try executor.callFunction("Dog", arguments: [])
         let result = try executor.callMethod(dog, methodName: "getName", arguments: [])
 
-        #expect(result == .string(""))
+        #expect(result.returnValue == .string(""))
+    }
+
+    @Test func testMethodMutatesInstanceState() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        let counterClass = ClassDeclaration(
+            name: "Counter",
+            superclass: nil,
+            members: [MemberDeclaration(name: "value", type: .integer)],
+            constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "increment",
+                    parameters: [],
+                    returnType: nil,
+                    body: [
+                        .assignment(.fieldAccess(
+                            Assignment.FieldAccess(object: .identifier("self"), field: "value"),
+                            .binary(.add, .identifier("value"), .literal(.integer(1)))
+                        ))
+                    ]
+                ),
+                MethodDeclaration(
+                    name: "getValue",
+                    parameters: [],
+                    returnType: .integer,
+                    body: [.returnStatement(ReturnStatement(expression: .identifier("value")))]
+                )
+            ]
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(counterClass))
+
+        let instance = try executor.callFunction("Counter", arguments: [])
+
+        // Call increment and get the modified instance
+        let incrementResult = try executor.callMethod(instance, methodName: "increment", arguments: [])
+
+        // The modified instance should have value = 1
+        let getValueResult = try executor.callMethod(incrementResult.modifiedInstance, methodName: "getValue", arguments: [])
+        #expect(getValueResult.returnValue == .integer(1))
+
+        // Call increment again on the modified instance
+        let incrementResult2 = try executor.callMethod(incrementResult.modifiedInstance, methodName: "increment", arguments: [])
+        let getValueResult2 = try executor.callMethod(incrementResult2.modifiedInstance, methodName: "getValue", arguments: [])
+        #expect(getValueResult2.returnValue == .integer(2))
     }
 }

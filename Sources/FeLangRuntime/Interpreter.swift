@@ -72,7 +72,8 @@ public final class Interpreter: @unchecked Sendable {
                 guard let self = self else {
                     throw RuntimeError.generic(message: "Interpreter deallocated")
                 }
-                return try self.executor.callMethod(receiver, methodName: methodName, arguments: args)
+                let result = try self.executor.callMethod(receiver, methodName: methodName, arguments: args)
+                return (result.returnValue, result.modifiedInstance)
             }
         )
         return try evaluator.evaluate(expression)
