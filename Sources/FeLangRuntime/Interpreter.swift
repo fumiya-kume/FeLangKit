@@ -149,19 +149,19 @@ extension Interpreter {
     /// Creates an interpreter that captures output.
     public static func withOutputCapture() -> (interpreter: Interpreter, getOutput: @Sendable () -> String) {
         final class OutputBuffer: @unchecked Sendable {
-            private var output = ""
+            private var outputParts: [String] = []
             private let lock = NSLock()
 
             func append(_ text: String) {
                 lock.lock()
-                output += text
+                outputParts.append(text)
                 lock.unlock()
             }
 
             func get() -> String {
                 lock.lock()
                 defer { lock.unlock() }
-                return output
+                return outputParts.joined()
             }
         }
 
