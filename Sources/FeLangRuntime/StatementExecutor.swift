@@ -37,10 +37,17 @@ public final class StatementExecutor: @unchecked Sendable {
 
     public init(environment: Environment) {
         self.environment = environment
-        self.evaluator = ExpressionEvaluator(environment: environment) { [weak self] name, args in
-            guard let self = self else { throw RuntimeError.generic(message: "Executor deallocated") }
-            return try self.callFunction(name, arguments: args)
-        }
+        self.evaluator = ExpressionEvaluator(
+            environment: environment,
+            callFunction: { [weak self] name, args in
+                guard let self = self else { throw RuntimeError.generic(message: "Executor deallocated") }
+                return try self.callFunction(name, arguments: args)
+            },
+            callMethod: { [weak self] receiver, methodName, args in
+                guard let self = self else { throw RuntimeError.generic(message: "Executor deallocated") }
+                return try self.callMethod(receiver, methodName: methodName, arguments: args)
+            }
+        )
     }
 
     /// Sets the external function resolver for standard library functions
@@ -692,6 +699,82 @@ public final class StatementExecutor: @unchecked Sendable {
         }
 
         throw RuntimeError.undefinedFunction(name: name)
+    }
+
+    /// Calls a method on an instance.
+    /// - Parameters:
+    ///   - receiver: The receiver value (must be an instance)
+    ///   - methodName: The name of the method to call
+    ///   - arguments: The arguments to pass to the method
+    /// - Returns: The return value of the method
+    public func callMethod(
+        _ receiver: RuntimeValue,
+        methodName: String,
+        arguments: [RuntimeValue]
+    ) throws -> RuntimeValue {
+        guard case .instance(let inst) = receiver else {
+            throw RuntimeError.generic(message: "Cannot call method '\(methodName)' on non-instance type '\(receiver.typeName)'")
+        }
+
+        guard let method = inst.classDefinition.methods[methodName] else {
+            throw RuntimeError.generic(message: "Method '\(methodName)' not found in class '\(inst.className)'")
+        }
+
+        guard arguments.count == method.parameters.count else {
+            throw RuntimeError.wrongArgumentCount(
+                function: "\(inst.className).\(methodName)",
+                expected: method.parameters.count,
+                actual: arguments.count
+            )
+        }
+
+        if !method.parameterTypes.isEmpty {
+            for (index, (param, arg)) in zip(method.parameters, arguments).enumerated() {
+                guard index < method.parameterTypes.count else { continue }
+                let expectedType = method.parameterTypes[index]
+                try validateType(arg, expected: expectedType, context: "parameter '\(param)' of '\(inst.className).\(methodName)'")
+            }
+        }
+
+        try environment.enterCall()
+        defer { environment.exitCall() }
+
+        functionDepth += 1
+        defer { functionDepth -= 1 }
+
+        try environment.pushScope()
+        defer { environment.popScope() }
+
+        environment.define("self", value: receiver)
+
+        for (name, value) in inst.fields {
+            if let memberType = inst.classDefinition.members[name] {
+                environment.define(name, value: value, type: memberType)
+            } else {
+                environment.define(name, value: value)
+            }
+        }
+
+        for (index, (param, arg)) in zip(method.parameters, arguments).enumerated() {
+            let paramType = index < method.parameterTypes.count ? method.parameterTypes[index] : nil
+            environment.define(param, value: arg, type: paramType)
+        }
+
+        let result = try execute(method.body)
+
+        switch result {
+        case .returnValue(let value):
+            let returnValue = value ?? .null
+            if let expectedType = method.returnType {
+                try validateType(returnValue, expected: expectedType, context: "return value of '\(inst.className).\(methodName)'")
+            }
+            return returnValue
+        default:
+            if method.returnType != nil {
+                throw RuntimeError.missingReturnValue(function: "\(inst.className).\(methodName)")
+            }
+            return .null
+        }
     }
 
     private func createInstance(
