@@ -3,6 +3,14 @@ import FeLangCore
 import Foundation
 import Testing
 
+final class EvaluationTracker: @unchecked Sendable {
+    private(set) var wasEvaluated = false
+
+    func markEvaluated() {
+        wasEvaluated = true
+    }
+}
+
 // MARK: - RuntimeValue Tests
 
 struct RuntimeValueTests {
@@ -466,6 +474,126 @@ struct ExpressionEvaluatorTests {
 
         #expect(try evaluator.evaluate(falseOrTrue) == .boolean(true))
         #expect(try evaluator.evaluate(falseOrFalse) == .boolean(false))
+    }
+
+    // MARK: - Short-Circuit Evaluation Tests
+
+    @Test func testAndShortCircuitSkipsRightWhenLeftIsFalse() throws {
+        let tracker = EvaluationTracker()
+        let env = Environment()
+        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
+            if name == "sideEffect" {
+                tracker.markEvaluated()
+                return .boolean(true)
+            }
+            throw RuntimeError.undefinedFunction(name: name)
+        }
+
+        let expr = Expression.binary(
+            .and,
+            .literal(.boolean(false)),
+            .functionCall("sideEffect", [])
+        )
+        let result = try evaluator.evaluate(expr)
+
+        #expect(result == .boolean(false))
+        #expect(tracker.wasEvaluated == false)
+    }
+
+    @Test func testAndEvaluatesRightWhenLeftIsTrue() throws {
+        let tracker = EvaluationTracker()
+        let env = Environment()
+        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
+            if name == "sideEffect" {
+                tracker.markEvaluated()
+                return .boolean(true)
+            }
+            throw RuntimeError.undefinedFunction(name: name)
+        }
+
+        let expr = Expression.binary(
+            .and,
+            .literal(.boolean(true)),
+            .functionCall("sideEffect", [])
+        )
+        let result = try evaluator.evaluate(expr)
+
+        #expect(result == .boolean(true))
+        #expect(tracker.wasEvaluated == true)
+    }
+
+    @Test func testOrShortCircuitSkipsRightWhenLeftIsTrue() throws {
+        let tracker = EvaluationTracker()
+        let env = Environment()
+        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
+            if name == "sideEffect" {
+                tracker.markEvaluated()
+                return .boolean(false)
+            }
+            throw RuntimeError.undefinedFunction(name: name)
+        }
+
+        let expr = Expression.binary(
+            .or,
+            .literal(.boolean(true)),
+            .functionCall("sideEffect", [])
+        )
+        let result = try evaluator.evaluate(expr)
+
+        #expect(result == .boolean(true))
+        #expect(tracker.wasEvaluated == false)
+    }
+
+    @Test func testOrEvaluatesRightWhenLeftIsFalse() throws {
+        let tracker = EvaluationTracker()
+        let env = Environment()
+        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
+            if name == "sideEffect" {
+                tracker.markEvaluated()
+                return .boolean(true)
+            }
+            throw RuntimeError.undefinedFunction(name: name)
+        }
+
+        let expr = Expression.binary(
+            .or,
+            .literal(.boolean(false)),
+            .functionCall("sideEffect", [])
+        )
+        let result = try evaluator.evaluate(expr)
+
+        #expect(result == .boolean(true))
+        #expect(tracker.wasEvaluated == true)
+    }
+
+    @Test func testAndShortCircuitAvoidsErrorInRight() throws {
+        let env = Environment()
+        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
+            throw RuntimeError.undefinedFunction(name: name)
+        }
+
+        let expr = Expression.binary(
+            .and,
+            .literal(.boolean(false)),
+            .functionCall("throwingFunction", [])
+        )
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .boolean(false))
+    }
+
+    @Test func testOrShortCircuitAvoidsErrorInRight() throws {
+        let env = Environment()
+        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
+            throw RuntimeError.undefinedFunction(name: name)
+        }
+
+        let expr = Expression.binary(
+            .or,
+            .literal(.boolean(true)),
+            .functionCall("throwingFunction", [])
+        )
+        let result = try evaluator.evaluate(expr)
+        #expect(result == .boolean(true))
     }
 
     // MARK: - Bitwise Operations
