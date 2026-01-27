@@ -67,6 +67,8 @@ public enum TokenizerUtilities {
         ("変数", .variableKeyword),
         ("定数", .constantKeyword),
         ("大域", .globalKeyword),
+        ("まで", .toKeyword),
+        ("ずつ", .stepKeyword),
         ("or", .orKeyword),
         ("to", .toKeyword),
         ("in", .inKeyword),
