@@ -21,7 +21,9 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "endwhile", kind: .keyword, detail: "End while loop"),
         CompletionItem(label: "for", kind: .keyword, detail: "For loop", insertText: "for "),
         CompletionItem(label: "to", kind: .keyword, detail: "Range end"),
+        CompletionItem(label: "まで", kind: .keyword, detail: "範囲終了 (to)"),
         CompletionItem(label: "step", kind: .keyword, detail: "Loop step"),
+        CompletionItem(label: "ずつ", kind: .keyword, detail: "ステップ (step)"),
         CompletionItem(label: "endfor", kind: .keyword, detail: "End for loop"),
         CompletionItem(label: "in", kind: .keyword, detail: "For-each iteration"),
 
@@ -288,7 +290,7 @@ public struct CompletionProvider: Sendable {
             // English keywords
             "if", "then", "else", "elif", "elseif", "endif",
             "while", "do", "endwhile",
-            "for", "to", "step", "endfor", "in",
+            "for", "to", "まで", "step", "ずつ", "endfor", "in",
             "function", "endfunction", "procedure", "endprocedure",
             "class", "endclass",
             "return", "break", "continue",

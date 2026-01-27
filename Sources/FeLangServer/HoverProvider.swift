@@ -21,7 +21,9 @@ public struct HoverProvider: Sendable {
         "endwhile": "**endwhile** - End while\n\nMarks the end of a while loop.",
         "for": "**for** - For loop\n\nIterates over a range or collection.\n\n```fe\nfor i ← 1 to 10 do\n    // code\nendfor\n```",
         "to": "**to** - Range end\n\nSpecifies the end of a range in a for loop.",
+        "まで": "**まで** (to) - 範囲終了\n\nforループの範囲の終了値を指定します。\n\n```fe\nfor i ← 1 まで 10 do\n    // code\nendfor\n```",
         "step": "**step** - Loop step\n\nSpecifies the increment value in a for loop.",
+        "ずつ": "**ずつ** (step) - ステップ\n\nforループの増分値を指定します。\n\n```fe\nfor i ← 1 まで 10 ずつ 2 do\n    // code\nendfor\n```",
         "endfor": "**endfor** - End for\n\nMarks the end of a for loop.",
         "in": "**in** - For-each iterator\n\nIterates over elements in a collection.\n\n```fe\nfor item in array do\n    // code\nendfor\n```",
 
