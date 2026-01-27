@@ -39,6 +39,11 @@ public struct ExpressionEvaluator: Sendable {
             return try environment.get(name)
 
         case .binary(let operatorType, let left, let right):
+            if operatorType == .and {
+                return try evaluateShortCircuitAnd(left, right)
+            } else if operatorType == .or {
+                return try evaluateShortCircuitOr(left, right)
+            }
             let leftValue = try evaluate(left)
             let rightValue = try evaluate(right)
             return try evaluateBinary(operatorType, left: leftValue, right: rightValue)
@@ -174,34 +179,41 @@ public struct ExpressionEvaluator: Sendable {
         case .rightShift:
             return try evaluateRightShift(left, right)
 
-        // Logical
-        case .and:
-            return try evaluateLogicalAnd(left, right)
-        case .or:
-            return try evaluateLogicalOr(left, right)
+        case .and, .or:
+            fatalError("Logical operators should be handled by short-circuit evaluation")
         }
     }
 
-    // MARK: - Logical Operations
+    // MARK: - Logical Operations (Short-Circuit Evaluation)
 
-    private func evaluateLogicalAnd(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
-        guard case .boolean(let leftBool) = left else {
-            throw RuntimeError.typeMismatch(expected: "Boolean", actual: left.typeName, operation: "and")
+    private func evaluateShortCircuitAnd(_ left: FEExpression, _ right: FEExpression) throws -> RuntimeValue {
+        let leftValue = try evaluate(left)
+        guard case .boolean(let leftBool) = leftValue else {
+            throw RuntimeError.typeMismatch(expected: "Boolean", actual: leftValue.typeName, operation: "and")
         }
-        guard case .boolean(let rightBool) = right else {
-            throw RuntimeError.typeMismatch(expected: "Boolean", actual: right.typeName, operation: "and")
+        if !leftBool {
+            return .boolean(false)
         }
-        return .boolean(leftBool && rightBool)
+        let rightValue = try evaluate(right)
+        guard case .boolean(let rightBool) = rightValue else {
+            throw RuntimeError.typeMismatch(expected: "Boolean", actual: rightValue.typeName, operation: "and")
+        }
+        return .boolean(rightBool)
     }
 
-    private func evaluateLogicalOr(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
-        guard case .boolean(let leftBool) = left else {
-            throw RuntimeError.typeMismatch(expected: "Boolean", actual: left.typeName, operation: "or")
+    private func evaluateShortCircuitOr(_ left: FEExpression, _ right: FEExpression) throws -> RuntimeValue {
+        let leftValue = try evaluate(left)
+        guard case .boolean(let leftBool) = leftValue else {
+            throw RuntimeError.typeMismatch(expected: "Boolean", actual: leftValue.typeName, operation: "or")
         }
-        guard case .boolean(let rightBool) = right else {
-            throw RuntimeError.typeMismatch(expected: "Boolean", actual: right.typeName, operation: "or")
+        if leftBool {
+            return .boolean(true)
         }
-        return .boolean(leftBool || rightBool)
+        let rightValue = try evaluate(right)
+        guard case .boolean(let rightBool) = rightValue else {
+            throw RuntimeError.typeMismatch(expected: "Boolean", actual: rightValue.typeName, operation: "or")
+        }
+        return .boolean(rightBool)
     }
 
     private func evaluateBitwiseAnd(_ left: RuntimeValue, _ right: RuntimeValue) throws -> RuntimeValue {
