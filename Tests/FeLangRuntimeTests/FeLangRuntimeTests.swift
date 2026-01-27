@@ -280,9 +280,15 @@ struct ExpressionEvaluatorTests {
         env.define("name", value: .string("Alice"))
         env.define("arr", value: .array([.integer(1), .integer(2), .integer(3)]))
 
-        return ExpressionEvaluator(environment: env) { _, _ in
-            throw RuntimeError.undefinedFunction(name: "unknown")
-        }
+        return ExpressionEvaluator(
+            environment: env,
+            callFunction: { _, _ in
+                throw RuntimeError.undefinedFunction(name: "unknown")
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported in test evaluator")
+            }
+        )
     }
 
     @Test func testEvaluateIntegerLiteral() throws {
@@ -481,13 +487,19 @@ struct ExpressionEvaluatorTests {
     @Test func testAndShortCircuitSkipsRightWhenLeftIsFalse() throws {
         let tracker = EvaluationTracker()
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            if name == "sideEffect" {
-                tracker.markEvaluated()
-                return .boolean(true)
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                if name == "sideEffect" {
+                    tracker.markEvaluated()
+                    return .boolean(true)
+                }
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
             }
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        )
 
         let expr = Expression.binary(
             .and,
@@ -503,13 +515,19 @@ struct ExpressionEvaluatorTests {
     @Test func testAndEvaluatesRightWhenLeftIsTrue() throws {
         let tracker = EvaluationTracker()
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            if name == "sideEffect" {
-                tracker.markEvaluated()
-                return .boolean(true)
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                if name == "sideEffect" {
+                    tracker.markEvaluated()
+                    return .boolean(true)
+                }
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
             }
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        )
 
         let expr = Expression.binary(
             .and,
@@ -525,13 +543,19 @@ struct ExpressionEvaluatorTests {
     @Test func testOrShortCircuitSkipsRightWhenLeftIsTrue() throws {
         let tracker = EvaluationTracker()
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            if name == "sideEffect" {
-                tracker.markEvaluated()
-                return .boolean(false)
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                if name == "sideEffect" {
+                    tracker.markEvaluated()
+                    return .boolean(false)
+                }
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
             }
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        )
 
         let expr = Expression.binary(
             .or,
@@ -547,13 +571,19 @@ struct ExpressionEvaluatorTests {
     @Test func testOrEvaluatesRightWhenLeftIsFalse() throws {
         let tracker = EvaluationTracker()
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            if name == "sideEffect" {
-                tracker.markEvaluated()
-                return .boolean(true)
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                if name == "sideEffect" {
+                    tracker.markEvaluated()
+                    return .boolean(true)
+                }
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
             }
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        )
 
         let expr = Expression.binary(
             .or,
@@ -568,9 +598,15 @@ struct ExpressionEvaluatorTests {
 
     @Test func testAndShortCircuitAvoidsErrorInRight() throws {
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
+            }
+        )
 
         let expr = Expression.binary(
             .and,
@@ -583,9 +619,15 @@ struct ExpressionEvaluatorTests {
 
     @Test func testOrShortCircuitAvoidsErrorInRight() throws {
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
+            }
+        )
 
         let expr = Expression.binary(
             .or,
@@ -757,7 +799,7 @@ struct ExpressionEvaluatorTests {
         #expect(result == .array([.integer(1), .integer(2)]))
     }
 
-    @Test func testMethodCallThrowsNotSupportedError() throws {
+    @Test func testMethodCallDelegatesToCallMethod() throws {
         let evaluator = makeEvaluator()
         let expr = Expression.methodCall(.identifier("obj"), "getValue", [])
         #expect(throws: RuntimeError.self) {
@@ -1720,5 +1762,288 @@ struct ClassInheritanceTests {
             #expect(error.description.contains("Superclass"))
             #expect(error.description.contains("not found"))
         }
+    }
+}
+
+// MARK: - Method Call Tests
+
+struct MethodCallTests {
+
+    @Test func testBasicMethodCall() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        let counterClass = ClassDeclaration(
+            name: "Counter",
+            superclass: nil,
+            members: [MemberDeclaration(name: "value", type: .integer)],
+            constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "getValue",
+                    parameters: [],
+                    returnType: .integer,
+                    body: [.returnStatement(ReturnStatement(expression: .identifier("value")))]
+                )
+            ]
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(counterClass))
+
+        let instance = try executor.callFunction("Counter", arguments: [])
+        let result = try executor.callMethod(instance, methodName: "getValue", arguments: [])
+
+        #expect(result.returnValue == .integer(0))
+    }
+
+    @Test func testMethodCallWithParameters() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        let calculatorClass = ClassDeclaration(
+            name: "Calculator",
+            superclass: nil,
+            members: [],
+            constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "add",
+                    parameters: [
+                        Parameter(name: "a", type: .integer),
+                        Parameter(name: "b", type: .integer)
+                    ],
+                    returnType: .integer,
+                    body: [
+                        .returnStatement(ReturnStatement(
+                            expression: .binary(.add, .identifier("a"), .identifier("b"))
+                        ))
+                    ]
+                )
+            ]
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(calculatorClass))
+
+        let instance = try executor.callFunction("Calculator", arguments: [])
+        let result = try executor.callMethod(instance, methodName: "add", arguments: [.integer(3), .integer(5)])
+
+        #expect(result.returnValue == .integer(8))
+    }
+
+    @Test func testMethodCallAccessesMemberVariables() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        let counterClass = ClassDeclaration(
+            name: "Counter",
+            superclass: nil,
+            members: [MemberDeclaration(name: "count", type: .integer)],
+            constructor: ConstructorDeclaration(
+                parameters: [Parameter(name: "initial", type: .integer)],
+                body: [
+                    .assignment(.fieldAccess(
+                        Assignment.FieldAccess(object: .identifier("self"), field: "count"),
+                        .identifier("initial")
+                    ))
+                ]
+            ),
+            methods: [
+                MethodDeclaration(
+                    name: "getCount",
+                    parameters: [],
+                    returnType: .integer,
+                    body: [.returnStatement(ReturnStatement(expression: .identifier("count")))]
+                )
+            ]
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(counterClass))
+
+        let instance = try executor.callFunction("Counter", arguments: [.integer(42)])
+        let result = try executor.callMethod(instance, methodName: "getCount", arguments: [])
+
+        #expect(result.returnValue == .integer(42))
+    }
+
+    @Test func testMethodNotFoundError() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        let emptyClass = ClassDeclaration(
+            name: "Empty",
+            superclass: nil,
+            members: [],
+            constructor: nil,
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(emptyClass))
+
+        let instance = try executor.callFunction("Empty", arguments: [])
+
+        do {
+            _ = try executor.callMethod(instance, methodName: "nonExistent", arguments: [])
+            Issue.record("Expected method not found error")
+        } catch let error as RuntimeError {
+            #expect(error.description.contains("Method"))
+            #expect(error.description.contains("not found"))
+        }
+    }
+
+    @Test func testMethodCallOnNonInstanceError() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        do {
+            _ = try executor.callMethod(.integer(42), methodName: "getValue", arguments: [])
+            Issue.record("Expected error for method call on non-instance")
+        } catch let error as RuntimeError {
+            #expect(error.description.contains("non-instance"))
+        }
+    }
+
+    @Test func testMethodCallWrongArgumentCount() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        let testClass = ClassDeclaration(
+            name: "Test",
+            superclass: nil,
+            members: [],
+            constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "twoArgs",
+                    parameters: [
+                        Parameter(name: "a", type: .integer),
+                        Parameter(name: "b", type: .integer)
+                    ],
+                    returnType: .integer,
+                    body: [.returnStatement(ReturnStatement(expression: .literal(.integer(0))))]
+                )
+            ]
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(testClass))
+
+        let instance = try executor.callFunction("Test", arguments: [])
+
+        do {
+            _ = try executor.callMethod(instance, methodName: "twoArgs", arguments: [.integer(1)])
+            Issue.record("Expected wrong argument count error")
+        } catch let error as RuntimeError {
+            #expect(error.description.contains("expects 2"))
+            #expect(error.description.contains("got 1"))
+        }
+    }
+
+    @Test func testVoidMethodReturnsNull() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        let testClass = ClassDeclaration(
+            name: "Test",
+            superclass: nil,
+            members: [],
+            constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "doNothing",
+                    parameters: [],
+                    returnType: nil,
+                    body: []
+                )
+            ]
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(testClass))
+
+        let instance = try executor.callFunction("Test", arguments: [])
+        let result = try executor.callMethod(instance, methodName: "doNothing", arguments: [])
+
+        #expect(result.returnValue == .null)
+    }
+
+    @Test func testInheritedMethodCall() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        let animalClass = ClassDeclaration(
+            name: "Animal",
+            superclass: nil,
+            members: [MemberDeclaration(name: "name", type: .string)],
+            constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "getName",
+                    parameters: [],
+                    returnType: .string,
+                    body: [.returnStatement(ReturnStatement(expression: .identifier("name")))]
+                )
+            ]
+        )
+
+        let dogClass = ClassDeclaration(
+            name: "Dog",
+            superclass: "Animal",
+            members: [],
+            constructor: nil,
+            methods: []
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(animalClass))
+        _ = try executor.executeStatement(.classDeclaration(dogClass))
+
+        let dog = try executor.callFunction("Dog", arguments: [])
+        let result = try executor.callMethod(dog, methodName: "getName", arguments: [])
+
+        #expect(result.returnValue == .string(""))
+    }
+
+    @Test func testMethodMutatesInstanceState() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
+
+        let counterClass = ClassDeclaration(
+            name: "Counter",
+            superclass: nil,
+            members: [MemberDeclaration(name: "value", type: .integer)],
+            constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "increment",
+                    parameters: [],
+                    returnType: nil,
+                    body: [
+                        .assignment(.fieldAccess(
+                            Assignment.FieldAccess(object: .identifier("self"), field: "value"),
+                            .binary(.add, .identifier("value"), .literal(.integer(1)))
+                        ))
+                    ]
+                ),
+                MethodDeclaration(
+                    name: "getValue",
+                    parameters: [],
+                    returnType: .integer,
+                    body: [.returnStatement(ReturnStatement(expression: .identifier("value")))]
+                )
+            ]
+        )
+
+        _ = try executor.executeStatement(.classDeclaration(counterClass))
+
+        let instance = try executor.callFunction("Counter", arguments: [])
+
+        // Call increment and get the modified instance
+        let incrementResult = try executor.callMethod(instance, methodName: "increment", arguments: [])
+
+        // The modified instance should have value = 1
+        let getValueResult = try executor.callMethod(incrementResult.modifiedInstance, methodName: "getValue", arguments: [])
+        #expect(getValueResult.returnValue == .integer(1))
+
+        // Call increment again on the modified instance
+        let incrementResult2 = try executor.callMethod(incrementResult.modifiedInstance, methodName: "increment", arguments: [])
+        let getValueResult2 = try executor.callMethod(incrementResult2.modifiedInstance, methodName: "getValue", arguments: [])
+        #expect(getValueResult2.returnValue == .integer(2))
     }
 }

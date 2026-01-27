@@ -12,14 +12,19 @@ public struct ExpressionEvaluator: Sendable {
     /// Function to call external functions
     private let callFunction: @Sendable (String, [RuntimeValue]) throws -> RuntimeValue
 
+    /// Function to call methods on instances, returns (returnValue, modifiedInstance)
+    private let callMethod: @Sendable (RuntimeValue, String, [RuntimeValue]) throws -> (RuntimeValue, RuntimeValue)
+
     // MARK: - Initialization
 
     public init(
         environment: Environment,
-        callFunction: @escaping @Sendable (String, [RuntimeValue]) throws -> RuntimeValue
+        callFunction: @escaping @Sendable (String, [RuntimeValue]) throws -> RuntimeValue,
+        callMethod: @escaping @Sendable (RuntimeValue, String, [RuntimeValue]) throws -> (RuntimeValue, RuntimeValue)
     ) {
         self.environment = environment
         self.callFunction = callFunction
+        self.callMethod = callMethod
     }
 
     // MARK: - Main Evaluation
@@ -60,8 +65,16 @@ public struct ExpressionEvaluator: Sendable {
             let args = try arguments.map { try evaluate($0) }
             return try callFunction(name, args)
 
-        case .methodCall(_, let method, _):
-            throw RuntimeError.methodCallNotSupported(method: method)
+        case .methodCall(let receiver, let method, let arguments):
+            let receiverValue = try evaluate(receiver)
+            let args = try arguments.map { try evaluate($0) }
+            let (returnValue, modifiedInstance) = try callMethod(receiverValue, method, args)
+            // Update the receiver variable if it's an identifier to propagate instance state changes
+            // Skip assignment for constants - they cannot be modified (this is intentional behavior)
+            if case .identifier(let name) = receiver, !environment.isConstant(name) {
+                try environment.assign(name, value: modifiedInstance)
+            }
+            return returnValue
 
         case .arrayLiteral(let elements):
             return try evaluateArrayLiteral(elements)

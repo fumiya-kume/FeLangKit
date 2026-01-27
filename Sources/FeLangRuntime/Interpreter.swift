@@ -67,6 +67,13 @@ public final class Interpreter: @unchecked Sendable {
                     throw RuntimeError.generic(message: "Interpreter deallocated")
                 }
                 return try self.callFunction(name, arguments: args)
+            },
+            callMethod: { [weak self] receiver, methodName, args in
+                guard let self = self else {
+                    throw RuntimeError.generic(message: "Interpreter deallocated")
+                }
+                let result = try self.executor.callMethod(receiver, methodName: methodName, arguments: args)
+                return (result.returnValue, result.modifiedInstance)
             }
         )
         return try evaluator.evaluate(expression)
