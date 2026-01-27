@@ -165,21 +165,50 @@ public struct FunctionValue: Equatable, Sendable {
     /// The body statements
     public let body: [Statement]
 
-    /// The captured environment (closure)
-    public let capturedEnvironment: [String: RuntimeValue]
-
-    /// The captured constants from the closure environment
-    public let capturedConstants: Set<String>
-
-    /// The captured types from the closure environment
-    public let capturedTypes: [String: DataType]
-
-    /// The captured uninitialized variables from the closure environment
-    public let capturedUninitialized: Set<String>
+    /// The captured environment (closure) using copy-on-write storage
+    public let captured: Environment.CapturedEnvironment
 
     /// The return type
     public let returnType: DataType?
 
+    /// Convenience accessor for captured environment values (for backward compatibility)
+    public var capturedEnvironment: [String: RuntimeValue] {
+        return captured.values
+    }
+
+    /// Convenience accessor for captured constants (for backward compatibility)
+    public var capturedConstants: Set<String> {
+        return captured.constants
+    }
+
+    /// Convenience accessor for captured types (for backward compatibility)
+    public var capturedTypes: [String: DataType] {
+        return captured.types
+    }
+
+    /// Convenience accessor for captured uninitialized variables (for backward compatibility)
+    public var capturedUninitialized: Set<String> {
+        return captured.uninitialized
+    }
+
+    /// Creates a function value with a captured environment.
+    public init(
+        name: String,
+        parameters: [String],
+        parameterTypes: [DataType] = [],
+        body: [Statement],
+        captured: Environment.CapturedEnvironment,
+        returnType: DataType?
+    ) {
+        self.name = name
+        self.parameters = parameters
+        self.parameterTypes = parameterTypes
+        self.body = body
+        self.captured = captured
+        self.returnType = returnType
+    }
+
+    /// Creates a function value with individual captured components (for backward compatibility).
     public init(
         name: String,
         parameters: [String],
@@ -195,10 +224,12 @@ public struct FunctionValue: Equatable, Sendable {
         self.parameters = parameters
         self.parameterTypes = parameterTypes
         self.body = body
-        self.capturedEnvironment = capturedEnvironment
-        self.capturedConstants = capturedConstants
-        self.capturedTypes = capturedTypes
-        self.capturedUninitialized = capturedUninitialized
+        self.captured = Environment.CapturedEnvironment(
+            values: capturedEnvironment,
+            constants: capturedConstants,
+            types: capturedTypes,
+            uninitialized: capturedUninitialized
+        )
         self.returnType = returnType
     }
 }
@@ -217,18 +248,45 @@ public struct ProcedureValue: Equatable, Sendable {
     /// The body statements
     public let body: [Statement]
 
-    /// The captured environment (closure)
-    public let capturedEnvironment: [String: RuntimeValue]
+    /// The captured environment (closure) using copy-on-write storage
+    public let captured: Environment.CapturedEnvironment
 
-    /// The captured constants from the closure environment
-    public let capturedConstants: Set<String>
+    /// Convenience accessor for captured environment values (for backward compatibility)
+    public var capturedEnvironment: [String: RuntimeValue] {
+        return captured.values
+    }
 
-    /// The captured types from the closure environment
-    public let capturedTypes: [String: DataType]
+    /// Convenience accessor for captured constants (for backward compatibility)
+    public var capturedConstants: Set<String> {
+        return captured.constants
+    }
 
-    /// The captured uninitialized variables from the closure environment
-    public let capturedUninitialized: Set<String>
+    /// Convenience accessor for captured types (for backward compatibility)
+    public var capturedTypes: [String: DataType] {
+        return captured.types
+    }
 
+    /// Convenience accessor for captured uninitialized variables (for backward compatibility)
+    public var capturedUninitialized: Set<String> {
+        return captured.uninitialized
+    }
+
+    /// Creates a procedure value with a captured environment.
+    public init(
+        name: String,
+        parameters: [String],
+        parameterTypes: [DataType] = [],
+        body: [Statement],
+        captured: Environment.CapturedEnvironment
+    ) {
+        self.name = name
+        self.parameters = parameters
+        self.parameterTypes = parameterTypes
+        self.body = body
+        self.captured = captured
+    }
+
+    /// Creates a procedure value with individual captured components (for backward compatibility).
     public init(
         name: String,
         parameters: [String],
@@ -243,10 +301,12 @@ public struct ProcedureValue: Equatable, Sendable {
         self.parameters = parameters
         self.parameterTypes = parameterTypes
         self.body = body
-        self.capturedEnvironment = capturedEnvironment
-        self.capturedConstants = capturedConstants
-        self.capturedTypes = capturedTypes
-        self.capturedUninitialized = capturedUninitialized
+        self.captured = Environment.CapturedEnvironment(
+            values: capturedEnvironment,
+            constants: capturedConstants,
+            types: capturedTypes,
+            uninitialized: capturedUninitialized
+        )
     }
 }
 

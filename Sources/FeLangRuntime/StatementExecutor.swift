@@ -231,10 +231,7 @@ public final class StatementExecutor: @unchecked Sendable {
             parameters: parameterNames,
             parameterTypes: parameterTypes,
             body: decl.body,
-            capturedEnvironment: captured.values,
-            capturedConstants: captured.constants,
-            capturedTypes: captured.types,
-            capturedUninitialized: captured.uninitialized,
+            captured: captured,
             returnType: decl.returnType
         )
         environment.define(decl.name, value: .function(functionValue))
@@ -249,10 +246,7 @@ public final class StatementExecutor: @unchecked Sendable {
             parameters: parameterNames,
             parameterTypes: parameterTypes,
             body: decl.body,
-            capturedEnvironment: captured.values,
-            capturedConstants: captured.constants,
-            capturedTypes: captured.types,
-            capturedUninitialized: captured.uninitialized
+            captured: captured
         )
         environment.define(decl.name, value: .procedure(procedureValue))
     }
@@ -887,13 +881,7 @@ public final class StatementExecutor: @unchecked Sendable {
         defer { environment.popScope() }
 
         // Import captured environment with constant metadata, type information, and initialization status preserved
-        let capturedEnv = Environment.CapturedEnvironment(
-            values: function.capturedEnvironment,
-            constants: function.capturedConstants,
-            types: function.capturedTypes,
-            uninitialized: function.capturedUninitialized
-        )
-        environment.importVariables(capturedEnv)
+        environment.importVariables(function.captured)
 
         // Bind parameters with their types
         for (index, (param, arg)) in zip(function.parameters, arguments).enumerated() {
@@ -948,13 +936,7 @@ public final class StatementExecutor: @unchecked Sendable {
         defer { environment.popScope() }
 
         // Import captured environment with constant metadata, type information, and initialization status preserved
-        let capturedEnv = Environment.CapturedEnvironment(
-            values: procedure.capturedEnvironment,
-            constants: procedure.capturedConstants,
-            types: procedure.capturedTypes,
-            uninitialized: procedure.capturedUninitialized
-        )
-        environment.importVariables(capturedEnv)
+        environment.importVariables(procedure.captured)
 
         // Bind parameters with their types
         for (index, (param, arg)) in zip(procedure.parameters, arguments).enumerated() {

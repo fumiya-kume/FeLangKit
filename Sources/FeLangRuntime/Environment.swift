@@ -1,6 +1,44 @@
 import Foundation
 import FeLangCore
 
+/// Copy-on-write storage for captured environment data.
+/// This class enables efficient sharing of captured environments between multiple closures.
+public final class CapturedEnvironmentStorage: @unchecked Sendable, Equatable {
+    public let values: [String: RuntimeValue]
+    public let constants: Set<String>
+    public let types: [String: DataType]
+    public let uninitialized: Set<String>
+
+    public init(
+        values: [String: RuntimeValue],
+        constants: Set<String>,
+        types: [String: DataType],
+        uninitialized: Set<String>
+    ) {
+        self.values = values
+        self.constants = constants
+        self.types = types
+        self.uninitialized = uninitialized
+    }
+
+    /// Creates a deep copy of this storage.
+    public func copy() -> CapturedEnvironmentStorage {
+        return CapturedEnvironmentStorage(
+            values: values,
+            constants: constants,
+            types: types,
+            uninitialized: uninitialized
+        )
+    }
+
+    public static func == (lhs: CapturedEnvironmentStorage, rhs: CapturedEnvironmentStorage) -> Bool {
+        return lhs.values == rhs.values &&
+               lhs.constants == rhs.constants &&
+               lhs.types == rhs.types &&
+               lhs.uninitialized == rhs.uninitialized
+    }
+}
+
 /// Manages variable scopes and bindings during runtime execution.
 public final class Environment: @unchecked Sendable {
     /// A single scope containing variable bindings
@@ -23,6 +61,16 @@ public final class Environment: @unchecked Sendable {
     /// Maximum allowed call depth
     private let maxCallDepth: Int
 
+    /// Version counter for cache invalidation.
+    /// Incremented whenever the environment is modified.
+    private var environmentVersion: UInt64 = 0
+
+    /// Cached captured environment snapshot.
+    private var cachedCapture: CapturedEnvironment?
+
+    /// Version at which the cache was created.
+    private var cacheVersion: UInt64 = 0
+
     /// Record type definitions.
     ///
     /// Note:
@@ -44,6 +92,15 @@ public final class Environment: @unchecked Sendable {
     /// Class definitions (similar to record definitions, globally scoped).
     private var classDefinitions: [String: ClassDefinition] = [:]
 
+    // MARK: - Cache Management
+
+    /// Invalidates the cached environment snapshot.
+    /// Called whenever the environment is modified.
+    private func invalidateCache() {
+        environmentVersion &+= 1
+        cachedCapture = nil
+    }
+
     // MARK: - Initialization
 
     public init(maxScopeDepth: Int = 1000, maxCallDepth: Int = 500) {
@@ -60,12 +117,14 @@ public final class Environment: @unchecked Sendable {
         guard scopes.count < maxScopeDepth else {
             throw RuntimeError.stackOverflow
         }
+        invalidateCache()
         scopes.append(Scope())
     }
 
     /// Removes the innermost scope.
     public func popScope() {
         guard scopes.count > 1 else { return }
+        invalidateCache()
         scopes.removeLast()
     }
 
@@ -112,6 +171,7 @@ public final class Environment: @unchecked Sendable {
         isInitialized: Bool = true
     ) {
         guard !scopes.isEmpty else { return }
+        invalidateCache()
         scopes[0].variables[name] = value
         scopes[0].constants.remove(name)
         if let type = type {
@@ -150,6 +210,7 @@ public final class Environment: @unchecked Sendable {
         isInitialized: Bool = true
     ) {
         guard var currentScope = scopes.last else { return }
+        invalidateCache()
         currentScope.variables[name] = value
         // Update constant status - remove if not constant (handles redefinition)
         if isConstant {
@@ -238,6 +299,7 @@ public final class Environment: @unchecked Sendable {
 
         // Find and update the variable
         for index in (0..<scopes.count).reversed() where scopes[index].variables[name] != nil {
+            invalidateCache()
             scopes[index].variables[name] = value
             // Mark as initialized when assigned
             scopes[index].uninitialized.remove(name)
@@ -264,11 +326,25 @@ public final class Environment: @unchecked Sendable {
     // MARK: - Bulk Operations
 
     /// Represents a captured environment snapshot including constant metadata, type information, and initialization status.
-    public struct CapturedEnvironment {
-        public let values: [String: RuntimeValue]
-        public let constants: Set<String>
-        public let types: [String: DataType]
-        public let uninitialized: Set<String>
+    /// Uses copy-on-write semantics for efficient sharing between multiple closures.
+    public struct CapturedEnvironment: Sendable, Equatable {
+        private var storage: CapturedEnvironmentStorage
+
+        public var values: [String: RuntimeValue] {
+            return storage.values
+        }
+
+        public var constants: Set<String> {
+            return storage.constants
+        }
+
+        public var types: [String: DataType] {
+            return storage.types
+        }
+
+        public var uninitialized: Set<String> {
+            return storage.uninitialized
+        }
 
         public init(
             values: [String: RuntimeValue],
@@ -276,10 +352,21 @@ public final class Environment: @unchecked Sendable {
             types: [String: DataType] = [:],
             uninitialized: Set<String> = []
         ) {
-            self.values = values
-            self.constants = constants
-            self.types = types
-            self.uninitialized = uninitialized
+            self.storage = CapturedEnvironmentStorage(
+                values: values,
+                constants: constants,
+                types: types,
+                uninitialized: uninitialized
+            )
+        }
+
+        /// Creates a CapturedEnvironment from existing storage (for internal use).
+        internal init(storage: CapturedEnvironmentStorage) {
+            self.storage = storage
+        }
+
+        public static func == (lhs: CapturedEnvironment, rhs: CapturedEnvironment) -> Bool {
+            return lhs.storage == rhs.storage
         }
     }
 
@@ -326,7 +413,16 @@ public final class Environment: @unchecked Sendable {
     /// Creates a snapshot of the current environment for closures, including constant metadata, type information, and initialization status.
     /// This correctly handles shadowing: if an outer constant is shadowed by an inner non-constant,
     /// the captured binding will be non-constant.
+    ///
+    /// This method uses caching to avoid redundant iteration when the environment hasn't changed.
+    /// Multiple function declarations at the same environment state will share the same captured snapshot.
     public func captureEnvironmentWithConstants() -> CapturedEnvironment {
+        // Check if we have a valid cached capture
+        if let cached = cachedCapture, cacheVersion == environmentVersion {
+            return cached
+        }
+
+        // Build the capture by iterating through all scopes
         var capturedValues: [String: RuntimeValue] = [:]
         var capturedConstants: Set<String> = []
         var capturedTypes: [String: DataType] = [:]
@@ -361,12 +457,20 @@ public final class Environment: @unchecked Sendable {
                 }
             }
         }
-        return CapturedEnvironment(
+
+        // Create the captured environment with shared storage
+        let capture = CapturedEnvironment(
             values: capturedValues,
             constants: capturedConstants,
             types: capturedTypes,
             uninitialized: capturedUninitialized
         )
+
+        // Cache the result for future captures at the same environment state
+        cachedCapture = capture
+        cacheVersion = environmentVersion
+
+        return capture
     }
 
     // MARK: - Debugging
