@@ -154,7 +154,12 @@ extension Interpreter {
     public static func withOutputCapture() -> (interpreter: Interpreter, getOutput: @Sendable () -> String) {
         // OutputBuffer is marked @unchecked Sendable because the closures need to be Sendable,
         // but the buffer is only accessed sequentially (append during execution, get after).
-        // NSLock was removed to eliminate unnecessary synchronization overhead.
+        // NSLock was removed to avoid taking and releasing a lock on every print call, which
+        // would add unnecessary synchronization overhead in the common single-threaded case.
+        //
+        // Callers MUST ensure that all accesses to OutputBuffer are sequential (no concurrent
+        // calls to the returned printHandler and getOutput). Violating this assumption can
+        // lead to data races and undefined behavior.
         final class OutputBuffer: @unchecked Sendable {
             private var outputParts: [String] = []
 
