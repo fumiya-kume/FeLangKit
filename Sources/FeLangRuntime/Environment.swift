@@ -4,10 +4,10 @@ import FeLangCore
 /// Copy-on-write storage for captured environment data.
 /// This class enables efficient sharing of captured environments between multiple closures.
 public final class CapturedEnvironmentStorage: @unchecked Sendable, Equatable {
-    public var values: [String: RuntimeValue]
-    public var constants: Set<String>
-    public var types: [String: DataType]
-    public var uninitialized: Set<String>
+    public let values: [String: RuntimeValue]
+    public let constants: Set<String>
+    public let types: [String: DataType]
+    public let uninitialized: Set<String>
 
     public init(
         values: [String: RuntimeValue],
