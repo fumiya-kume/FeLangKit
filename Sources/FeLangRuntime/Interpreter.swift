@@ -147,21 +147,23 @@ extension Interpreter {
     }
 
     /// Creates an interpreter that captures output.
+    ///
+    /// - Note: The returned closures are designed for single-threaded use where
+    ///   `printHandler` is called during execution and `getOutput` is called after
+    ///   execution completes. They should not be called concurrently.
     public static func withOutputCapture() -> (interpreter: Interpreter, getOutput: @Sendable () -> String) {
+        // OutputBuffer is marked @unchecked Sendable because the closures need to be Sendable,
+        // but the buffer is only accessed sequentially (append during execution, get after).
+        // NSLock was removed to eliminate unnecessary synchronization overhead.
         final class OutputBuffer: @unchecked Sendable {
             private var outputParts: [String] = []
-            private let lock = NSLock()
 
             func append(_ text: String) {
-                lock.lock()
                 outputParts.append(text)
-                lock.unlock()
             }
 
             func get() -> String {
-                lock.lock()
-                defer { lock.unlock() }
-                return outputParts.joined()
+                outputParts.joined()
             }
         }
 
