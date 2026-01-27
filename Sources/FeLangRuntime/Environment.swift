@@ -69,6 +69,18 @@ public final class Environment: @unchecked Sendable {
         scopes.removeLast()
     }
 
+    /// Clears the innermost scope without removing it from the stack.
+    /// This is used for loop optimization to reuse the same scope across iterations
+    /// instead of repeatedly pushing and popping new scopes.
+    public func clearCurrentScope() {
+        guard scopes.count > 1 else { return }
+        let lastIndex = scopes.count - 1
+        scopes[lastIndex].variables.removeAll(keepingCapacity: true)
+        scopes[lastIndex].constants.removeAll(keepingCapacity: true)
+        scopes[lastIndex].types.removeAll(keepingCapacity: true)
+        scopes[lastIndex].uninitialized.removeAll(keepingCapacity: true)
+    }
+
     /// Returns the current scope depth.
     public var scopeDepth: Int {
         scopes.count
