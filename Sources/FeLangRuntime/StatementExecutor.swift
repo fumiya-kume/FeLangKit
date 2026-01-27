@@ -467,7 +467,14 @@ public final class StatementExecutor: @unchecked Sendable {
         loopDepth += 1
         defer { loopDepth -= 1 }
 
+        try environment.pushScope()
+        defer { environment.popScope() }
+
         while true {
+            // Clear scope before evaluating condition so it sees parent scope only
+            // (on first iteration, scope is already empty so this is a no-op)
+            environment.clearCurrentScope()
+
             let condition = try evaluator.evaluate(whileStmt.condition)
             guard case .boolean(let boolValue) = condition else {
                 throw RuntimeError.typeMismatch(
@@ -478,8 +485,6 @@ public final class StatementExecutor: @unchecked Sendable {
             }
             guard boolValue else { break }
 
-            try environment.pushScope()
-            defer { environment.popScope() }
             let result = try execute(whileStmt.body)
 
             switch result {
@@ -501,18 +506,15 @@ public final class StatementExecutor: @unchecked Sendable {
         loopDepth += 1
         defer { loopDepth -= 1 }
 
+        try environment.pushScope()
+        defer { environment.popScope() }
+
         repeat {
-            // Execute body in its own scope (consistent with while/for loops)
-            // Use do-catch to ensure popScope is called even on exception
-            try environment.pushScope()
-            let result: ControlFlow
-            do {
-                result = try execute(doWhileStmt.body)
-            } catch {
-                environment.popScope()
-                throw error
-            }
-            environment.popScope()
+            // Clear scope at start of each iteration so body variables don't persist
+            // (on first iteration, scope is already empty so this is a no-op)
+            environment.clearCurrentScope()
+
+            let result = try execute(doWhileStmt.body)
 
             switch result {
             case .breakLoop:
@@ -525,7 +527,8 @@ public final class StatementExecutor: @unchecked Sendable {
                 break
             }
 
-            // Evaluate condition outside the body scope (consistent with while loops)
+            // Clear scope before evaluating condition so it sees parent scope only
+            environment.clearCurrentScope()
             let condition = try evaluator.evaluate(doWhileStmt.condition)
             guard case .boolean(let boolValue) = condition else {
                 throw RuntimeError.typeMismatch(
@@ -597,9 +600,16 @@ public final class StatementExecutor: @unchecked Sendable {
             }
         }
 
+        try environment.pushScope()
+        defer { environment.popScope() }
+
+        var isFirstIteration = true
         for currentValue in range {
-            try environment.pushScope()
-            defer { environment.popScope() }
+            if isFirstIteration {
+                isFirstIteration = false
+            } else {
+                environment.clearCurrentScope()
+            }
             environment.define(rangeFor.variable, value: .integer(currentValue), type: .integer)
 
             let result = try execute(rangeFor.body)
@@ -633,9 +643,16 @@ public final class StatementExecutor: @unchecked Sendable {
             )
         }
 
+        try environment.pushScope()
+        defer { environment.popScope() }
+
+        var isFirstIteration = true
         for element in elements {
-            try environment.pushScope()
-            defer { environment.popScope() }
+            if isFirstIteration {
+                isFirstIteration = false
+            } else {
+                environment.clearCurrentScope()
+            }
             let elementType = inferDataType(from: element)
             environment.define(forEach.variable, value: element, type: elementType)
 
