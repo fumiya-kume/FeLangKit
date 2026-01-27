@@ -468,8 +468,11 @@ public final class StatementExecutor: @unchecked Sendable {
         try environment.pushScope()
         defer { environment.popScope() }
 
-        var isFirstIteration = true
         while true {
+            // Clear scope before evaluating condition so it sees parent scope only
+            // (on first iteration, scope is already empty so this is a no-op)
+            environment.clearCurrentScope()
+
             let condition = try evaluator.evaluate(whileStmt.condition)
             guard case .boolean(let boolValue) = condition else {
                 throw RuntimeError.typeMismatch(
@@ -480,11 +483,6 @@ public final class StatementExecutor: @unchecked Sendable {
             }
             guard boolValue else { break }
 
-            if isFirstIteration {
-                isFirstIteration = false
-            } else {
-                environment.clearCurrentScope()
-            }
             let result = try execute(whileStmt.body)
 
             switch result {
@@ -509,13 +507,11 @@ public final class StatementExecutor: @unchecked Sendable {
         try environment.pushScope()
         defer { environment.popScope() }
 
-        var isFirstIteration = true
         repeat {
-            if isFirstIteration {
-                isFirstIteration = false
-            } else {
-                environment.clearCurrentScope()
-            }
+            // Clear scope at start of each iteration so body variables don't persist
+            // (on first iteration, scope is already empty so this is a no-op)
+            environment.clearCurrentScope()
+
             let result = try execute(doWhileStmt.body)
 
             switch result {
@@ -529,7 +525,8 @@ public final class StatementExecutor: @unchecked Sendable {
                 break
             }
 
-            // Evaluate condition outside the body scope (consistent with while loops)
+            // Clear scope before evaluating condition so it sees parent scope only
+            environment.clearCurrentScope()
             let condition = try evaluator.evaluate(doWhileStmt.condition)
             guard case .boolean(let boolValue) = condition else {
                 throw RuntimeError.typeMismatch(
