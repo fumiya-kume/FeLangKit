@@ -487,13 +487,19 @@ struct ExpressionEvaluatorTests {
     @Test func testAndShortCircuitSkipsRightWhenLeftIsFalse() throws {
         let tracker = EvaluationTracker()
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            if name == "sideEffect" {
-                tracker.markEvaluated()
-                return .boolean(true)
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                if name == "sideEffect" {
+                    tracker.markEvaluated()
+                    return .boolean(true)
+                }
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
             }
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        )
 
         let expr = Expression.binary(
             .and,
@@ -509,13 +515,19 @@ struct ExpressionEvaluatorTests {
     @Test func testAndEvaluatesRightWhenLeftIsTrue() throws {
         let tracker = EvaluationTracker()
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            if name == "sideEffect" {
-                tracker.markEvaluated()
-                return .boolean(true)
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                if name == "sideEffect" {
+                    tracker.markEvaluated()
+                    return .boolean(true)
+                }
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
             }
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        )
 
         let expr = Expression.binary(
             .and,
@@ -531,13 +543,19 @@ struct ExpressionEvaluatorTests {
     @Test func testOrShortCircuitSkipsRightWhenLeftIsTrue() throws {
         let tracker = EvaluationTracker()
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            if name == "sideEffect" {
-                tracker.markEvaluated()
-                return .boolean(false)
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                if name == "sideEffect" {
+                    tracker.markEvaluated()
+                    return .boolean(false)
+                }
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
             }
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        )
 
         let expr = Expression.binary(
             .or,
@@ -553,13 +571,19 @@ struct ExpressionEvaluatorTests {
     @Test func testOrEvaluatesRightWhenLeftIsFalse() throws {
         let tracker = EvaluationTracker()
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            if name == "sideEffect" {
-                tracker.markEvaluated()
-                return .boolean(true)
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                if name == "sideEffect" {
+                    tracker.markEvaluated()
+                    return .boolean(true)
+                }
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
             }
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        )
 
         let expr = Expression.binary(
             .or,
@@ -574,9 +598,15 @@ struct ExpressionEvaluatorTests {
 
     @Test func testAndShortCircuitAvoidsErrorInRight() throws {
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
+            }
+        )
 
         let expr = Expression.binary(
             .and,
@@ -589,9 +619,15 @@ struct ExpressionEvaluatorTests {
 
     @Test func testOrShortCircuitAvoidsErrorInRight() throws {
         let env = Environment()
-        let evaluator = ExpressionEvaluator(environment: env) { name, _ in
-            throw RuntimeError.undefinedFunction(name: name)
-        }
+        let evaluator = ExpressionEvaluator(
+            environment: env,
+            callFunction: { name, _ in
+                throw RuntimeError.undefinedFunction(name: name)
+            },
+            callMethod: { _, methodName, _ in
+                throw RuntimeError.generic(message: "Method '\(methodName)' not supported")
+            }
+        )
 
         let expr = Expression.binary(
             .or,

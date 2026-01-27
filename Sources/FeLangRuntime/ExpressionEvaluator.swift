@@ -70,8 +70,9 @@ public struct ExpressionEvaluator: Sendable {
             let args = try arguments.map { try evaluate($0) }
             let (returnValue, modifiedInstance) = try callMethod(receiverValue, method, args)
             // Update the receiver variable if it's an identifier to propagate instance state changes
-            if case .identifier(let name) = receiver {
-                try? environment.assign(name, value: modifiedInstance)
+            // Skip assignment for constants - they cannot be modified (this is intentional behavior)
+            if case .identifier(let name) = receiver, !environment.isConstant(name) {
+                try environment.assign(name, value: modifiedInstance)
             }
             return returnValue
 
