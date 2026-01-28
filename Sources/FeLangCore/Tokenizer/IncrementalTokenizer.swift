@@ -72,51 +72,42 @@ public struct IncrementalTokenizer: Sendable {
         previousTokens: [Token],
         originalText: String
     ) throws -> TokenizeResult {
-        // Construct new text with the replacement
         let newFullText = originalText.replacingCharacters(in: range, with: newText)
 
-        // Fast path: small files skip expensive Unicode scalar calculations
         if previousTokens.count < incrementalThreshold {
-            return try fullRetokenize(
-                newFullText: newFullText,
-                previousTokens: previousTokens,
-                range: range
-            )
+            return try fullRetokenize(newFullText: newFullText, previousTokens: previousTokens, range: range)
         }
 
-        // Calculate change metrics using Unicode scalars (consistent with SourcePosition.offset)
-        let startOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.lowerBound)
-        let endOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.upperBound)
-        let changeLength = max(newText.unicodeScalars.count, endOffset - startOffset)
+        let offsets = calculateChangeOffsets(originalText: originalText, range: range, newText: newText)
 
-        // Decide whether to use incremental or full re-tokenization
         let useIncremental = shouldUseIncremental(
             previousTokens: previousTokens,
-            changeLength: changeLength,
+            changeLength: offsets.changeLength,
             totalLength: newFullText.unicodeScalars.count
         )
 
         if useIncremental {
             let context = IncrementalUpdateContext(
-                range: range,
-                newText: newText,
-                previousTokens: previousTokens,
-                originalText: originalText,
-                newFullText: newFullText,
-                startOffset: startOffset,
-                endOffset: endOffset
+                range: range, newText: newText, previousTokens: previousTokens,
+                originalText: originalText, newFullText: newFullText,
+                startOffset: offsets.startOffset, endOffset: offsets.endOffset
             )
             return try updateTokensIncrementally(context: context)
         } else {
-            // Fall back to full re-tokenization
             return try fullRetokenize(
-                newFullText: newFullText,
-                previousTokens: previousTokens,
-                startOffset: startOffset,
-                endOffset: endOffset,
-                range: range
+                newFullText: newFullText, previousTokens: previousTokens,
+                startOffset: offsets.startOffset, endOffset: offsets.endOffset, range: range
             )
         }
+    }
+
+    private func calculateChangeOffsets(
+        originalText: String, range: Range<String.Index>, newText: String
+    ) -> (startOffset: Int, endOffset: Int, changeLength: Int) {
+        let startOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.lowerBound)
+        let endOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.upperBound)
+        let changeLength = max(newText.unicodeScalars.count, endOffset - startOffset)
+        return (startOffset, endOffset, changeLength)
     }
 
     // MARK: - Incremental Update
@@ -125,103 +116,115 @@ public struct IncrementalTokenizer: Sendable {
     private func updateTokensIncrementally(
         context: IncrementalUpdateContext
     ) throws -> TokenizeResult {
-
-        // Step 1: Find the safe reparse boundaries
         let (safeStartIndex, safeStartOffset) = findSafeReparseStart(
-            tokens: context.previousTokens,
-            editStartOffset: context.startOffset
+            tokens: context.previousTokens, editStartOffset: context.startOffset
         )
-
         let (safeEndIndex, safeEndOffset) = findSafeReparseEnd(
-            tokens: context.previousTokens,
-            editEndOffset: context.endOffset,
+            tokens: context.previousTokens, editEndOffset: context.endOffset,
             totalTokens: context.previousTokens.count
         )
 
-        // Step 2: Calculate the adjustment for positions after the change
-        // Use unicodeScalars.count consistently to match SourcePosition.offset semantics
-        let originalChangeLength = context.endOffset - context.startOffset
-        let newChangeLength = context.newText.unicodeScalars.count
-        let offsetDelta = newChangeLength - originalChangeLength
+        let offsetDelta = context.newText.unicodeScalars.count - (context.endOffset - context.startOffset)
 
-        // Step 3: Extract the text region to re-tokenize
-        let newStartOffset = safeStartOffset
-        let newEndOffset = safeEndOffset + offsetDelta
-        let newFullTextScalarCount = context.newFullText.unicodeScalars.count
-
-        guard newStartOffset >= 0 && newEndOffset >= 0 &&
-              newStartOffset <= newEndOffset &&
-              newStartOffset <= newFullTextScalarCount && newEndOffset <= newFullTextScalarCount else {
-            // Safety fallback to full re-tokenization
+        guard let reparseInfo = extractReparseRegion(
+            context: context, safeStartOffset: safeStartOffset,
+            safeEndOffset: safeEndOffset, offsetDelta: offsetDelta
+        ) else {
             return try fullRetokenize(
-                newFullText: context.newFullText,
-                previousTokens: context.previousTokens,
-                startOffset: context.startOffset,
-                endOffset: context.endOffset,
-                range: context.range
+                newFullText: context.newFullText, previousTokens: context.previousTokens,
+                startOffset: context.startOffset, endOffset: context.endOffset, range: context.range
             )
         }
 
-        // Use unicodeScalars.index to match offset semantics, then convert to String.Index
-        let scalars = context.newFullText.unicodeScalars
-        let reparseStartScalarIndex = scalars.index(scalars.startIndex, offsetBy: newStartOffset)
-        let reparseEndScalarIndex = scalars.index(scalars.startIndex, offsetBy: min(newEndOffset, newFullTextScalarCount))
-        let reparseStartIndex = reparseStartScalarIndex.samePosition(in: context.newFullText) ?? context.newFullText.startIndex
-        let reparseEndIndex = reparseEndScalarIndex.samePosition(in: context.newFullText) ?? context.newFullText.endIndex
-        let textToReparse = String(context.newFullText[reparseStartIndex..<reparseEndIndex])
+        let reparsedTokens = try baseTokenizer.tokenize(reparseInfo.textToReparse)
+        let basePosition = calculatePosition(at: reparseInfo.reparseStartIndex, in: context.newFullText)
 
-        // Step 4: Tokenize only the affected region
-        let reparsedTokens = try baseTokenizer.tokenize(textToReparse)
-
-        // Step 5: Adjust positions of reparsed tokens
-        let basePosition = calculatePosition(at: reparseStartIndex, in: context.newFullText)
         let adjustedReparsedTokens = adjustTokenPositions(
-            tokens: reparsedTokens,
-            baseOffset: newStartOffset,
-            baseLine: basePosition.line,
-            baseColumn: basePosition.column
+            tokens: reparsedTokens, baseOffset: reparseInfo.newStartOffset,
+            baseLine: basePosition.line, baseColumn: basePosition.column
         )
 
-        // Step 6: Adjust positions of tokens after the change
+        let adjustedSuffixTokens = adjustSuffixTokenPositions(
+            context: context, safeEndIndex: safeEndIndex, offsetDelta: offsetDelta
+        )
+
+        return buildIncrementalResult(
+            context: context, safeStartIndex: safeStartIndex, safeEndIndex: safeEndIndex,
+            adjustedReparsedTokens: adjustedReparsedTokens, adjustedSuffixTokens: adjustedSuffixTokens,
+            reparseInfo: reparseInfo, basePosition: basePosition
+        )
+    }
+
+    private struct ReparseInfo {
+        let reparseStartIndex: String.Index
+        let reparseEndIndex: String.Index
+        let newStartOffset: Int
+        let textToReparse: String
+    }
+
+    private func extractReparseRegion(
+        context: IncrementalUpdateContext, safeStartOffset: Int,
+        safeEndOffset: Int, offsetDelta: Int
+    ) -> ReparseInfo? {
+        let newStartOffset = safeStartOffset
+        let newEndOffset = safeEndOffset + offsetDelta
+        let scalarCount = context.newFullText.unicodeScalars.count
+
+        guard newStartOffset >= 0 && newEndOffset >= 0 &&
+              newStartOffset <= newEndOffset &&
+              newStartOffset <= scalarCount && newEndOffset <= scalarCount else {
+            return nil
+        }
+
+        let scalars = context.newFullText.unicodeScalars
+        let startScalar = scalars.index(scalars.startIndex, offsetBy: newStartOffset)
+        let endScalar = scalars.index(scalars.startIndex, offsetBy: min(newEndOffset, scalarCount))
+        let reparseStart = startScalar.samePosition(in: context.newFullText) ?? context.newFullText.startIndex
+        let reparseEnd = endScalar.samePosition(in: context.newFullText) ?? context.newFullText.endIndex
+
+        return ReparseInfo(
+            reparseStartIndex: reparseStart, reparseEndIndex: reparseEnd,
+            newStartOffset: newStartOffset,
+            textToReparse: String(context.newFullText[reparseStart..<reparseEnd])
+        )
+    }
+
+    private func adjustSuffixTokenPositions(
+        context: IncrementalUpdateContext, safeEndIndex: Int, offsetDelta: Int
+    ) -> [Token] {
         let lineDelta = countNewlines(in: context.newText) - countNewlines(in: context.originalText[context.range])
-        let editEndPosition = calculatePosition(at: context.range.upperBound, in: context.originalText)
-        let editEndLine = editEndPosition.line
+        let editEndLine = calculatePosition(at: context.range.upperBound, in: context.originalText).line
         let columnDelta = lineDelta == 0 ? (context.newText.count - context.originalText[context.range].count) : 0
-        let adjustedSuffixTokens = adjustTokenPositionsAfterEdit(
+        return adjustTokenPositionsAfterEdit(
             tokens: Array(context.previousTokens[safeEndIndex...]),
-            offsetDelta: offsetDelta,
-            lineDelta: lineDelta,
-            columnDelta: columnDelta,
-            editEndLine: editEndLine
+            offsetDelta: offsetDelta, lineDelta: lineDelta,
+            columnDelta: columnDelta, editEndLine: editEndLine
         )
+    }
 
-        // Step 7: Merge the token arrays
+    private func buildIncrementalResult(
+        context: IncrementalUpdateContext, safeStartIndex: Int, safeEndIndex: Int,
+        adjustedReparsedTokens: [Token], adjustedSuffixTokens: [Token],
+        reparseInfo: ReparseInfo, basePosition: SourcePosition
+    ) -> TokenizeResult {
         let prefixTokens = safeStartIndex > 0 ? Array(context.previousTokens[..<safeStartIndex]) : []
         let mergedTokens = prefixTokens + adjustedReparsedTokens + adjustedSuffixTokens
 
-        // Create affected range and metrics
-        let affectedRange = AffectedRange(
-            startTokenIndex: safeStartIndex,
-            endTokenIndex: safeEndIndex,
-            startOffset: context.startOffset,
-            endOffset: context.endOffset
-        )
-
-        let reparseRegion = ReparseRegion(
-            textRange: reparseStartIndex..<reparseEndIndex,
-            baseOffset: newStartOffset,
-            baseLine: basePosition.line,
-            baseColumn: basePosition.column
-        )
-
         return TokenizeResult(
             tokens: mergedTokens,
-            affectedRange: affectedRange,
-            reparseRegion: reparseRegion,
+            affectedRange: AffectedRange(
+                startTokenIndex: safeStartIndex, endTokenIndex: safeEndIndex,
+                startOffset: context.startOffset, endOffset: context.endOffset
+            ),
+            reparseRegion: ReparseRegion(
+                textRange: reparseInfo.reparseStartIndex..<reparseInfo.reparseEndIndex,
+                baseOffset: reparseInfo.newStartOffset,
+                baseLine: basePosition.line, baseColumn: basePosition.column
+            ),
             metrics: createMetrics(
                 originalCount: context.previousTokens.count,
                 newCount: mergedTokens.count,
-                reparsedLength: textToReparse.count
+                reparsedLength: reparseInfo.textToReparse.count
             )
         )
     }
