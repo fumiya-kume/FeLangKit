@@ -911,102 +911,21 @@ public struct StatementParser {
 
     /// Parses function/procedure body with local variable declarations.
     private func parseFunctionBody(_ parser: inout TokenStream, endToken: TokenType, nestingDepth: Int = 0) throws -> ([VariableDeclaration], [Statement]) {
-        // Check nesting depth for security
-        guard nestingDepth < 100 else {
-            throw StatementParsingError.nestingTooDeep
-        }
-
-        let localVariables: [VariableDeclaration] = []
-        var statements: [Statement] = []
-
-        // Parse local variable declarations (simplified for now)
-        // In a full implementation, this would parse actual variable declaration syntax
-
-        // Parse statements until end token
-        while let token = parser.peek(), token.type != endToken && token.type != .eof {
-            // Skip newlines and whitespace
-            if token.type == .newline || token.type == .whitespace {
-                _ = parser.advance()
-                continue
-            }
-
-            let statement = try parseStatement(&parser, nestingDepth: nestingDepth + 1)
-            statements.append(statement)
-        }
-
-        return (localVariables, statements)
+        let body = try parseBlock(&parser, until: [endToken], nestingDepth: nestingDepth)
+        return ([], body)
     }
 
     /// Parses an expression by delegating to ExpressionParser.
-    /// This creates a bounded token stream and delegates to ExpressionParser.
+    /// Uses ParsingBoundaryDetection to find the expression boundary, then delegates parsing.
     private func parseExpression(_ parser: inout TokenStream) throws -> Expression {
-        // Get the starting position
         let startIndex = parser.index
+        let endIndex = ParsingBoundaryDetection.findExpressionBoundary(
+            in: parser.tokens,
+            startingAt: startIndex
+        )
 
-        // Find the end of the expression using balanced parentheses/brackets/braces
-        var endIndex = startIndex
-        var parenDepth = 0
-        var bracketDepth = 0
-        var braceDepth = 0
-
-        // Scan forward to find expression boundary
-        var scanIndex = startIndex
-        while scanIndex < parser.tokens.count {
-            let token = parser.tokens[scanIndex]
-            let tokenType = token.type
-
-            // Handle EOF
-            if tokenType == .eof {
-                endIndex = scanIndex
-                break
-            }
-
-            // Track parentheses, bracket, and brace depth
-            if tokenType == .leftParen {
-                parenDepth += 1
-            } else if tokenType == .rightParen {
-                parenDepth -= 1
-                if parenDepth < 0 {
-                    endIndex = scanIndex
-                    break
-                }
-            } else if tokenType == .leftBracket {
-                bracketDepth += 1
-            } else if tokenType == .rightBracket {
-                bracketDepth -= 1
-                if bracketDepth < 0 {
-                    endIndex = scanIndex
-                    break
-                }
-            } else if tokenType == .leftBrace {
-                braceDepth += 1
-            } else if tokenType == .rightBrace {
-                braceDepth -= 1
-                if braceDepth < 0 {
-                    endIndex = scanIndex
-                    break
-                }
-            }
-
-            // Stop at statement terminators only when we're not inside parentheses/brackets/braces
-            if parenDepth == 0 && bracketDepth == 0 && braceDepth == 0 && isStatementTerminator(tokenType) {
-                endIndex = scanIndex
-                break
-            }
-
-            // Also stop if we detect the start of a new statement (when newlines are filtered out)
-            if parenDepth == 0 && bracketDepth == 0 && braceDepth == 0 && scanIndex > startIndex && isStartOfNewStatement(parser, at: scanIndex) {
-                endIndex = scanIndex
-                break
-            }
-
-            scanIndex += 1
-        }
-
-        // Advance the parser to the end of the expression
         parser.index = endIndex
 
-        // Parse expression using dedicated ExpressionParser (without copying token array)
         do {
             let (expression, _) = try expressionParser.parseExpression(
                 from: parser.tokens,
@@ -1015,141 +934,7 @@ public struct StatementParser {
             )
             return expression
         } catch let error as ParsingError {
-            // Convert ParsingError to StatementParsingError
             throw convertParsingError(error)
-        }
-    }
-
-    /// Checks if a token type indicates the end of an expression (statement boundary).
-    private func isStatementTerminator(_ tokenType: TokenType) -> Bool {
-        switch tokenType {
-        // Basic terminators
-        case .newline, .eof:
-            return true
-
-        // Control flow keywords that end expressions and start new statement blocks
-        case .thenKeyword,      // IF condition ends, THEN block begins
-             .elseKeyword,      // Previous block ends, ELSE block begins
-             .elifKeyword,      // Previous block ends, ELIF condition begins
-             .elseifKeyword,    // Previous block ends, ELSEIF condition begins
-             .doKeyword:        // WHILE/FOR condition ends, DO block begins
-            return true
-
-        // Block termination keywords that end expressions and close statement blocks
-        case .endifKeyword,     // IF statement block ends
-             .endwhileKeyword,  // WHILE statement block ends
-             .endforKeyword,    // FOR statement block ends
-             .endfunctionKeyword,   // FUNCTION declaration block ends
-             .endprocedureKeyword,  // PROCEDURE declaration block ends
-             .endclassKeyword:      // CLASS declaration block ends
-            return true
-
-        // FOR loop specific keywords that separate expression components
-        case .toKeyword,        // Separates start and end expressions: FOR i ← 1 TO 10
-             .stepKeyword,      // Separates end and step expressions: TO 10 STEP 2
-             .inKeyword:        // Separates variable and iterable: FOR item IN array
-            return true
-
-        // General expression separators
-        case .comma:            // Separates function arguments, parameter lists
-            return true
-
-        default:
-            return false
-        }
-    }
-
-    /// Checks if a token type indicates expression continuation (operator, opening bracket, comma, etc.)
-    /// Used to distinguish between function calls as new statements vs function calls within expressions
-    private func isExpressionContinuationToken(_ tokenType: TokenType) -> Bool {
-        switch tokenType {
-        case .plus, .minus, .multiply, .divide, .modulo, .modKeyword,
-             .equal, .notEqual, .less, .greater, .lessEqual, .greaterEqual,
-             .andKeyword, .orKeyword,
-             .leftParen, .leftBracket, .comma, .dot,
-             .assign:
-            return true
-        default:
-            return false
-        }
-    }
-
-    /// Checks if a token sequence indicates the start of a new statement.
-    /// This helps detect statement boundaries when newlines are filtered out.
-    private func isStartOfNewStatement(_ parser: TokenStream, at index: Int) -> Bool {
-        guard index < parser.tokens.count else { return false }
-
-        let token = parser.tokens[index]
-
-        // Check for assignment pattern: identifier ←
-        // This detects variable assignments like "x ← 5" or array assignments like "arr[i] ← value"
-        if token.type == .identifier && index + 1 < parser.tokens.count {
-            let nextToken = parser.tokens[index + 1]
-            if nextToken.type == .assign {
-                return true
-            }
-            // Check for function call pattern: identifier(
-            // This detects function calls like "println(x)" as new statements
-            // But NOT if preceded by an operator (expression continuation like "a + f(x)")
-            if nextToken.type == .leftParen {
-                if index > 0 && isExpressionContinuationToken(parser.tokens[index - 1].type) {
-                    return false
-                }
-                return true
-            }
-            // Check for array element assignment pattern: identifier[...]←
-            // This detects array assignments like "arr[0] ← 10" or "arr[i] ← value"
-            // But also check for expression continuation after array access
-            if nextToken.type == .leftBracket {
-                var offset = 2
-                var bracketCount = 1
-                while bracketCount > 0, index + offset < parser.tokens.count {
-                    let scanToken = parser.tokens[index + offset]
-                    if scanToken.type == .leftBracket { bracketCount += 1 } else if scanToken.type == .rightBracket { bracketCount -= 1 }
-                    offset += 1
-                }
-                if index + offset < parser.tokens.count {
-                    let afterBracket = parser.tokens[index + offset]
-                    if afterBracket.type == .assign {
-                        return true  // Array assignment is a new statement
-                    }
-                    // Expression continuation after array access is NOT a new statement
-                    if isExpressionContinuationToken(afterBracket.type) {
-                        return false
-                    }
-                }
-            }
-        }
-
-        // Check for statement-starting keywords
-        switch token.type {
-        // Control flow statements
-        case .ifKeyword,        // IF-THEN-ELSE conditional statements
-             .whileKeyword,     // WHILE-DO loop statements
-             .doKeyword,        // DO-WHILE loop statements
-             .forKeyword:       // FOR loop statements (range or forEach)
-            return true
-
-        // Declaration statements
-        case .variableKeyword,  // Variable declarations: 変数 name: type ← value
-             .constantKeyword,  // Constant declarations: 定数 name: type ← value
-             .globalKeyword:    // Global declarations: 大域: 型: 変数名
-            return true
-
-        // Function/procedure/class declarations
-        case .functionKeyword,  // FUNCTION declarations with return values
-             .procedureKeyword, // PROCEDURE declarations without return values
-             .classKeyword:     // CLASS declarations
-            return true
-
-        // Flow control statements
-        case .returnKeyword,    // RETURN statements (with or without values)
-             .breakKeyword,     // BREAK statements for loop termination
-             .continueKeyword:  // CONTINUE statements to skip to next iteration
-            return true
-
-        default:
-            return false
         }
     }
 

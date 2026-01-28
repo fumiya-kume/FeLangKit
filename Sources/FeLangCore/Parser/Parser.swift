@@ -29,14 +29,8 @@ public struct Parser {
     /// ```
     public func parse(_ sourceCode: String) throws -> [Statement] {
         do {
-            // Tokenize the source code
             let tokens = try tokenizer.tokenize(sourceCode)
-
-            // Parse tokens into statements
-            let statements = try statementParser.parseStatements(from: tokens)
-
-            return statements
-
+            return try statementParser.parseStatements(from: tokens)
         } catch let error as ParsingError {
             throw ParseError.from(error)
         } catch let error as StatementParsingError {
@@ -64,14 +58,8 @@ public struct Parser {
     /// ```
     public func parseExpression(_ sourceCode: String) throws -> Expression {
         do {
-            // Tokenize the source code
             let tokens = try tokenizer.tokenize(sourceCode)
-
-            // Parse tokens into expression
-            let expression = try expressionParser.parseExpression(from: tokens)
-
-            return expression
-
+            return try expressionParser.parseExpression(from: tokens)
         } catch let error as ParsingError {
             throw ParseError.from(error)
         } catch {

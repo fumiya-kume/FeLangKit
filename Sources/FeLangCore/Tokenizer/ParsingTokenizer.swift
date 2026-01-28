@@ -256,11 +256,6 @@ public struct ParsingTokenizer: Sendable {
         return TokenizerCore.TokenData(type: .identifier, lexeme: lexeme)
     }
 
-    // MARK: - Helper Methods
-
-    private func sourcePosition(from input: String, startIndex: String.Index, currentIndex: String.Index) -> SourcePosition {
-        return TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: currentIndex)
-    }
 }
 
 // MARK: - Public Interface

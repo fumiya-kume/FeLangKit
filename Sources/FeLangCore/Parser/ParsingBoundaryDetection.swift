@@ -137,7 +137,8 @@ public enum ParsingBoundaryDetection {
 
         // Flow control statements
         case .returnKeyword,    // RETURN statements (with or without values)
-             .breakKeyword:     // BREAK statements for loop termination
+             .breakKeyword,     // BREAK statements for loop termination
+             .continueKeyword:  // CONTINUE statements to skip to next iteration
             return true
 
         default:

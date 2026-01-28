@@ -186,18 +186,12 @@ public enum StringEscapeUtilities {
                 do {
                     let (_, nextIndex) = try processEscapeAt(content, index: index)
                     index = nextIndex
-                } catch let error as EscapeSequenceError {
-                    let position = error.position ?? content.distance(from: content.startIndex, to: index)
-                    errors.append((position: position, error: error.message))
-                    // Skip the problematic escape sequence
-                    index = content.index(after: index)
-                    if index < content.endIndex {
-                        index = content.index(after: index)
-                    }
                 } catch {
-                    // Handle any other errors that might be thrown
-                    let position = content.distance(from: content.startIndex, to: index)
-                    errors.append((position: position, error: "Unknown escape sequence error"))
+                    let escapeError = error as? EscapeSequenceError
+                    let position = escapeError?.position ?? content.distance(from: content.startIndex, to: index)
+                    let message = escapeError?.message ?? "Unknown escape sequence error"
+                    errors.append((position: position, error: message))
+                    // Skip the problematic escape sequence
                     index = content.index(after: index)
                     if index < content.endIndex {
                         index = content.index(after: index)
@@ -274,12 +268,5 @@ public enum StringEscapeUtilities {
     /// - Returns: `true` if the string contains escape sequences, `false` otherwise
     public static func containsEscapeSequences(_ content: String) -> Bool {
         return content.contains("\\")
-    }
-}
-
-extension Character {
-    /// Returns true if the character is a valid hexadecimal digit
-    fileprivate var isHexDigit: Bool {
-        return self.isNumber || ("a"..."f").contains(self) || ("A"..."F").contains(self)
     }
 }

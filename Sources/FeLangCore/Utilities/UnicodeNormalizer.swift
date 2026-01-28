@@ -498,98 +498,6 @@ public struct UnicodeNormalizer {
         return result
     }
 
-    // MARK: - Security Processing
-
-    /// Applies security processing including homoglyph detection and bidirectional text checks
-    private static func applySecurityProcessing(_ input: String, config: SecurityConfig) -> String {
-        var result = input
-
-        if config.enableHomoglyphDetection {
-            result = mitigateHomoglyphs(result)
-        }
-
-        if config.detectBidiReordering {
-            result = normalizeBidirectionalText(result)
-        }
-
-        return result
-    }
-
-    /// Detects and mitigates homoglyph attacks
-    private static func mitigateHomoglyphs(_ input: String) -> String {
-        var result = input
-
-        // Common homoglyph replacements for security
-        let homoglyphReplacements: [(String, String)] = [
-            // Cyrillic -> Latin
-            ("а", "a"),  // Cyrillic small a -> Latin a
-            ("е", "e"),  // Cyrillic small e -> Latin e  
-            ("о", "o"),  // Cyrillic small o -> Latin o
-            ("р", "p"),  // Cyrillic small p -> Latin p
-            ("с", "c"),  // Cyrillic small c -> Latin c
-            ("х", "x"),  // Cyrillic small x -> Latin x
-            ("А", "A"),  // Cyrillic capital A -> Latin A
-            ("В", "B"),  // Cyrillic capital B -> Latin B
-            ("Е", "E"),  // Cyrillic capital E -> Latin E
-            ("К", "K"),  // Cyrillic capital K -> Latin K
-            ("М", "M"),  // Cyrillic capital M -> Latin M
-            ("Н", "H"),  // Cyrillic capital H -> Latin H
-            ("О", "O"),  // Cyrillic capital O -> Latin O
-            ("Р", "P"),  // Cyrillic capital P -> Latin P
-            ("С", "C"),  // Cyrillic capital C -> Latin C
-            ("Т", "T"),  // Cyrillic capital T -> Latin T
-            ("Х", "X"),  // Cyrillic capital X -> Latin X
-
-            // Greek -> Latin (common in mathematical contexts)
-            ("Α", "A"),  // Greek capital alpha -> Latin A
-            ("Β", "B"),  // Greek capital beta -> Latin B
-            ("Ε", "E"),  // Greek capital epsilon -> Latin E
-            ("Ζ", "Z"),  // Greek capital zeta -> Latin Z
-            ("Η", "H"),  // Greek capital eta -> Latin H
-            ("Ι", "I"),  // Greek capital iota -> Latin I
-            ("Κ", "K"),  // Greek capital kappa -> Latin K
-            ("Μ", "M"),  // Greek capital mu -> Latin M
-            ("Ν", "N"),  // Greek capital nu -> Latin N
-            ("Ο", "O"),  // Greek capital omicron -> Latin O
-            ("Ρ", "P"),  // Greek capital rho -> Latin P
-            ("Τ", "T"),  // Greek capital tau -> Latin T
-            ("Υ", "Y"),  // Greek capital upsilon -> Latin Y
-            ("Χ", "X")  // Greek capital chi -> Latin X
-        ]
-
-        for (original, replacement) in homoglyphReplacements {
-            result = result.replacingOccurrences(of: original, with: replacement)
-        }
-
-        return result
-    }
-
-    /// Normalizes bidirectional text to prevent reordering attacks
-    private static func normalizeBidirectionalText(_ input: String) -> String {
-        var result = ""
-
-        for scalar in input.unicodeScalars {
-            // Remove bidirectional override characters that could be used for attacks
-            switch scalar.value {
-            case 0x202A, // LRE (Left-to-Right Embedding)
-                 0x202B, // RLE (Right-to-Left Embedding)
-                 0x202C, // PDF (Pop Directional Formatting)
-                 0x202D, // LRO (Left-to-Right Override)
-                 0x202E, // RLO (Right-to-Left Override)
-                 0x2066, // LRI (Left-to-Right Isolate)
-                 0x2067, // RLI (Right-to-Left Isolate)
-                 0x2068, // FSI (First Strong Isolate)
-                 0x2069: // PDI (Pop Directional Isolate)
-                // Remove these potentially dangerous characters
-                continue
-            default:
-                result.append(String(scalar))
-            }
-        }
-
-        return result
-    }
-
     // MARK: - Character Classification Methods
 
     /// Classifies a Unicode scalar into detailed categories
@@ -716,25 +624,13 @@ public struct UnicodeNormalizer {
 
     /// Counts bidirectional text issues
     private func countBidiIssues(_ input: String) -> Int {
-        return input.unicodeScalars.filter { scalar in
-            let value = scalar.value
-            return value == 0x202A || value == 0x202B || value == 0x202C ||
-                   value == 0x202D || value == 0x202E || value == 0x2066 ||
-                   value == 0x2067 || value == 0x2068 || value == 0x2069
-        }.count
+        return input.unicodeScalars.filter { Self.bidiRemovalSet.contains($0.value) }.count
     }
 
     /// Counts potential homoglyph characters
     private func countHomoglyphs(_ input: String) -> Int {
-        if !securityConfig.enableHomoglyphDetection {
-            return 0
-        }
-
-        let homoglyphChars = ["а", "е", "о", "р", "с", "х", "А", "В", "Е", "К", "М", "Н", "О", "Р", "С", "Т", "Х",
-                             "Α", "Β", "Ε", "Ζ", "Η", "Ι", "Κ", "Μ", "Ν", "Ο", "Ρ", "Τ", "Υ", "Χ"]
-        return homoglyphChars.reduce(0) { count, char in
-            count + input.components(separatedBy: char).count - 1
-        }
+        guard securityConfig.enableHomoglyphDetection else { return 0 }
+        return input.unicodeScalars.filter { Self.homoglyphReplacementMap[$0.value] != nil }.count
     }
 
     // MARK: - Individual Normalization Steps

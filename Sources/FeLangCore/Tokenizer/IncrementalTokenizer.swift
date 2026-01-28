@@ -180,14 +180,14 @@ public struct IncrementalTokenizer: Sendable {
         // Step 6: Adjust positions of tokens after the change
         let lineDelta = countNewlines(in: newText) - countNewlines(in: originalText[range])
         // Calculate edit end line from actual edit position, not from token positions
-	        let editEndPosition = calculatePosition(at: range.upperBound, in: originalText)
-	        let editEndLine = editEndPosition.line
-	        // Calculate column delta for same-line edits
-	        let columnDelta = lineDelta == 0 ? (newText.count - originalText[range].count) : 0
-	        let adjustedSuffixTokens = adjustTokenPositionsAfterEdit(
-	            tokens: Array(previousTokens[safeEndIndex...]),
-	            offsetDelta: offsetDelta,
-	            lineDelta: lineDelta,
+        let editEndPosition = calculatePosition(at: range.upperBound, in: originalText)
+        let editEndLine = editEndPosition.line
+        // Calculate column delta for same-line edits
+        let columnDelta = lineDelta == 0 ? (newText.count - originalText[range].count) : 0
+        let adjustedSuffixTokens = adjustTokenPositionsAfterEdit(
+            tokens: Array(previousTokens[safeEndIndex...]),
+            offsetDelta: offsetDelta,
+            lineDelta: lineDelta,
             columnDelta: columnDelta,
             editEndLine: editEndLine
         )
@@ -416,13 +416,8 @@ public struct IncrementalTokenizer: Sendable {
         }
     }
 
-    /// Counts the number of newlines in a string
-    private func countNewlines(in text: String) -> Int {
-        return text.filter { $0 == "\n" }.count
-    }
-
-    /// Counts the number of newlines in a substring
-    private func countNewlines(in text: Substring) -> Int {
+    /// Counts the number of newlines in a string or substring
+    private func countNewlines<S: StringProtocol>(in text: S) -> Int {
         return text.filter { $0 == "\n" }.count
     }
 
