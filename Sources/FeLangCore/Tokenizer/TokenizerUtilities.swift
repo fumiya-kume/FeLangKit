@@ -140,10 +140,13 @@ public enum TokenizerUtilities {
         return map
     }()
 
-    /// Direct lookup for single-character delimiters
+    /// Direct lookup for single-character delimiters.
+    /// Assumes all delimiters are single-character; multi-character delimiters
+    /// would only be matched by their first character, which is incorrect.
     public static let delimiterMap: [Character: TokenType] = {
         var map: [Character: TokenType] = [:]
         for (delimiter, tokenType) in delimiters {
+            assert(delimiter.count == 1, "delimiterMap assumes single-character delimiters, got '\(delimiter)'")
             guard let firstChar = delimiter.first else { continue }
             map[firstChar] = tokenType
         }

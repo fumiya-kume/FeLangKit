@@ -75,6 +75,22 @@ struct BoundedExpressionParserTests {
 
     // MARK: - Error Handling Tests
 
+    @Test func testBoundedParseInvalidRangeThrows() throws {
+        let tokens = try tokenize("a + b")
+        // startIndex > endIndex
+        #expect(throws: ParsingError.self) {
+            _ = try parser.parseExpression(from: tokens, startingAt: 3, endingBefore: 1)
+        }
+        // endIndex > tokens.count
+        #expect(throws: ParsingError.self) {
+            _ = try parser.parseExpression(from: tokens, startingAt: 0, endingBefore: tokens.count + 1)
+        }
+        // negative startIndex
+        #expect(throws: ParsingError.self) {
+            _ = try parser.parseExpression(from: tokens, startingAt: -1, endingBefore: 3)
+        }
+    }
+
     @Test func testBoundedParseIncompleteExpressionThrows() throws {
         let tokens = try tokenize("a +")
         // tokens: [a, +, eof]

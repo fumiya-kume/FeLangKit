@@ -37,6 +37,9 @@ public struct ExpressionParser {
     /// Parses an expression from a slice of a token array without copying.
     /// Returns the parsed expression and the index after the last consumed token.
     public func parseExpression(from tokens: [Token], startingAt startIndex: Int, endingBefore endIndex: Int) throws -> (Expression, Int) {
+        guard startIndex >= 0, endIndex <= tokens.count, startIndex <= endIndex else {
+            throw ParsingError.unexpectedEndOfInput
+        }
         var parser = TokenStream(tokens, startIndex: startIndex, endIndex: endIndex)
         let expression = try parseExpression(&parser)
 
@@ -277,21 +280,32 @@ private struct TokenStream {
     init(_ tokens: [Token]) {
         self.tokens = tokens
         self.endIndex = tokens.count
+        // Not used for unbounded streams, but required by the struct
+        self.syntheticEOF = Token(type: .eof, lexeme: "", position: SourcePosition(line: 0, column: 0, offset: 0))
     }
 
     init(_ tokens: [Token], startIndex: Int, endIndex: Int) {
         self.tokens = tokens
         self.index = startIndex
         self.endIndex = endIndex
+        // Use position from the boundary token for accurate error messages
+        if endIndex < tokens.count {
+            self.syntheticEOF = Token(type: .eof, lexeme: "", position: tokens[endIndex].position)
+        } else if !tokens.isEmpty {
+            self.syntheticEOF = Token(type: .eof, lexeme: "", position: tokens[tokens.count - 1].position)
+        } else {
+            self.syntheticEOF = Token(type: .eof, lexeme: "", position: SourcePosition(line: 1, column: 1, offset: 0))
+        }
     }
 
-    private static let syntheticEOF = Token(type: .eof, lexeme: "", position: SourcePosition(line: 0, column: 0, offset: 0))
+    /// Synthetic EOF token returned at the boundary of a bounded stream.
+    private let syntheticEOF: Token
 
     /// Peeks at the current token without consuming it.
     mutating func peek() -> Token? {
         guard index < endIndex else {
             // Return synthetic EOF at boundary to match previous copy+append behavior
-            return index < tokens.count ? TokenStream.syntheticEOF : nil
+            return index < tokens.count ? syntheticEOF : nil
         }
         return tokens[index]
     }
@@ -299,7 +313,7 @@ private struct TokenStream {
     /// Advances to the next token and returns the current one.
     mutating func advance() -> Token? {
         guard index < endIndex else {
-            return index < tokens.count ? TokenStream.syntheticEOF : nil
+            return index < tokens.count ? syntheticEOF : nil
         }
         let token = tokens[index]
         index += 1
