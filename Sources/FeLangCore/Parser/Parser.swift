@@ -199,98 +199,26 @@ extension Parser {
         }
 
         let statement = statements[0]
-        let isValid: Bool
 
-        switch expectedRule {
-        case .variableDeclaration:
-            isValid = statement.isVariableDeclaration
-        case .constantDeclaration:
-            isValid = statement.isConstantDeclaration
-        case .ifStatement:
-            isValid = statement.isIfStatement
-        case .whileStatement:
-            isValid = statement.isWhileStatement
-        case .forStatement:
-            isValid = statement.isForStatement
-        case .functionDeclaration:
-            isValid = statement.isFunctionDeclaration
-        case .procedureDeclaration:
-            isValid = statement.isProcedureDeclaration
-        case .assignment:
-            isValid = statement.isAssignment
-        case .expressionStatement:
-            isValid = statement.isExpressionStatement
-        case .returnStatement:
-            isValid = statement.isReturnStatement
-        case .breakStatement:
-            isValid = statement.isBreakStatement
-        }
-
-        if !isValid {
+        switch (expectedRule, statement) {
+        case (.variableDeclaration, .variableDeclaration),
+             (.constantDeclaration, .constantDeclaration),
+             (.ifStatement, .ifStatement),
+             (.whileStatement, .whileStatement),
+             (.forStatement, .forStatement),
+             (.functionDeclaration, .functionDeclaration),
+             (.procedureDeclaration, .procedureDeclaration),
+             (.assignment, .assignment),
+             (.expressionStatement, .expressionStatement),
+             (.returnStatement, .returnStatement),
+             (.breakStatement, .breakStatement):
+            return
+        default:
             throw ParseError(
                 message: "Statement does not match expected grammar rule: \(expectedRule)",
                 line: 0,
                 column: 0
             )
         }
-    }
-}
-
-// MARK: - Statement Type Checking Extensions
-
-private extension Statement {
-    var isVariableDeclaration: Bool {
-        if case .variableDeclaration = self { return true }
-        return false
-    }
-
-    var isConstantDeclaration: Bool {
-        if case .constantDeclaration = self { return true }
-        return false
-    }
-
-    var isIfStatement: Bool {
-        if case .ifStatement = self { return true }
-        return false
-    }
-
-    var isWhileStatement: Bool {
-        if case .whileStatement = self { return true }
-        return false
-    }
-
-    var isForStatement: Bool {
-        if case .forStatement = self { return true }
-        return false
-    }
-
-    var isFunctionDeclaration: Bool {
-        if case .functionDeclaration = self { return true }
-        return false
-    }
-
-    var isProcedureDeclaration: Bool {
-        if case .procedureDeclaration = self { return true }
-        return false
-    }
-
-    var isAssignment: Bool {
-        if case .assignment = self { return true }
-        return false
-    }
-
-    var isExpressionStatement: Bool {
-        if case .expressionStatement = self { return true }
-        return false
-    }
-
-    var isReturnStatement: Bool {
-        if case .returnStatement = self { return true }
-        return false
-    }
-
-    var isBreakStatement: Bool {
-        if case .breakStatement = self { return true }
-        return false
     }
 }

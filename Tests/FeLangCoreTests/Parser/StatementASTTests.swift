@@ -180,12 +180,12 @@ struct StatementASTTests {
             body: [.breakStatement]
         )
         let forStmt = ForStatement.range(rangeFor)
-        if case .range(let range) = forStmt {
-            #expect(range.variable == "i")
-            #expect(range.step == nil)
-        } else {
+        guard case .range(let range) = forStmt else {
             Issue.record("Expected range for statement")
+            return
         }
+        #expect(range.variable == "i")
+        #expect(range.step == nil)
     }
 
     @Test func testForStatementRangeWithStep() throws {
@@ -197,11 +197,11 @@ struct StatementASTTests {
             body: [.breakStatement]
         )
         let forStmt = ForStatement.range(rangeFor)
-        if case .range(let range) = forStmt {
-            #expect(range.step != nil)
-        } else {
+        guard case .range(let range) = forStmt else {
             Issue.record("Expected range for statement")
+            return
         }
+        #expect(range.step != nil)
     }
 
     @Test func testForStatementForEachInit() throws {
@@ -211,11 +211,11 @@ struct StatementASTTests {
             body: [.breakStatement]
         )
         let forStmt = ForStatement.forEach(forEach)
-        if case .forEach(let loop) = forStmt {
-            #expect(loop.variable == "item")
-        } else {
+        guard case .forEach(let loop) = forStmt else {
             Issue.record("Expected forEach statement")
+            return
         }
+        #expect(loop.variable == "item")
     }
 
     @Test func testForStatementEquatable() throws {
@@ -238,11 +238,11 @@ struct StatementASTTests {
 
     @Test func testAssignmentVariable() throws {
         let assignment = Assignment.variable("x", .literal(.integer(42)))
-        if case .variable(let name, _) = assignment {
-            #expect(name == "x")
-        } else {
+        guard case .variable(let name, _) = assignment else {
             Issue.record("Expected variable assignment")
+            return
         }
+        #expect(name == "x")
     }
 
     @Test func testAssignmentArrayElement() throws {
@@ -251,11 +251,11 @@ struct StatementASTTests {
             index: .literal(.integer(0))
         )
         let assignment = Assignment.arrayElement(arrayAccess, .literal(.integer(42)))
-        if case .arrayElement(let access, _) = assignment {
-            #expect(access.array == .identifier("arr"))
-        } else {
+        guard case .arrayElement(let access, _) = assignment else {
             Issue.record("Expected array element assignment")
+            return
         }
+        #expect(access.array == .identifier("arr"))
     }
 
     @Test func testAssignmentEquatable() throws {
@@ -354,29 +354,27 @@ struct StatementASTTests {
 
     @Test func testStatementBreak() throws {
         let stmt = Statement.breakStatement
-        if case .breakStatement = stmt {
-            // Success
-        } else {
+        guard case .breakStatement = stmt else {
             Issue.record("Expected break statement")
+            return
         }
     }
 
     @Test func testStatementContinue() throws {
         let stmt = Statement.continueStatement
-        if case .continueStatement = stmt {
-            // Success
-        } else {
+        guard case .continueStatement = stmt else {
             Issue.record("Expected continue statement")
+            return
         }
     }
 
     @Test func testStatementBlock() throws {
         let stmt = Statement.block([.breakStatement, .continueStatement])
-        if case .block(let statements) = stmt {
-            #expect(statements.count == 2)
-        } else {
+        guard case .block(let statements) = stmt else {
             Issue.record("Expected block statement")
+            return
         }
+        #expect(statements.count == 2)
     }
 
     @Test func testStatementEquatable() throws {

@@ -47,16 +47,6 @@ public struct ParsingTokenizer: Sendable {
                 }
                 throw TokenizerError.unexpectedCharacter(scalar, position)
             }
-
-            // Safety check to prevent infinite loops
-            if index == beforeIndex {
-                guard let scalar = input[index].unicodeScalars.first else {
-                    tracker.advance(past: input[index])
-                    index = input.index(after: index)
-                    continue
-                }
-                throw TokenizerError.unexpectedCharacter(scalar, position)
-            }
         }
 
         // Add EOF token

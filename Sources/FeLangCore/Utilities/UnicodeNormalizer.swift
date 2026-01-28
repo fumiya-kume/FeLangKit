@@ -135,7 +135,7 @@ public struct UnicodeNormalizer {
 
     // MARK: - Statistics
 
-    public struct NormalizationStats {
+    public struct NormalizationStats: Sendable {
         public let originalLength: Int
         public let normalizedLength: Int
         public let nfcNormalizations: Int
@@ -155,20 +155,22 @@ public struct UnicodeNormalizer {
         public var hasSecurityConcerns: Bool {
             return homoglyphsDetected > 0 || securityIssuesFound > 0 || bidiReorderings > 0
         }
+
+        public static let zero = NormalizationStats(
+            originalLength: 0,
+            normalizedLength: 0,
+            nfcNormalizations: 0,
+            fullwidthConversions: 0,
+            japaneseNormalizations: 0,
+            emojiNormalizations: 0,
+            mathSymbolNormalizations: 0,
+            bidiReorderings: 0,
+            homoglyphsDetected: 0,
+            securityIssuesFound: 0
+        )
     }
 
-    private var stats = NormalizationStats(
-        originalLength: 0,
-        normalizedLength: 0,
-        nfcNormalizations: 0,
-        fullwidthConversions: 0,
-        japaneseNormalizations: 0,
-        emojiNormalizations: 0,
-        mathSymbolNormalizations: 0,
-        bidiReorderings: 0,
-        homoglyphsDetected: 0,
-        securityIssuesFound: 0
-    )
+    private var stats = NormalizationStats.zero
 
     public let securityConfig: SecurityConfig
 
@@ -401,24 +403,18 @@ public struct UnicodeNormalizer {
         }
     }
 
-    /// Normalizes only full-width ASCII characters to half-width, preserving Japanese characters
-    /// Preserves full-width space (U+3000) as it has semantic meaning in Japanese text
+    /// Normalizes only full-width ASCII characters to half-width, preserving Japanese characters.
+    /// Preserves full-width space (U+3000) as it has semantic meaning in Japanese text.
     private static func normalizeFullWidthASCII(_ input: String) -> String {
         var result = ""
+        result.reserveCapacity(input.unicodeScalars.count)
 
         for scalar in input.unicodeScalars {
-            if scalar.value >= 0xFF01 && scalar.value <= 0xFF5E {
-                // Full-width ASCII: map to half-width equivalent
-                let halfWidthValue = scalar.value - 0xFF01 + 0x21
-                if let halfWidth = UnicodeScalar(halfWidthValue) {
-                    result.append(String(halfWidth))
-                } else {
-                    // Fallback: keep original character if conversion fails
-                    result.append(String(scalar))
-                }
+            if scalar.value >= 0xFF01 && scalar.value <= 0xFF5E,
+               let halfWidth = UnicodeScalar(scalar.value - 0xFF01 + 0x21) {
+                result.unicodeScalars.append(halfWidth)
             } else {
-                // Keep all other characters as-is (including full-width space U+3000 and Japanese characters)
-                result.append(String(scalar))
+                result.unicodeScalars.append(scalar)
             }
         }
 
@@ -427,45 +423,22 @@ public struct UnicodeNormalizer {
 
     // MARK: - Enhanced Character Normalization
 
-    /// Normalizes Japanese-specific character variants
+    /// Normalizes Japanese-specific punctuation variants commonly confused in text.
+    /// Does not normalize regular characters like ー or quotation marks.
     private static func normalizeJapaneseCharacters(_ input: String) -> String {
-        var result = input
-
-        // Only normalize specific punctuation variants that are commonly confused
-        // Do NOT normalize regular Japanese characters like ー or quotation marks
-
-        // Special case: hiragana vu (ゔ) should become katakana vu (ヴ) for consistency
-        result = result.replacingOccurrences(of: "ゔ", with: "ヴ") // U+3094 -> U+30F4
-
-        // Normalize wave dash variants (commonly confused in Japanese text)  
-        // Convert directly to half-width tilde to avoid double-counting in statistics
-        result = result.replacingOccurrences(of: "〜", with: "~") // U+301C -> U+007E (half-width)
-
-        // Normalize minus sign variants  
-        result = result.replacingOccurrences(of: "−", with: "-") // U+2212 -> U+002D
-        result = result.replacingOccurrences(of: "－", with: "-") // U+FF0D -> U+002D
-
-        // Normalize dash variants
-        result = result.replacingOccurrences(of: "―", with: "—") // U+2015 -> U+2014 (em dash)
-
-        return result
+        return input
+            .replacingOccurrences(of: "ゔ", with: "ヴ")  // hiragana vu -> katakana vu
+            .replacingOccurrences(of: "〜", with: "~")   // wave dash -> tilde
+            .replacingOccurrences(of: "−", with: "-")    // minus sign -> hyphen
+            .replacingOccurrences(of: "－", with: "-")   // full-width minus -> hyphen
+            .replacingOccurrences(of: "―", with: "—")    // horizontal bar -> em dash
     }
 
-    /// Normalizes emoji to standardized forms
+    /// Removes variation selectors from emoji for consistent display in programming contexts
     private static func normalizeEmoji(_ input: String) -> String {
-        var result = input
-
-        // Normalize variation selectors for consistent emoji display
-        // Text variation selector (U+FE0E) -> remove for programming context
-        result = result.replacingOccurrences(of: "\u{FE0E}", with: "")
-
-        // Emoji variation selector (U+FE0F) -> standardize
-        result = result.replacingOccurrences(of: "\u{FE0F}", with: "")
-
-        // Normalize zero-width joiner sequences for consistent handling
-        // Keep ZWJ sequences but normalize common variants
-
-        return result
+        return input
+            .replacingOccurrences(of: "\u{FE0E}", with: "")  // text variation selector
+            .replacingOccurrences(of: "\u{FE0F}", with: "")  // emoji variation selector
     }
 
     /// Normalizes mathematical symbols to standardized forms
@@ -567,18 +540,7 @@ public struct UnicodeNormalizer {
 
     /// Resets the normalization statistics
     public mutating func resetStats() {
-        stats = NormalizationStats(
-            originalLength: 0,
-            normalizedLength: 0,
-            nfcNormalizations: 0,
-            fullwidthConversions: 0,
-            japaneseNormalizations: 0,
-            emojiNormalizations: 0,
-            mathSymbolNormalizations: 0,
-            bidiReorderings: 0,
-            homoglyphsDetected: 0,
-            securityIssuesFound: 0
-        )
+        stats = .zero
     }
 
     /// Counts how many characters need NFC normalization
@@ -678,55 +640,26 @@ public struct UnicodeNormalizer {
 
     /// Analyzes normalization changes and provides statistics
     public func analyzeNormalization(_ input: String) -> NormalizationAnalysis {
-        let original = input
-
-        // Count various types of normalization needed
-
-        // Count actual combining characters in the original text
-        let combiningCharacters = original.unicodeScalars.filter { scalar in
-            // Combining diacritical marks range
-            return (scalar.value >= 0x0300 && scalar.value <= 0x036F) ||
-                   (scalar.value >= 0x3099 && scalar.value <= 0x309A) // Japanese combining marks
+        let combiningCharacters = input.unicodeScalars.filter { scalar in
+            (scalar.value >= 0x0300 && scalar.value <= 0x036F) ||
+            (scalar.value >= 0x3099 && scalar.value <= 0x309A)
         }.count
 
-        // Count full-width characters
-        let fullwidthCharacters = original.unicodeScalars.filter { scalar in
-            // Full-width ASCII range: U+FF01 to U+FF5E
-            return scalar.value >= 0xFF01 && scalar.value <= 0xFF5E
-        }.count
-
-        // Count Japanese character variants that need normalization
-        let japaneseVariants = ["〜", "−", "－", "―", "ゔ"].reduce(0) { count, char in
-            count + original.components(separatedBy: char).count - 1
-        }
-
-        // Count emoji that need normalization
-        let emojiVariants = countEmojiChanges(original)
-
-        // Count mathematical symbols that need normalization
-        let mathVariants = countMathSymbolChanges(original)
-
-        // Count bidirectional text issues
-        let bidiIssues = countBidiIssues(original)
-
-        // Count homoglyphs
-        let homoglyphs = countHomoglyphs(original)
-
-        let normalized = UnicodeNormalizer.normalizeForFE(original, securityConfig: securityConfig)
+        let normalized = UnicodeNormalizer.normalizeForFE(input, securityConfig: securityConfig)
 
         return NormalizationAnalysis(
-            originalText: original,
+            originalText: input,
             normalizedText: normalized,
-            hasChanges: original != normalized,
-            originalLength: original.count,
+            hasChanges: input != normalized,
+            originalLength: input.count,
             normalizedLength: normalized.count,
-            fullwidthCharactersConverted: fullwidthCharacters,
+            fullwidthCharactersConverted: countFullwidthChanges(input),
             combiningCharactersNormalized: combiningCharacters,
-            japaneseCharactersNormalized: japaneseVariants,
-            emojiCharactersNormalized: emojiVariants,
-            mathSymbolsNormalized: mathVariants,
-            bidiIssuesFound: bidiIssues,
-            homoglyphsDetected: homoglyphs
+            japaneseCharactersNormalized: countJapaneseChanges(input),
+            emojiCharactersNormalized: countEmojiChanges(input),
+            mathSymbolsNormalized: countMathSymbolChanges(input),
+            bidiIssuesFound: countBidiIssues(input),
+            homoglyphsDetected: countHomoglyphs(input)
         )
     }
 

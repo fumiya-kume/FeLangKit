@@ -266,14 +266,8 @@ public struct StatementParser {
     // MARK: - Assignment Parsing
 
     /// Parses assignment or expression statement using lookahead instead of backtracking.
+    /// Precondition: the current token is an identifier (guaranteed by the caller's switch).
     private func parseAssignmentOrExpressionStatement(_ parser: inout TokenStream) throws -> Statement {
-        // Use lookahead to determine if this is an assignment
-        guard let firstToken = parser.peek(), firstToken.type == .identifier else {
-            // Not an identifier, must be expression
-            let expression = try parseExpression(&parser)
-            return .expressionStatement(expression)
-        }
-
         // Use efficient lookahead to determine assignment pattern
         // Check for simple variable assignment: identifier ←
         if let nextToken = parser.peek(offset: 1), nextToken.type == .assign {
@@ -544,8 +538,7 @@ public struct StatementParser {
             returnType = try parseDataType(&parser)
         }
 
-        // Parse local variable declarations and body
-        let (localVariables, body) = try parseFunctionBody(&parser, endToken: .endfunctionKeyword, nestingDepth: nestingDepth)
+        let body = try parseBlock(&parser, until: [.endfunctionKeyword], nestingDepth: nestingDepth)
 
         try expectToken(&parser, .endfunctionKeyword) // consume 'endfunction'
 
@@ -553,7 +546,6 @@ public struct StatementParser {
             name: name,
             parameters: parameters,
             returnType: returnType,
-            localVariables: localVariables,
             body: body,
             position: position
         )
@@ -575,15 +567,13 @@ public struct StatementParser {
         let parameters = try parseParameterList(&parser)
         try expectToken(&parser, .rightParen) // consume ')'
 
-        // Parse local variable declarations and body
-        let (localVariables, body) = try parseFunctionBody(&parser, endToken: .endprocedureKeyword, nestingDepth: nestingDepth)
+        let body = try parseBlock(&parser, until: [.endprocedureKeyword], nestingDepth: nestingDepth)
 
         try expectToken(&parser, .endprocedureKeyword) // consume 'endprocedure'
 
         return ProcedureDeclaration(
             name: name,
             parameters: parameters,
-            localVariables: localVariables,
             body: body,
             position: position
         )
@@ -632,11 +622,10 @@ public struct StatementParser {
             }
 
             // Check if this is a constructor (identifier matching class name followed by '(')
-            if token.type == .identifier && token.lexeme == className {
-                if let nextToken = parser.peek(offset: 1), nextToken.type == .leftParen {
-                    constructor = try parseConstructorDeclaration(&parser, className: className)
-                    continue
-                }
+            if token.type == .identifier, token.lexeme == className,
+               let nextToken = parser.peek(offset: 1), nextToken.type == .leftParen {
+                constructor = try parseConstructorDeclaration(&parser, className: className)
+                continue
             }
 
             // Check if this is a method (function keyword)
@@ -646,11 +635,10 @@ public struct StatementParser {
             }
 
             // Otherwise, try to parse as member declaration (name: Type)
-            if token.type == .identifier {
-                if let nextToken = parser.peek(offset: 1), nextToken.type == .colon {
-                    members.append(try parseMemberDeclaration(&parser))
-                    continue
-                }
+            if token.type == .identifier,
+               let nextToken = parser.peek(offset: 1), nextToken.type == .colon {
+                members.append(try parseMemberDeclaration(&parser))
+                continue
             }
 
             // Unknown token in class body
@@ -737,21 +725,15 @@ public struct StatementParser {
                 continue
             }
 
-            // Stop at endclass or function keyword (method) or identifier followed by colon (member) or identifier followed by '(' (constructor)
-            if token.type == .endclassKeyword || token.type == .functionKeyword {
+            // Stop at endclass, function keyword (method), or EOF
+            if token.type == .endclassKeyword || token.type == .functionKeyword || token.type == .eof {
                 break
             }
 
-            // Check for member declaration (identifier followed by colon)
-            if token.type == .identifier {
-                if let nextToken = parser.peek(offset: 1) {
-                    if nextToken.type == .colon || nextToken.type == .leftParen {
-                        break
-                    }
-                }
-            }
-
-            if token.type == .eof {
+            // Stop at member declaration (identifier: Type) or constructor (identifier()
+            if token.type == .identifier,
+               let nextToken = parser.peek(offset: 1),
+               nextToken.type == .colon || nextToken.type == .leftParen {
                 break
             }
 
@@ -907,12 +889,6 @@ public struct StatementParser {
         }
 
         throw StatementParsingError.expectedDataType
-    }
-
-    /// Parses function/procedure body with local variable declarations.
-    private func parseFunctionBody(_ parser: inout TokenStream, endToken: TokenType, nestingDepth: Int = 0) throws -> ([VariableDeclaration], [Statement]) {
-        let body = try parseBlock(&parser, until: [endToken], nestingDepth: nestingDepth)
-        return ([], body)
     }
 
     /// Parses an expression by delegating to ExpressionParser.

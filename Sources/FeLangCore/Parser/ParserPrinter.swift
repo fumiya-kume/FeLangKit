@@ -65,12 +65,10 @@ public struct ParserPrinter {
 
     /// Validates semantic equivalence between original and regenerated code
     private func validateSemanticEquivalence(original: String, regenerated: String) throws {
-        // Normalize whitespace and compare logical structure
         let normalizedOriginal = normalizeForComparison(original)
         let normalizedRegenerated = normalizeForComparison(regenerated)
 
-        // Allow for formatting differences but ensure logical equivalence
-        if !areLogicallyEquivalent(normalizedOriginal, normalizedRegenerated) {
+        if normalizedOriginal != normalizedRegenerated {
             throw RoundTripError.semanticMismatch(
                 original: original,
                 regenerated: regenerated
@@ -80,18 +78,10 @@ public struct ParserPrinter {
 
     /// Normalizes source code for comparison by standardizing whitespace and formatting
     private func normalizeForComparison(_ source: String) -> String {
-        return source
+        source
             .components(separatedBy: .whitespacesAndNewlines)
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-            // Preserve case sensitivity by not lowercasing the source
-    }
-
-    /// Checks if two normalized source strings are logically equivalent
-    private func areLogicallyEquivalent(_ lhs: String, _ rhs: String) -> Bool {
-        // For now, simple string comparison after normalization
-        // This could be enhanced with more sophisticated semantic analysis
-        return lhs == rhs
     }
 }
 

@@ -401,8 +401,6 @@ public enum TokenizerCore {
         return .failure(.unterminatedString(position))
     }
 
-    // MARK: - Whitespace and Comment Handling
-
     // MARK: - Basic Number Parsing (Non-underscore variant)
 
     /// Parses basic decimal numbers with support for leading decimal points.
@@ -548,8 +546,7 @@ public enum TokenizerCore {
         if nextChar == "/" {
             // Single-line comment
             let start = index
-            index = nextIndex
-            index = input.index(after: index)
+            index = input.index(index, offsetBy: 2)
 
             while index < input.endIndex && input[index] != "\n" {
                 index = input.index(after: index)
@@ -561,8 +558,7 @@ public enum TokenizerCore {
         } else if nextChar == "*" {
             // Multi-line comment
             let start = index
-            index = nextIndex
-            index = input.index(after: index)
+            index = input.index(index, offsetBy: 2)
 
             var foundTerminator = false
             while index < input.endIndex {

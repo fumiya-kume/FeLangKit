@@ -77,23 +77,11 @@ public enum TokenizerUtilities {
     ]
 
     /// Mapping of keywords to their token types (for O(1) lookup)
-    public static let keywordMap: [String: TokenType] = {
-        var map: [String: TokenType] = [:]
-        for (keyword, tokenType) in keywords {
-            map[keyword] = tokenType
-        }
-        return map
-    }()
+    public static let keywordMap: [String: TokenType] = Dictionary(keywords, uniquingKeysWith: { _, new in new })
 
     /// Pre-cached keyword lexeme strings to reuse canonical String instances.
     /// Avoids retaining freshly-allocated lexeme copies when a keyword is matched.
-    public static let keywordLexemeMap: [String: String] = {
-        var map: [String: String] = [:]
-        for (keyword, _) in keywords {
-            map[keyword] = keyword
-        }
-        return map
-    }()
+    public static let keywordLexemeMap: [String: String] = Dictionary(uniqueKeysWithValues: keywords.map { ($0.0, $0.0) })
 
     /// Operator definitions with their token types
     /// Ordered with longer operators first to ensure proper matching
@@ -154,25 +142,19 @@ public enum TokenizerUtilities {
     /// Assumes all delimiters are single-character; multi-character delimiters
     /// would only be matched by their first character, which is incorrect.
     public static let delimiterMap: [Character: TokenType] = {
-        var map: [Character: TokenType] = [:]
-        for (delimiter, tokenType) in delimiters {
-            assert(delimiter.count == 1, "delimiterMap assumes single-character delimiters, got '\(delimiter)'")
-            guard let firstChar = delimiter.first else { continue }
-            map[firstChar] = tokenType
-        }
-        return map
+        assert(delimiters.allSatisfy { $0.0.count == 1 }, "delimiterMap assumes single-character delimiters")
+        return Dictionary(uniqueKeysWithValues: delimiters.compactMap { delimiter, tokenType in
+            delimiter.first.map { ($0, tokenType) }
+        })
     }()
 
     /// Pre-cached delimiter lexeme strings to avoid per-token String allocation.
     /// Maps each delimiter character to its canonical String representation.
-    public static let delimiterLexemeMap: [Character: String] = {
-        var map: [Character: String] = [:]
-        for (delimiter, _) in delimiters {
-            guard let firstChar = delimiter.first else { continue }
-            map[firstChar] = delimiter
+    public static let delimiterLexemeMap: [Character: String] = Dictionary(
+        uniqueKeysWithValues: delimiters.compactMap { delimiter, _ in
+            delimiter.first.map { ($0, delimiter) }
         }
-        return map
-    }()
+    )
 
     // MARK: - Whitespace Utilities
 
@@ -216,9 +198,7 @@ public enum TokenizerUtilities {
         // Slow path: full Unicode classification for non-ASCII
         let classification = UnicodeNormalizer.classifyCharacter(scalar)
         switch classification {
-        case .letter:
-            return true
-        case .other(subcategory: .privateUse):
+        case .letter, .other(subcategory: .privateUse):
             return true
         default:
             return false
@@ -248,11 +228,7 @@ public enum TokenizerUtilities {
         // Slow path: full Unicode classification for non-ASCII
         let classification = UnicodeNormalizer.classifyCharacter(scalar)
         switch classification {
-        case .letter, .number:
-            return true
-        case .mark(subcategory: .nonspacingMark):
-            return true
-        case .other(subcategory: .privateUse):
+        case .letter, .number, .mark(subcategory: .nonspacingMark), .other(subcategory: .privateUse):
             return true
         default:
             return false
@@ -394,7 +370,7 @@ public enum TokenizerUtilities {
         return char.value >= 0x30 && char.value <= 0x37 // 0-7
     }
 
-    /// Validates underscore placement in numbers (not at start, end, or consecutive)
+    /// Validates underscore placement in numbers (not at start, end, or adjacent to special characters)
     public static func isValidUnderscorePlacement(
         at position: Int,
         in numberString: String,
@@ -406,27 +382,10 @@ public enum TokenizerUtilities {
             return false
         }
 
-        // Cannot be consecutive underscores
-        if previousChar == "_" || nextChar == "_" {
-            return false
-        }
-
-        // Cannot be adjacent to decimal point
-        if previousChar == "." || nextChar == "." {
-            return false
-        }
-
-        // Cannot be adjacent to exponent indicator
-        if previousChar == "e" || previousChar == "E" ||
-           nextChar == "e" || nextChar == "E" {
-            return false
-        }
-
-        // Cannot be adjacent to sign in exponent
-        if previousChar == "+" || previousChar == "-" ||
-           nextChar == "+" || nextChar == "-" {
-            return false
-        }
+        // Cannot be adjacent to underscores, decimal points, exponent indicators, or signs
+        let invalidAdjacent: Set<UnicodeScalar> = ["_", ".", "e", "E", "+", "-"]
+        if let prev = previousChar, invalidAdjacent.contains(prev) { return false }
+        if let next = nextChar, invalidAdjacent.contains(next) { return false }
 
         return true
     }

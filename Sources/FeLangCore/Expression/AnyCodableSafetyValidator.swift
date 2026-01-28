@@ -36,8 +36,8 @@ public enum AnyCodableSafetyValidator {
         switch jsonObject {
         case let dictionary as [String: Any]:
             // Top-level dictionaries are allowed, validate their contents
-            for (_, dictValue) in dictionary {
-                try validateJSONValue(dictValue)
+            for value in dictionary.values {
+                try validateJSONValue(value)
             }
         case is [Any]:
             // All arrays are rejected for immutability purposes
@@ -105,26 +105,13 @@ public struct SafeAnyCodable: Codable, @unchecked Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
 
-        // Try to decode as supported types only
         if let intValue = try? container.decode(Int.self) {
-            guard AnyCodableSafetyValidator.validateValueType(intValue) else {
-                throw AnyCodableSafetyError.unsupportedType("Int")
-            }
             self.value = intValue
         } else if let doubleValue = try? container.decode(Double.self) {
-            guard AnyCodableSafetyValidator.validateValueType(doubleValue) else {
-                throw AnyCodableSafetyError.unsupportedType("Double")
-            }
             self.value = doubleValue
         } else if let stringValue = try? container.decode(String.self) {
-            guard AnyCodableSafetyValidator.validateValueType(stringValue) else {
-                throw AnyCodableSafetyError.unsupportedType("String")
-            }
             self.value = stringValue
         } else if let boolValue = try? container.decode(Bool.self) {
-            guard AnyCodableSafetyValidator.validateValueType(boolValue) else {
-                throw AnyCodableSafetyError.unsupportedType("Bool")
-            }
             self.value = boolValue
         } else {
             throw AnyCodableSafetyError.decodingFailed("No supported type found")
