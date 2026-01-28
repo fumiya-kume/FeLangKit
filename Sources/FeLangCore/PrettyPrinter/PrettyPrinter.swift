@@ -53,49 +53,14 @@ public struct PrettyPrinter {
         let itemIndent = makeIndent(indent + 1)
         var result = prefix + "\n"
         for (index, item) in items.enumerated() {
-            // Handle multi-line items: preserve relative indentation by removing only common indent
             let lines = item.split(separator: "\n", omittingEmptySubsequences: false)
-
-            // Calculate minimum common indentation across non-empty lines
-            let commonIndent = lines
-                .filter { !$0.isEmpty }
-                .map { line -> Int in
-                    var count = 0
-                    for char in line {
-                        if char == " " {
-                            count += 1
-                        } else if char == "\t" {
-                            count += config.indentSize
-                        } else {
-                            break
-                        }
-                    }
-                    return count
-                }
-                .min() ?? 0
+            let commonIndent = calculateCommonIndentation(lines)
 
             for (lineIndex, line) in lines.enumerated() {
                 if lineIndex > 0 {
                     result += "\n"
                 }
-                let lineStr = String(line)
-                // Remove only the common indentation, preserving relative differences
-                var charsToRemove = 0
-                var removedIndent = 0
-                for char in lineStr {
-                    if removedIndent >= commonIndent { break }
-                    if char == " " {
-                        removedIndent += 1
-                        charsToRemove += 1
-                    } else if char == "\t" {
-                        removedIndent += config.indentSize
-                        charsToRemove += 1
-                    } else {
-                        break
-                    }
-                }
-                let trimmedLine = String(lineStr.dropFirst(charsToRemove))
-                result += itemIndent + trimmedLine
+                result += itemIndent + reindentLine(String(line), commonIndent: commonIndent)
             }
             if index < items.count - 1 {
                 result += separator.trimmingCharacters(in: .whitespaces)
@@ -104,6 +69,45 @@ public struct PrettyPrinter {
         }
         result += makeIndent(indent) + suffix
         return result
+    }
+
+    /// Computes minimum common indentation across non-empty lines.
+    private func calculateCommonIndentation(_ lines: [Substring]) -> Int {
+        return lines
+            .filter { !$0.isEmpty }
+            .map { line -> Int in
+                var count = 0
+                for char in line {
+                    if char == " " {
+                        count += 1
+                    } else if char == "\t" {
+                        count += config.indentSize
+                    } else {
+                        break
+                    }
+                }
+                return count
+            }
+            .min() ?? 0
+    }
+
+    /// Removes common indentation from a line, preserving relative differences.
+    private func reindentLine(_ lineStr: String, commonIndent: Int) -> String {
+        var charsToRemove = 0
+        var removedIndent = 0
+        for char in lineStr {
+            if removedIndent >= commonIndent { break }
+            if char == " " {
+                removedIndent += 1
+                charsToRemove += 1
+            } else if char == "\t" {
+                removedIndent += config.indentSize
+                charsToRemove += 1
+            } else {
+                break
+            }
+        }
+        return String(lineStr.dropFirst(charsToRemove))
     }
 
     // MARK: - Public API

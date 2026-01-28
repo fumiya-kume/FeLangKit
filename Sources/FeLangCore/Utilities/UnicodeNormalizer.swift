@@ -477,12 +477,10 @@ public struct UnicodeNormalizer {
         let value = scalar.value
 
         // Special case: Greek letters commonly used as mathematical symbols
-        // These are technically letters but should be classified as math symbols in programming contexts
-        if value >= 0x0370 && value <= 0x03FF {   // Greek and Coptic range
+        if value >= 0x0370 && value <= 0x03FF {
             return .symbol(subcategory: .mathSymbol)
         }
 
-        // Use Unicode General Categories
         if scalar.isLetter {
             if scalar.isUppercase {
                 return .letter(subcategory: .uppercaseLetter)
@@ -494,40 +492,42 @@ public struct UnicodeNormalizer {
         } else if scalar.isNumber {
             return .number(subcategory: .decimalDigitNumber)
         } else if scalar.isPunctuation {
-            // Detailed punctuation classification
-            switch value {
-            case 0x0028, 0x005B, 0x007B, 0x0F3A, 0x0F3C, 0x169B, 0x201A, 0x201E, 0x2045, 0x207D, 0x208D, 0x2329, 0x2768...0x2775, 0x27C5, 0x27E6...0x27EF, 0x2983...0x2998, 0x29D8...0x29DB, 0x29FC, 0x29FE, 0x2E22, 0x2E24, 0x2E26, 0x2E28, 0x2E42, 0x3008...0x3011, 0x3014...0x301B, 0x301D, 0x301F, 0xFD3E, 0xFE17, 0xFE35, 0xFE37, 0xFE39, 0xFE3B, 0xFE3D, 0xFE3F, 0xFE41, 0xFE43, 0xFE47, 0xFE59, 0xFE5B, 0xFE5D, 0xFF08, 0xFF3B, 0xFF5B, 0xFF5F, 0xFF62:
-                return .punctuation(subcategory: .openPunctuation)
-            case 0x0029, 0x005D, 0x007D, 0x0F3B, 0x0F3D, 0x169C, 0x2046, 0x207E, 0x208E, 0x232A, 0x2769...0x2776, 0x27C6, 0x27E7...0x27F0, 0x2984...0x2999, 0x29D9...0x29DC, 0x29FD, 0x29FF, 0x2E23, 0x2E25, 0x2E27, 0x2E29, 0x3009...0x3012, 0x3015...0x301C, 0x301E, 0x3020, 0xFD3F, 0xFE18, 0xFE36, 0xFE38, 0xFE3A, 0xFE3C, 0xFE3E, 0xFE40, 0xFE42, 0xFE44, 0xFE48, 0xFE5A, 0xFE5C, 0xFE5E, 0xFF09, 0xFF3D, 0xFF5D, 0xFF60, 0xFF63:
-                return .punctuation(subcategory: .closePunctuation)
-            default:
-                return .punctuation(subcategory: .otherPunctuation)
-            }
+            return classifyPunctuation(scalar)
         } else if scalar.isSymbol {
-            // Mathematical symbols - check specific ranges
-            if (value >= 0x2200 && value <= 0x22FF) || // Mathematical Operators
-               (value >= 0x2A00 && value <= 0x2AFF) || // Supplemental Mathematical Operators  
-               (value >= 0x27C0 && value <= 0x27EF) || // Miscellaneous Mathematical Symbols-A
-               (value >= 0x2980 && value <= 0x29FF) {   // Miscellaneous Mathematical Symbols-B
-                return .symbol(subcategory: .mathSymbol)
-            }
-            // Currency symbols
-            else if value >= 0x20A0 && value <= 0x20CF {
-                return .symbol(subcategory: .currencySymbol)
-            }
-            // Other symbols (including emoji)
-            else {
-                return .symbol(subcategory: .otherSymbol)
-            }
+            return classifySymbol(scalar)
         } else if scalar.isWhitespace {
             return .separator(subcategory: .spaceSeparator)
+        } else if value <= 0x1F || (value >= 0x7F && value <= 0x9F) {
+            return .other(subcategory: .control)
         } else {
-            // Control and other characters
-            if value <= 0x1F || (value >= 0x7F && value <= 0x9F) {
-                return .other(subcategory: .control)
-            } else {
-                return .other(subcategory: .notAssigned)
-            }
+            return .other(subcategory: .notAssigned)
+        }
+    }
+
+    /// Classifies a punctuation scalar into open, close, or other punctuation.
+    private static func classifyPunctuation(_ scalar: UnicodeScalar) -> UnicodeCharacterClass {
+        switch scalar.value {
+        case 0x0028, 0x005B, 0x007B, 0x0F3A, 0x0F3C, 0x169B, 0x201A, 0x201E, 0x2045, 0x207D, 0x208D, 0x2329, 0x2768...0x2775, 0x27C5, 0x27E6...0x27EF, 0x2983...0x2998, 0x29D8...0x29DB, 0x29FC, 0x29FE, 0x2E22, 0x2E24, 0x2E26, 0x2E28, 0x2E42, 0x3008...0x3011, 0x3014...0x301B, 0x301D, 0x301F, 0xFD3E, 0xFE17, 0xFE35, 0xFE37, 0xFE39, 0xFE3B, 0xFE3D, 0xFE3F, 0xFE41, 0xFE43, 0xFE47, 0xFE59, 0xFE5B, 0xFE5D, 0xFF08, 0xFF3B, 0xFF5B, 0xFF5F, 0xFF62:
+            return .punctuation(subcategory: .openPunctuation)
+        case 0x0029, 0x005D, 0x007D, 0x0F3B, 0x0F3D, 0x169C, 0x2046, 0x207E, 0x208E, 0x232A, 0x2769...0x2776, 0x27C6, 0x27E7...0x27F0, 0x2984...0x2999, 0x29D9...0x29DC, 0x29FD, 0x29FF, 0x2E23, 0x2E25, 0x2E27, 0x2E29, 0x3009...0x3012, 0x3015...0x301C, 0x301E, 0x3020, 0xFD3F, 0xFE18, 0xFE36, 0xFE38, 0xFE3A, 0xFE3C, 0xFE3E, 0xFE40, 0xFE42, 0xFE44, 0xFE48, 0xFE5A, 0xFE5C, 0xFE5E, 0xFF09, 0xFF3D, 0xFF5D, 0xFF60, 0xFF63:
+            return .punctuation(subcategory: .closePunctuation)
+        default:
+            return .punctuation(subcategory: .otherPunctuation)
+        }
+    }
+
+    /// Classifies a symbol scalar into math, currency, or other symbol.
+    private static func classifySymbol(_ scalar: UnicodeScalar) -> UnicodeCharacterClass {
+        let value = scalar.value
+        if (value >= 0x2200 && value <= 0x22FF) ||
+           (value >= 0x2A00 && value <= 0x2AFF) ||
+           (value >= 0x27C0 && value <= 0x27EF) ||
+           (value >= 0x2980 && value <= 0x29FF) {
+            return .symbol(subcategory: .mathSymbol)
+        } else if value >= 0x20A0 && value <= 0x20CF {
+            return .symbol(subcategory: .currencySymbol)
+        } else {
+            return .symbol(subcategory: .otherSymbol)
         }
     }
 
