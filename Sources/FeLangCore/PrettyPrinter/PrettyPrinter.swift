@@ -451,29 +451,29 @@ public struct PrettyPrinter {
     }
 
     private func printFunctionDeclaration(_ funcDecl: FunctionDeclaration, indent: Int) -> String {
-        return printCallableDeclaration(
+        let info = CallableDeclarationInfo(
             name: funcDecl.name,
             parameters: funcDecl.parameters,
             returnType: funcDecl.returnType,
             localVariables: funcDecl.localVariables,
             body: funcDecl.body,
-            indent: indent,
             keyword: "function",
             endKeyword: "endfunction"
         )
+        return printCallableDeclaration(info, indent: indent)
     }
 
     private func printProcedureDeclaration(_ procDecl: ProcedureDeclaration, indent: Int) -> String {
-        return printCallableDeclaration(
+        let info = CallableDeclarationInfo(
             name: procDecl.name,
             parameters: procDecl.parameters,
             returnType: nil,
             localVariables: procDecl.localVariables,
             body: procDecl.body,
-            indent: indent,
             keyword: "procedure",
             endKeyword: "endprocedure"
         )
+        return printCallableDeclaration(info, indent: indent)
     }
 
     private func printReturnStatement(_ returnStmt: ReturnStatement) -> String {
@@ -579,30 +579,20 @@ public struct PrettyPrinter {
     }
 
     // Prints a callable declaration (function or procedure) with shared formatting logic.
-    // swiftlint:disable:next function_parameter_count
-    private func printCallableDeclaration(
-        name: String,
-        parameters: [Parameter],
-        returnType: DataType?,
-        localVariables: [VariableDeclaration],
-        body: [Statement],
-        indent: Int,
-        keyword: String,
-        endKeyword: String
-    ) -> String {
+    private func printCallableDeclaration(_ info: CallableDeclarationInfo, indent: Int) -> String {
         let indentStr = makeIndent(indent)
-        let params = parameters.map { "\($0.name): \(printDataType($0.type))" }.joined(separator: ", ")
+        let params = info.parameters.map { "\($0.name): \(printDataType($0.type))" }.joined(separator: ", ")
 
-        var result = "\(indentStr)\(keyword) \(name)(\(params))"
-        if let returnType = returnType {
+        var result = "\(indentStr)\(info.keyword) \(info.name)(\(params))"
+        if let returnType = info.returnType {
             result += ": \(printDataType(returnType))"
         }
 
-        var hasContent = appendContentLines(localVariables, to: &result, indent: indent + 1) {
+        var hasContent = appendContentLines(info.localVariables, to: &result, indent: indent + 1) {
             printVariableDeclaration($0)
         }
 
-        let bodyStr = printStatements(body, indent: indent + 1)
+        let bodyStr = printStatements(info.body, indent: indent + 1)
         if !bodyStr.isEmpty {
             if !hasContent {
                 result += "\n"
@@ -612,7 +602,7 @@ public struct PrettyPrinter {
         }
 
         let newlineBeforeEnd = hasContent ? "" : "\n"
-        result += "\(newlineBeforeEnd)\(indentStr)\(endKeyword)"
+        result += "\(newlineBeforeEnd)\(indentStr)\(info.endKeyword)"
         return result
     }
 
