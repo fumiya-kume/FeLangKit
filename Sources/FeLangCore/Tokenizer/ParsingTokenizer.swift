@@ -13,47 +13,43 @@ public struct ParsingTokenizer: Sendable {
         var tracker = TokenizerUtilities.PositionTracker()
 
         while index < input.endIndex {
-            // Skip whitespace and newlines
             if input[index].isWhitespace {
                 tracker.advance(past: input[index])
                 index = input.index(after: index)
                 continue
             }
 
-            let position = tracker.currentPosition
-
-            // Try to parse a token
-            let beforeIndex = index
-            if let token = try parseNextToken(from: input, at: &index, startIndex: input.startIndex) {
-                tracker.advance(through: input[beforeIndex..<index])
-                let tokenWithPosition = Token(
-                    type: token.type,
-                    lexeme: token.lexeme,
-                    position: position
-                )
-                tokens.append(tokenWithPosition)
-            } else {
-                // Check if index moved (could be a comment that was skipped)
-                if index > beforeIndex {
-                    tracker.advance(through: input[beforeIndex..<index])
-                    continue // Comment was skipped, continue to next iteration
-                }
-
-                // If we can't parse a token, it's an unexpected character
-                guard let scalar = input[index].unicodeScalars.first else {
-                    tracker.advance(past: input[index])
-                    index = input.index(after: index)
-                    continue
-                }
-                throw TokenizerError.unexpectedCharacter(scalar, position)
-            }
+            try processNextToken(from: input, at: &index, tracker: &tracker, tokens: &tokens)
         }
 
-        // Add EOF token
-        let finalPosition = tracker.currentPosition
-        tokens.append(Token(type: .eof, lexeme: "", position: finalPosition))
-
+        tokens.append(Token(type: .eof, lexeme: "", position: tracker.currentPosition))
         return tokens
+    }
+
+    private func processNextToken(
+        from input: String, at index: inout String.Index,
+        tracker: inout TokenizerUtilities.PositionTracker, tokens: inout [Token]
+    ) throws {
+        let position = tracker.currentPosition
+        let beforeIndex = index
+
+        if let token = try parseNextToken(from: input, at: &index, startIndex: input.startIndex) {
+            tracker.advance(through: input[beforeIndex..<index])
+            tokens.append(Token(type: token.type, lexeme: token.lexeme, position: position))
+            return
+        }
+
+        if index > beforeIndex {
+            tracker.advance(through: input[beforeIndex..<index])
+            return
+        }
+
+        guard let scalar = input[index].unicodeScalars.first else {
+            tracker.advance(past: input[index])
+            index = input.index(after: index)
+            return
+        }
+        throw TokenizerError.unexpectedCharacter(scalar, position)
     }
 
     private func parseNextToken(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenizerCore.TokenData? {
@@ -100,47 +96,45 @@ public struct ParsingTokenizer: Sendable {
     private func parseComment(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenizerCore.TokenData? {
         guard index < input.endIndex else { return nil }
 
-        // Single line comment
         if TokenizerUtilities.matchString("//", in: input, at: index) {
-            let start = index
-            index = input.index(index, offsetBy: 2)
-
-            // Read until newline or end
-            while index < input.endIndex && input[index] != "\n" {
-                index = input.index(after: index)
-            }
-
-            let lexeme = String(input[start..<index])
-            return TokenizerCore.TokenData(type: .comment, lexeme: lexeme)
+            return parseSingleLineComment(from: input, at: &index)
         }
 
-        // Multi-line comment
         if TokenizerUtilities.matchString("/*", in: input, at: index) {
-            let commentStart = index
-            let position = TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
-            index = input.index(index, offsetBy: 2)
-
-            var foundTerminator = false
-            // Read until */
-            while index < input.endIndex {
-                if TokenizerUtilities.matchString("*/", in: input, at: index) {
-                    index = input.index(index, offsetBy: 2)
-                    foundTerminator = true
-                    break
-                }
-                index = input.index(after: index)
-            }
-
-            // Check if comment was properly terminated
-            if !foundTerminator {
-                throw TokenizerError.unterminatedComment(position)
-            }
-
-            let lexeme = String(input[commentStart..<index])
-            return TokenizerCore.TokenData(type: .comment, lexeme: lexeme)
+            return try parseMultiLineComment(from: input, at: &index, startIndex: startIndex)
         }
 
         return nil
+    }
+
+    private func parseSingleLineComment(from input: String, at index: inout String.Index) -> TokenizerCore.TokenData {
+        let start = index
+        index = input.index(index, offsetBy: 2)
+        while index < input.endIndex && input[index] != "\n" {
+            index = input.index(after: index)
+        }
+        return TokenizerCore.TokenData(type: .comment, lexeme: String(input[start..<index]))
+    }
+
+    private func parseMultiLineComment(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenizerCore.TokenData {
+        let commentStart = index
+        let position = TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
+        index = input.index(index, offsetBy: 2)
+
+        var foundTerminator = false
+        while index < input.endIndex {
+            if TokenizerUtilities.matchString("*/", in: input, at: index) {
+                index = input.index(index, offsetBy: 2)
+                foundTerminator = true
+                break
+            }
+            index = input.index(after: index)
+        }
+
+        if !foundTerminator {
+            throw TokenizerError.unterminatedComment(position)
+        }
+        return TokenizerCore.TokenData(type: .comment, lexeme: String(input[commentStart..<index]))
     }
 
     private func parseString(from input: String, at index: inout String.Index, startIndex: String.Index) throws -> TokenizerCore.TokenData? {
@@ -151,77 +145,75 @@ public struct ParsingTokenizer: Sendable {
 
         let start = index
         let position = TokenizerUtilities.sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
-        index = input.index(after: index) // Skip opening quote
+        index = input.index(after: index)
 
-        // Read until closing quote, handling escape sequences
         while index < input.endIndex && input[index] != quoteChar {
-            // Handle escape sequences
             if input[index] == "\\" {
-                index = input.index(after: index) // consume backslash
-
-                guard index < input.endIndex else {
-                    throw TokenizerError.invalidEscapeSequenceWithMessage("Incomplete escape sequence at end of string", position)
-                }
-
-                let escapedChar = input[index]
-                index = input.index(after: index) // consume escaped character
-
-                // Handle Unicode escape sequences specially
-                if escapedChar == "u" {
-                    guard index < input.endIndex && input[index] == "{" else {
-                        throw TokenizerError.invalidUnicodeEscape("Expected '{' after \\u", position)
-                    }
-                    index = input.index(after: index) // consume '{'
-
-                    // Scan hex digits
-                    var hexDigitCount = 0
-                    while index < input.endIndex && input[index] != "}" && hexDigitCount < 8 {
-                        guard let scalar = String(input[index]).unicodeScalars.first,
-                              TokenizerUtilities.isHexDigit(scalar) else {
-                            throw TokenizerError.invalidUnicodeEscape("Invalid hex digit in Unicode escape", position)
-                        }
-                        index = input.index(after: index)
-                        hexDigitCount += 1
-                    }
-
-                    guard index < input.endIndex else {
-                        throw TokenizerError.invalidUnicodeEscape("Unterminated Unicode escape sequence", position)
-                    }
-
-                    guard input[index] == "}" else {
-                        throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence too long (max 8 hex digits)", position)
-                    }
-
-                    guard hexDigitCount > 0 else {
-                        throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence must have at least one hex digit", position)
-                    }
-
-                    index = input.index(after: index) // consume '}'
-                } else {
-                    // Validate basic escape sequences
-                    switch escapedChar {
-                    case "n", "t", "r", "\\", "\"", "'":
-                        break // Valid escape sequences
-                    default:
-                        throw TokenizerError.invalidEscapeSequenceWithMessage("Unknown escape sequence \\(escapedChar)", position)
-                    }
-                }
+                try consumeEscapeSequence(from: input, at: &index, position: position)
             } else {
                 index = input.index(after: index)
             }
         }
 
-        // Must have closing quote
         guard index < input.endIndex else {
             throw TokenizerError.unterminatedString(position)
         }
+        index = input.index(after: index)
 
-        index = input.index(after: index) // Skip closing quote
+        return try buildStringTokenData(from: input, start: start, end: index, position: position)
+    }
 
-        let lexeme = String(input[start..<index])
-        let content = String(lexeme.dropFirst().dropLast()) // Remove quotes
+    private func consumeEscapeSequence(from input: String, at index: inout String.Index, position: SourcePosition) throws {
+        index = input.index(after: index) // consume backslash
 
-        // Process escape sequences in the content for token type determination
+        guard index < input.endIndex else {
+            throw TokenizerError.invalidEscapeSequenceWithMessage("Incomplete escape sequence at end of string", position)
+        }
+
+        let escapedChar = input[index]
+        index = input.index(after: index) // consume escaped character
+
+        if escapedChar == "u" {
+            try consumeUnicodeEscape(from: input, at: &index, position: position)
+        } else {
+            guard "ntr\\'\"".contains(escapedChar) else {
+                throw TokenizerError.invalidEscapeSequenceWithMessage("Unknown escape sequence \\(escapedChar)", position)
+            }
+        }
+    }
+
+    private func consumeUnicodeEscape(from input: String, at index: inout String.Index, position: SourcePosition) throws {
+        guard index < input.endIndex && input[index] == "{" else {
+            throw TokenizerError.invalidUnicodeEscape("Expected '{' after \\u", position)
+        }
+        index = input.index(after: index)
+
+        var hexDigitCount = 0
+        while index < input.endIndex && input[index] != "}" && hexDigitCount < 8 {
+            guard let scalar = String(input[index]).unicodeScalars.first,
+                  TokenizerUtilities.isHexDigit(scalar) else {
+                throw TokenizerError.invalidUnicodeEscape("Invalid hex digit in Unicode escape", position)
+            }
+            index = input.index(after: index)
+            hexDigitCount += 1
+        }
+
+        guard index < input.endIndex else {
+            throw TokenizerError.invalidUnicodeEscape("Unterminated Unicode escape sequence", position)
+        }
+        guard input[index] == "}" else {
+            throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence too long (max 8 hex digits)", position)
+        }
+        guard hexDigitCount > 0 else {
+            throw TokenizerError.invalidUnicodeEscape("Unicode escape sequence must have at least one hex digit", position)
+        }
+        index = input.index(after: index)
+    }
+
+    private func buildStringTokenData(from input: String, start: String.Index, end: String.Index, position: SourcePosition) throws -> TokenizerCore.TokenData {
+        let lexeme = String(input[start..<end])
+        let content = String(lexeme.dropFirst().dropLast())
+
         do {
             let processedContent = try StringEscapeUtilities.processEscapeSequences(content)
             let tokenType = TokenizerUtilities.stringLiteralTokenType(content: processedContent)
