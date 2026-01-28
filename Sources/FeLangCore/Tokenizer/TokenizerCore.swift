@@ -158,38 +158,40 @@ public enum TokenizerCore {
 
     // MARK: - Enhanced Number Parsing (with Error Detection)
 
-    /// Enhanced number parsing with improved error detection and validation.
-    /// Detects multiple decimal points, invalid formats, and provides detailed error context.
-    public static func parseNumberWithValidation( // swiftlint:disable:this function_body_length
-        from input: String, at index: inout String.Index, startIndex: String.Index? = nil
-    ) -> Result<TokenData, TokenizerError> {
-        let baseIndex = startIndex ?? input.startIndex
+    /// Validates that input at current index is a valid number start.
+    /// Returns an error if validation fails, nil if valid.
+    private static func validateNumberStart(
+        from input: String, at index: String.Index, baseIndex: String.Index
+    ) -> TokenizerError? {
         let nullScalar: UnicodeScalar = "\0"
         guard index < input.endIndex else {
             let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: index)
-            return .failure(.unexpectedCharacter(nullScalar, position))
+            return .unexpectedCharacter(nullScalar, position)
         }
-
         guard input[index].isNumber || input[index] == "." else {
             let scalar = input[index].unicodeScalars.first ?? nullScalar
             let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: index)
-            return .failure(.unexpectedCharacter(scalar, position))
+            return .unexpectedCharacter(scalar, position)
         }
+        return nil
+    }
 
-        let start = index
+    /// Consumes digit and decimal parts of a number, advancing the index.
+    /// Returns (hasDecimal, decimalCount) describing what was parsed.
+    private static func consumeNumberDigitsAndDecimals(
+        from input: String, at index: inout String.Index
+    ) -> (hasDecimal: Bool, decimalCount: Int) {
         var hasDecimal = false
         var decimalCount = 0
 
         // Handle leading decimal point
         if input[index] == "." {
             let nextIndex = input.index(after: index)
-            guard nextIndex < input.endIndex && input[nextIndex].isNumber else {
-                let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: index)
-                return .failure(.invalidNumberFormat(".", position))
+            if nextIndex < input.endIndex && input[nextIndex].isNumber {
+                hasDecimal = true
+                decimalCount = 1
+                index = nextIndex
             }
-            hasDecimal = true
-            decimalCount = 1
-            index = nextIndex
         }
 
         // Parse integer part
@@ -197,27 +199,48 @@ public enum TokenizerCore {
             index = input.index(after: index)
         }
 
-        // Handle decimal point
+        // Handle decimal point and fractional part
         while !hasDecimal && index < input.endIndex && input[index] == "." {
             decimalCount += 1
             let nextIndex = input.index(after: index)
             if nextIndex < input.endIndex && input[nextIndex].isNumber {
                 hasDecimal = true
                 index = nextIndex
-
-                // Parse fractional part
                 while index < input.endIndex && input[index].isNumber {
                     index = input.index(after: index)
                 }
-                break
-            } else {
-                break
+            }
+            break
+        }
+
+        return (hasDecimal, decimalCount)
+    }
+
+    /// Enhanced number parsing with improved error detection and validation.
+    /// Detects multiple decimal points, invalid formats, and provides detailed error context.
+    public static func parseNumberWithValidation(
+        from input: String, at index: inout String.Index, startIndex: String.Index? = nil
+    ) -> Result<TokenData, TokenizerError> {
+        let baseIndex = startIndex ?? input.startIndex
+
+        if let error = validateNumberStart(from: input, at: index, baseIndex: baseIndex) {
+            return .failure(error)
+        }
+
+        // Handle lone leading decimal point error
+        if input[index] == "." {
+            let nextIndex = input.index(after: index)
+            guard nextIndex < input.endIndex && input[nextIndex].isNumber else {
+                let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: index)
+                return .failure(.invalidNumberFormat(".", position))
             }
         }
 
+        let start = index
+        let (hasDecimal, decimalCount) = consumeNumberDigitsAndDecimals(from: input, at: &index)
+
         // Check for additional invalid decimal points (like 123.45.67)
         if decimalCount > 1 || (hasDecimal && index < input.endIndex && input[index] == ".") {
-            // Continue parsing to get the full invalid number
             while index < input.endIndex && (input[index].isNumber || input[index] == ".") {
                 index = input.index(after: index)
             }
@@ -459,9 +482,23 @@ public enum TokenizerCore {
 
     // MARK: - Basic String Parsing
 
+    /// Decodes a basic escape character following a backslash.
+    /// Returns the decoded character, or nil for unknown escape sequences.
+    private static func decodeBasicEscape(_ char: Character) -> Character? {
+        switch char {
+        case "n": return "\n"
+        case "t": return "\t"
+        case "r": return "\r"
+        case "\\": return "\\"
+        case "\"": return "\""
+        case "'": return "'"
+        default: return nil
+        }
+    }
+
     /// Parses string literals with basic escape sequence support.
     /// Returns nil if the string is unterminated or invalid.
-    public static func parseBasicString( // swiftlint:disable:this function_body_length
+    public static func parseBasicString(
         from input: String, at index: inout String.Index
     ) -> TokenData? {
         guard index < input.endIndex else { return nil }
@@ -480,40 +517,18 @@ public enum TokenizerCore {
 
             if char == quoteChar {
                 foundClosing = true
-                index = input.index(after: index) // Skip closing quote
+                index = input.index(after: index)
                 break
             } else if char == "\n" {
-                // Unterminated string at newline
                 break
             } else if char == "\\" {
-                // Handle basic escape sequences
                 let nextIndex = input.index(after: index)
-                if nextIndex < input.endIndex {
-                    let nextChar = input[nextIndex]
-                    switch nextChar {
-                    case "n":
-                        content.append("\n")
-                        index = input.index(after: nextIndex)
-                    case "t":
-                        content.append("\t")
-                        index = input.index(after: nextIndex)
-                    case "r":
-                        content.append("\r")
-                        index = input.index(after: nextIndex)
-                    case "\\":
-                        content.append("\\")
-                        index = input.index(after: nextIndex)
-                    case "\"":
-                        content.append("\"")
-                        index = input.index(after: nextIndex)
-                    case "'":
-                        content.append("'")
-                        index = input.index(after: nextIndex)
-                    default:
-                        // Unknown escape sequence - return nil to let caller handle error
-                        index = start
-                        return nil
-                    }
+                if nextIndex < input.endIndex, let decoded = decodeBasicEscape(input[nextIndex]) {
+                    content.append(decoded)
+                    index = input.index(after: nextIndex)
+                } else if nextIndex < input.endIndex {
+                    index = start
+                    return nil
                 } else {
                     index = nextIndex
                 }
@@ -523,7 +538,6 @@ public enum TokenizerCore {
             }
         }
 
-        // Return nil if unterminated (let caller handle the error)
         guard foundClosing else { return nil }
 
         let lexeme = String(input[start..<index])
