@@ -112,8 +112,154 @@ public enum ASTWalker {
     ///   - expression: The root expression to transform
     ///   - transform: A function that takes an expression and returns a transformed expression
     /// - Returns: The transformed expression tree
-    public static func transformExpression(_ expression: Expression, _ transform: @escaping @Sendable (Expression) -> Expression) -> Expression {
-        let visitor = ExpressionVisitor<Expression>(
+    public static func transformExpression(
+        _ expression: Expression,
+        _ transform: @escaping @Sendable (Expression) -> Expression
+    ) -> Expression {
+        let visitor = makeTransformVisitor(transform)
+        return visitor.visit(expression)
+    }
+
+    // MARK: - Statement Walking
+
+    /// Walks a statement tree and collects all identifier names from expressions.
+    ///
+    /// - Parameter statement: The root statement to walk
+    /// - Returns: A set of all identifier names found in the statement tree
+    public static func collectIdentifiers(from statement: Statement) -> Set<String> {
+        let visitor = StatementVisitor<Set<String>>(
+            visitIfStatement: { collectIdentifiersFromIfStatement($0) },
+            visitWhileStatement: { stmt in
+                collectIdentifiers(from: stmt.condition).union(collectIdentifiersFromStatements(stmt.body))
+            },
+            visitDoWhileStatement: { stmt in
+                collectIdentifiers(from: stmt.condition).union(collectIdentifiersFromStatements(stmt.body))
+            },
+            visitForStatement: { collectIdentifiersFromForStatement($0) },
+            visitAssignment: { collectIdentifiersFromAssignment($0) },
+            visitVariableDeclaration: { decl in
+                var identifiers = Set([decl.name])
+                if let value = decl.initialValue { identifiers.formUnion(collectIdentifiers(from: value)) }
+                return identifiers
+            },
+            visitConstantDeclaration: { Set([$0.name]).union(collectIdentifiers(from: $0.initialValue)) },
+            visitFunctionDeclaration: {
+                collectIdentifiersFromCallableDecl(
+                    name: $0.name, params: $0.parameters, locals: $0.localVariables, body: $0.body)
+            },
+            visitProcedureDeclaration: {
+                collectIdentifiersFromCallableDecl(
+                    name: $0.name, params: $0.parameters, locals: $0.localVariables, body: $0.body)
+            },
+            visitReturnStatement: { $0.expression.map { collectIdentifiers(from: $0) } ?? Set() },
+            visitExpressionStatement: { collectIdentifiers(from: $0) },
+            visitBreakStatement: { Set() },
+            visitContinueStatement: { Set() },
+            visitBlock: { collectIdentifiersFromStatements($0) },
+            visitRecordDeclaration: { Set([$0.name]).union(Set($0.fields.map { $0.name })) },
+            visitClassDeclaration: { Set([$0.name]).union(Set($0.members.map { $0.name })) },
+            visitGlobalDeclaration: { decl in
+                var identifiers = Set([decl.name])
+                if let value = decl.initialValue { identifiers.formUnion(collectIdentifiers(from: value)) }
+                return identifiers
+            }
+        )
+        return visitor.visit(statement)
+    }
+
+    /// Walks a statement tree and counts the total number of nodes.
+    ///
+    /// - Parameter statement: The root statement to walk
+    /// - Returns: The total number of nodes in the statement tree
+    public static func countNodes(in statement: Statement) -> Int {
+        let visitor = StatementVisitor<Int>(
+            visitIfStatement: { countNodesInIfStatement($0) },
+            visitWhileStatement: { 1 + countNodes(in: $0.condition) + countNodesInStatements($0.body) },
+            visitDoWhileStatement: { 1 + countNodes(in: $0.condition) + countNodesInStatements($0.body) },
+            visitForStatement: { countNodesInForStatement($0) },
+            visitAssignment: { countNodesInAssignment($0) },
+            visitVariableDeclaration: { $0.initialValue.map { 1 + countNodes(in: $0) } ?? 1 },
+            visitConstantDeclaration: { 1 + countNodes(in: $0.initialValue) },
+            visitFunctionDeclaration: { 1 + countNodesInStatements($0.body) },
+            visitProcedureDeclaration: { 1 + countNodesInStatements($0.body) },
+            visitReturnStatement: { $0.expression.map { 1 + countNodes(in: $0) } ?? 1 },
+            visitExpressionStatement: { 1 + countNodes(in: $0) },
+            visitBreakStatement: { 1 },
+            visitContinueStatement: { 1 },
+            visitBlock: { 1 + countNodesInStatements($0) },
+            visitRecordDeclaration: { 1 + $0.fields.count },
+            visitClassDeclaration: { 1 + $0.members.count },
+            visitGlobalDeclaration: { $0.initialValue.map { 1 + countNodes(in: $0) } ?? 1 }
+        )
+        return visitor.visit(statement)
+    }
+
+    /// Transforms a statement tree by applying a transformation function to all expressions.
+    ///
+    /// - Parameters:
+    ///   - statement: The root statement to transform
+    ///   - transform: A function that takes an expression and returns a transformed expression
+    /// - Returns: The transformed statement tree
+    public static func transformExpressions(
+        in statement: Statement,
+        _ transform: @escaping @Sendable (Expression) -> Expression
+    ) -> Statement {
+        let visitor = StatementVisitor<Statement>(
+            visitIfStatement: { transformExpressionsInIfStatement($0, transform) },
+            visitWhileStatement: { stmt in
+                .whileStatement(WhileStatement(
+                    condition: transformExpression(stmt.condition, transform),
+                    body: stmt.body.map { transformExpressions(in: $0, transform) }))
+            },
+            visitDoWhileStatement: { stmt in
+                .doWhileStatement(DoWhileStatement(
+                    body: stmt.body.map { transformExpressions(in: $0, transform) },
+                    condition: transformExpression(stmt.condition, transform)))
+            },
+            visitForStatement: { transformExpressionsInForStatement($0, transform) },
+            visitAssignment: { transformExpressionsInAssignment($0, transform) },
+            visitVariableDeclaration: { decl in
+                .variableDeclaration(VariableDeclaration(name: decl.name, type: decl.type,
+                    initialValue: decl.initialValue.map { transformExpression($0, transform) }))
+            },
+            visitConstantDeclaration: { decl in
+                .constantDeclaration(ConstantDeclaration(name: decl.name, type: decl.type,
+                    initialValue: transformExpression(decl.initialValue, transform)))
+            },
+            visitFunctionDeclaration: { transformExpressionsInFunctionDecl($0, transform) },
+            visitProcedureDeclaration: { transformExpressionsInProcedureDecl($0, transform) },
+            visitReturnStatement: { stmt in
+                .returnStatement(ReturnStatement(
+                    expression: stmt.expression.map { transformExpression($0, transform) }))
+            },
+            visitExpressionStatement: { .expressionStatement(transformExpression($0, transform)) },
+            visitBreakStatement: { .breakStatement },
+            visitContinueStatement: { .continueStatement },
+            visitBlock: { .block($0.map { transformExpressions(in: $0, transform) }) },
+            visitRecordDeclaration: {
+                .recordDeclaration(RecordDeclaration(
+                    name: $0.name, fields: $0.fields, position: $0.position))
+            },
+            visitClassDeclaration: { .classDeclaration($0) },
+            visitGlobalDeclaration: { decl in
+                .globalDeclaration(GlobalDeclaration(name: decl.name, type: decl.type,
+                    initialValue: decl.initialValue.map { transformExpression($0, transform) },
+                    position: decl.position))
+            }
+        )
+        return visitor.visit(statement)
+    }
+
+    // MARK: - Expression Transform Helper
+
+    /// Constructs an ExpressionVisitor that recursively transforms expression nodes.
+    ///
+    /// - Parameter transform: A function applied to each expression node
+    /// - Returns: An ExpressionVisitor configured for recursive transformation
+    public static func makeTransformVisitor(
+        _ transform: @escaping @Sendable (Expression) -> Expression
+    ) -> ExpressionVisitor<Expression> {
+        ExpressionVisitor<Expression>(
             visitLiteral: { literal in
                 transform(.literal(literal))
             },
@@ -152,454 +298,316 @@ public enum ASTWalker {
                 return transform(.arrayLiteral(transformedElements))
             }
         )
-
-        return visitor.visit(expression)
     }
 
-    // MARK: - Statement Walking
+    // MARK: - Identifier Collection Helpers
 
-    /// Walks a statement tree and collects all identifier names from expressions.
+    /// Collects identifiers from an array of statements.
     ///
-    /// - Parameter statement: The root statement to walk
-    /// - Returns: A set of all identifier names found in the statement tree
-    public static func collectIdentifiers(from statement: Statement) -> Set<String> {
-        let visitor = StatementVisitor<Set<String>>(
-            visitIfStatement: { ifStmt in
-                var identifiers = collectIdentifiers(from: ifStmt.condition)
-                identifiers.formUnion(ifStmt.thenBody.reduce(Set<String>()) { result, stmt in
-                    result.union(collectIdentifiers(from: stmt))
-                })
-                for elseIf in ifStmt.elseIfs {
-                    identifiers.formUnion(collectIdentifiers(from: elseIf.condition))
-                    identifiers.formUnion(elseIf.body.reduce(Set<String>()) { result, stmt in
-                        result.union(collectIdentifiers(from: stmt))
-                    })
-                }
-                if let elseBody = ifStmt.elseBody {
-                    identifiers.formUnion(elseBody.reduce(Set<String>()) { result, stmt in
-                        result.union(collectIdentifiers(from: stmt))
-                    })
-                }
-                return identifiers
-            },
-            visitWhileStatement: { whileStmt in
-                var identifiers = collectIdentifiers(from: whileStmt.condition)
-                identifiers.formUnion(whileStmt.body.reduce(Set<String>()) { result, stmt in
-                    result.union(collectIdentifiers(from: stmt))
-                })
-                return identifiers
-            },
-            visitDoWhileStatement: { doWhileStmt in
-                var identifiers = collectIdentifiers(from: doWhileStmt.condition)
-                identifiers.formUnion(doWhileStmt.body.reduce(Set<String>()) { result, stmt in
-                    result.union(collectIdentifiers(from: stmt))
-                })
-                return identifiers
-            },
-            visitForStatement: { forStmt in
-                var identifiers = Set<String>()
-                switch forStmt {
-                case .range(let rangeFor):
-                    identifiers.insert(rangeFor.variable)
-                    identifiers.formUnion(collectIdentifiers(from: rangeFor.start))
-                    identifiers.formUnion(collectIdentifiers(from: rangeFor.end))
-                    if let step = rangeFor.step {
-                        identifiers.formUnion(collectIdentifiers(from: step))
-                    }
-                    identifiers.formUnion(rangeFor.body.reduce(Set<String>()) { result, stmt in
-                        result.union(collectIdentifiers(from: stmt))
-                    })
-                case .forEach(let forEach):
-                    identifiers.insert(forEach.variable)
-                    identifiers.formUnion(collectIdentifiers(from: forEach.iterable))
-                    identifiers.formUnion(forEach.body.reduce(Set<String>()) { result, stmt in
-                        result.union(collectIdentifiers(from: stmt))
-                    })
-                }
-                return identifiers
-            },
-            visitAssignment: { assignment in
-                switch assignment {
-                case .variable(let name, let expr):
-                    return Set([name]).union(collectIdentifiers(from: expr))
-                case .arrayElement(let arrayAccess, let expr):
-                    return collectIdentifiers(from: arrayAccess.array)
-                        .union(collectIdentifiers(from: arrayAccess.index))
-                        .union(collectIdentifiers(from: expr))
-                case .fieldAccess(let fieldAccess, let expr):
-                    return collectIdentifiers(from: fieldAccess.object)
-                        .union(collectIdentifiers(from: expr))
-                }
-            },
-            visitVariableDeclaration: { varDecl in
-                var identifiers = Set([varDecl.name])
-                if let initialValue = varDecl.initialValue {
-                    identifiers.formUnion(collectIdentifiers(from: initialValue))
-                }
-                return identifiers
-            },
-            visitConstantDeclaration: { constDecl in
-                return Set([constDecl.name]).union(collectIdentifiers(from: constDecl.initialValue))
-            },
-            visitFunctionDeclaration: { funcDecl in
-                var identifiers = Set([funcDecl.name])
-                identifiers.formUnion(Set(funcDecl.parameters.map { $0.name }))
-                identifiers.formUnion(Set(funcDecl.localVariables.map { $0.name }))
-                identifiers.formUnion(funcDecl.body.reduce(Set<String>()) { result, stmt in
-                    result.union(collectIdentifiers(from: stmt))
-                })
-                return identifiers
-            },
-            visitProcedureDeclaration: { procDecl in
-                var identifiers = Set([procDecl.name])
-                identifiers.formUnion(Set(procDecl.parameters.map { $0.name }))
-                identifiers.formUnion(Set(procDecl.localVariables.map { $0.name }))
-                identifiers.formUnion(procDecl.body.reduce(Set<String>()) { result, stmt in
-                    result.union(collectIdentifiers(from: stmt))
-                })
-                return identifiers
-            },
-            visitReturnStatement: { returnStmt in
-                if let expr = returnStmt.expression {
-                    return collectIdentifiers(from: expr)
-                }
-                return Set()
-            },
-            visitExpressionStatement: { expr in
-                return collectIdentifiers(from: expr)
-            },
-            visitBreakStatement: {
-                return Set()
-            },
-            visitContinueStatement: {
-                return Set()
-            },
-            visitBlock: { statements in
-                return statements.reduce(Set<String>()) { result, stmt in
-                    result.union(collectIdentifiers(from: stmt))
-                }
-            },
-            visitRecordDeclaration: { recordDecl in
-                var identifiers = Set([recordDecl.name])
-                identifiers.formUnion(Set(recordDecl.fields.map { $0.name }))
-                return identifiers
-            },
-            visitClassDeclaration: { classDecl in
-                var identifiers = Set([classDecl.name])
-                identifiers.formUnion(Set(classDecl.members.map { $0.name }))
-                return identifiers
-            },
-            visitGlobalDeclaration: { globalDecl in
-                var identifiers = Set([globalDecl.name])
-                if let initialValue = globalDecl.initialValue {
-                    identifiers.formUnion(collectIdentifiers(from: initialValue))
-                }
-                return identifiers
-            }
-        )
-
-        return visitor.visit(statement)
+    /// - Parameter statements: The statements to collect identifiers from
+    /// - Returns: A set of all identifier names found
+    public static func collectIdentifiersFromStatements(_ statements: [Statement]) -> Set<String> {
+        statements.reduce(Set<String>()) { result, stmt in
+            result.union(collectIdentifiers(from: stmt))
+        }
     }
 
-    /// Walks a statement tree and counts the total number of nodes.
+    /// Collects identifiers from an if statement including elseif and else branches.
     ///
-    /// - Parameter statement: The root statement to walk
-    /// - Returns: The total number of nodes in the statement tree
-    public static func countNodes(in statement: Statement) -> Int {
-        let visitor = StatementVisitor<Int>(
-            visitIfStatement: { ifStmt in
-                var count = 1 + countNodes(in: ifStmt.condition)
-                count += ifStmt.thenBody.reduce(0) { result, stmt in
-                    result + countNodes(in: stmt)
-                }
-                for elseIf in ifStmt.elseIfs {
-                    count += countNodes(in: elseIf.condition)
-                    count += elseIf.body.reduce(0) { result, stmt in
-                        result + countNodes(in: stmt)
-                    }
-                }
-                if let elseBody = ifStmt.elseBody {
-                    count += elseBody.reduce(0) { result, stmt in
-                        result + countNodes(in: stmt)
-                    }
-                }
-                return count
-            },
-            visitWhileStatement: { whileStmt in
-                let conditionCount = countNodes(in: whileStmt.condition)
-                let bodyCount = whileStmt.body.reduce(0) { result, stmt in
-                    result + countNodes(in: stmt)
-                }
-                return 1 + conditionCount + bodyCount
-            },
-            visitDoWhileStatement: { doWhileStmt in
-                let conditionCount = countNodes(in: doWhileStmt.condition)
-                let bodyCount = doWhileStmt.body.reduce(0) { result, stmt in
-                    result + countNodes(in: stmt)
-                }
-                return 1 + conditionCount + bodyCount
-            },
-            visitForStatement: { forStmt in
-                var count = 1
-                switch forStmt {
-                case .range(let rangeFor):
-                    count += countNodes(in: rangeFor.start)
-                    count += countNodes(in: rangeFor.end)
-                    if let step = rangeFor.step {
-                        count += countNodes(in: step)
-                    }
-                    count += rangeFor.body.reduce(0) { result, stmt in
-                        result + countNodes(in: stmt)
-                    }
-                case .forEach(let forEach):
-                    count += countNodes(in: forEach.iterable)
-                    count += forEach.body.reduce(0) { result, stmt in
-                        result + countNodes(in: stmt)
-                    }
-                }
-                return count
-            },
-            visitAssignment: { assignment in
-                switch assignment {
-                case .variable(_, let expr):
-                    return 1 + countNodes(in: expr)
-                case .arrayElement(let arrayAccess, let expr):
-                    return 1 + countNodes(in: arrayAccess.array) + countNodes(in: arrayAccess.index) + countNodes(in: expr)
-                case .fieldAccess(let fieldAccess, let expr):
-                    return 1 + countNodes(in: fieldAccess.object) + countNodes(in: expr)
-                }
-            },
-            visitVariableDeclaration: { varDecl in
-                if let initialValue = varDecl.initialValue {
-                    return 1 + countNodes(in: initialValue)
-                }
-                return 1
-            },
-            visitConstantDeclaration: { constDecl in
-                return 1 + countNodes(in: constDecl.initialValue)
-            },
-            visitFunctionDeclaration: { funcDecl in
-                return 1 + funcDecl.body.reduce(0) { result, stmt in
-                    result + countNodes(in: stmt)
-                }
-            },
-            visitProcedureDeclaration: { procDecl in
-                return 1 + procDecl.body.reduce(0) { result, stmt in
-                    result + countNodes(in: stmt)
-                }
-            },
-            visitReturnStatement: { returnStmt in
-                if let expr = returnStmt.expression {
-                    return 1 + countNodes(in: expr)
-                }
-                return 1
-            },
-            visitExpressionStatement: { expr in
-                return 1 + countNodes(in: expr)
-            },
-            visitBreakStatement: {
-                return 1
-            },
-            visitContinueStatement: {
-                return 1
-            },
-            visitBlock: { statements in
-                return 1 + statements.reduce(0) { result, stmt in
-                    result + countNodes(in: stmt)
-                }
-            },
-            visitRecordDeclaration: { recordDecl in
-                return 1 + recordDecl.fields.count
-            },
-            visitClassDeclaration: { classDecl in
-                return 1 + classDecl.members.count
-            },
-            visitGlobalDeclaration: { globalDecl in
-                if let initialValue = globalDecl.initialValue {
-                    return 1 + countNodes(in: initialValue)
-                }
-                return 1
-            }
-        )
-
-        return visitor.visit(statement)
+    /// - Parameter ifStmt: The if statement to collect identifiers from
+    /// - Returns: A set of all identifier names found
+    public static func collectIdentifiersFromIfStatement(_ ifStmt: IfStatement) -> Set<String> {
+        var identifiers = collectIdentifiers(from: ifStmt.condition)
+        identifiers.formUnion(collectIdentifiersFromStatements(ifStmt.thenBody))
+        for elseIf in ifStmt.elseIfs {
+            identifiers.formUnion(collectIdentifiers(from: elseIf.condition))
+            identifiers.formUnion(collectIdentifiersFromStatements(elseIf.body))
+        }
+        if let elseBody = ifStmt.elseBody {
+            identifiers.formUnion(collectIdentifiersFromStatements(elseBody))
+        }
+        return identifiers
     }
 
-    /// Transforms a statement tree by applying a transformation function to all expressions.
+    /// Collects identifiers from a for statement (range or forEach).
+    ///
+    /// - Parameter forStmt: The for statement to collect identifiers from
+    /// - Returns: A set of all identifier names found
+    public static func collectIdentifiersFromForStatement(_ forStmt: ForStatement) -> Set<String> {
+        var identifiers = Set<String>()
+        switch forStmt {
+        case .range(let rangeFor):
+            identifiers.insert(rangeFor.variable)
+            identifiers.formUnion(collectIdentifiers(from: rangeFor.start))
+            identifiers.formUnion(collectIdentifiers(from: rangeFor.end))
+            if let step = rangeFor.step {
+                identifiers.formUnion(collectIdentifiers(from: step))
+            }
+            identifiers.formUnion(collectIdentifiersFromStatements(rangeFor.body))
+        case .forEach(let forEach):
+            identifiers.insert(forEach.variable)
+            identifiers.formUnion(collectIdentifiers(from: forEach.iterable))
+            identifiers.formUnion(collectIdentifiersFromStatements(forEach.body))
+        }
+        return identifiers
+    }
+
+    /// Collects identifiers from an assignment statement.
+    ///
+    /// - Parameter assignment: The assignment to collect identifiers from
+    /// - Returns: A set of all identifier names found
+    public static func collectIdentifiersFromAssignment(_ assignment: Assignment) -> Set<String> {
+        switch assignment {
+        case .variable(let name, let expr):
+            return Set([name]).union(collectIdentifiers(from: expr))
+        case .arrayElement(let arrayAccess, let expr):
+            return collectIdentifiers(from: arrayAccess.array)
+                .union(collectIdentifiers(from: arrayAccess.index))
+                .union(collectIdentifiers(from: expr))
+        case .fieldAccess(let fieldAccess, let expr):
+            return collectIdentifiers(from: fieldAccess.object)
+                .union(collectIdentifiers(from: expr))
+        }
+    }
+
+    /// Collects identifiers from a function or procedure declaration.
     ///
     /// - Parameters:
-    ///   - statement: The root statement to transform
-    ///   - transform: A function that takes an expression and returns a transformed expression
-    /// - Returns: The transformed statement tree
-    public static func transformExpressions(in statement: Statement, _ transform: @escaping @Sendable (Expression) -> Expression) -> Statement {
-        let visitor = StatementVisitor<Statement>(
-            visitIfStatement: { ifStmt in
-                let transformedCondition = transformExpression(ifStmt.condition, transform)
-                let transformedThenBody = ifStmt.thenBody.map { transformExpressions(in: $0, transform) }
-                let transformedElseIfs = ifStmt.elseIfs.map { elseIf in
-                    IfStatement.ElseIf(
-                        condition: transformExpression(elseIf.condition, transform),
-                        body: elseIf.body.map { transformExpressions(in: $0, transform) }
-                    )
-                }
-                let transformedElseBody = ifStmt.elseBody?.map { transformExpressions(in: $0, transform) }
-                return .ifStatement(IfStatement(
-                    condition: transformedCondition,
-                    thenBody: transformedThenBody,
-                    elseIfs: transformedElseIfs,
-                    elseBody: transformedElseBody
-                ))
-            },
-            visitWhileStatement: { whileStmt in
-                let transformedCondition = transformExpression(whileStmt.condition, transform)
-                let transformedBody = whileStmt.body.map { transformExpressions(in: $0, transform) }
-                return .whileStatement(WhileStatement(
-                    condition: transformedCondition,
-                    body: transformedBody
-                ))
-            },
-            visitDoWhileStatement: { doWhileStmt in
-                let transformedCondition = transformExpression(doWhileStmt.condition, transform)
-                let transformedBody = doWhileStmt.body.map { transformExpressions(in: $0, transform) }
-                return .doWhileStatement(DoWhileStatement(
-                    body: transformedBody,
-                    condition: transformedCondition
-                ))
-            },
-            visitForStatement: { forStmt in
-                switch forStmt {
-                case .range(let rangeFor):
-                    let transformedStart = transformExpression(rangeFor.start, transform)
-                    let transformedEnd = transformExpression(rangeFor.end, transform)
-                    let transformedStep = rangeFor.step.map { transformExpression($0, transform) }
-                    let transformedBody = rangeFor.body.map { transformExpressions(in: $0, transform) }
-                    return .forStatement(.range(ForStatement.RangeFor(
-                        variable: rangeFor.variable,
-                        start: transformedStart,
-                        end: transformedEnd,
-                        step: transformedStep,
-                        body: transformedBody
-                    )))
-                case .forEach(let forEach):
-                    let transformedIterable = transformExpression(forEach.iterable, transform)
-                    let transformedBody = forEach.body.map { transformExpressions(in: $0, transform) }
-                    return .forStatement(.forEach(ForStatement.ForEachLoop(
-                        variable: forEach.variable,
-                        iterable: transformedIterable,
-                        body: transformedBody
-                    )))
-                }
-            },
-            visitAssignment: { assignment in
-                switch assignment {
-                case .variable(let name, let expr):
-                    let transformedExpr = transformExpression(expr, transform)
-                    return .assignment(.variable(name, transformedExpr))
-                case .arrayElement(let arrayAccess, let expr):
-                    let transformedArray = transformExpression(arrayAccess.array, transform)
-                    let transformedIndex = transformExpression(arrayAccess.index, transform)
-                    let transformedExpr = transformExpression(expr, transform)
-                    return .assignment(.arrayElement(
-                        Assignment.ArrayAccess(array: transformedArray, index: transformedIndex),
-                        transformedExpr
-                    ))
-                case .fieldAccess(let fieldAccess, let expr):
-                    let transformedObject = transformExpression(fieldAccess.object, transform)
-                    let transformedExpr = transformExpression(expr, transform)
-                    return .assignment(.fieldAccess(
-                        Assignment.FieldAccess(object: transformedObject, field: fieldAccess.field),
-                        transformedExpr
-                    ))
-                }
-            },
-            visitVariableDeclaration: { varDecl in
-                let transformedInitialValue = varDecl.initialValue.map { transformExpression($0, transform) }
-                return .variableDeclaration(VariableDeclaration(
-                    name: varDecl.name,
-                    type: varDecl.type,
-                    initialValue: transformedInitialValue
-                ))
-            },
-            visitConstantDeclaration: { constDecl in
-                let transformedInitialValue = transformExpression(constDecl.initialValue, transform)
-                return .constantDeclaration(ConstantDeclaration(
-                    name: constDecl.name,
-                    type: constDecl.type,
-                    initialValue: transformedInitialValue
-                ))
-            },
-            visitFunctionDeclaration: { funcDecl in
-                let transformedBody = funcDecl.body.map { transformExpressions(in: $0, transform) }
-                let transformedLocalVars = funcDecl.localVariables.map { varDecl in
-                    VariableDeclaration(
-                        name: varDecl.name,
-                        type: varDecl.type,
-                        initialValue: varDecl.initialValue.map { transformExpression($0, transform) }
-                    )
-                }
-                return .functionDeclaration(FunctionDeclaration(
-                    name: funcDecl.name,
-                    parameters: funcDecl.parameters,
-                    returnType: funcDecl.returnType,
-                    localVariables: transformedLocalVars,
-                    body: transformedBody
-                ))
-            },
-            visitProcedureDeclaration: { procDecl in
-                let transformedBody = procDecl.body.map { transformExpressions(in: $0, transform) }
-                let transformedLocalVars = procDecl.localVariables.map { varDecl in
-                    VariableDeclaration(
-                        name: varDecl.name,
-                        type: varDecl.type,
-                        initialValue: varDecl.initialValue.map { transformExpression($0, transform) }
-                    )
-                }
-                return .procedureDeclaration(ProcedureDeclaration(
-                    name: procDecl.name,
-                    parameters: procDecl.parameters,
-                    localVariables: transformedLocalVars,
-                    body: transformedBody
-                ))
-            },
-            visitReturnStatement: { returnStmt in
-                let transformedExpression = returnStmt.expression.map { transformExpression($0, transform) }
-                return .returnStatement(ReturnStatement(expression: transformedExpression))
-            },
-            visitExpressionStatement: { expr in
-                let transformedExpr = transformExpression(expr, transform)
-                return .expressionStatement(transformedExpr)
-            },
-            visitBreakStatement: {
-                return .breakStatement
-            },
-            visitContinueStatement: {
-                return .continueStatement
-            },
-            visitBlock: { statements in
-                let transformedStatements = statements.map { transformExpressions(in: $0, transform) }
-                return .block(transformedStatements)
-            },
-            visitRecordDeclaration: { recordDecl in
-                return .recordDeclaration(RecordDeclaration(
-                    name: recordDecl.name,
-                    fields: recordDecl.fields,
-                    position: recordDecl.position
-                ))
-            },
-            visitClassDeclaration: { classDecl in
-                return .classDeclaration(classDecl)
-            },
-            visitGlobalDeclaration: { globalDecl in
-                let transformedInitialValue = globalDecl.initialValue.map { transformExpression($0, transform) }
-                return .globalDeclaration(GlobalDeclaration(
-                    name: globalDecl.name,
-                    type: globalDecl.type,
-                    initialValue: transformedInitialValue,
-                    position: globalDecl.position
-                ))
-            }
-        )
+    ///   - name: The callable's name
+    ///   - params: The callable's parameters
+    ///   - locals: The callable's local variable declarations
+    ///   - body: The callable's body statements
+    /// - Returns: A set of all identifier names found
+    public static func collectIdentifiersFromCallableDecl(
+        name: String,
+        params: [Parameter],
+        locals: [VariableDeclaration],
+        body: [Statement]
+    ) -> Set<String> {
+        var identifiers = Set([name])
+        identifiers.formUnion(Set(params.map { $0.name }))
+        identifiers.formUnion(Set(locals.map { $0.name }))
+        identifiers.formUnion(collectIdentifiersFromStatements(body))
+        return identifiers
+    }
 
-        return visitor.visit(statement)
+    // MARK: - Node Counting Helpers
+
+    /// Counts nodes in an array of statements.
+    ///
+    /// - Parameter statements: The statements to count nodes in
+    /// - Returns: The total number of nodes
+    public static func countNodesInStatements(_ statements: [Statement]) -> Int {
+        statements.reduce(0) { result, stmt in
+            result + countNodes(in: stmt)
+        }
+    }
+
+    /// Counts nodes in an if statement including elseif and else branches.
+    ///
+    /// - Parameter ifStmt: The if statement to count nodes in
+    /// - Returns: The total number of nodes
+    public static func countNodesInIfStatement(_ ifStmt: IfStatement) -> Int {
+        var count = 1 + countNodes(in: ifStmt.condition)
+        count += countNodesInStatements(ifStmt.thenBody)
+        for elseIf in ifStmt.elseIfs {
+            count += countNodes(in: elseIf.condition)
+            count += countNodesInStatements(elseIf.body)
+        }
+        if let elseBody = ifStmt.elseBody {
+            count += countNodesInStatements(elseBody)
+        }
+        return count
+    }
+
+    /// Counts nodes in a for statement (range or forEach).
+    ///
+    /// - Parameter forStmt: The for statement to count nodes in
+    /// - Returns: The total number of nodes
+    public static func countNodesInForStatement(_ forStmt: ForStatement) -> Int {
+        var count = 1
+        switch forStmt {
+        case .range(let rangeFor):
+            count += countNodes(in: rangeFor.start)
+            count += countNodes(in: rangeFor.end)
+            if let step = rangeFor.step {
+                count += countNodes(in: step)
+            }
+            count += countNodesInStatements(rangeFor.body)
+        case .forEach(let forEach):
+            count += countNodes(in: forEach.iterable)
+            count += countNodesInStatements(forEach.body)
+        }
+        return count
+    }
+
+    /// Counts nodes in an assignment statement.
+    ///
+    /// - Parameter assignment: The assignment to count nodes in
+    /// - Returns: The total number of nodes
+    public static func countNodesInAssignment(_ assignment: Assignment) -> Int {
+        switch assignment {
+        case .variable(_, let expr):
+            return 1 + countNodes(in: expr)
+        case .arrayElement(let arrayAccess, let expr):
+            return 1 + countNodes(in: arrayAccess.array) + countNodes(in: arrayAccess.index) + countNodes(in: expr)
+        case .fieldAccess(let fieldAccess, let expr):
+            return 1 + countNodes(in: fieldAccess.object) + countNodes(in: expr)
+        }
+    }
+
+    // MARK: - Expression Transform Statement Helpers
+
+    /// Transforms expressions in an if statement including elseif and else branches.
+    ///
+    /// - Parameters:
+    ///   - ifStmt: The if statement to transform
+    ///   - transform: The expression transformation function
+    /// - Returns: The transformed statement
+    public static func transformExpressionsInIfStatement(
+        _ ifStmt: IfStatement,
+        _ transform: @escaping @Sendable (Expression) -> Expression
+    ) -> Statement {
+        let transformedCondition = transformExpression(ifStmt.condition, transform)
+        let transformedThenBody = ifStmt.thenBody.map { transformExpressions(in: $0, transform) }
+        let transformedElseIfs = ifStmt.elseIfs.map { elseIf in
+            IfStatement.ElseIf(
+                condition: transformExpression(elseIf.condition, transform),
+                body: elseIf.body.map { transformExpressions(in: $0, transform) }
+            )
+        }
+        let transformedElseBody = ifStmt.elseBody?.map { transformExpressions(in: $0, transform) }
+        return .ifStatement(IfStatement(
+            condition: transformedCondition,
+            thenBody: transformedThenBody,
+            elseIfs: transformedElseIfs,
+            elseBody: transformedElseBody
+        ))
+    }
+
+    /// Transforms expressions in a for statement (range or forEach).
+    ///
+    /// - Parameters:
+    ///   - forStmt: The for statement to transform
+    ///   - transform: The expression transformation function
+    /// - Returns: The transformed statement
+    public static func transformExpressionsInForStatement(
+        _ forStmt: ForStatement,
+        _ transform: @escaping @Sendable (Expression) -> Expression
+    ) -> Statement {
+        switch forStmt {
+        case .range(let rangeFor):
+            let transformedStart = transformExpression(rangeFor.start, transform)
+            let transformedEnd = transformExpression(rangeFor.end, transform)
+            let transformedStep = rangeFor.step.map { transformExpression($0, transform) }
+            let transformedBody = rangeFor.body.map { transformExpressions(in: $0, transform) }
+            return .forStatement(.range(ForStatement.RangeFor(
+                variable: rangeFor.variable,
+                start: transformedStart,
+                end: transformedEnd,
+                step: transformedStep,
+                body: transformedBody
+            )))
+        case .forEach(let forEach):
+            let transformedIterable = transformExpression(forEach.iterable, transform)
+            let transformedBody = forEach.body.map { transformExpressions(in: $0, transform) }
+            return .forStatement(.forEach(ForStatement.ForEachLoop(
+                variable: forEach.variable,
+                iterable: transformedIterable,
+                body: transformedBody
+            )))
+        }
+    }
+
+    /// Transforms expressions in an assignment statement.
+    ///
+    /// - Parameters:
+    ///   - assignment: The assignment to transform
+    ///   - transform: The expression transformation function
+    /// - Returns: The transformed statement
+    public static func transformExpressionsInAssignment(
+        _ assignment: Assignment,
+        _ transform: @escaping @Sendable (Expression) -> Expression
+    ) -> Statement {
+        switch assignment {
+        case .variable(let name, let expr):
+            let transformedExpr = transformExpression(expr, transform)
+            return .assignment(.variable(name, transformedExpr))
+        case .arrayElement(let arrayAccess, let expr):
+            let transformedArray = transformExpression(arrayAccess.array, transform)
+            let transformedIndex = transformExpression(arrayAccess.index, transform)
+            let transformedExpr = transformExpression(expr, transform)
+            return .assignment(.arrayElement(
+                Assignment.ArrayAccess(array: transformedArray, index: transformedIndex),
+                transformedExpr
+            ))
+        case .fieldAccess(let fieldAccess, let expr):
+            let transformedObject = transformExpression(fieldAccess.object, transform)
+            let transformedExpr = transformExpression(expr, transform)
+            return .assignment(.fieldAccess(
+                Assignment.FieldAccess(object: transformedObject, field: fieldAccess.field),
+                transformedExpr
+            ))
+        }
+    }
+
+    /// Transforms expressions in a function declaration.
+    ///
+    /// - Parameters:
+    ///   - funcDecl: The function declaration to transform
+    ///   - transform: The expression transformation function
+    /// - Returns: The transformed statement
+    public static func transformExpressionsInFunctionDecl(
+        _ funcDecl: FunctionDeclaration,
+        _ transform: @escaping @Sendable (Expression) -> Expression
+    ) -> Statement {
+        let transformedBody = funcDecl.body.map { transformExpressions(in: $0, transform) }
+        let transformedLocalVars = transformLocalVariables(funcDecl.localVariables, transform)
+        return .functionDeclaration(FunctionDeclaration(
+            name: funcDecl.name,
+            parameters: funcDecl.parameters,
+            returnType: funcDecl.returnType,
+            localVariables: transformedLocalVars,
+            body: transformedBody
+        ))
+    }
+
+    /// Transforms expressions in a procedure declaration.
+    ///
+    /// - Parameters:
+    ///   - procDecl: The procedure declaration to transform
+    ///   - transform: The expression transformation function
+    /// - Returns: The transformed statement
+    public static func transformExpressionsInProcedureDecl(
+        _ procDecl: ProcedureDeclaration,
+        _ transform: @escaping @Sendable (Expression) -> Expression
+    ) -> Statement {
+        let transformedBody = procDecl.body.map { transformExpressions(in: $0, transform) }
+        let transformedLocalVars = transformLocalVariables(procDecl.localVariables, transform)
+        return .procedureDeclaration(ProcedureDeclaration(
+            name: procDecl.name,
+            parameters: procDecl.parameters,
+            localVariables: transformedLocalVars,
+            body: transformedBody
+        ))
+    }
+
+    /// Transforms local variable declarations by applying a transformation to their initial values.
+    ///
+    /// - Parameters:
+    ///   - localVars: The local variable declarations to transform
+    ///   - transform: The expression transformation function
+    /// - Returns: The transformed variable declarations
+    public static func transformLocalVariables(
+        _ localVars: [VariableDeclaration],
+        _ transform: @escaping @Sendable (Expression) -> Expression
+    ) -> [VariableDeclaration] {
+        localVars.map { varDecl in
+            VariableDeclaration(
+                name: varDecl.name,
+                type: varDecl.type,
+                initialValue: varDecl.initialValue.map { transformExpression($0, transform) }
+            )
+        }
     }
 }
