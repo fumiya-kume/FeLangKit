@@ -262,7 +262,6 @@ public struct UnicodeNormalizer {
         map[0x3094] = "ヴ"  // ゔ -> ヴ (hiragana vu -> katakana vu)
         map[0x301C] = "~"   // 〜 -> ~ (wave dash -> tilde)
         map[0x2212] = "-"   // − -> - (minus sign -> hyphen)
-        map[0xFF0D] = "-"   // ー -> - (fullwidth minus -> hyphen)
         map[0x2015] = "—"   // ― -> — (horizontal bar -> em dash)
 
         // Emoji variation selector removal
