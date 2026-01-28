@@ -85,6 +85,16 @@ public enum TokenizerUtilities {
         return map
     }()
 
+    /// Pre-cached keyword lexeme strings to reuse canonical String instances.
+    /// Avoids retaining freshly-allocated lexeme copies when a keyword is matched.
+    public static let keywordLexemeMap: [String: String] = {
+        var map: [String: String] = [:]
+        for (keyword, _) in keywords {
+            map[keyword] = keyword
+        }
+        return map
+    }()
+
     /// Operator definitions with their token types
     /// Ordered with longer operators first to ensure proper matching
     public static let operators: [(String, TokenType)] = [
@@ -149,6 +159,17 @@ public enum TokenizerUtilities {
             assert(delimiter.count == 1, "delimiterMap assumes single-character delimiters, got '\(delimiter)'")
             guard let firstChar = delimiter.first else { continue }
             map[firstChar] = tokenType
+        }
+        return map
+    }()
+
+    /// Pre-cached delimiter lexeme strings to avoid per-token String allocation.
+    /// Maps each delimiter character to its canonical String representation.
+    public static let delimiterLexemeMap: [Character: String] = {
+        var map: [Character: String] = [:]
+        for (delimiter, _) in delimiters {
+            guard let firstChar = delimiter.first else { continue }
+            map[firstChar] = delimiter
         }
         return map
     }()

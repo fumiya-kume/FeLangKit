@@ -821,6 +821,22 @@ public struct StatementParser {
         return Parameter(name: name, type: type)
     }
 
+    /// Static lookup map for identifier-based basic type names.
+    /// Maps lowercased type name strings to DataType for O(1) lookup.
+    private static let identifierTypeMap: [String: DataType] = [
+        "integer": .integer, "int": .integer, "整数型": .integer, "整数": .integer,
+        "real": .real, "double": .real, "float": .real, "実数型": .real, "実数": .real,
+        "string": .string, "str": .string, "文字列型": .string, "文字列": .string,
+        "character": .character, "char": .character, "文字型": .character, "文字": .character,
+        "boolean": .boolean, "bool": .boolean, "論理型": .boolean, "論理": .boolean, "ブール": .boolean
+    ]
+
+    /// Set of identifier names that represent array types.
+    private static let arrayTypeNames: Set<String> = ["array", "配列型", "配列"]
+
+    /// Set of identifier names that represent record types.
+    private static let recordTypeNames: Set<String> = ["record", "レコード型", "レコード"]
+
     /// Parses a data type with full support for basic types, arrays, and records.
     /// Supports both English and Japanese keywords for internationalization.
     private func parseDataType(_ parser: inout TokenStream) throws -> DataType {
@@ -837,31 +853,13 @@ public struct StatementParser {
         if typeToken.type == .identifier {
             let typeName = typeToken.lexeme.lowercased()
 
-            // Support multiple variants of basic types with bilingual (English/Japanese) keywords
-            // This enables FE pseudo-language to be used in both English and Japanese environments
-            switch typeName {
-            // Integer types: supports English variants and Japanese equivalents
-            case "integer", "int", "整数型", "整数":
-                return .integer
-
-            // Real number types: supports floating-point number variants
-            case "real", "double", "float", "実数型", "実数":
-                return .real
-
-            // String types: supports text/string variants
-            case "string", "str", "文字列型", "文字列":
-                return .string
-
-            // Character types: supports single character types
-            case "character", "char", "文字型", "文字":
-                return .character
-
-            // Boolean types: supports logical/boolean variants including Japanese "ブール"
-            case "boolean", "bool", "論理型", "論理", "ブール":
-                return .boolean
+            // Basic types: O(1) dictionary lookup
+            if let basicType = Self.identifierTypeMap[typeName] {
+                return basicType
+            }
 
             // Array types: supports both English "array of type" and Japanese "配列型"
-            case "array", "配列型", "配列":
+            if Self.arrayTypeNames.contains(typeName) {
                 // Handle array type with element specification: "array of integer" or "配列 の 整数"
                 if parser.peek()?.lexeme == "of" || parser.peek()?.lexeme == "の" {
                     _ = parser.advance() // consume "of" or "の"
@@ -871,19 +869,19 @@ public struct StatementParser {
                     // Default to integer array for backwards compatibility
                     return .array(.integer)
                 }
+            }
 
             // Record types: supports structured data types with custom names
-            case "record", "レコード型", "レコード":
+            if Self.recordTypeNames.contains(typeName) {
                 // Handle record type with name: "record PersonRecord"
                 guard let nameToken = parser.advance(), nameToken.type == .identifier else {
                     throw StatementParsingError.expectedIdentifier
                 }
                 return .record(nameToken.lexeme)
-
-            default:
-                // Treat unknown identifiers as custom record types for extensibility
-                return .record(typeToken.lexeme)
             }
+
+            // Treat unknown identifiers as custom record types for extensibility
+            return .record(typeToken.lexeme)
         }
 
         // Handle array types using array keyword

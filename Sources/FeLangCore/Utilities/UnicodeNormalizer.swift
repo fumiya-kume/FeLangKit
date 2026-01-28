@@ -245,20 +245,145 @@ public struct UnicodeNormalizer {
         // Step 1: Apply specified Unicode normalization form
         let formNormalized = applyNormalizationForm(input, form: form)
 
-        // Step 2: Selective full-width to half-width conversion (only ASCII characters)
-        let halfwidthConverted = normalizeFullWidthASCII(formNormalized)
+        // Step 2: Single-pass character normalization
+        // Combines full-width ASCII, Japanese, emoji, math, and security processing
+        return applySinglePassNormalization(formNormalized, config: securityConfig)
+    }
 
-        // Step 3: Japanese character normalization
-        let japaneseNormalized = normalizeJapaneseCharacters(halfwidthConverted)
+    // MARK: - Single-Pass Character Replacement Maps
 
-        // Step 4: Emoji and mathematical symbol normalization
-        let emojiNormalized = normalizeEmoji(japaneseNormalized)
-        let mathNormalized = normalizeMathematicalSymbols(emojiNormalized)
+    /// Base replacement map for Japanese, emoji, and math normalization.
+    /// Maps Unicode scalar values to their replacement strings.
+    /// Applied unconditionally during normalization.
+    private static let baseReplacementMap: [UInt32: String] = {
+        var map: [UInt32: String] = [:]
 
-        // Step 5: Security processing
-        let securityProcessed = applySecurityProcessing(mathNormalized, config: securityConfig)
+        // Japanese character normalization
+        map[0x3094] = "ヴ"  // ゔ -> ヴ (hiragana vu -> katakana vu)
+        map[0x301C] = "~"   // 〜 -> ~ (wave dash -> tilde)
+        map[0x2212] = "-"   // − -> - (minus sign -> hyphen)
+        map[0xFF0D] = "-"   // ー -> - (fullwidth minus -> hyphen)
+        map[0x2015] = "—"   // ― -> — (horizontal bar -> em dash)
 
-        return securityProcessed
+        // Emoji variation selector removal
+        map[0xFE0E] = ""    // text variation selector
+        map[0xFE0F] = ""    // emoji variation selector
+
+        // Mathematical symbol normalization
+        map[0x03B1] = "alpha"     // α
+        map[0x03B2] = "beta"      // β
+        map[0x03C0] = "pi"        // π
+        map[0x2211] = "sum"       // ∑
+        map[0x220F] = "product"   // ∏
+        map[0x2206] = "delta"     // ∆
+        map[0x03A9] = "omega"     // Ω
+        map[0x00D7] = "*"         // × -> *
+        map[0x2248] = "~="        // ≈
+        map[0x221E] = "infinity"  // ∞
+
+        return map
+    }()
+
+    /// Homoglyph replacement map for security processing.
+    /// Applied only when homoglyph detection is enabled.
+    private static let homoglyphReplacementMap: [UInt32: String] = {
+        var map: [UInt32: String] = [:]
+
+        // Cyrillic -> Latin
+        map[0x0430] = "a"   // а
+        map[0x0435] = "e"   // е
+        map[0x043E] = "o"   // о
+        map[0x0440] = "p"   // р
+        map[0x0441] = "c"   // с
+        map[0x0445] = "x"   // х
+        map[0x0410] = "A"   // А
+        map[0x0412] = "B"   // В
+        map[0x0415] = "E"   // Е
+        map[0x041A] = "K"   // К
+        map[0x041C] = "M"   // М
+        map[0x041D] = "H"   // Н
+        map[0x041E] = "O"   // О
+        map[0x0420] = "P"   // Р
+        map[0x0421] = "C"   // С
+        map[0x0422] = "T"   // Т
+        map[0x0425] = "X"   // Х
+
+        // Greek -> Latin
+        map[0x0391] = "A"   // Α (alpha)
+        map[0x0392] = "B"   // Β (beta)
+        map[0x0395] = "E"   // Ε (epsilon)
+        map[0x0396] = "Z"   // Ζ (zeta)
+        map[0x0397] = "H"   // Η (eta)
+        map[0x0399] = "I"   // Ι (iota)
+        map[0x039A] = "K"   // Κ (kappa)
+        map[0x039C] = "M"   // Μ (mu)
+        map[0x039D] = "N"   // Ν (nu)
+        map[0x039F] = "O"   // Ο (omicron)
+        map[0x03A1] = "P"   // Ρ (rho)
+        map[0x03A4] = "T"   // Τ (tau)
+        map[0x03A5] = "Y"   // Υ (upsilon)
+        map[0x03A7] = "X"   // Χ (chi)
+
+        return map
+    }()
+
+    /// Set of bidirectional control character scalar values to remove.
+    /// Applied only when bidi reordering detection is enabled.
+    private static let bidiRemovalSet: Set<UInt32> = [
+        0x202A, // LRE
+        0x202B, // RLE
+        0x202C, // PDF
+        0x202D, // LRO
+        0x202E, // RLO
+        0x2066, // LRI
+        0x2067, // RLI
+        0x2068, // FSI
+        0x2069  // PDI
+    ]
+
+    /// Applies all character-level normalizations in a single pass.
+    /// Combines full-width ASCII conversion, Japanese normalization, emoji normalization,
+    /// math symbol normalization, homoglyph mitigation, and bidi character removal.
+    private static func applySinglePassNormalization(_ input: String, config: SecurityConfig) -> String {
+        var result = ""
+        result.reserveCapacity(input.unicodeScalars.count)
+
+        for scalar in input.unicodeScalars {
+            let value = scalar.value
+
+            // Full-width ASCII conversion (0xFF01-0xFF5E → 0x21-0x7E)
+            if value >= 0xFF01 && value <= 0xFF5E {
+                let halfWidthValue = value - 0xFF01 + 0x21
+                if let halfWidth = UnicodeScalar(halfWidthValue) {
+                    result.unicodeScalars.append(halfWidth)
+                } else {
+                    result.unicodeScalars.append(scalar)
+                }
+                continue
+            }
+
+            // Base replacements (Japanese, emoji, math)
+            if let replacement = baseReplacementMap[value] {
+                result += replacement
+                continue
+            }
+
+            // Security: homoglyph replacements
+            if config.enableHomoglyphDetection, let replacement = homoglyphReplacementMap[value] {
+                result += replacement
+                continue
+            }
+
+            // Security: bidi character removal
+            if config.detectBidiReordering && bidiRemovalSet.contains(value) {
+                continue
+            }
+
+            // Keep character as-is
+            result.unicodeScalars.append(scalar)
+        }
+
+        return result
     }
 
     // MARK: - Normalization Form Implementation

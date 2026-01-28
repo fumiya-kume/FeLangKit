@@ -36,7 +36,8 @@ public enum TokenizerCore {
 
         // Check if it's a keyword using O(1) lookup
         if let tokenType = TokenizerUtilities.keywordMap[lexeme] {
-            return TokenData(type: tokenType, lexeme: lexeme)
+            let canonicalLexeme = TokenizerUtilities.keywordLexemeMap[lexeme] ?? lexeme
+            return TokenData(type: tokenType, lexeme: canonicalLexeme)
         }
 
         // Otherwise it's an identifier
@@ -60,7 +61,8 @@ public enum TokenizerCore {
 
         // Use O(1) lookup to check if it's a keyword
         if let tokenType = TokenizerUtilities.keywordMap[lexeme] {
-            return TokenData(type: tokenType, lexeme: lexeme)
+            let canonicalLexeme = TokenizerUtilities.keywordLexemeMap[lexeme] ?? lexeme
+            return TokenData(type: tokenType, lexeme: canonicalLexeme)
         }
 
         // Not a keyword, reset index and return nil so parseIdentifier can handle it
@@ -107,8 +109,9 @@ public enum TokenizerCore {
     /// Handles all bracket types, parentheses, and punctuation marks.
     public static func parseDelimiter(from input: String, at index: inout String.Index) -> TokenData? {
         guard index < input.endIndex else { return nil }
-        if let tokenType = TokenizerUtilities.delimiterMap[input[index]] {
-            let lexeme = String(input[index])
+        let char = input[index]
+        if let tokenType = TokenizerUtilities.delimiterMap[char],
+           let lexeme = TokenizerUtilities.delimiterLexemeMap[char] {
             index = input.index(after: index)
             return TokenData(type: tokenType, lexeme: lexeme)
         }
@@ -244,7 +247,7 @@ public enum TokenizerCore {
         let lexeme = String(input[start..<index])
 
         // Check for invalid number format (multiple decimal points)
-        if decimalCount > 1 || lexeme.filter({ $0 == "." }).count > 1 {
+        if decimalCount > 1 {
             let position = TokenizerUtilities.sourcePosition(from: input, startIndex: baseIndex, currentIndex: start)
             return .failure(.invalidNumberFormat(lexeme, position))
         }
