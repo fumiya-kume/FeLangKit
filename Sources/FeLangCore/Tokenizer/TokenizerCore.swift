@@ -87,10 +87,14 @@ public enum TokenizerCore {
 
     // MARK: - Operator Parsing
 
-    /// Parses operators using longest-match strategy.
-    /// TokenizerUtilities.operators is pre-sorted with longer operators first.
+    /// Parses operators using first-character dispatch and longest-match strategy.
     public static func parseOperator(from input: String, at index: inout String.Index) -> TokenData? {
-        for (operatorString, tokenType) in TokenizerUtilities.operators where TokenizerUtilities.matchString(operatorString, in: input, at: index) {
+        guard index < input.endIndex else { return nil }
+        guard let candidates = TokenizerUtilities.operatorFirstCharMap[input[index]] else {
+            return nil
+        }
+        for (operatorString, tokenType) in candidates
+            where TokenizerUtilities.matchString(operatorString, in: input, at: index) {
             index = input.index(index, offsetBy: operatorString.count)
             return TokenData(type: tokenType, lexeme: operatorString)
         }
@@ -99,12 +103,14 @@ public enum TokenizerCore {
 
     // MARK: - Delimiter Parsing
 
-    /// Parses delimiters using exact string matching.
+    /// Parses delimiters using direct lookup.
     /// Handles all bracket types, parentheses, and punctuation marks.
     public static func parseDelimiter(from input: String, at index: inout String.Index) -> TokenData? {
-        for (delimiter, tokenType) in TokenizerUtilities.delimiters where TokenizerUtilities.matchString(delimiter, in: input, at: index) {
-            index = input.index(index, offsetBy: delimiter.count)
-            return TokenData(type: tokenType, lexeme: delimiter)
+        guard index < input.endIndex else { return nil }
+        if let tokenType = TokenizerUtilities.delimiterMap[input[index]] {
+            let lexeme = String(input[index])
+            index = input.index(after: index)
+            return TokenData(type: tokenType, lexeme: lexeme)
         }
         return nil
     }
@@ -258,7 +264,7 @@ public enum TokenizerCore {
 
         // Must have at least one hex digit
         guard index < input.endIndex,
-              let firstScalar = String(input[index]).unicodeScalars.first,
+              let firstScalar = input[index].unicodeScalars.first,
               TokenizerUtilities.isHexDigit(firstScalar) || input[index] == "_" else {
             index = savedIndex
             return nil
@@ -266,7 +272,7 @@ public enum TokenizerCore {
 
         // Read hex digits and underscores
         while index < input.endIndex {
-            if let scalar = String(input[index]).unicodeScalars.first,
+            if let scalar = input[index].unicodeScalars.first,
                TokenizerUtilities.isHexDigit(scalar) || input[index] == "_" {
                 index = input.index(after: index)
             } else {
@@ -287,7 +293,7 @@ public enum TokenizerCore {
 
         // Must have at least one binary digit
         guard index < input.endIndex,
-              let firstScalar = String(input[index]).unicodeScalars.first,
+              let firstScalar = input[index].unicodeScalars.first,
               TokenizerUtilities.isBinaryDigit(firstScalar) || input[index] == "_" else {
             index = savedIndex
             return nil
@@ -295,7 +301,7 @@ public enum TokenizerCore {
 
         // Read binary digits and underscores
         while index < input.endIndex {
-            if let scalar = String(input[index]).unicodeScalars.first,
+            if let scalar = input[index].unicodeScalars.first,
                TokenizerUtilities.isBinaryDigit(scalar) || input[index] == "_" {
                 index = input.index(after: index)
             } else {
@@ -316,7 +322,7 @@ public enum TokenizerCore {
 
         // Must have at least one octal digit
         guard index < input.endIndex,
-              let firstScalar = String(input[index]).unicodeScalars.first,
+              let firstScalar = input[index].unicodeScalars.first,
               TokenizerUtilities.isOctalDigit(firstScalar) || input[index] == "_" else {
             index = savedIndex
             return nil
@@ -324,7 +330,7 @@ public enum TokenizerCore {
 
         // Read octal digits and underscores
         while index < input.endIndex {
-            if let scalar = String(input[index]).unicodeScalars.first,
+            if let scalar = input[index].unicodeScalars.first,
                TokenizerUtilities.isOctalDigit(scalar) || input[index] == "_" {
                 index = input.index(after: index)
             } else {

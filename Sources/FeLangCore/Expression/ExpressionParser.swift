@@ -34,6 +34,20 @@ public struct ExpressionParser {
         return expression
     }
 
+    /// Parses an expression from a slice of a token array without copying.
+    /// Returns the parsed expression and the index after the last consumed token.
+    public func parseExpression(from tokens: [Token], startingAt startIndex: Int, endingBefore endIndex: Int) throws -> (Expression, Int) {
+        var parser = TokenStream(tokens, startIndex: startIndex, endIndex: endIndex)
+        let expression = try parseExpression(&parser)
+
+        // Check if we've consumed all tokens in the range (except EOF)
+        if let remaining = parser.peek(), remaining.type != .eof {
+            throw ParsingError.unexpectedToken(remaining, expected: .eof)
+        }
+
+        return (expression, parser.index)
+    }
+
     /// Parses an expression with minimum precedence of 0.
     private func parseExpression(_ parser: inout TokenStream) throws -> Expression {
         return try parseExpression(&parser, minPrecedence: 0)
@@ -256,22 +270,37 @@ public struct ExpressionParser {
 
 /// A simple token stream for parsing.
 private struct TokenStream {
-    private let tokens: [Token]
-    private var index: Int = 0
+    let tokens: [Token]
+    var index: Int = 0
+    private let endIndex: Int
 
     init(_ tokens: [Token]) {
         self.tokens = tokens
+        self.endIndex = tokens.count
     }
+
+    init(_ tokens: [Token], startIndex: Int, endIndex: Int) {
+        self.tokens = tokens
+        self.index = startIndex
+        self.endIndex = endIndex
+    }
+
+    private static let syntheticEOF = Token(type: .eof, lexeme: "", position: SourcePosition(line: 0, column: 0, offset: 0))
 
     /// Peeks at the current token without consuming it.
     mutating func peek() -> Token? {
-        guard index < tokens.count else { return nil }
+        guard index < endIndex else {
+            // Return synthetic EOF at boundary to match previous copy+append behavior
+            return index < tokens.count ? TokenStream.syntheticEOF : nil
+        }
         return tokens[index]
     }
 
     /// Advances to the next token and returns the current one.
     mutating func advance() -> Token? {
-        guard index < tokens.count else { return nil }
+        guard index < endIndex else {
+            return index < tokens.count ? TokenStream.syntheticEOF : nil
+        }
         let token = tokens[index]
         index += 1
         return token

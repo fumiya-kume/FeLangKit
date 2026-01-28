@@ -10,20 +10,22 @@ public struct ParsingTokenizer: Sendable {
     public func tokenize(_ input: String) throws -> [Token] {
         var tokens: [Token] = []
         var index = input.startIndex
-        let startIndex = index
+        var tracker = TokenizerUtilities.PositionTracker()
 
         while index < input.endIndex {
-            let position = sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
-
             // Skip whitespace and newlines
             if input[index].isWhitespace {
+                tracker.advance(past: input[index])
                 index = input.index(after: index)
                 continue
             }
 
+            let position = tracker.currentPosition
+
             // Try to parse a token
             let beforeIndex = index
-            if let token = try parseNextToken(from: input, at: &index, startIndex: startIndex) {
+            if let token = try parseNextToken(from: input, at: &index, startIndex: input.startIndex) {
+                tracker.advance(through: input[beforeIndex..<index])
                 let tokenWithPosition = Token(
                     type: token.type,
                     lexeme: token.lexeme,
@@ -33,11 +35,13 @@ public struct ParsingTokenizer: Sendable {
             } else {
                 // Check if index moved (could be a comment that was skipped)
                 if index > beforeIndex {
+                    tracker.advance(through: input[beforeIndex..<index])
                     continue // Comment was skipped, continue to next iteration
                 }
 
                 // If we can't parse a token, it's an unexpected character
-                guard let scalar = String(input[index]).unicodeScalars.first else {
+                guard let scalar = input[index].unicodeScalars.first else {
+                    tracker.advance(past: input[index])
                     index = input.index(after: index)
                     continue
                 }
@@ -46,7 +50,8 @@ public struct ParsingTokenizer: Sendable {
 
             // Safety check to prevent infinite loops
             if index == beforeIndex {
-                guard let scalar = String(input[index]).unicodeScalars.first else {
+                guard let scalar = input[index].unicodeScalars.first else {
+                    tracker.advance(past: input[index])
                     index = input.index(after: index)
                     continue
                 }
@@ -55,7 +60,7 @@ public struct ParsingTokenizer: Sendable {
         }
 
         // Add EOF token
-        let finalPosition = sourcePosition(from: input, startIndex: startIndex, currentIndex: index)
+        let finalPosition = tracker.currentPosition
         tokens.append(Token(type: .eof, lexeme: "", position: finalPosition))
 
         return tokens
