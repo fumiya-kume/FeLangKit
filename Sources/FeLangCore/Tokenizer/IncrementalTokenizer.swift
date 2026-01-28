@@ -75,6 +75,15 @@ public struct IncrementalTokenizer: Sendable {
         // Construct new text with the replacement
         let newFullText = originalText.replacingCharacters(in: range, with: newText)
 
+        // Fast path: small files skip expensive Unicode scalar calculations
+        if previousTokens.count < incrementalThreshold {
+            return try fullRetokenize(
+                newFullText: newFullText,
+                previousTokens: previousTokens,
+                range: range
+            )
+        }
+
         // Calculate change metrics using Unicode scalars (consistent with SourcePosition.offset)
         let startOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.lowerBound)
         let endOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.upperBound)
@@ -93,7 +102,9 @@ public struct IncrementalTokenizer: Sendable {
                 with: newText,
                 previousTokens: previousTokens,
                 originalText: originalText,
-                newFullText: newFullText
+                newFullText: newFullText,
+                startOffset: startOffset,
+                endOffset: endOffset
             )
         } else {
             // Fall back to full re-tokenization
@@ -110,16 +121,16 @@ public struct IncrementalTokenizer: Sendable {
     // MARK: - Incremental Update
 
     /// Performs true incremental tokenization
+    // swiftlint:disable:next function_parameter_count
     private func updateTokensIncrementally(
         in range: Range<String.Index>,
         with newText: String,
         previousTokens: [Token],
         originalText: String,
-        newFullText: String
+        newFullText: String,
+        startOffset: Int,
+        endOffset: Int
     ) throws -> TokenizeResult {
-        // Use Unicode scalars for offset calculation (consistent with SourcePosition.offset)
-        let startOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.lowerBound)
-        let endOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.upperBound)
 
         // Step 1: Find the safe reparse boundaries
         let (safeStartIndex, safeStartOffset) = findSafeReparseStart(
@@ -219,6 +230,40 @@ public struct IncrementalTokenizer: Sendable {
                 originalCount: previousTokens.count,
                 newCount: mergedTokens.count,
                 reparsedLength: textToReparse.count
+            )
+        )
+    }
+
+    /// Full re-tokenization fallback (fast path for small files, skips offset calculation)
+    private func fullRetokenize(
+        newFullText: String,
+        previousTokens: [Token],
+        range: Range<String.Index>
+    ) throws -> TokenizeResult {
+        let allTokens = try baseTokenizer.tokenize(newFullText)
+
+        let affectedRange = AffectedRange(
+            startTokenIndex: 0,
+            endTokenIndex: previousTokens.count,
+            startOffset: 0,
+            endOffset: 0
+        )
+
+        let reparseRegion = ReparseRegion(
+            textRange: range,
+            baseOffset: 0,
+            baseLine: 1,
+            baseColumn: 1
+        )
+
+        return TokenizeResult(
+            tokens: allTokens,
+            affectedRange: affectedRange,
+            reparseRegion: reparseRegion,
+            metrics: createMetrics(
+                originalCount: previousTokens.count,
+                newCount: allTokens.count,
+                reparsedLength: newFullText.count
             )
         )
     }
