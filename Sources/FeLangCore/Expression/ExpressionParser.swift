@@ -162,50 +162,13 @@ public struct ExpressionParser {
             return expr
         }
 
-        // Array literal expressions [e1, e2, ...]
+        // Array literal expressions [e1, e2, ...] or {e1, e2, ...} (FE pseudo-language syntax)
         if token.type == .leftBracket {
-            var elements: [Expression] = []
-
-            // Handle empty array literal []
-            if parser.peek()?.type == .rightBracket {
-                _ = parser.advance() // consume ']'
-                return Expression.arrayLiteral(elements)
-            }
-
-            // Parse first element
-            elements.append(try parseExpression(&parser))
-
-            // Parse remaining elements
-            while parser.peek()?.type == .comma {
-                _ = parser.advance() // consume ','
-                elements.append(try parseExpression(&parser))
-            }
-
-            try expectToken(&parser, .rightBracket)
-            return Expression.arrayLiteral(elements)
+            return try parseArrayLiteral(&parser, closingToken: .rightBracket)
         }
 
-        // Array literal expressions {e1, e2, ...} (FE pseudo-language syntax)
         if token.type == .leftBrace {
-            var elements: [Expression] = []
-
-            // Handle empty array literal {}
-            if parser.peek()?.type == .rightBrace {
-                _ = parser.advance() // consume '}'
-                return Expression.arrayLiteral(elements)
-            }
-
-            // Parse first element
-            elements.append(try parseExpression(&parser))
-
-            // Parse remaining elements
-            while parser.peek()?.type == .comma {
-                _ = parser.advance() // consume ','
-                elements.append(try parseExpression(&parser))
-            }
-
-            try expectToken(&parser, .rightBrace)
-            return Expression.arrayLiteral(elements)
+            return try parseArrayLiteral(&parser, closingToken: .rightBrace)
         }
 
         throw ParsingError.expectedPrimaryExpression(token)
@@ -245,6 +208,29 @@ public struct ExpressionParser {
         guard token.type == expectedType else {
             throw ParsingError.unexpectedToken(token, expected: expectedType)
         }
+    }
+
+    /// Parses an array literal with comma-separated elements until the closing token.
+    private func parseArrayLiteral(_ parser: inout TokenStream, closingToken: TokenType) throws -> Expression {
+        var elements: [Expression] = []
+
+        // Handle empty array literal
+        if parser.peek()?.type == closingToken {
+            _ = parser.advance()
+            return Expression.arrayLiteral(elements)
+        }
+
+        // Parse first element
+        elements.append(try parseExpression(&parser))
+
+        // Parse remaining elements
+        while parser.peek()?.type == .comma {
+            _ = parser.advance() // consume ','
+            elements.append(try parseExpression(&parser))
+        }
+
+        try expectToken(&parser, closingToken)
+        return Expression.arrayLiteral(elements)
     }
 
     /// Parses an argument list for function calls.
@@ -305,7 +291,7 @@ private struct TokenStream {
     private let syntheticEOF: Token
 
     /// Peeks at the current token without consuming it.
-    mutating func peek() -> Token? {
+    func peek() -> Token? {
         guard index < endIndex else {
             // Return synthetic EOF at boundary to match previous copy+append behavior
             return index < tokens.count ? syntheticEOF : nil

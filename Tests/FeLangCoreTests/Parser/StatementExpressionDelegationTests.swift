@@ -7,7 +7,7 @@ struct StatementExpressionDelegationTests {
     let parser = StatementParser()
 
     private func parseStatements(_ input: String) throws -> [Statement] {
-        let tokens = try ParsingTokenizer().tokenize(input)
+        let tokens = try ParsingTokenizer.tokenize(input)
         return try parser.parseStatements(from: tokens)
     }
 
