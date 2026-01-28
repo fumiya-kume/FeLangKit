@@ -37,6 +37,11 @@ custom_rules:
     message: "Avoid using force casts (as!)"
     severity: warning
 
+# 識別子名の例外（FE言語のキーワード）
+identifier_name:
+  excluded:
+    - or
+
 # 複雑度ルールの調整（switch の case をカウントしない）
 cyclomatic_complexity:
   warning: 15
