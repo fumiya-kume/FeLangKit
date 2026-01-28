@@ -34,6 +34,23 @@ public struct ExpressionParser {
         return expression
     }
 
+    /// Parses an expression from a slice of a token array without copying.
+    /// Returns the parsed expression and the index after the last consumed token.
+    public func parseExpression(from tokens: [Token], startingAt startIndex: Int, endingBefore endIndex: Int) throws -> (Expression, Int) {
+        guard startIndex >= 0, endIndex <= tokens.count, startIndex <= endIndex else {
+            throw ParsingError.unexpectedEndOfInput
+        }
+        var parser = TokenStream(tokens, startIndex: startIndex, endIndex: endIndex)
+        let expression = try parseExpression(&parser)
+
+        // Check if we've consumed all tokens in the range (except EOF)
+        if let remaining = parser.peek(), remaining.type != .eof {
+            throw ParsingError.unexpectedToken(remaining, expected: .eof)
+        }
+
+        return (expression, parser.index)
+    }
+
     /// Parses an expression with minimum precedence of 0.
     private func parseExpression(_ parser: inout TokenStream) throws -> Expression {
         return try parseExpression(&parser, minPrecedence: 0)
@@ -145,50 +162,13 @@ public struct ExpressionParser {
             return expr
         }
 
-        // Array literal expressions [e1, e2, ...]
+        // Array literal expressions [e1, e2, ...] or {e1, e2, ...} (FE pseudo-language syntax)
         if token.type == .leftBracket {
-            var elements: [Expression] = []
-
-            // Handle empty array literal []
-            if parser.peek()?.type == .rightBracket {
-                _ = parser.advance() // consume ']'
-                return Expression.arrayLiteral(elements)
-            }
-
-            // Parse first element
-            elements.append(try parseExpression(&parser))
-
-            // Parse remaining elements
-            while parser.peek()?.type == .comma {
-                _ = parser.advance() // consume ','
-                elements.append(try parseExpression(&parser))
-            }
-
-            try expectToken(&parser, .rightBracket)
-            return Expression.arrayLiteral(elements)
+            return try parseArrayLiteral(&parser, closingToken: .rightBracket)
         }
 
-        // Array literal expressions {e1, e2, ...} (FE pseudo-language syntax)
         if token.type == .leftBrace {
-            var elements: [Expression] = []
-
-            // Handle empty array literal {}
-            if parser.peek()?.type == .rightBrace {
-                _ = parser.advance() // consume '}'
-                return Expression.arrayLiteral(elements)
-            }
-
-            // Parse first element
-            elements.append(try parseExpression(&parser))
-
-            // Parse remaining elements
-            while parser.peek()?.type == .comma {
-                _ = parser.advance() // consume ','
-                elements.append(try parseExpression(&parser))
-            }
-
-            try expectToken(&parser, .rightBrace)
-            return Expression.arrayLiteral(elements)
+            return try parseArrayLiteral(&parser, closingToken: .rightBrace)
         }
 
         throw ParsingError.expectedPrimaryExpression(token)
@@ -230,6 +210,29 @@ public struct ExpressionParser {
         }
     }
 
+    /// Parses an array literal with comma-separated elements until the closing token.
+    private func parseArrayLiteral(_ parser: inout TokenStream, closingToken: TokenType) throws -> Expression {
+        var elements: [Expression] = []
+
+        // Handle empty array literal
+        if parser.peek()?.type == closingToken {
+            _ = parser.advance()
+            return Expression.arrayLiteral(elements)
+        }
+
+        // Parse first element
+        elements.append(try parseExpression(&parser))
+
+        // Parse remaining elements
+        while parser.peek()?.type == .comma {
+            _ = parser.advance() // consume ','
+            elements.append(try parseExpression(&parser))
+        }
+
+        try expectToken(&parser, closingToken)
+        return Expression.arrayLiteral(elements)
+    }
+
     /// Parses an argument list for function calls.
     private func parseArgumentList(_ parser: inout TokenStream) throws -> [Expression] {
         var arguments: [Expression] = []
@@ -256,22 +259,51 @@ public struct ExpressionParser {
 
 /// A simple token stream for parsing.
 private struct TokenStream {
-    private let tokens: [Token]
-    private var index: Int = 0
+    let tokens: [Token]
+    var index: Int = 0
+    private let endIndex: Int
 
     init(_ tokens: [Token]) {
         self.tokens = tokens
+        self.endIndex = tokens.count
+        // Placeholder value; unbounded streams always hit the real EOF token
+        self.syntheticEOF = Token(type: .eof, lexeme: "", position: SourcePosition(line: 0, column: 0, offset: 0))
     }
 
+    init(_ tokens: [Token], startIndex: Int, endIndex: Int) {
+        self.tokens = tokens
+        self.index = startIndex
+        self.endIndex = endIndex
+
+        // Derive position from the boundary token (or last token) for accurate error messages
+        let boundaryPosition: SourcePosition
+        if endIndex < tokens.count {
+            boundaryPosition = tokens[endIndex].position
+        } else if let lastToken = tokens.last {
+            boundaryPosition = lastToken.position
+        } else {
+            boundaryPosition = SourcePosition(line: 1, column: 1, offset: 0)
+        }
+        self.syntheticEOF = Token(type: .eof, lexeme: "", position: boundaryPosition)
+    }
+
+    /// Synthetic EOF token returned at the boundary of a bounded stream.
+    private let syntheticEOF: Token
+
     /// Peeks at the current token without consuming it.
-    mutating func peek() -> Token? {
-        guard index < tokens.count else { return nil }
+    func peek() -> Token? {
+        guard index < endIndex else {
+            // Return synthetic EOF at boundary to match previous copy+append behavior
+            return index < tokens.count ? syntheticEOF : nil
+        }
         return tokens[index]
     }
 
     /// Advances to the next token and returns the current one.
     mutating func advance() -> Token? {
-        guard index < tokens.count else { return nil }
+        guard index < endIndex else {
+            return index < tokens.count ? syntheticEOF : nil
+        }
         let token = tokens[index]
         index += 1
         return token

@@ -127,6 +127,32 @@ public enum TokenizerUtilities {
         (":", .colon)
     ]
 
+    /// Lookup map for operator first characters -> candidate operators (longest first)
+    public static let operatorFirstCharMap: [Character: [(String, TokenType)]] = {
+        var map: [Character: [(String, TokenType)]] = [:]
+        for (opString, tokenType) in operators {
+            guard let firstChar = opString.first else { continue }
+            map[firstChar, default: []].append((opString, tokenType))
+        }
+        for key in map.keys {
+            map[key]?.sort { $0.0.count > $1.0.count }
+        }
+        return map
+    }()
+
+    /// Direct lookup for single-character delimiters.
+    /// Assumes all delimiters are single-character; multi-character delimiters
+    /// would only be matched by their first character, which is incorrect.
+    public static let delimiterMap: [Character: TokenType] = {
+        var map: [Character: TokenType] = [:]
+        for (delimiter, tokenType) in delimiters {
+            assert(delimiter.count == 1, "delimiterMap assumes single-character delimiters, got '\(delimiter)'")
+            guard let firstChar = delimiter.first else { continue }
+            map[firstChar] = tokenType
+        }
+        return map
+    }()
+
     // MARK: - Whitespace Utilities
 
     /// Checks if a character is whitespace (including full-width space)
@@ -160,21 +186,19 @@ public enum TokenizerUtilities {
     /// Handles Unicode letters, underscore, and extended character sets robustly
     /// Uses enhanced Unicode character classification for comprehensive support
     public static func isIdentifierStart(_ scalar: UnicodeScalar) -> Bool {
-        // Basic identifier start characters
-        if scalar == "_" {
-            return true
-        }
+        let value = scalar.value
+        // Fast path for ASCII
+        if value == 0x5F { return true } // '_'
+        if (value >= 0x41 && value <= 0x5A) ||
+           (value >= 0x61 && value <= 0x7A) { return true } // A-Z, a-z
+        if value < 0x80 { return false } // Other ASCII cannot start identifiers
 
-        // Use enhanced character classification
+        // Slow path: full Unicode classification for non-ASCII
         let classification = UnicodeNormalizer.classifyCharacter(scalar)
         switch classification {
         case .letter:
             return true
         case .other(subcategory: .privateUse):
-            // Allow Private Use Area (U+E000–U+F8FF) for custom domain-specific symbols.
-            // This enables FeLang to support specialized characters in specific contexts,
-            // such as mathematical notation, proprietary symbols, or legacy character sets
-            // while maintaining compatibility with Unicode standards.
             return true
         default:
             return false
@@ -193,24 +217,22 @@ public enum TokenizerUtilities {
     /// Handles Unicode letters, digits, underscore, and extended character sets robustly
     /// Uses enhanced Unicode character classification for comprehensive support
     public static func isIdentifierContinue(_ scalar: UnicodeScalar) -> Bool {
-        // Basic identifier continuation characters
-        if scalar == "_" {
-            return true
-        }
+        let value = scalar.value
+        // Fast path for ASCII
+        if value == 0x5F { return true } // '_'
+        if (value >= 0x41 && value <= 0x5A) ||
+           (value >= 0x61 && value <= 0x7A) { return true } // A-Z, a-z
+        if value >= 0x30 && value <= 0x39 { return true } // 0-9
+        if value < 0x80 { return false } // Other ASCII cannot continue identifiers
 
-        // Use enhanced character classification
+        // Slow path: full Unicode classification for non-ASCII
         let classification = UnicodeNormalizer.classifyCharacter(scalar)
         switch classification {
         case .letter, .number:
             return true
         case .mark(subcategory: .nonspacingMark):
-            // Allow combining marks in identifiers
             return true
         case .other(subcategory: .privateUse):
-            // Allow Private Use Area (U+E000–U+F8FF) for custom domain-specific symbols.
-            // This enables FeLang to support specialized characters in specific contexts,
-            // such as mathematical notation, proprietary symbols, or legacy character sets
-            // while maintaining compatibility with Unicode standards.
             return true
         default:
             return false
@@ -239,10 +261,14 @@ public enum TokenizerUtilities {
 
     /// Checks if a target string matches at the given index in the input
     public static func matchString(_ target: String, in input: String, at index: String.Index) -> Bool {
-        guard let endIndex = input.index(index, offsetBy: target.count, limitedBy: input.endIndex) else {
-            return false
+        var inputIndex = index
+        for targetChar in target {
+            guard inputIndex < input.endIndex, input[inputIndex] == targetChar else {
+                return false
+            }
+            inputIndex = input.index(after: inputIndex)
         }
-        return String(input[index..<endIndex]) == target
+        return true
     }
 
     /// Checks if a target string matches at the given index in the Unicode scalar view
@@ -255,6 +281,41 @@ public enum TokenizerUtilities {
             currentIndex = source.index(after: currentIndex)
         }
         return true
+    }
+
+    // MARK: - Position Tracking
+
+    /// Tracks source position incrementally during tokenization.
+    /// Provides O(1) position queries instead of O(n) recomputation.
+    public struct PositionTracker {
+        private var line: Int = 1
+        private var column: Int = 1
+        private var offset: Int = 0
+
+        public init() {}
+
+        /// Returns the current source position.
+        public var currentPosition: SourcePosition {
+            return SourcePosition(line: line, column: column, offset: offset)
+        }
+
+        /// Advances the tracker by one character.
+        public mutating func advance(past character: Character) {
+            if character == "\n" {
+                line += 1
+                column = 1
+            } else {
+                column += 1
+            }
+            offset += character.unicodeScalars.count
+        }
+
+        /// Advances the tracker through a substring.
+        public mutating func advance(through substring: Substring) {
+            for char in substring {
+                advance(past: char)
+            }
+        }
     }
 
     // MARK: - Position Calculation

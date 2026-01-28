@@ -1005,17 +1005,17 @@ public struct StatementParser {
             scanIndex += 1
         }
 
-        // Create expression tokens from start to end
-        let expressionTokens = Array(parser.tokens[startIndex..<endIndex]) + [
-            Token(type: .eof, lexeme: "", position: SourcePosition(line: 0, column: 0, offset: 0))
-        ]
-
         // Advance the parser to the end of the expression
         parser.index = endIndex
 
-        // Parse expression using dedicated ExpressionParser
+        // Parse expression using dedicated ExpressionParser (without copying token array)
         do {
-            return try expressionParser.parseExpression(from: expressionTokens)
+            let (expression, _) = try expressionParser.parseExpression(
+                from: parser.tokens,
+                startingAt: startIndex,
+                endingBefore: endIndex
+            )
+            return expression
         } catch let error as ParsingError {
             // Convert ParsingError to StatementParsingError
             throw convertParsingError(error)

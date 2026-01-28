@@ -7,9 +7,11 @@ Input:
 variable x ←
 Expected Error:
 StatementParseError: Expected primary expression
-  at line 0, column 0
+  at line 1, column 13
   Found: ''
-  (Source context unavailable)
+  Source context:
+  1: variable x ←
+                 ^
 
 === Test Case: missing_colon_in_declaration ===
 Input:
