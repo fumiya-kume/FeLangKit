@@ -17,7 +17,7 @@ struct StatementExpressionDelegationTests {
         let statements = try parseStatements("if x > 0 then\nx ← 1\nendif")
         #expect(statements.count == 1)
         guard case .ifStatement(let ifStmt) = statements[0] else {
-            #expect(Bool(false), "Expected if statement")
+            Issue.record("Expected if statement")
             return
         }
         #expect(ifStmt.condition == Expression.binary(.greater, .identifier("x"), .literal(.integer(0))))
@@ -27,7 +27,7 @@ struct StatementExpressionDelegationTests {
         let statements = try parseStatements("while isEmpty(list) do\nbreak\nendwhile")
         #expect(statements.count == 1)
         guard case .whileStatement(let whileStmt) = statements[0] else {
-            #expect(Bool(false), "Expected while statement")
+            Issue.record("Expected while statement")
             return
         }
         #expect(whileStmt.condition == Expression.functionCall("isEmpty", [.identifier("list")]))
@@ -37,7 +37,7 @@ struct StatementExpressionDelegationTests {
         let statements = try parseStatements("for i ← a + 1 to b * 2 do\nwriteLine(i)\nendfor")
         #expect(statements.count == 1)
         guard case .forStatement(.range(let rangeFor)) = statements[0] else {
-            #expect(Bool(false), "Expected for range statement")
+            Issue.record("Expected for range statement")
             return
         }
         #expect(rangeFor.start == Expression.binary(.add, .identifier("a"), .literal(.integer(1))))
@@ -50,7 +50,7 @@ struct StatementExpressionDelegationTests {
         let statements = try parseStatements("x ← a + b * c")
         #expect(statements.count == 1)
         guard case .assignment(.variable(_, let value)) = statements[0] else {
-            #expect(Bool(false), "Expected assignment statement")
+            Issue.record("Expected assignment statement")
             return
         }
         let expected = Expression.binary(
@@ -65,7 +65,7 @@ struct StatementExpressionDelegationTests {
         let statements = try parseStatements("変数 x: 整数型 ← arr[0] + 1")
         #expect(statements.count == 1)
         guard case .variableDeclaration(let decl) = statements[0] else {
-            #expect(Bool(false), "Expected variable declaration")
+            Issue.record("Expected variable declaration")
             return
         }
         #expect(decl.initialValue != nil)
@@ -85,13 +85,13 @@ struct StatementExpressionDelegationTests {
         #expect(statements.count == 1)
 
         guard case .ifStatement(let ifStmt) = statements[0] else {
-            #expect(Bool(false), "Expected if statement")
+            Issue.record("Expected if statement")
             return
         }
         #expect(ifStmt.condition == Expression.binary(.greater, .identifier("a"), .literal(.integer(0))))
 
         guard case .whileStatement(let whileStmt) = ifStmt.thenBody[0] else {
-            #expect(Bool(false), "Expected while statement in body")
+            Issue.record("Expected while statement in body")
             return
         }
         #expect(whileStmt.condition == Expression.binary(.less, .identifier("b"), .literal(.integer(10))))
@@ -103,7 +103,7 @@ struct StatementExpressionDelegationTests {
         let statements = try parseStatements("return a + b")
         #expect(statements.count == 1)
         guard case .returnStatement(let retStmt) = statements[0] else {
-            #expect(Bool(false), "Expected return statement")
+            Issue.record("Expected return statement")
             return
         }
         #expect(retStmt.expression == Expression.binary(.add, .identifier("a"), .identifier("b")))
@@ -113,7 +113,7 @@ struct StatementExpressionDelegationTests {
         let statements = try parseStatements("obj.method(x + 1)")
         #expect(statements.count == 1)
         guard case .expressionStatement(let expr) = statements[0] else {
-            #expect(Bool(false), "Expected expression statement")
+            Issue.record("Expected expression statement")
             return
         }
         let expected = Expression.methodCall(

@@ -280,7 +280,7 @@ private struct TokenStream {
     init(_ tokens: [Token]) {
         self.tokens = tokens
         self.endIndex = tokens.count
-        // Not used for unbounded streams, but required by the struct
+        // Placeholder value; unbounded streams always hit the real EOF token
         self.syntheticEOF = Token(type: .eof, lexeme: "", position: SourcePosition(line: 0, column: 0, offset: 0))
     }
 
@@ -288,14 +288,17 @@ private struct TokenStream {
         self.tokens = tokens
         self.index = startIndex
         self.endIndex = endIndex
-        // Use position from the boundary token for accurate error messages
+
+        // Derive position from the boundary token (or last token) for accurate error messages
+        let boundaryPosition: SourcePosition
         if endIndex < tokens.count {
-            self.syntheticEOF = Token(type: .eof, lexeme: "", position: tokens[endIndex].position)
-        } else if !tokens.isEmpty {
-            self.syntheticEOF = Token(type: .eof, lexeme: "", position: tokens[tokens.count - 1].position)
+            boundaryPosition = tokens[endIndex].position
+        } else if let lastToken = tokens.last {
+            boundaryPosition = lastToken.position
         } else {
-            self.syntheticEOF = Token(type: .eof, lexeme: "", position: SourcePosition(line: 1, column: 1, offset: 0))
+            boundaryPosition = SourcePosition(line: 1, column: 1, offset: 0)
         }
+        self.syntheticEOF = Token(type: .eof, lexeme: "", position: boundaryPosition)
     }
 
     /// Synthetic EOF token returned at the boundary of a bounded stream.

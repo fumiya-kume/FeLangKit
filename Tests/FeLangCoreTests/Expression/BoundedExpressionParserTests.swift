@@ -1,9 +1,5 @@
-import Foundation
 import Testing
 @testable import FeLangCore
-
-// Alias to avoid conflict with Foundation.Expression
-typealias BoundedFEExpression = FeLangCore.Expression
 
 @Suite("Bounded ExpressionParser Tests")
 struct BoundedExpressionParserTests {
@@ -21,7 +17,7 @@ struct BoundedExpressionParserTests {
         // tokens: [identifier("a"), plus, identifier("b"), eof]
         let eofIndex = tokens.count - 1
         let (expr, _) = try parser.parseExpression(from: tokens, startingAt: 0, endingBefore: eofIndex)
-        #expect(expr == BoundedFEExpression.binary(.add, .identifier("a"), .identifier("b")))
+        #expect(expr == Expression.binary(.add, .identifier("a"), .identifier("b")))
     }
 
     @Test func testBoundedParseReturnsCorrectIndex() throws {
@@ -36,7 +32,7 @@ struct BoundedExpressionParserTests {
         let tokens = try tokenize("x")
         // tokens: [identifier("x"), eof]
         let (expr, endIdx) = try parser.parseExpression(from: tokens, startingAt: 0, endingBefore: 1)
-        #expect(expr == BoundedFEExpression.identifier("x"))
+        #expect(expr == Expression.identifier("x"))
         #expect(endIdx == 1)
     }
 
@@ -44,14 +40,14 @@ struct BoundedExpressionParserTests {
         let tokens = try tokenize("(a + b)")
         let eofIndex = tokens.count - 1
         let (expr, _) = try parser.parseExpression(from: tokens, startingAt: 0, endingBefore: eofIndex)
-        #expect(expr == BoundedFEExpression.binary(.add, .identifier("a"), .identifier("b")))
+        #expect(expr == Expression.binary(.add, .identifier("a"), .identifier("b")))
     }
 
     @Test func testBoundedParseFunctionCall() throws {
         let tokens = try tokenize("max(a, b)")
         let eofIndex = tokens.count - 1
         let (expr, _) = try parser.parseExpression(from: tokens, startingAt: 0, endingBefore: eofIndex)
-        #expect(expr == BoundedFEExpression.functionCall("max", [.identifier("a"), .identifier("b")]))
+        #expect(expr == Expression.functionCall("max", [.identifier("a"), .identifier("b")]))
     }
 
     // MARK: - Middle-of-Array Parsing Tests
@@ -61,7 +57,7 @@ struct BoundedExpressionParserTests {
         // tokens: [x, +, a, *, b, -, c, eof]
         // Parse "a * b" from index 2 to 5
         let (expr, endIdx) = try parser.parseExpression(from: tokens, startingAt: 2, endingBefore: 5)
-        #expect(expr == BoundedFEExpression.binary(.multiply, .identifier("a"), .identifier("b")))
+        #expect(expr == Expression.binary(.multiply, .identifier("a"), .identifier("b")))
         #expect(endIdx == 5)
     }
 
@@ -70,7 +66,7 @@ struct BoundedExpressionParserTests {
         // tokens: [a, +, b, *, c, eof]
         // Parse only "a + b" (indices 0 to 3), boundary at index 3 (before *)
         let (expr, _) = try parser.parseExpression(from: tokens, startingAt: 0, endingBefore: 3)
-        #expect(expr == BoundedFEExpression.binary(.add, .identifier("a"), .identifier("b")))
+        #expect(expr == Expression.binary(.add, .identifier("a"), .identifier("b")))
     }
 
     // MARK: - Error Handling Tests
@@ -106,7 +102,7 @@ struct BoundedExpressionParserTests {
         let tokens = try tokenize("arr[i]")
         let eofIndex = tokens.count - 1
         let (expr, _) = try parser.parseExpression(from: tokens, startingAt: 0, endingBefore: eofIndex)
-        #expect(expr == BoundedFEExpression.arrayAccess(.identifier("arr"), .identifier("i")))
+        #expect(expr == Expression.arrayAccess(.identifier("arr"), .identifier("i")))
     }
 
     @Test func testBoundedParseMatchesFullParse() throws {

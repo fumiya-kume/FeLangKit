@@ -101,7 +101,7 @@ struct ParsingTokenizerPositionTests {
     @Test func testEOFPositionAtEndOfInput() throws {
         let tokens = try tokenize("abc")
         guard let eof = tokens.last else {
-            #expect(Bool(false), "Expected tokens")
+            Issue.record("Expected tokens")
             return
         }
         #expect(eof.type == .eof)
