@@ -256,87 +256,57 @@ struct ExpressionVisitorTests {
         #expect(expr.visit(with: visitor) == "literal")
     }
 
+    // MARK: - Type Counting Helpers
+
+    private func mergeCounts(_ base: inout [String: Int], _ additional: [String: Int]) {
+        for (key, value) in additional {
+            base[key, default: 0] += value
+        }
+    }
+
+    private func countExpressionTypes(_ expr: FeLangCore.Expression) -> [String: Int] {
+        switch expr {
+        case .literal:
+            return ["literal": 1]
+        case .identifier:
+            return ["identifier": 1]
+        case .binary(_, let left, let right):
+            var result = ["binary": 1]
+            mergeCounts(&result, countExpressionTypes(left))
+            mergeCounts(&result, countExpressionTypes(right))
+            return result
+        case .unary(_, let operand):
+            var result = ["unary": 1]
+            mergeCounts(&result, countExpressionTypes(operand))
+            return result
+        case .arrayAccess(let array, let index):
+            var result = ["array_access": 1]
+            mergeCounts(&result, countExpressionTypes(array))
+            mergeCounts(&result, countExpressionTypes(index))
+            return result
+        case .fieldAccess(let object, _):
+            var result = ["field_access": 1]
+            mergeCounts(&result, countExpressionTypes(object))
+            return result
+        case .functionCall(_, let arguments):
+            var result = ["function_call": 1]
+            for arg in arguments { mergeCounts(&result, countExpressionTypes(arg)) }
+            return result
+        case .arrayLiteral(let elements):
+            var result = ["array_literal": 1]
+            for element in elements { mergeCounts(&result, countExpressionTypes(element)) }
+            return result
+        case .methodCall(let receiver, _, let arguments):
+            var result = ["method_call": 1]
+            mergeCounts(&result, countExpressionTypes(receiver))
+            for arg in arguments { mergeCounts(&result, countExpressionTypes(arg)) }
+            return result
+        }
+    }
+
     // MARK: - Type Counting Visitor Test
 
     @Test func typeCountingVisitor() {
-        // Create a manual recursive visitor for counting node types
-        func countExpressionTypes(_ expr: FeLangCore.Expression) -> [String: Int] {
-            switch expr {
-            case .literal:
-                return ["literal": 1]
-            case .identifier:
-                return ["identifier": 1]
-            case .binary(_, let left, let right):
-                var result = ["binary": 1]
-                let leftCounts = countExpressionTypes(left)
-                let rightCounts = countExpressionTypes(right)
-                for (key, value) in leftCounts {
-                    result[key, default: 0] += value
-                }
-                for (key, value) in rightCounts {
-                    result[key, default: 0] += value
-                }
-                return result
-            case .unary(_, let operand):
-                var result = ["unary": 1]
-                let operandCounts = countExpressionTypes(operand)
-                for (key, value) in operandCounts {
-                    result[key, default: 0] += value
-                }
-                return result
-            case .arrayAccess(let array, let index):
-                var result = ["array_access": 1]
-                let arrayCounts = countExpressionTypes(array)
-                let indexCounts = countExpressionTypes(index)
-                for (key, value) in arrayCounts {
-                    result[key, default: 0] += value
-                }
-                for (key, value) in indexCounts {
-                    result[key, default: 0] += value
-                }
-                return result
-            case .fieldAccess(let object, _):
-                var result = ["field_access": 1]
-                let objectCounts = countExpressionTypes(object)
-                for (key, value) in objectCounts {
-                    result[key, default: 0] += value
-                }
-                return result
-            case .functionCall(_, let arguments):
-                var result = ["function_call": 1]
-                for arg in arguments {
-                    let argCounts = countExpressionTypes(arg)
-                    for (key, value) in argCounts {
-                        result[key, default: 0] += value
-                    }
-                }
-                return result
-            case .arrayLiteral(let elements):
-                var result = ["array_literal": 1]
-                for element in elements {
-                    let elementCounts = countExpressionTypes(element)
-                    for (key, value) in elementCounts {
-                        result[key, default: 0] += value
-                    }
-                }
-                return result
-            case .methodCall(let receiver, _, let arguments):
-                var result = ["method_call": 1]
-                let receiverCounts = countExpressionTypes(receiver)
-                for (key, value) in receiverCounts {
-                    result[key, default: 0] += value
-                }
-                for arg in arguments {
-                    let argCounts = countExpressionTypes(arg)
-                    for (key, value) in argCounts {
-                        result[key, default: 0] += value
-                    }
-                }
-                return result
-            }
-        }
-
-        // Test with a complex expression: (x + 1) * func(y)
         let complexExpr = FeLangCore.Expression.binary(.multiply,
                                           .binary(.add, .identifier("x"), .literal(.integer(1))),
                                           .functionCall("func", [.identifier("y")]))

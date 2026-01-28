@@ -633,77 +633,81 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     private func typeCheckForStatement(_ stmt: ForStatement) {
         switch stmt {
         case .range(let rangeFor):
-            let startType = inferExpressionType(rangeFor.start)
-            let endType = inferExpressionType(rangeFor.end)
-
-            if !startType.isCompatible(with: .integer) {
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.typeMismatch(expected: .integer, actual: startType, position: position))
-            }
-
-            if !endType.isCompatible(with: .integer) {
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.typeMismatch(expected: .integer, actual: endType, position: position))
-            }
-
-            if let step = rangeFor.step {
-                let stepType = inferExpressionType(step)
-                if !stepType.isCompatible(with: .integer) {
-                    let position = SourcePosition(line: 0, column: 0, offset: 0)
-                    errorReporter.collect(.typeMismatch(expected: .integer, actual: stepType, position: position))
-                }
-            }
-
-            _ = symbolTable.pushScope(kind: .loop)
-
-            // Re-declare loop variable in type checking scope
-            let position = SourcePosition(line: 0, column: 0, offset: 0)
-            _ = symbolTable.declare(
-                name: rangeFor.variable,
-                type: .integer,
-                kind: .variable,
-                position: position,
-                isInitialized: true
-            )
-
-            for bodyStmt in rangeFor.body {
-                typeCheckStatement(bodyStmt)
-            }
-            symbolTable.popScope()
-
+            typeCheckRangeFor(rangeFor)
         case .forEach(let forEach):
-            let iterableType = inferExpressionType(forEach.iterable)
-
-            // Extract element type from iterable
-            let elementType: FeType
-            switch iterableType {
-            case .array(let elemType, _):
-                elementType = elemType
-            case .string:
-                elementType = .character
-            default:
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.typeMismatch(expected: .array(elementType: .unknown, dimensions: []), actual: iterableType, position: position))
-                elementType = .error
-            }
-
-            _ = symbolTable.pushScope(kind: .loop)
-
-            // Re-declare loop variable with correct type in type checking scope
-            let position = SourcePosition(line: 0, column: 0, offset: 0)
-            _ = symbolTable.declare(
-                name: forEach.variable,
-                type: elementType,
-                kind: .variable,
-                position: position,
-                isInitialized: true
-            )
-
-            for bodyStmt in forEach.body {
-                typeCheckStatement(bodyStmt)
-            }
-            symbolTable.popScope()
+            typeCheckForEach(forEach)
         }
+    }
+
+    private func typeCheckRangeFor(_ rangeFor: ForStatement.RangeFor) {
+        let startType = inferExpressionType(rangeFor.start)
+        let endType = inferExpressionType(rangeFor.end)
+
+        if !startType.isCompatible(with: .integer) {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.typeMismatch(expected: .integer, actual: startType, position: position))
+        }
+
+        if !endType.isCompatible(with: .integer) {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.typeMismatch(expected: .integer, actual: endType, position: position))
+        }
+
+        if let step = rangeFor.step {
+            let stepType = inferExpressionType(step)
+            if !stepType.isCompatible(with: .integer) {
+                let position = SourcePosition(line: 0, column: 0, offset: 0)
+                errorReporter.collect(.typeMismatch(expected: .integer, actual: stepType, position: position))
+            }
+        }
+
+        _ = symbolTable.pushScope(kind: .loop)
+
+        let position = SourcePosition(line: 0, column: 0, offset: 0)
+        _ = symbolTable.declare(
+            name: rangeFor.variable,
+            type: .integer,
+            kind: .variable,
+            position: position,
+            isInitialized: true
+        )
+
+        for bodyStmt in rangeFor.body {
+            typeCheckStatement(bodyStmt)
+        }
+        symbolTable.popScope()
+    }
+
+    private func typeCheckForEach(_ forEach: ForStatement.ForEachLoop) {
+        let iterableType = inferExpressionType(forEach.iterable)
+
+        let elementType: FeType
+        switch iterableType {
+        case .array(let elemType, _):
+            elementType = elemType
+        case .string:
+            elementType = .character
+        default:
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.typeMismatch(expected: .array(elementType: .unknown, dimensions: []), actual: iterableType, position: position))
+            elementType = .error
+        }
+
+        _ = symbolTable.pushScope(kind: .loop)
+
+        let position = SourcePosition(line: 0, column: 0, offset: 0)
+        _ = symbolTable.declare(
+            name: forEach.variable,
+            type: elementType,
+            kind: .variable,
+            position: position,
+            isInitialized: true
+        )
+
+        for bodyStmt in forEach.body {
+            typeCheckStatement(bodyStmt)
+        }
+        symbolTable.popScope()
     }
 
     private func typeCheckReturnStatement(_ stmt: ReturnStatement) {
@@ -914,88 +918,86 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
         switch operatorType {
         case .add, .subtract, .multiply, .divide:
-            // Arithmetic operators
-            if leftType.isCompatible(with: .integer) && rightType.isCompatible(with: .integer) {
-                return .integer
-            } else if (leftType.isCompatible(with: .real) || leftType.isCompatible(with: .integer)) &&
-                      (rightType.isCompatible(with: .real) || rightType.isCompatible(with: .integer)) {
-                return .real
-            } else if operatorType == .add && (leftType.isCompatible(with: .string) || rightType.isCompatible(with: .string)) {
-                // String concatenation with + operator
-                if (leftType.isCompatible(with: .string) || leftType.isCompatible(with: .character)) &&
-                   (rightType.isCompatible(with: .string) || rightType.isCompatible(with: .character)) {
-                    return .string
-                } else {
-                    let position = SourcePosition(line: 0, column: 0, offset: 0)
-                    errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
-                    return .error
-                }
-            } else {
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
-                return .error
-            }
-
+            return inferArithmeticType(leftType: leftType, rightType: rightType, operatorType: operatorType)
         case .modulo:
-            // Modulo only works with integers
-            if leftType.isCompatible(with: .integer) && rightType.isCompatible(with: .integer) {
-                return .integer
-            } else {
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
-                return .error
-            }
-
+            return requireBothInteger(leftType: leftType, rightType: rightType, operatorType: operatorType, strict: false)
         case .equal, .notEqual:
-            // Equality operators work with compatible types
             if leftType.isCompatible(with: rightType) {
                 return .boolean
-            } else {
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
-                return .error
             }
-
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+            return .error
         case .greater, .greaterEqual, .less, .lessEqual:
-            // Comparison operators work with numeric types
-            if (leftType.isCompatible(with: .integer) || leftType.isCompatible(with: .real)) &&
-               (rightType.isCompatible(with: .integer) || rightType.isCompatible(with: .real)) {
-                return .boolean
-            } else {
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
-                return .error
-            }
-
-        case .bitwiseAnd, .leftShift, .rightShift:
-            // Bitwise operators only work with integers (strict check, no real allowed)
-            if case .integer = leftType, case .integer = rightType {
-                return .integer
-            } else {
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
-                return .error
-            }
-
-        case .bitwiseOr:
-            // Bitwise OR only works with integers (strict check, no real allowed)
-            if case .integer = leftType, case .integer = rightType {
-                return .integer
-            } else {
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
-                return .error
-            }
-
+            return requireBothNumeric(leftType: leftType, rightType: rightType, operatorType: operatorType)
+        case .bitwiseAnd, .leftShift, .rightShift, .bitwiseOr:
+            return requireBothInteger(leftType: leftType, rightType: rightType, operatorType: operatorType, strict: true)
         case .and, .or:
-            // Logical operators work with boolean types
-            if leftType.isCompatible(with: .boolean) && rightType.isCompatible(with: .boolean) {
-                return .boolean
+            return requireBothBoolean(leftType: leftType, rightType: rightType, operatorType: operatorType)
+        }
+    }
+
+    private func inferArithmeticType(leftType: FeType, rightType: FeType, operatorType: BinaryOperator) -> FeType {
+        if leftType.isCompatible(with: .integer) && rightType.isCompatible(with: .integer) {
+            return .integer
+        } else if (leftType.isCompatible(with: .real) || leftType.isCompatible(with: .integer)) &&
+                  (rightType.isCompatible(with: .real) || rightType.isCompatible(with: .integer)) {
+            return .real
+        } else if operatorType == .add && (leftType.isCompatible(with: .string) || rightType.isCompatible(with: .string)) {
+            if (leftType.isCompatible(with: .string) || leftType.isCompatible(with: .character)) &&
+               (rightType.isCompatible(with: .string) || rightType.isCompatible(with: .character)) {
+                return .string
             } else {
                 let position = SourcePosition(line: 0, column: 0, offset: 0)
                 errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
                 return .error
             }
+        } else {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+            return .error
+        }
+    }
+
+    private func requireBothNumeric(leftType: FeType, rightType: FeType, operatorType: BinaryOperator) -> FeType {
+        if (leftType.isCompatible(with: .integer) || leftType.isCompatible(with: .real)) &&
+           (rightType.isCompatible(with: .integer) || rightType.isCompatible(with: .real)) {
+            return .boolean
+        } else {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+            return .error
+        }
+    }
+
+    private func requireBothInteger(leftType: FeType, rightType: FeType, operatorType: BinaryOperator, strict: Bool) -> FeType {
+        let bothInteger: Bool
+        if strict {
+            if case .integer = leftType, case .integer = rightType {
+                bothInteger = true
+            } else {
+                bothInteger = false
+            }
+        } else {
+            bothInteger = leftType.isCompatible(with: .integer) && rightType.isCompatible(with: .integer)
+        }
+
+        if bothInteger {
+            return .integer
+        } else {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+            return .error
+        }
+    }
+
+    private func requireBothBoolean(leftType: FeType, rightType: FeType, operatorType: BinaryOperator) -> FeType {
+        if leftType.isCompatible(with: .boolean) && rightType.isCompatible(with: .boolean) {
+            return .boolean
+        } else {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.incompatibleTypes(leftType, rightType, operation: operatorType.rawValue, position: position))
+            return .error
         }
     }
 
@@ -1259,9 +1261,42 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         let returnType = decl.returnType.map(convertDataTypeToFeType)
         _ = symbolTable.pushScope(kind: .function(name: decl.name, returnType: returnType))
 
-        // Re-declare parameters in the new scope
         let position = SourcePosition(line: 0, column: 0, offset: 0)
-        for param in decl.parameters {
+        declareParametersInScope(decl.parameters, position: position)
+
+        for localVar in decl.localVariables {
+            collectSymbolsFromVariableDeclaration(localVar)
+        }
+
+        let hasReturnStatement = validateBodyForUnreachableCode(decl.body, position: position)
+
+        if decl.returnType != nil && !hasReturnStatement {
+            errorReporter.collect(.missingReturnStatement(function: decl.name, position: position))
+        }
+
+        validateParameterUniqueness(decl.parameters, position: position)
+        symbolTable.popScope()
+    }
+
+    private func validateProcedureDeclaration(_ decl: ProcedureDeclaration) {
+        _ = symbolTable.pushScope(kind: .procedure(name: decl.name))
+
+        let position = SourcePosition(line: 0, column: 0, offset: 0)
+        declareParametersInScope(decl.parameters, position: position)
+
+        for localVar in decl.localVariables {
+            collectSymbolsFromVariableDeclaration(localVar)
+        }
+
+        _ = validateBodyForUnreachableCode(decl.body, position: position)
+        validateParameterUniqueness(decl.parameters, position: position)
+        symbolTable.popScope()
+    }
+
+    // MARK: - Validation Helpers
+
+    private func declareParametersInScope(_ parameters: [Parameter], position: SourcePosition) {
+        for param in parameters {
             let paramType = convertDataTypeToFeType(param.type)
             _ = symbolTable.declare(
                 name: param.name,
@@ -1271,18 +1306,15 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 isInitialized: true
             )
         }
+    }
 
-        // Re-declare local variables in the new scope
-        for localVar in decl.localVariables {
-            collectSymbolsFromVariableDeclaration(localVar)
-        }
-
-        // Validate function body and check for return statements
+    /// Validates a body for unreachable code after return statements.
+    /// Returns `true` if a return statement was found.
+    private func validateBodyForUnreachableCode(_ body: [Statement], position: SourcePosition) -> Bool {
         var hasReturnStatement = false
         var hasUnreachableCode = false
-        for (index, stmt) in decl.body.enumerated() {
+        for (index, stmt) in body.enumerated() {
             if hasUnreachableCode {
-                // Code after return statement is unreachable
                 errorReporter.collect(SemanticError.unreachableCode(position: position))
                 break
             }
@@ -1291,81 +1323,18 @@ public final class SemanticAnalyzer: @unchecked Sendable {
 
             if case .returnStatement = stmt {
                 hasReturnStatement = true
-                // Mark that subsequent statements are unreachable
-                if index < decl.body.count - 1 {
+                if index < body.count - 1 {
                     hasUnreachableCode = true
                 }
             }
         }
-
-        // Check for missing return statement in functions (not procedures)
-        if decl.returnType != nil && !hasReturnStatement {
-            errorReporter.collect(.missingReturnStatement(function: decl.name, position: position))
-        }
-
-        // Validate parameter uniqueness
-        let paramNames = decl.parameters.map { $0.name }
-        let uniqueParamNames = Set(paramNames)
-        if paramNames.count != uniqueParamNames.count {
-            // Find duplicate parameter
-            var seen: Set<String> = []
-            for paramName in paramNames {
-                if seen.contains(paramName) {
-                    errorReporter.collect(.variableAlreadyDeclared(paramName, position: position))
-                    break
-                }
-                seen.insert(paramName)
-            }
-        }
-
-        symbolTable.popScope()
+        return hasReturnStatement
     }
 
-    private func validateProcedureDeclaration(_ decl: ProcedureDeclaration) {
-        _ = symbolTable.pushScope(kind: .procedure(name: decl.name))
-
-        // Re-declare parameters in the new scope
-        let position = SourcePosition(line: 0, column: 0, offset: 0)
-        for param in decl.parameters {
-            let paramType = convertDataTypeToFeType(param.type)
-            _ = symbolTable.declare(
-                name: param.name,
-                type: paramType,
-                kind: .parameter,
-                position: position,
-                isInitialized: true
-            )
-        }
-
-        // Re-declare local variables in the new scope
-        for localVar in decl.localVariables {
-            collectSymbolsFromVariableDeclaration(localVar)
-        }
-
-        // Validate procedure body
-        var hasUnreachableCode = false
-        for (index, stmt) in decl.body.enumerated() {
-            if hasUnreachableCode {
-                // Code after return statement is unreachable
-                errorReporter.collect(SemanticError.unreachableCode(position: position))
-                break
-            }
-
-            validateStatement(stmt)
-
-            if case .returnStatement = stmt {
-                // Mark that subsequent statements are unreachable
-                if index < decl.body.count - 1 {
-                    hasUnreachableCode = true
-                }
-            }
-        }
-
-        // Validate parameter uniqueness
-        let paramNames = decl.parameters.map { $0.name }
+    private func validateParameterUniqueness(_ parameters: [Parameter], position: SourcePosition) {
+        let paramNames = parameters.map { $0.name }
         let uniqueParamNames = Set(paramNames)
         if paramNames.count != uniqueParamNames.count {
-            // Find duplicate parameter
             var seen: Set<String> = []
             for paramName in paramNames {
                 if seen.contains(paramName) {
@@ -1375,8 +1344,6 @@ public final class SemanticAnalyzer: @unchecked Sendable {
                 seen.insert(paramName)
             }
         }
-
-        symbolTable.popScope()
     }
 
     // MARK: - Helper Methods

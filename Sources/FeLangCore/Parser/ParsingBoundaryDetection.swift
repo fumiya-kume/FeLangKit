@@ -77,69 +77,65 @@ public enum ParsingBoundaryDetection {
 
         let token = tokens[index]
 
-        // Check for assignment pattern: identifier ←
+        // Check for identifier-based patterns (assignment, function call, array element assignment)
         if token.type == .identifier && index + 1 < tokens.count {
-            let nextToken = tokens[index + 1]
-            if nextToken.type == .assign {
-                return true
-            }
-            // Check for function call pattern: identifier(
-            // But NOT if preceded by an operator (expression continuation)
-            if nextToken.type == .leftParen {
-                if index > 0 && isExpressionContinuationToken(tokens[index - 1].type) {
-                    return false
-                }
-                return true
-            }
-            // Check for array element assignment pattern: identifier[...]←
-            // But also check for expression continuation after array access
-            if nextToken.type == .leftBracket {
-                var offset = 2
-                var bracketCount = 1
-                while bracketCount > 0, index + offset < tokens.count {
-                    let scanToken = tokens[index + offset]
-                    if scanToken.type == .leftBracket { bracketCount += 1 } else if scanToken.type == .rightBracket { bracketCount -= 1 }
-                    offset += 1
-                }
-                if index + offset < tokens.count {
-                    let afterBracket = tokens[index + offset]
-                    if afterBracket.type == .assign {
-                        return true  // Array assignment is a new statement
-                    }
-                    // Expression continuation after array access is NOT a new statement
-                    if isExpressionContinuationToken(afterBracket.type) {
-                        return false
-                    }
-                }
-            }
+            return isIdentifierStartingNewStatement(tokens, at: index)
         }
 
         // Check for statement-starting keywords
-        switch token.type {
-        // Control flow statements
-        case .ifKeyword,        // IF-THEN-ELSE conditional statements
-             .whileKeyword,     // WHILE-DO loop statements
-             .doKeyword,        // DO-WHILE loop statements
-             .forKeyword:       // FOR loop statements (range or forEach)
-            return true
+        return isStatementStartingKeyword(token.type)
+    }
 
-        // Declaration statements
-        case .variableKeyword,  // Variable declarations: 変数 name: type ← value
-             .constantKeyword,  // Constant declarations: 定数 name: type ← value
-             .globalKeyword:    // Global declarations: 大域: 型: 変数名
+    /// Checks if an identifier at the given position starts a new statement
+    /// Detects assignment, function call, and array element assignment patterns
+    private static func isIdentifierStartingNewStatement(_ tokens: [Token], at index: Int) -> Bool {
+        let nextToken = tokens[index + 1]
+        if nextToken.type == .assign {
             return true
-
-        // Function/procedure/class declarations
-        case .functionKeyword,  // FUNCTION declarations with return values
-             .procedureKeyword, // PROCEDURE declarations without return values
-             .classKeyword:     // CLASS declarations
+        }
+        // Function call pattern: identifier(
+        // But NOT if preceded by an operator (expression continuation)
+        if nextToken.type == .leftParen {
+            if index > 0 && isExpressionContinuationToken(tokens[index - 1].type) {
+                return false
+            }
             return true
+        }
+        // Array element assignment pattern: identifier[...]←
+        if nextToken.type == .leftBracket {
+            return isArrayAssignmentPattern(tokens, at: index)
+        }
+        return false
+    }
 
-        // Flow control statements
-        case .returnKeyword,    // RETURN statements (with or without values)
-             .breakKeyword:     // BREAK statements for loop termination
+    /// Checks if an identifier followed by brackets forms an array assignment pattern
+    private static func isArrayAssignmentPattern(_ tokens: [Token], at index: Int) -> Bool {
+        var offset = 2
+        var bracketCount = 1
+        while bracketCount > 0, index + offset < tokens.count {
+            let scanToken = tokens[index + offset]
+            if scanToken.type == .leftBracket { bracketCount += 1 } else if scanToken.type == .rightBracket { bracketCount -= 1 }
+            offset += 1
+        }
+        guard index + offset < tokens.count else { return false }
+        let afterBracket = tokens[index + offset]
+        if afterBracket.type == .assign {
             return true
+        }
+        if isExpressionContinuationToken(afterBracket.type) {
+            return false
+        }
+        return false
+    }
 
+    /// Checks if a token type is a keyword that starts a new statement
+    private static func isStatementStartingKeyword(_ tokenType: TokenType) -> Bool {
+        switch tokenType {
+        case .ifKeyword, .whileKeyword, .doKeyword, .forKeyword,
+             .variableKeyword, .constantKeyword, .globalKeyword,
+             .functionKeyword, .procedureKeyword, .classKeyword,
+             .returnKeyword, .breakKeyword, .continueKeyword:
+            return true
         default:
             return false
         }

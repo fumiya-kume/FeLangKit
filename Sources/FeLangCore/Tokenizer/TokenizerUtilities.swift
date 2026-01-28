@@ -14,7 +14,7 @@ public enum TokenizerUtilities {
         // 12 characters
         ("endprocedure", .endprocedureKeyword),
 
-        // 11 characters  
+        // 11 characters
         ("endfunction", .endfunctionKeyword),
 
         // 9 characters
@@ -41,8 +41,8 @@ public enum TokenizerUtilities {
         ("false", .falseKeyword),
 
         // 4 characters - Japanese and English mixed by length
-        ("文字列型", .stringType),
-        ("レコード", .recordType),
+        ("\u{6587}\u{5B57}\u{5217}\u{578B}", .stringType),
+        ("\u{30EC}\u{30B3}\u{30FC}\u{30C9}", .recordType),
         ("true", .trueKeyword),
         ("then", .thenKeyword),
         ("else", .elseKeyword),
@@ -50,25 +50,25 @@ public enum TokenizerUtilities {
         ("step", .stepKeyword),
 
         // 3 characters
-        ("整数型", .integerType),
-        ("実数型", .realType),
-        ("文字型", .characterType),
-        ("論理型", .booleanType),
+        ("\u{6574}\u{6570}\u{578B}", .integerType),
+        ("\u{5B9F}\u{6570}\u{578B}", .realType),
+        ("\u{6587}\u{5B57}\u{578B}", .characterType),
+        ("\u{8AD6}\u{7406}\u{578B}", .booleanType),
         ("and", .andKeyword),
         ("not", .notKeyword),
         ("mod", .modKeyword),
         ("for", .forKeyword),
 
         // 3 characters (Japanese)
-        ("未定義", .undefinedKeyword),
+        ("\u{672A}\u{5B9A}\u{7FA9}", .undefinedKeyword),
 
         // 2 characters
-        ("配列", .arrayType),
-        ("変数", .variableKeyword),
-        ("定数", .constantKeyword),
-        ("大域", .globalKeyword),
-        ("まで", .toKeyword),
-        ("ずつ", .stepKeyword),
+        ("\u{914D}\u{5217}", .arrayType),
+        ("\u{5909}\u{6570}", .variableKeyword),
+        ("\u{5B9A}\u{6570}", .constantKeyword),
+        ("\u{5927}\u{57DF}", .globalKeyword),
+        ("\u{307E}\u{3067}", .toKeyword),
+        ("\u{305A}\u{3064}", .stepKeyword),
         ("or", .orKeyword),
         ("to", .toKeyword),
         ("in", .inKeyword),
@@ -77,37 +77,35 @@ public enum TokenizerUtilities {
     ]
 
     /// Mapping of keywords to their token types (for O(1) lookup)
-    public static let keywordMap: [String: TokenType] = {
-        var map: [String: TokenType] = [:]
-        for (keyword, tokenType) in keywords {
-            map[keyword] = tokenType
-        }
-        return map
-    }()
+    public static let keywordMap: [String: TokenType] = Dictionary(keywords, uniquingKeysWith: { _, new in new })
+
+    /// Pre-cached keyword lexeme strings to reuse canonical String instances.
+    /// Avoids retaining freshly-allocated lexeme copies when a keyword is matched.
+    public static let keywordLexemeMap: [String: String] = Dictionary(uniqueKeysWithValues: keywords.map { ($0.0, $0.0) })
 
     /// Operator definitions with their token types
     /// Ordered with longer operators first to ensure proper matching
     public static let operators: [(String, TokenType)] = [
-        ("←", .assign),
+        ("\u{2190}", .assign),
         ("!=", .notEqual),
-        ("≠", .notEqual),
+        ("\u{2260}", .notEqual),
         (">=", .greaterEqual),
         ("<=", .lessEqual),
         ("<<", .leftShift),
         (">>", .rightShift),
-        ("≧", .greaterEqual),
-        ("≦", .lessEqual),
+        ("\u{2267}", .greaterEqual),
+        ("\u{2266}", .lessEqual),
         ("+", .plus),
         ("-", .minus),
         ("*", .multiply),
         ("/", .divide),
-        ("÷", .divide),
+        ("\u{00F7}", .divide),
         ("%", .modulo),
         ("=", .equal),
         (">", .greater),
         ("<", .less),
-        ("∧", .bitwiseAnd),
-        ("∨", .bitwiseOr),
+        ("\u{2227}", .bitwiseAnd),
+        ("\u{2228}", .bitwiseOr),
         // NOTE: If multi-character operators starting with "!" (e.g., "!=") are added,
         // they must appear before this single-character "!" entry to preserve longest-match behavior.
         ("!", .notKeyword)
@@ -144,14 +142,19 @@ public enum TokenizerUtilities {
     /// Assumes all delimiters are single-character; multi-character delimiters
     /// would only be matched by their first character, which is incorrect.
     public static let delimiterMap: [Character: TokenType] = {
-        var map: [Character: TokenType] = [:]
-        for (delimiter, tokenType) in delimiters {
-            assert(delimiter.count == 1, "delimiterMap assumes single-character delimiters, got '\(delimiter)'")
-            guard let firstChar = delimiter.first else { continue }
-            map[firstChar] = tokenType
-        }
-        return map
+        assert(delimiters.allSatisfy { $0.0.count == 1 }, "delimiterMap assumes single-character delimiters")
+        return Dictionary(uniqueKeysWithValues: delimiters.compactMap { delimiter, tokenType in
+            delimiter.first.map { ($0, tokenType) }
+        })
     }()
+
+    /// Pre-cached delimiter lexeme strings to avoid per-token String allocation.
+    /// Maps each delimiter character to its canonical String representation.
+    public static let delimiterLexemeMap: [Character: String] = Dictionary(
+        uniqueKeysWithValues: delimiters.compactMap { delimiter, _ in
+            delimiter.first.map { ($0, delimiter) }
+        }
+    )
 
     // MARK: - Whitespace Utilities
 
@@ -163,12 +166,11 @@ public enum TokenizerUtilities {
     }
 
     /// Checks if a character is whitespace (Character version)
-    /// Supports standard ASCII whitespace and Japanese full-width space (U+3000)  
+    /// Supports standard ASCII whitespace and Japanese full-width space (U+3000)
     /// This helper provides consistent whitespace handling across all tokenizers
     /// For multi-scalar characters, all scalars must be whitespace
     public static func isWhitespace(_ char: Character) -> Bool {
         guard !char.unicodeScalars.isEmpty else { return false }
-        // For multi-scalar characters (like combined marks), all scalars must be whitespace
         return char.unicodeScalars.allSatisfy(isWhitespace)
     }
 
@@ -196,9 +198,7 @@ public enum TokenizerUtilities {
         // Slow path: full Unicode classification for non-ASCII
         let classification = UnicodeNormalizer.classifyCharacter(scalar)
         switch classification {
-        case .letter:
-            return true
-        case .other(subcategory: .privateUse):
+        case .letter, .other(subcategory: .privateUse):
             return true
         default:
             return false
@@ -206,7 +206,7 @@ public enum TokenizerUtilities {
     }
 
     /// Checks if a character can continue an identifier
-    /// Handles Unicode letters, digits, underscore, and extended character sets robustly  
+    /// Handles Unicode letters, digits, underscore, and extended character sets robustly
     /// Uses enhanced Unicode character classification for comprehensive support
     public static func isIdentifierContinue(_ char: Character) -> Bool {
         guard let scalar = char.unicodeScalars.first else { return false }
@@ -228,11 +228,7 @@ public enum TokenizerUtilities {
         // Slow path: full Unicode classification for non-ASCII
         let classification = UnicodeNormalizer.classifyCharacter(scalar)
         switch classification {
-        case .letter, .number:
-            return true
-        case .mark(subcategory: .nonspacingMark):
-            return true
-        case .other(subcategory: .privateUse):
+        case .letter, .number, .mark(subcategory: .nonspacingMark), .other(subcategory: .privateUse):
             return true
         default:
             return false
@@ -374,7 +370,7 @@ public enum TokenizerUtilities {
         return char.value >= 0x30 && char.value <= 0x37 // 0-7
     }
 
-    /// Validates underscore placement in numbers (not at start, end, or consecutive)
+    /// Validates underscore placement in numbers (not at start, end, or adjacent to special characters)
     public static func isValidUnderscorePlacement(
         at position: Int,
         in numberString: String,
@@ -386,27 +382,10 @@ public enum TokenizerUtilities {
             return false
         }
 
-        // Cannot be consecutive underscores
-        if previousChar == "_" || nextChar == "_" {
-            return false
-        }
-
-        // Cannot be adjacent to decimal point
-        if previousChar == "." || nextChar == "." {
-            return false
-        }
-
-        // Cannot be adjacent to exponent indicator
-        if previousChar == "e" || previousChar == "E" ||
-           nextChar == "e" || nextChar == "E" {
-            return false
-        }
-
-        // Cannot be adjacent to sign in exponent
-        if previousChar == "+" || previousChar == "-" ||
-           nextChar == "+" || nextChar == "-" {
-            return false
-        }
+        // Cannot be adjacent to underscores, decimal points, exponent indicators, or signs
+        let invalidAdjacent: Set<UnicodeScalar> = ["_", ".", "e", "E", "+", "-"]
+        if let prev = previousChar, invalidAdjacent.contains(prev) { return false }
+        if let next = nextChar, invalidAdjacent.contains(next) { return false }
 
         return true
     }
@@ -476,9 +455,15 @@ public enum TokenizerUtilities {
         }
     }
 
-    /// Validates a hexadecimal number format
-    public static func validateHexadecimalNumber(_ input: String) throws {
-        guard input.hasPrefix("0x") || input.hasPrefix("0X") else {
+    /// Validates a number format with the given base prefix and digit validator.
+    private static func validateBaseNumber(
+        _ input: String,
+        lowercasePrefix: String,
+        uppercasePrefix: String,
+        baseName: String,
+        isValidDigit: (UnicodeScalar) -> Bool
+    ) throws {
+        guard input.hasPrefix(lowercasePrefix) || input.hasPrefix(uppercasePrefix) else {
             throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 1, offset: 0))
         }
 
@@ -487,47 +472,30 @@ public enum TokenizerUtilities {
             throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 3, offset: 2))
         }
 
-        for (index, char) in digits.unicodeScalars.enumerated() {
-            if char != "_" && !isHexDigit(char) {
-                throw TokenizerError.invalidDigitForBase(String(char), "hexadecimal", SourcePosition(line: 1, column: 3 + index, offset: 2 + index))
-            }
+        for (index, char) in digits.unicodeScalars.enumerated() where char != "_" && !isValidDigit(char) {
+            throw TokenizerError.invalidDigitForBase(
+                String(char), baseName,
+                SourcePosition(line: 1, column: 3 + index, offset: 2 + index)
+            )
         }
+    }
+
+    /// Validates a hexadecimal number format
+    public static func validateHexadecimalNumber(_ input: String) throws {
+        try validateBaseNumber(input, lowercasePrefix: "0x", uppercasePrefix: "0X",
+                              baseName: "hexadecimal", isValidDigit: isHexDigit)
     }
 
     /// Validates a binary number format
     public static func validateBinaryNumber(_ input: String) throws {
-        guard input.hasPrefix("0b") || input.hasPrefix("0B") else {
-            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 1, offset: 0))
-        }
-
-        let digits = String(input.dropFirst(2))
-        guard !digits.isEmpty else {
-            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 3, offset: 2))
-        }
-
-        for (index, char) in digits.unicodeScalars.enumerated() {
-            if char != "_" && !isBinaryDigit(char) {
-                throw TokenizerError.invalidDigitForBase(String(char), "binary", SourcePosition(line: 1, column: 3 + index, offset: 2 + index))
-            }
-        }
+        try validateBaseNumber(input, lowercasePrefix: "0b", uppercasePrefix: "0B",
+                              baseName: "binary", isValidDigit: isBinaryDigit)
     }
 
     /// Validates an octal number format
     public static func validateOctalNumber(_ input: String) throws {
-        guard input.hasPrefix("0o") || input.hasPrefix("0O") else {
-            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 1, offset: 0))
-        }
-
-        let digits = String(input.dropFirst(2))
-        guard !digits.isEmpty else {
-            throw TokenizerError.invalidNumberFormat(input, SourcePosition(line: 1, column: 3, offset: 2))
-        }
-
-        for (index, char) in digits.unicodeScalars.enumerated() {
-            if char != "_" && !isOctalDigit(char) {
-                throw TokenizerError.invalidDigitForBase(String(char), "octal", SourcePosition(line: 1, column: 3 + index, offset: 2 + index))
-            }
-        }
+        try validateBaseNumber(input, lowercasePrefix: "0o", uppercasePrefix: "0O",
+                              baseName: "octal", isValidDigit: isOctalDigit)
     }
 
     /// Determines the appropriate token type for enhanced numbers

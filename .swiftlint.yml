@@ -24,7 +24,6 @@ analyzer_rules:
 # 無効化したいルール（お好みで調整）
 disabled_rules:
   - file_length
-  - function_body_length
   - type_body_length
   - line_length
   - todo  # TODOコメントを許容するなら
@@ -36,6 +35,11 @@ custom_rules:
     regex: 'as!'
     message: "Avoid using force casts (as!)"
     severity: warning
+
+# 識別子名の例外（FE言語のキーワード）
+identifier_name:
+  excluded:
+    - or
 
 # 複雑度ルールの調整（switch の case をカウントしない）
 cyclomatic_complexity:

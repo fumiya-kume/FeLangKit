@@ -53,49 +53,14 @@ public struct PrettyPrinter {
         let itemIndent = makeIndent(indent + 1)
         var result = prefix + "\n"
         for (index, item) in items.enumerated() {
-            // Handle multi-line items: preserve relative indentation by removing only common indent
             let lines = item.split(separator: "\n", omittingEmptySubsequences: false)
-
-            // Calculate minimum common indentation across non-empty lines
-            let commonIndent = lines
-                .filter { !$0.isEmpty }
-                .map { line -> Int in
-                    var count = 0
-                    for char in line {
-                        if char == " " {
-                            count += 1
-                        } else if char == "\t" {
-                            count += config.indentSize
-                        } else {
-                            break
-                        }
-                    }
-                    return count
-                }
-                .min() ?? 0
+            let commonIndent = calculateCommonIndentation(lines)
 
             for (lineIndex, line) in lines.enumerated() {
                 if lineIndex > 0 {
                     result += "\n"
                 }
-                let lineStr = String(line)
-                // Remove only the common indentation, preserving relative differences
-                var charsToRemove = 0
-                var removedIndent = 0
-                for char in lineStr {
-                    if removedIndent >= commonIndent { break }
-                    if char == " " {
-                        removedIndent += 1
-                        charsToRemove += 1
-                    } else if char == "\t" {
-                        removedIndent += config.indentSize
-                        charsToRemove += 1
-                    } else {
-                        break
-                    }
-                }
-                let trimmedLine = String(lineStr.dropFirst(charsToRemove))
-                result += itemIndent + trimmedLine
+                result += itemIndent + reindentLine(String(line), commonIndent: commonIndent)
             }
             if index < items.count - 1 {
                 result += separator.trimmingCharacters(in: .whitespaces)
@@ -104,6 +69,45 @@ public struct PrettyPrinter {
         }
         result += makeIndent(indent) + suffix
         return result
+    }
+
+    /// Computes minimum common indentation across non-empty lines.
+    private func calculateCommonIndentation(_ lines: [Substring]) -> Int {
+        return lines
+            .filter { !$0.isEmpty }
+            .map { line -> Int in
+                var count = 0
+                for char in line {
+                    if char == " " {
+                        count += 1
+                    } else if char == "\t" {
+                        count += config.indentSize
+                    } else {
+                        break
+                    }
+                }
+                return count
+            }
+            .min() ?? 0
+    }
+
+    /// Removes common indentation from a line, preserving relative differences.
+    private func reindentLine(_ lineStr: String, commonIndent: Int) -> String {
+        var charsToRemove = 0
+        var removedIndent = 0
+        for char in lineStr {
+            if removedIndent >= commonIndent { break }
+            if char == " " {
+                removedIndent += 1
+                charsToRemove += 1
+            } else if char == "\t" {
+                removedIndent += config.indentSize
+                charsToRemove += 1
+            } else {
+                break
+            }
+        }
+        return String(lineStr.dropFirst(charsToRemove))
     }
 
     // MARK: - Public API
@@ -451,29 +455,29 @@ public struct PrettyPrinter {
     }
 
     private func printFunctionDeclaration(_ funcDecl: FunctionDeclaration, indent: Int) -> String {
-        return printCallableDeclaration(
+        let info = CallableDeclarationInfo(
             name: funcDecl.name,
             parameters: funcDecl.parameters,
             returnType: funcDecl.returnType,
             localVariables: funcDecl.localVariables,
             body: funcDecl.body,
-            indent: indent,
             keyword: "function",
             endKeyword: "endfunction"
         )
+        return printCallableDeclaration(info, indent: indent)
     }
 
     private func printProcedureDeclaration(_ procDecl: ProcedureDeclaration, indent: Int) -> String {
-        return printCallableDeclaration(
+        let info = CallableDeclarationInfo(
             name: procDecl.name,
             parameters: procDecl.parameters,
             returnType: nil,
             localVariables: procDecl.localVariables,
             body: procDecl.body,
-            indent: indent,
             keyword: "procedure",
             endKeyword: "endprocedure"
         )
+        return printCallableDeclaration(info, indent: indent)
     }
 
     private func printReturnStatement(_ returnStmt: ReturnStatement) -> String {
@@ -579,30 +583,20 @@ public struct PrettyPrinter {
     }
 
     // Prints a callable declaration (function or procedure) with shared formatting logic.
-    // swiftlint:disable:next function_parameter_count
-    private func printCallableDeclaration(
-        name: String,
-        parameters: [Parameter],
-        returnType: DataType?,
-        localVariables: [VariableDeclaration],
-        body: [Statement],
-        indent: Int,
-        keyword: String,
-        endKeyword: String
-    ) -> String {
+    private func printCallableDeclaration(_ info: CallableDeclarationInfo, indent: Int) -> String {
         let indentStr = makeIndent(indent)
-        let params = parameters.map { "\($0.name): \(printDataType($0.type))" }.joined(separator: ", ")
+        let params = info.parameters.map { "\($0.name): \(printDataType($0.type))" }.joined(separator: ", ")
 
-        var result = "\(indentStr)\(keyword) \(name)(\(params))"
-        if let returnType = returnType {
+        var result = "\(indentStr)\(info.keyword) \(info.name)(\(params))"
+        if let returnType = info.returnType {
             result += ": \(printDataType(returnType))"
         }
 
-        var hasContent = appendContentLines(localVariables, to: &result, indent: indent + 1) {
+        var hasContent = appendContentLines(info.localVariables, to: &result, indent: indent + 1) {
             printVariableDeclaration($0)
         }
 
-        let bodyStr = printStatements(body, indent: indent + 1)
+        let bodyStr = printStatements(info.body, indent: indent + 1)
         if !bodyStr.isEmpty {
             if !hasContent {
                 result += "\n"
@@ -612,7 +606,7 @@ public struct PrettyPrinter {
         }
 
         let newlineBeforeEnd = hasContent ? "" : "\n"
-        result += "\(newlineBeforeEnd)\(indentStr)\(endKeyword)"
+        result += "\(newlineBeforeEnd)\(indentStr)\(info.endKeyword)"
         return result
     }
 

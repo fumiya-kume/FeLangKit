@@ -135,7 +135,7 @@ public struct UnicodeNormalizer {
 
     // MARK: - Statistics
 
-    public struct NormalizationStats {
+    public struct NormalizationStats: Sendable {
         public let originalLength: Int
         public let normalizedLength: Int
         public let nfcNormalizations: Int
@@ -155,20 +155,22 @@ public struct UnicodeNormalizer {
         public var hasSecurityConcerns: Bool {
             return homoglyphsDetected > 0 || securityIssuesFound > 0 || bidiReorderings > 0
         }
+
+        public static let zero = NormalizationStats(
+            originalLength: 0,
+            normalizedLength: 0,
+            nfcNormalizations: 0,
+            fullwidthConversions: 0,
+            japaneseNormalizations: 0,
+            emojiNormalizations: 0,
+            mathSymbolNormalizations: 0,
+            bidiReorderings: 0,
+            homoglyphsDetected: 0,
+            securityIssuesFound: 0
+        )
     }
 
-    private var stats = NormalizationStats(
-        originalLength: 0,
-        normalizedLength: 0,
-        nfcNormalizations: 0,
-        fullwidthConversions: 0,
-        japaneseNormalizations: 0,
-        emojiNormalizations: 0,
-        mathSymbolNormalizations: 0,
-        bidiReorderings: 0,
-        homoglyphsDetected: 0,
-        securityIssuesFound: 0
-    )
+    private var stats = NormalizationStats.zero
 
     public let securityConfig: SecurityConfig
 
@@ -245,20 +247,144 @@ public struct UnicodeNormalizer {
         // Step 1: Apply specified Unicode normalization form
         let formNormalized = applyNormalizationForm(input, form: form)
 
-        // Step 2: Selective full-width to half-width conversion (only ASCII characters)
-        let halfwidthConverted = normalizeFullWidthASCII(formNormalized)
+        // Step 2: Single-pass character normalization
+        // Combines full-width ASCII, Japanese, emoji, math, and security processing
+        return applySinglePassNormalization(formNormalized, config: securityConfig)
+    }
 
-        // Step 3: Japanese character normalization
-        let japaneseNormalized = normalizeJapaneseCharacters(halfwidthConverted)
+    // MARK: - Single-Pass Character Replacement Maps
 
-        // Step 4: Emoji and mathematical symbol normalization
-        let emojiNormalized = normalizeEmoji(japaneseNormalized)
-        let mathNormalized = normalizeMathematicalSymbols(emojiNormalized)
+    /// Base replacement map for Japanese, emoji, and math normalization.
+    /// Maps Unicode scalar values to their replacement strings.
+    /// Applied unconditionally during normalization.
+    private static let baseReplacementMap: [UInt32: String] = {
+        var map: [UInt32: String] = [:]
 
-        // Step 5: Security processing
-        let securityProcessed = applySecurityProcessing(mathNormalized, config: securityConfig)
+        // Japanese character normalization
+        map[0x3094] = "ヴ"  // ゔ -> ヴ (hiragana vu -> katakana vu)
+        map[0x301C] = "~"   // 〜 -> ~ (wave dash -> tilde)
+        map[0x2212] = "-"   // − -> - (minus sign -> hyphen)
+        map[0x2015] = "—"   // ― -> — (horizontal bar -> em dash)
 
-        return securityProcessed
+        // Emoji variation selector removal
+        map[0xFE0E] = ""    // text variation selector
+        map[0xFE0F] = ""    // emoji variation selector
+
+        // Mathematical symbol normalization
+        map[0x03B1] = "alpha"     // α
+        map[0x03B2] = "beta"      // β
+        map[0x03C0] = "pi"        // π
+        map[0x2211] = "sum"       // ∑
+        map[0x220F] = "product"   // ∏
+        map[0x2206] = "delta"     // ∆
+        map[0x03A9] = "omega"     // Ω
+        map[0x00D7] = "*"         // × -> *
+        map[0x2248] = "~="        // ≈
+        map[0x221E] = "infinity"  // ∞
+
+        return map
+    }()
+
+    /// Homoglyph replacement map for security processing.
+    /// Applied only when homoglyph detection is enabled.
+    private static let homoglyphReplacementMap: [UInt32: String] = {
+        var map: [UInt32: String] = [:]
+
+        // Cyrillic -> Latin
+        map[0x0430] = "a"   // а
+        map[0x0435] = "e"   // е
+        map[0x043E] = "o"   // о
+        map[0x0440] = "p"   // р
+        map[0x0441] = "c"   // с
+        map[0x0445] = "x"   // х
+        map[0x0410] = "A"   // А
+        map[0x0412] = "B"   // В
+        map[0x0415] = "E"   // Е
+        map[0x041A] = "K"   // К
+        map[0x041C] = "M"   // М
+        map[0x041D] = "H"   // Н
+        map[0x041E] = "O"   // О
+        map[0x0420] = "P"   // Р
+        map[0x0421] = "C"   // С
+        map[0x0422] = "T"   // Т
+        map[0x0425] = "X"   // Х
+
+        // Greek -> Latin
+        map[0x0391] = "A"   // Α (alpha)
+        map[0x0392] = "B"   // Β (beta)
+        map[0x0395] = "E"   // Ε (epsilon)
+        map[0x0396] = "Z"   // Ζ (zeta)
+        map[0x0397] = "H"   // Η (eta)
+        map[0x0399] = "I"   // Ι (iota)
+        map[0x039A] = "K"   // Κ (kappa)
+        map[0x039C] = "M"   // Μ (mu)
+        map[0x039D] = "N"   // Ν (nu)
+        map[0x039F] = "O"   // Ο (omicron)
+        map[0x03A1] = "P"   // Ρ (rho)
+        map[0x03A4] = "T"   // Τ (tau)
+        map[0x03A5] = "Y"   // Υ (upsilon)
+        map[0x03A7] = "X"   // Χ (chi)
+
+        return map
+    }()
+
+    /// Set of bidirectional control character scalar values to remove.
+    /// Applied only when bidi reordering detection is enabled.
+    private static let bidiRemovalSet: Set<UInt32> = [
+        0x202A, // LRE
+        0x202B, // RLE
+        0x202C, // PDF
+        0x202D, // LRO
+        0x202E, // RLO
+        0x2066, // LRI
+        0x2067, // RLI
+        0x2068, // FSI
+        0x2069  // PDI
+    ]
+
+    /// Applies all character-level normalizations in a single pass.
+    /// Combines full-width ASCII conversion, Japanese normalization, emoji normalization,
+    /// math symbol normalization, homoglyph mitigation, and bidi character removal.
+    private static func applySinglePassNormalization(_ input: String, config: SecurityConfig) -> String {
+        var result = ""
+        result.reserveCapacity(input.unicodeScalars.count)
+
+        for scalar in input.unicodeScalars {
+            let value = scalar.value
+
+            // Full-width ASCII conversion (0xFF01-0xFF5E → 0x21-0x7E)
+            if value >= 0xFF01 && value <= 0xFF5E {
+                let halfWidthValue = value - 0xFF01 + 0x21
+                if let halfWidth = UnicodeScalar(halfWidthValue) {
+                    result.unicodeScalars.append(halfWidth)
+                } else {
+                    result.unicodeScalars.append(scalar)
+                }
+                continue
+            }
+
+            // Base replacements (Japanese, emoji, math)
+            if let replacement = baseReplacementMap[value] {
+                result += replacement
+                continue
+            }
+
+            // Security: homoglyph replacements
+            if config.enableHomoglyphDetection, let replacement = homoglyphReplacementMap[value] {
+                result += replacement
+                continue
+            }
+
+            // Security: bidi character removal
+            if config.detectBidiReordering && bidiRemovalSet.contains(value) {
+                continue
+            }
+
+            // Keep character as-is
+            result.unicodeScalars.append(scalar)
+        }
+
+        return result
     }
 
     // MARK: - Normalization Form Implementation
@@ -277,24 +403,18 @@ public struct UnicodeNormalizer {
         }
     }
 
-    /// Normalizes only full-width ASCII characters to half-width, preserving Japanese characters
-    /// Preserves full-width space (U+3000) as it has semantic meaning in Japanese text
+    /// Normalizes only full-width ASCII characters to half-width, preserving Japanese characters.
+    /// Preserves full-width space (U+3000) as it has semantic meaning in Japanese text.
     private static func normalizeFullWidthASCII(_ input: String) -> String {
         var result = ""
+        result.reserveCapacity(input.unicodeScalars.count)
 
         for scalar in input.unicodeScalars {
-            if scalar.value >= 0xFF01 && scalar.value <= 0xFF5E {
-                // Full-width ASCII: map to half-width equivalent
-                let halfWidthValue = scalar.value - 0xFF01 + 0x21
-                if let halfWidth = UnicodeScalar(halfWidthValue) {
-                    result.append(String(halfWidth))
-                } else {
-                    // Fallback: keep original character if conversion fails
-                    result.append(String(scalar))
-                }
+            if scalar.value >= 0xFF01 && scalar.value <= 0xFF5E,
+               let halfWidth = UnicodeScalar(scalar.value - 0xFF01 + 0x21) {
+                result.unicodeScalars.append(halfWidth)
             } else {
-                // Keep all other characters as-is (including full-width space U+3000 and Japanese characters)
-                result.append(String(scalar))
+                result.unicodeScalars.append(scalar)
             }
         }
 
@@ -303,45 +423,22 @@ public struct UnicodeNormalizer {
 
     // MARK: - Enhanced Character Normalization
 
-    /// Normalizes Japanese-specific character variants
+    /// Normalizes Japanese-specific punctuation variants commonly confused in text.
+    /// Does not normalize regular characters like ー or quotation marks.
     private static func normalizeJapaneseCharacters(_ input: String) -> String {
-        var result = input
-
-        // Only normalize specific punctuation variants that are commonly confused
-        // Do NOT normalize regular Japanese characters like ー or quotation marks
-
-        // Special case: hiragana vu (ゔ) should become katakana vu (ヴ) for consistency
-        result = result.replacingOccurrences(of: "ゔ", with: "ヴ") // U+3094 -> U+30F4
-
-        // Normalize wave dash variants (commonly confused in Japanese text)  
-        // Convert directly to half-width tilde to avoid double-counting in statistics
-        result = result.replacingOccurrences(of: "〜", with: "~") // U+301C -> U+007E (half-width)
-
-        // Normalize minus sign variants  
-        result = result.replacingOccurrences(of: "−", with: "-") // U+2212 -> U+002D
-        result = result.replacingOccurrences(of: "－", with: "-") // U+FF0D -> U+002D
-
-        // Normalize dash variants
-        result = result.replacingOccurrences(of: "―", with: "—") // U+2015 -> U+2014 (em dash)
-
-        return result
+        return input
+            .replacingOccurrences(of: "ゔ", with: "ヴ")  // hiragana vu -> katakana vu
+            .replacingOccurrences(of: "〜", with: "~")   // wave dash -> tilde
+            .replacingOccurrences(of: "−", with: "-")    // minus sign -> hyphen
+            .replacingOccurrences(of: "－", with: "-")   // full-width minus -> hyphen
+            .replacingOccurrences(of: "―", with: "—")    // horizontal bar -> em dash
     }
 
-    /// Normalizes emoji to standardized forms
+    /// Removes variation selectors from emoji for consistent display in programming contexts
     private static func normalizeEmoji(_ input: String) -> String {
-        var result = input
-
-        // Normalize variation selectors for consistent emoji display
-        // Text variation selector (U+FE0E) -> remove for programming context
-        result = result.replacingOccurrences(of: "\u{FE0E}", with: "")
-
-        // Emoji variation selector (U+FE0F) -> standardize
-        result = result.replacingOccurrences(of: "\u{FE0F}", with: "")
-
-        // Normalize zero-width joiner sequences for consistent handling
-        // Keep ZWJ sequences but normalize common variants
-
-        return result
+        return input
+            .replacingOccurrences(of: "\u{FE0E}", with: "")  // text variation selector
+            .replacingOccurrences(of: "\u{FE0F}", with: "")  // emoji variation selector
     }
 
     /// Normalizes mathematical symbols to standardized forms
@@ -373,98 +470,6 @@ public struct UnicodeNormalizer {
         return result
     }
 
-    // MARK: - Security Processing
-
-    /// Applies security processing including homoglyph detection and bidirectional text checks
-    private static func applySecurityProcessing(_ input: String, config: SecurityConfig) -> String {
-        var result = input
-
-        if config.enableHomoglyphDetection {
-            result = mitigateHomoglyphs(result)
-        }
-
-        if config.detectBidiReordering {
-            result = normalizeBidirectionalText(result)
-        }
-
-        return result
-    }
-
-    /// Detects and mitigates homoglyph attacks
-    private static func mitigateHomoglyphs(_ input: String) -> String {
-        var result = input
-
-        // Common homoglyph replacements for security
-        let homoglyphReplacements: [(String, String)] = [
-            // Cyrillic -> Latin
-            ("а", "a"),  // Cyrillic small a -> Latin a
-            ("е", "e"),  // Cyrillic small e -> Latin e  
-            ("о", "o"),  // Cyrillic small o -> Latin o
-            ("р", "p"),  // Cyrillic small p -> Latin p
-            ("с", "c"),  // Cyrillic small c -> Latin c
-            ("х", "x"),  // Cyrillic small x -> Latin x
-            ("А", "A"),  // Cyrillic capital A -> Latin A
-            ("В", "B"),  // Cyrillic capital B -> Latin B
-            ("Е", "E"),  // Cyrillic capital E -> Latin E
-            ("К", "K"),  // Cyrillic capital K -> Latin K
-            ("М", "M"),  // Cyrillic capital M -> Latin M
-            ("Н", "H"),  // Cyrillic capital H -> Latin H
-            ("О", "O"),  // Cyrillic capital O -> Latin O
-            ("Р", "P"),  // Cyrillic capital P -> Latin P
-            ("С", "C"),  // Cyrillic capital C -> Latin C
-            ("Т", "T"),  // Cyrillic capital T -> Latin T
-            ("Х", "X"),  // Cyrillic capital X -> Latin X
-
-            // Greek -> Latin (common in mathematical contexts)
-            ("Α", "A"),  // Greek capital alpha -> Latin A
-            ("Β", "B"),  // Greek capital beta -> Latin B
-            ("Ε", "E"),  // Greek capital epsilon -> Latin E
-            ("Ζ", "Z"),  // Greek capital zeta -> Latin Z
-            ("Η", "H"),  // Greek capital eta -> Latin H
-            ("Ι", "I"),  // Greek capital iota -> Latin I
-            ("Κ", "K"),  // Greek capital kappa -> Latin K
-            ("Μ", "M"),  // Greek capital mu -> Latin M
-            ("Ν", "N"),  // Greek capital nu -> Latin N
-            ("Ο", "O"),  // Greek capital omicron -> Latin O
-            ("Ρ", "P"),  // Greek capital rho -> Latin P
-            ("Τ", "T"),  // Greek capital tau -> Latin T
-            ("Υ", "Y"),  // Greek capital upsilon -> Latin Y
-            ("Χ", "X")  // Greek capital chi -> Latin X
-        ]
-
-        for (original, replacement) in homoglyphReplacements {
-            result = result.replacingOccurrences(of: original, with: replacement)
-        }
-
-        return result
-    }
-
-    /// Normalizes bidirectional text to prevent reordering attacks
-    private static func normalizeBidirectionalText(_ input: String) -> String {
-        var result = ""
-
-        for scalar in input.unicodeScalars {
-            // Remove bidirectional override characters that could be used for attacks
-            switch scalar.value {
-            case 0x202A, // LRE (Left-to-Right Embedding)
-                 0x202B, // RLE (Right-to-Left Embedding)
-                 0x202C, // PDF (Pop Directional Formatting)
-                 0x202D, // LRO (Left-to-Right Override)
-                 0x202E, // RLO (Right-to-Left Override)
-                 0x2066, // LRI (Left-to-Right Isolate)
-                 0x2067, // RLI (Right-to-Left Isolate)
-                 0x2068, // FSI (First Strong Isolate)
-                 0x2069: // PDI (Pop Directional Isolate)
-                // Remove these potentially dangerous characters
-                continue
-            default:
-                result.append(String(scalar))
-            }
-        }
-
-        return result
-    }
-
     // MARK: - Character Classification Methods
 
     /// Classifies a Unicode scalar into detailed categories
@@ -472,12 +477,10 @@ public struct UnicodeNormalizer {
         let value = scalar.value
 
         // Special case: Greek letters commonly used as mathematical symbols
-        // These are technically letters but should be classified as math symbols in programming contexts
-        if value >= 0x0370 && value <= 0x03FF {   // Greek and Coptic range
+        if value >= 0x0370 && value <= 0x03FF {
             return .symbol(subcategory: .mathSymbol)
         }
 
-        // Use Unicode General Categories
         if scalar.isLetter {
             if scalar.isUppercase {
                 return .letter(subcategory: .uppercaseLetter)
@@ -489,40 +492,42 @@ public struct UnicodeNormalizer {
         } else if scalar.isNumber {
             return .number(subcategory: .decimalDigitNumber)
         } else if scalar.isPunctuation {
-            // Detailed punctuation classification
-            switch value {
-            case 0x0028, 0x005B, 0x007B, 0x0F3A, 0x0F3C, 0x169B, 0x201A, 0x201E, 0x2045, 0x207D, 0x208D, 0x2329, 0x2768...0x2775, 0x27C5, 0x27E6...0x27EF, 0x2983...0x2998, 0x29D8...0x29DB, 0x29FC, 0x29FE, 0x2E22, 0x2E24, 0x2E26, 0x2E28, 0x2E42, 0x3008...0x3011, 0x3014...0x301B, 0x301D, 0x301F, 0xFD3E, 0xFE17, 0xFE35, 0xFE37, 0xFE39, 0xFE3B, 0xFE3D, 0xFE3F, 0xFE41, 0xFE43, 0xFE47, 0xFE59, 0xFE5B, 0xFE5D, 0xFF08, 0xFF3B, 0xFF5B, 0xFF5F, 0xFF62:
-                return .punctuation(subcategory: .openPunctuation)
-            case 0x0029, 0x005D, 0x007D, 0x0F3B, 0x0F3D, 0x169C, 0x2046, 0x207E, 0x208E, 0x232A, 0x2769...0x2776, 0x27C6, 0x27E7...0x27F0, 0x2984...0x2999, 0x29D9...0x29DC, 0x29FD, 0x29FF, 0x2E23, 0x2E25, 0x2E27, 0x2E29, 0x3009...0x3012, 0x3015...0x301C, 0x301E, 0x3020, 0xFD3F, 0xFE18, 0xFE36, 0xFE38, 0xFE3A, 0xFE3C, 0xFE3E, 0xFE40, 0xFE42, 0xFE44, 0xFE48, 0xFE5A, 0xFE5C, 0xFE5E, 0xFF09, 0xFF3D, 0xFF5D, 0xFF60, 0xFF63:
-                return .punctuation(subcategory: .closePunctuation)
-            default:
-                return .punctuation(subcategory: .otherPunctuation)
-            }
+            return classifyPunctuation(scalar)
         } else if scalar.isSymbol {
-            // Mathematical symbols - check specific ranges
-            if (value >= 0x2200 && value <= 0x22FF) || // Mathematical Operators
-               (value >= 0x2A00 && value <= 0x2AFF) || // Supplemental Mathematical Operators  
-               (value >= 0x27C0 && value <= 0x27EF) || // Miscellaneous Mathematical Symbols-A
-               (value >= 0x2980 && value <= 0x29FF) {   // Miscellaneous Mathematical Symbols-B
-                return .symbol(subcategory: .mathSymbol)
-            }
-            // Currency symbols
-            else if value >= 0x20A0 && value <= 0x20CF {
-                return .symbol(subcategory: .currencySymbol)
-            }
-            // Other symbols (including emoji)
-            else {
-                return .symbol(subcategory: .otherSymbol)
-            }
+            return classifySymbol(scalar)
         } else if scalar.isWhitespace {
             return .separator(subcategory: .spaceSeparator)
+        } else if value <= 0x1F || (value >= 0x7F && value <= 0x9F) {
+            return .other(subcategory: .control)
         } else {
-            // Control and other characters
-            if value <= 0x1F || (value >= 0x7F && value <= 0x9F) {
-                return .other(subcategory: .control)
-            } else {
-                return .other(subcategory: .notAssigned)
-            }
+            return .other(subcategory: .notAssigned)
+        }
+    }
+
+    /// Classifies a punctuation scalar into open, close, or other punctuation.
+    private static func classifyPunctuation(_ scalar: UnicodeScalar) -> UnicodeCharacterClass {
+        switch scalar.value {
+        case 0x0028, 0x005B, 0x007B, 0x0F3A, 0x0F3C, 0x169B, 0x201A, 0x201E, 0x2045, 0x207D, 0x208D, 0x2329, 0x2768...0x2775, 0x27C5, 0x27E6...0x27EF, 0x2983...0x2998, 0x29D8...0x29DB, 0x29FC, 0x29FE, 0x2E22, 0x2E24, 0x2E26, 0x2E28, 0x2E42, 0x3008...0x3011, 0x3014...0x301B, 0x301D, 0x301F, 0xFD3E, 0xFE17, 0xFE35, 0xFE37, 0xFE39, 0xFE3B, 0xFE3D, 0xFE3F, 0xFE41, 0xFE43, 0xFE47, 0xFE59, 0xFE5B, 0xFE5D, 0xFF08, 0xFF3B, 0xFF5B, 0xFF5F, 0xFF62:
+            return .punctuation(subcategory: .openPunctuation)
+        case 0x0029, 0x005D, 0x007D, 0x0F3B, 0x0F3D, 0x169C, 0x2046, 0x207E, 0x208E, 0x232A, 0x2769...0x2776, 0x27C6, 0x27E7...0x27F0, 0x2984...0x2999, 0x29D9...0x29DC, 0x29FD, 0x29FF, 0x2E23, 0x2E25, 0x2E27, 0x2E29, 0x3009...0x3012, 0x3015...0x301C, 0x301E, 0x3020, 0xFD3F, 0xFE18, 0xFE36, 0xFE38, 0xFE3A, 0xFE3C, 0xFE3E, 0xFE40, 0xFE42, 0xFE44, 0xFE48, 0xFE5A, 0xFE5C, 0xFE5E, 0xFF09, 0xFF3D, 0xFF5D, 0xFF60, 0xFF63:
+            return .punctuation(subcategory: .closePunctuation)
+        default:
+            return .punctuation(subcategory: .otherPunctuation)
+        }
+    }
+
+    /// Classifies a symbol scalar into math, currency, or other symbol.
+    private static func classifySymbol(_ scalar: UnicodeScalar) -> UnicodeCharacterClass {
+        let value = scalar.value
+        if (value >= 0x2200 && value <= 0x22FF) ||
+           (value >= 0x2A00 && value <= 0x2AFF) ||
+           (value >= 0x27C0 && value <= 0x27EF) ||
+           (value >= 0x2980 && value <= 0x29FF) {
+            return .symbol(subcategory: .mathSymbol)
+        } else if value >= 0x20A0 && value <= 0x20CF {
+            return .symbol(subcategory: .currencySymbol)
+        } else {
+            return .symbol(subcategory: .otherSymbol)
         }
     }
 
@@ -535,18 +540,7 @@ public struct UnicodeNormalizer {
 
     /// Resets the normalization statistics
     public mutating func resetStats() {
-        stats = NormalizationStats(
-            originalLength: 0,
-            normalizedLength: 0,
-            nfcNormalizations: 0,
-            fullwidthConversions: 0,
-            japaneseNormalizations: 0,
-            emojiNormalizations: 0,
-            mathSymbolNormalizations: 0,
-            bidiReorderings: 0,
-            homoglyphsDetected: 0,
-            securityIssuesFound: 0
-        )
+        stats = .zero
     }
 
     /// Counts how many characters need NFC normalization
@@ -591,25 +585,13 @@ public struct UnicodeNormalizer {
 
     /// Counts bidirectional text issues
     private func countBidiIssues(_ input: String) -> Int {
-        return input.unicodeScalars.filter { scalar in
-            let value = scalar.value
-            return value == 0x202A || value == 0x202B || value == 0x202C ||
-                   value == 0x202D || value == 0x202E || value == 0x2066 ||
-                   value == 0x2067 || value == 0x2068 || value == 0x2069
-        }.count
+        return input.unicodeScalars.filter { Self.bidiRemovalSet.contains($0.value) }.count
     }
 
     /// Counts potential homoglyph characters
     private func countHomoglyphs(_ input: String) -> Int {
-        if !securityConfig.enableHomoglyphDetection {
-            return 0
-        }
-
-        let homoglyphChars = ["а", "е", "о", "р", "с", "х", "А", "В", "Е", "К", "М", "Н", "О", "Р", "С", "Т", "Х",
-                             "Α", "Β", "Ε", "Ζ", "Η", "Ι", "Κ", "Μ", "Ν", "Ο", "Ρ", "Τ", "Υ", "Χ"]
-        return homoglyphChars.reduce(0) { count, char in
-            count + input.components(separatedBy: char).count - 1
-        }
+        guard securityConfig.enableHomoglyphDetection else { return 0 }
+        return input.unicodeScalars.filter { Self.homoglyphReplacementMap[$0.value] != nil }.count
     }
 
     // MARK: - Individual Normalization Steps
@@ -658,55 +640,26 @@ public struct UnicodeNormalizer {
 
     /// Analyzes normalization changes and provides statistics
     public func analyzeNormalization(_ input: String) -> NormalizationAnalysis {
-        let original = input
-
-        // Count various types of normalization needed
-
-        // Count actual combining characters in the original text
-        let combiningCharacters = original.unicodeScalars.filter { scalar in
-            // Combining diacritical marks range
-            return (scalar.value >= 0x0300 && scalar.value <= 0x036F) ||
-                   (scalar.value >= 0x3099 && scalar.value <= 0x309A) // Japanese combining marks
+        let combiningCharacters = input.unicodeScalars.filter { scalar in
+            (scalar.value >= 0x0300 && scalar.value <= 0x036F) ||
+            (scalar.value >= 0x3099 && scalar.value <= 0x309A)
         }.count
 
-        // Count full-width characters
-        let fullwidthCharacters = original.unicodeScalars.filter { scalar in
-            // Full-width ASCII range: U+FF01 to U+FF5E
-            return scalar.value >= 0xFF01 && scalar.value <= 0xFF5E
-        }.count
-
-        // Count Japanese character variants that need normalization
-        let japaneseVariants = ["〜", "−", "－", "―", "ゔ"].reduce(0) { count, char in
-            count + original.components(separatedBy: char).count - 1
-        }
-
-        // Count emoji that need normalization
-        let emojiVariants = countEmojiChanges(original)
-
-        // Count mathematical symbols that need normalization
-        let mathVariants = countMathSymbolChanges(original)
-
-        // Count bidirectional text issues
-        let bidiIssues = countBidiIssues(original)
-
-        // Count homoglyphs
-        let homoglyphs = countHomoglyphs(original)
-
-        let normalized = UnicodeNormalizer.normalizeForFE(original, securityConfig: securityConfig)
+        let normalized = UnicodeNormalizer.normalizeForFE(input, securityConfig: securityConfig)
 
         return NormalizationAnalysis(
-            originalText: original,
+            originalText: input,
             normalizedText: normalized,
-            hasChanges: original != normalized,
-            originalLength: original.count,
+            hasChanges: input != normalized,
+            originalLength: input.count,
             normalizedLength: normalized.count,
-            fullwidthCharactersConverted: fullwidthCharacters,
+            fullwidthCharactersConverted: countFullwidthChanges(input),
             combiningCharactersNormalized: combiningCharacters,
-            japaneseCharactersNormalized: japaneseVariants,
-            emojiCharactersNormalized: emojiVariants,
-            mathSymbolsNormalized: mathVariants,
-            bidiIssuesFound: bidiIssues,
-            homoglyphsDetected: homoglyphs
+            japaneseCharactersNormalized: countJapaneseChanges(input),
+            emojiCharactersNormalized: countEmojiChanges(input),
+            mathSymbolsNormalized: countMathSymbolChanges(input),
+            bidiIssuesFound: countBidiIssues(input),
+            homoglyphsDetected: countHomoglyphs(input)
         )
     }
 

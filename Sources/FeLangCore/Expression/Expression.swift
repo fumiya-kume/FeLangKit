@@ -65,15 +65,13 @@ extension Literal: Codable {
             self = .character(char)
         } else if let value = dict["boolean"]?.value as? Bool {
             self = .boolean(value)
-        } else if let undefinedEntry = dict["undefined"] {
-            if let boolValue = undefinedEntry.value as? Bool, boolValue == true {
-                self = .undefined
-            } else {
-                throw DecodingError.dataCorrupted(.init(
-                    codingPath: decoder.codingPath,
-                    debugDescription: "Invalid literal value: expected `{\"undefined\": true}` for undefined literal"
-                ))
-            }
+        } else if dict["undefined"]?.value as? Bool == true {
+            self = .undefined
+        } else if dict["undefined"] != nil {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath,
+                debugDescription: "Invalid literal value: expected `{\"undefined\": true}` for undefined literal"
+            ))
         } else {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid literal value"))
         }
@@ -164,7 +162,6 @@ public enum BinaryOperator: String, CaseIterable, Equatable, Codable, Sendable {
 
     // Logical operators
     case and = "and"
-    // swiftlint:disable:next identifier_name
     case or = "or"
 
     /// Returns the precedence level of this operator.
@@ -282,26 +279,12 @@ extension Literal {
             guard let value = Double(token.lexeme) else { return nil }
             self = .real(value)
         case .stringLiteral:
-            // Remove the surrounding quotes and process escape sequences
-            let rawContent = String(token.lexeme.dropFirst().dropLast())
-            do {
-                let content = try StringEscapeUtilities.processEscapeSequences(rawContent)
-                self = .string(content)
-            } catch {
-                // If escape sequence processing fails, return nil
-                return nil
-            }
+            guard let content = Self.processQuotedContent(token.lexeme) else { return nil }
+            self = .string(content)
         case .characterLiteral:
-            // Remove the surrounding quotes, process escape sequences, and get the character
-            let rawContent = token.lexeme.dropFirst().dropLast()
-            do {
-                let content = try StringEscapeUtilities.processEscapeSequences(String(rawContent))
-                guard let character = content.first else { return nil }
-                self = .character(character)
-            } catch {
-                // If escape sequence processing fails, return nil
-                return nil
-            }
+            guard let content = Self.processQuotedContent(token.lexeme),
+                  let character = content.first else { return nil }
+            self = .character(character)
         case .trueKeyword:
             self = .boolean(true)
         case .falseKeyword:
@@ -313,4 +296,10 @@ extension Literal {
         }
     }
 
+    /// Removes surrounding quotes from a lexeme and processes escape sequences.
+    /// Returns nil if escape sequence processing fails.
+    private static func processQuotedContent(_ lexeme: String) -> String? {
+        let rawContent = String(lexeme.dropFirst().dropLast())
+        return try? StringEscapeUtilities.processEscapeSequences(rawContent)
+    }
 }

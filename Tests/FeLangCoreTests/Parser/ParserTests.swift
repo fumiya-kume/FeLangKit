@@ -35,15 +35,11 @@ struct ParserTests {
         let input = "42"
         let expression = try parser.parseExpression(input)
 
-        if case .literal(let literal) = expression {
-            if case .integer(let value) = literal {
-                #expect(value == 42)
-            } else {
-                Issue.record("Expected integer literal")
-            }
-        } else {
-            Issue.record("Expected literal expression")
+        guard case .literal(.integer(let value)) = expression else {
+            Issue.record("Expected integer literal expression")
+            return
         }
+        #expect(value == 42)
     }
 
     @Test func testParseExpressionComplex() throws {
@@ -51,16 +47,17 @@ struct ParserTests {
         let expression = try parser.parseExpression(input)
 
         // Should parse as 1 + (2 * 3) due to operator precedence
-        if case .binary(let binaryOp, let left, _) = expression {
-            #expect(binaryOp == .add)
-            if case .literal(let literal) = left {
-                if case .integer(let value) = literal {
-                    #expect(value == 1)
-                }
-            }
-        } else {
+        guard case .binary(let binaryOp, let left, _) = expression else {
             Issue.record("Expected binary expression")
+            return
         }
+        #expect(binaryOp == .add)
+
+        guard case .literal(.integer(let value)) = left else {
+            Issue.record("Expected integer literal on left side")
+            return
+        }
+        #expect(value == 1)
     }
 
     // MARK: - Validation Tests
@@ -98,12 +95,12 @@ struct ParserTests {
         let statements = try parser.parse(input)
 
         #expect(statements.count == 1)
-        if case .variableDeclaration(let decl) = statements[0] {
-            #expect(decl.name == "counter")
-            #expect(decl.type == .integer)
-        } else {
+        guard case .variableDeclaration(let decl) = statements[0] else {
             Issue.record("Expected variable declaration")
+            return
         }
+        #expect(decl.name == "counter")
+        #expect(decl.type == .integer)
     }
 
     @Test func testParseFragmentConstantDeclaration() throws {
@@ -111,12 +108,12 @@ struct ParserTests {
         let statements = try parser.parse(input)
 
         #expect(statements.count == 1)
-        if case .constantDeclaration(let decl) = statements[0] {
-            #expect(decl.name == "PI")
-            #expect(decl.type == .real)
-        } else {
+        guard case .constantDeclaration(let decl) = statements[0] else {
             Issue.record("Expected constant declaration")
+            return
         }
+        #expect(decl.name == "PI")
+        #expect(decl.type == .real)
     }
 
     @Test func testParseFragmentIfStatement() throws {
@@ -124,11 +121,11 @@ struct ParserTests {
         let statements = try parser.parse(input)
 
         #expect(statements.count == 1)
-        if case .ifStatement(let ifStmt) = statements[0] {
-            #expect(ifStmt.thenBody.count == 1)
-        } else {
+        guard case .ifStatement(let ifStmt) = statements[0] else {
             Issue.record("Expected if statement")
+            return
         }
+        #expect(ifStmt.thenBody.count == 1)
     }
 
     @Test func testParseFragmentWhileStatement() throws {
@@ -136,11 +133,11 @@ struct ParserTests {
         let statements = try parser.parse(input)
 
         #expect(statements.count == 1)
-        if case .whileStatement(let whileStmt) = statements[0] {
-            #expect(whileStmt.body.count == 1)
-        } else {
+        guard case .whileStatement(let whileStmt) = statements[0] else {
             Issue.record("Expected while statement")
+            return
         }
+        #expect(whileStmt.body.count == 1)
     }
 
     @Test func testParseFragmentForStatement() throws {
@@ -148,16 +145,12 @@ struct ParserTests {
         let statements = try parser.parse(input)
 
         #expect(statements.count == 1)
-        if case .forStatement(let forStmt) = statements[0] {
-            if case .range(let rangeFor) = forStmt {
-                #expect(rangeFor.variable == "i")
-                #expect(rangeFor.body.count == 1)
-            } else {
-                Issue.record("Expected range for statement")
-            }
-        } else {
-            Issue.record("Expected for statement")
+        guard case .forStatement(.range(let rangeFor)) = statements[0] else {
+            Issue.record("Expected range for statement")
+            return
         }
+        #expect(rangeFor.variable == "i")
+        #expect(rangeFor.body.count == 1)
     }
 
     @Test func testParseFragmentFunctionDeclaration() throws {
@@ -165,13 +158,13 @@ struct ParserTests {
         let statements = try parser.parse(input)
 
         #expect(statements.count == 1)
-        if case .functionDeclaration(let funcDecl) = statements[0] {
-            #expect(funcDecl.name == "add")
-            #expect(funcDecl.parameters.count == 2)
-            #expect(funcDecl.returnType == .integer)
-        } else {
+        guard case .functionDeclaration(let funcDecl) = statements[0] else {
             Issue.record("Expected function declaration")
+            return
         }
+        #expect(funcDecl.name == "add")
+        #expect(funcDecl.parameters.count == 2)
+        #expect(funcDecl.returnType == .integer)
     }
 
     @Test func testParseFragmentProcedureDeclaration() throws {
@@ -179,12 +172,12 @@ struct ParserTests {
         let statements = try parser.parse(input)
 
         #expect(statements.count == 1)
-        if case .procedureDeclaration(let procDecl) = statements[0] {
-            #expect(procDecl.name == "greet")
-            #expect(procDecl.parameters.count == 1)
-        } else {
+        guard case .procedureDeclaration(let procDecl) = statements[0] else {
             Issue.record("Expected procedure declaration")
+            return
         }
+        #expect(procDecl.name == "greet")
+        #expect(procDecl.parameters.count == 1)
     }
 
     @Test func testParseFragmentAssignment() throws {
@@ -192,15 +185,11 @@ struct ParserTests {
         let statements = try parser.parse(input)
 
         #expect(statements.count == 1)
-        if case .assignment(let assignment) = statements[0] {
-            if case .variable(let name, _) = assignment {
-                #expect(name == "x")
-            } else {
-                Issue.record("Expected variable assignment")
-            }
-        } else {
-            Issue.record("Expected assignment statement")
+        guard case .assignment(.variable(let name, _)) = statements[0] else {
+            Issue.record("Expected variable assignment")
+            return
         }
+        #expect(name == "x")
     }
 
     @Test func testParseFragmentReturnStatement() throws {
@@ -208,15 +197,14 @@ struct ParserTests {
         let statements = try parser.parse(input)
 
         #expect(statements.count == 1)
-        if case .functionDeclaration(let funcDecl) = statements[0] {
-            #expect(funcDecl.body.count == 1)
-            if case .returnStatement = funcDecl.body[0] {
-                // Success
-            } else {
-                Issue.record("Expected return statement in function body")
-            }
-        } else {
+        guard case .functionDeclaration(let funcDecl) = statements[0] else {
             Issue.record("Expected function declaration")
+            return
+        }
+        #expect(funcDecl.body.count == 1)
+        guard case .returnStatement = funcDecl.body[0] else {
+            Issue.record("Expected return statement in function body")
+            return
         }
     }
 

@@ -210,48 +210,33 @@ public struct ExpressionParser {
         }
     }
 
-    /// Parses an array literal with comma-separated elements until the closing token.
-    private func parseArrayLiteral(_ parser: inout TokenStream, closingToken: TokenType) throws -> Expression {
-        var elements: [Expression] = []
-
-        // Handle empty array literal
-        if parser.peek()?.type == closingToken {
-            _ = parser.advance()
-            return Expression.arrayLiteral(elements)
+    /// Parses a comma-separated list of expressions, stopping before the closing token.
+    private func parseCommaSeparatedExpressions(_ parser: inout TokenStream, until closingType: TokenType) throws -> [Expression] {
+        guard parser.peek()?.type != closingType else {
+            return []
         }
 
-        // Parse first element
+        var elements: [Expression] = []
         elements.append(try parseExpression(&parser))
 
-        // Parse remaining elements
         while parser.peek()?.type == .comma {
             _ = parser.advance() // consume ','
             elements.append(try parseExpression(&parser))
         }
 
+        return elements
+    }
+
+    /// Parses an array literal with comma-separated elements until the closing token.
+    private func parseArrayLiteral(_ parser: inout TokenStream, closingToken: TokenType) throws -> Expression {
+        let elements = try parseCommaSeparatedExpressions(&parser, until: closingToken)
         try expectToken(&parser, closingToken)
         return Expression.arrayLiteral(elements)
     }
 
     /// Parses an argument list for function calls.
     private func parseArgumentList(_ parser: inout TokenStream) throws -> [Expression] {
-        var arguments: [Expression] = []
-
-        // Handle empty argument list
-        if parser.peek()?.type == .rightParen {
-            return arguments
-        }
-
-        // Parse first argument
-        arguments.append(try parseExpression(&parser))
-
-        // Parse remaining arguments
-        while parser.peek()?.type == .comma {
-            _ = parser.advance() // consume ','
-            arguments.append(try parseExpression(&parser))
-        }
-
-        return arguments
+        return try parseCommaSeparatedExpressions(&parser, until: .rightParen)
     }
 }
 
