@@ -50,19 +50,7 @@ public struct StatementParser {
             }
 
             // Track nesting depth for security
-            // Note: doKeyword is not included because do-while loops don't have an enddo keyword
-            // (they terminate with 'while (condition)'), so the depth would never be decremented
-            switch token.type {
-            case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword, .classKeyword:
-                nestingDepth += 1
-                guard nestingDepth <= maxNestingDepth else {
-                    throw StatementParsingError.nestingTooDeep
-                }
-            case .endifKeyword, .endwhileKeyword, .endforKeyword, .endfunctionKeyword, .endprocedureKeyword, .endclassKeyword:
-                nestingDepth = max(0, nestingDepth - 1)
-            default:
-                break
-            }
+            nestingDepth = try updateNestingDepth(for: token, depth: nestingDepth, maxDepth: maxNestingDepth)
 
             let statement = try parseStatement(&parser)
             statements.append(statement)
@@ -71,12 +59,49 @@ public struct StatementParser {
         return statements
     }
 
+    /// Updates nesting depth based on the current token for security tracking.
+    /// Increments depth for block-opening keywords and decrements for block-closing keywords.
+    private func updateNestingDepth(for token: Token, depth: Int, maxDepth: Int) throws -> Int {
+        switch token.type {
+        case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword, .classKeyword:
+            let newDepth = depth + 1
+            guard newDepth <= maxDepth else {
+                throw StatementParsingError.nestingTooDeep
+            }
+            return newDepth
+        case .endifKeyword, .endwhileKeyword, .endforKeyword, .endfunctionKeyword, .endprocedureKeyword, .endclassKeyword:
+            return max(0, depth - 1)
+        default:
+            return depth
+        }
+    }
+
     /// Parses a single statement from the token stream.
     private func parseStatement(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> Statement {
         guard let token = parser.peek() else {
             throw StatementParsingError.unexpectedEndOfInput
         }
 
+        if let statement = try parseControlFlowOrDeclaration(&parser, token: token, nestingDepth: nestingDepth) {
+            return statement
+        }
+
+        if token.type == .identifier {
+            return try parseAssignmentOrExpressionStatement(&parser)
+        }
+
+        // Try to parse as expression statement
+        let expression = try parseExpression(&parser)
+        return .expressionStatement(expression)
+    }
+
+    /// Attempts to parse a control flow or declaration statement based on the current token.
+    /// Returns nil if the token does not match any control flow or declaration keyword.
+    private func parseControlFlowOrDeclaration(
+        _ parser: inout TokenStream,
+        token: Token,
+        nestingDepth: Int
+    ) throws -> Statement? {
         switch token.type {
         case .ifKeyword:
             return .ifStatement(try parseIfStatement(&parser, nestingDepth: nestingDepth))
@@ -106,13 +131,8 @@ public struct StatementParser {
         case .continueKeyword:
             _ = parser.advance() // consume 'continue'
             return .continueStatement
-        case .identifier:
-            // Could be assignment or expression statement
-            return try parseAssignmentOrExpressionStatement(&parser)
         default:
-            // Try to parse as expression statement
-            let expression = try parseExpression(&parser)
-            return .expressionStatement(expression)
+            return nil
         }
     }
 
@@ -275,57 +295,74 @@ public struct StatementParser {
         }
 
         // Check for array access assignment: identifier[...] ←
-        if let nextToken = parser.peek(offset: 1), nextToken.type == .leftBracket {
-            // Skip to matching right bracket using balanced counting
-            var offset = 2  // Start after the '['
-            var bracketCount = 1
-
-            while bracketCount > 0, let token = parser.peek(offset: offset) {
-                switch token.type {
-                case .leftBracket:
-                    bracketCount += 1
-                case .rightBracket:
-                    bracketCount -= 1
-                default:
-                    break
-                }
-                offset += 1
-            }
-
-            // Check if followed by assignment operator
-            if let assignToken = parser.peek(offset: offset), assignToken.type == .assign {
-                return .assignment(try parseAssignment(&parser))
-            }
+        if isArrayAccessAssignment(&parser) {
+            return .assignment(try parseAssignment(&parser))
         }
 
         // Check for field access assignment: identifier.field ←
-        if let nextToken = parser.peek(offset: 1), nextToken.type == .dot {
-            // Skip through field accesses (could be chained like a.b.c)
-            var offset = 2  // Start after the '.'
-
-            while let token = parser.peek(offset: offset) {
-                if token.type == .identifier {
-                    offset += 1
-                    // Check if followed by another dot (chained access)
-                    if let nextDot = parser.peek(offset: offset), nextDot.type == .dot {
-                        offset += 1
-                        continue
-                    }
-                    break
-                } else {
-                    break
-                }
-            }
-
-            // Check if followed by assignment operator
-            if let assignToken = parser.peek(offset: offset), assignToken.type == .assign {
-                return .assignment(try parseAssignment(&parser))
-            }
+        if isFieldAccessAssignment(&parser) {
+            return .assignment(try parseAssignment(&parser))
         }
 
         // Not an assignment, parse as expression
         let expression = try parseExpression(&parser)
         return .expressionStatement(expression)
+    }
+
+    /// Checks whether the current position represents an array access followed by assignment.
+    /// Uses balanced bracket counting to find the matching ']', then checks for '←'.
+    private func isArrayAccessAssignment(_ parser: inout TokenStream) -> Bool {
+        guard let nextToken = parser.peek(offset: 1), nextToken.type == .leftBracket else {
+            return false
+        }
+
+        var offset = 2  // Start after the '['
+        var bracketCount = 1
+
+        while bracketCount > 0, let token = parser.peek(offset: offset) {
+            switch token.type {
+            case .leftBracket:
+                bracketCount += 1
+            case .rightBracket:
+                bracketCount -= 1
+            default:
+                break
+            }
+            offset += 1
+        }
+
+        if let assignToken = parser.peek(offset: offset), assignToken.type == .assign {
+            return true
+        }
+        return false
+    }
+
+    /// Checks whether the current position represents a field access chain followed by assignment.
+    /// Walks through chained dot accesses (a.b.c), then checks for '←'.
+    private func isFieldAccessAssignment(_ parser: inout TokenStream) -> Bool {
+        guard let nextToken = parser.peek(offset: 1), nextToken.type == .dot else {
+            return false
+        }
+
+        var offset = 2  // Start after the '.'
+
+        while let token = parser.peek(offset: offset) {
+            if token.type == .identifier {
+                offset += 1
+                if let nextDot = parser.peek(offset: offset), nextDot.type == .dot {
+                    offset += 1
+                    continue
+                }
+                break
+            } else {
+                break
+            }
+        }
+
+        if let assignToken = parser.peek(offset: offset), assignToken.type == .assign {
+            return true
+        }
+        return false
     }
 
     /// Parses an assignment statement (variable ← expression, array[index] ← expression, or object.field ← expression).
@@ -335,67 +372,67 @@ public struct StatementParser {
         }
         let identifier = identifierToken.lexeme
 
-        // Check if it's array element assignment
         if parser.peek()?.type == .leftBracket {
-            // Array element assignment: array[index] ← expression or array[row, col] ← expression
-            _ = parser.advance() // consume '['
-            let firstIndexExpr = try parseExpression(&parser)
-            var arrayExpr: Expression = .arrayAccess(.identifier(identifier), firstIndexExpr)
-
-            // Handle comma-separated indices for multi-dimensional array access
-            // e.g., matrix[1, 2] ← value is desugared to matrix[1][2] ← value
-            while parser.peek()?.type == .comma {
-                _ = parser.advance() // consume ','
-                let nextIndexExpr = try parseExpression(&parser)
-                arrayExpr = .arrayAccess(arrayExpr, nextIndexExpr)
-            }
-
-            try expectToken(&parser, .rightBracket) // consume ']'
-            try expectToken(&parser, .assign) // consume '←'
-            let valueExpr = try parseExpression(&parser)
-
-            // Extract the final array access for the assignment.
-            // At this point, arrayExpr is guaranteed to be .arrayAccess because it is
-            // initialized as .arrayAccess above and only ever wrapped into further
-            // .arrayAccess cases in the loop. If this assumption is violated in the
-            // future, treat it as an internal parser logic error rather than a
-            // user-facing syntax error.
-            if case let .arrayAccess(array, index) = arrayExpr {
-                let arrayAccessStruct = Assignment.ArrayAccess(array: array, index: index)
-                return .arrayElement(arrayAccessStruct, valueExpr)
-            } else {
-                preconditionFailure("Internal parser error: expected final arrayExpr to be .arrayAccess")
-            }
+            return try parseArrayElementAssignment(&parser, identifier: identifier)
         } else if parser.peek()?.type == .dot {
-            // Field access assignment: object.field ← expression (possibly chained like a.b.c)
-            var currentExpr: Expression = .identifier(identifier)
-
-            while parser.peek()?.type == .dot {
-                _ = parser.advance() // consume '.'
-                guard let fieldToken = parser.advance(), fieldToken.type == .identifier else {
-                    throw StatementParsingError.expectedIdentifier
-                }
-                currentExpr = .fieldAccess(currentExpr, fieldToken.lexeme)
-            }
-
-            try expectToken(&parser, .assign) // consume '←'
-            let valueExpr = try parseExpression(&parser)
-
-            // Extract the final field access for the assignment
-            guard case .fieldAccess(let objectExpr, let fieldName) = currentExpr else {
-                throw StatementParsingError.expectedToken(.assign)
-            }
-
-            let fieldAccess = Assignment.FieldAccess(object: objectExpr, field: fieldName)
-            return .fieldAccess(fieldAccess, valueExpr)
+            return try parseFieldAccessAssignment(&parser, identifier: identifier)
         } else if parser.peek()?.type == .assign {
-            // Variable assignment: variable ← expression
             _ = parser.advance() // consume '←'
             let valueExpr = try parseExpression(&parser)
             return .variable(identifier, valueExpr)
         } else {
             throw StatementParsingError.expectedToken(.assign)
         }
+    }
+
+    /// Parses an array element assignment: array[index] ← expression or array[row, col] ← expression.
+    /// Multi-dimensional indices (comma-separated) are desugared to nested array access.
+    private func parseArrayElementAssignment(_ parser: inout TokenStream, identifier: String) throws -> Assignment {
+        _ = parser.advance() // consume '['
+        let firstIndexExpr = try parseExpression(&parser)
+        var arrayExpr: Expression = .arrayAccess(.identifier(identifier), firstIndexExpr)
+
+        // Handle comma-separated indices for multi-dimensional array access
+        while parser.peek()?.type == .comma {
+            _ = parser.advance() // consume ','
+            let nextIndexExpr = try parseExpression(&parser)
+            arrayExpr = .arrayAccess(arrayExpr, nextIndexExpr)
+        }
+
+        try expectToken(&parser, .rightBracket) // consume ']'
+        try expectToken(&parser, .assign) // consume '←'
+        let valueExpr = try parseExpression(&parser)
+
+        // arrayExpr is guaranteed to be .arrayAccess (initialized and only wrapped as such)
+        if case let .arrayAccess(array, index) = arrayExpr {
+            let arrayAccessStruct = Assignment.ArrayAccess(array: array, index: index)
+            return .arrayElement(arrayAccessStruct, valueExpr)
+        } else {
+            preconditionFailure("Internal parser error: expected final arrayExpr to be .arrayAccess")
+        }
+    }
+
+    /// Parses a field access assignment: object.field ← expression (possibly chained like a.b.c).
+    private func parseFieldAccessAssignment(_ parser: inout TokenStream, identifier: String) throws -> Assignment {
+        var currentExpr: Expression = .identifier(identifier)
+
+        while parser.peek()?.type == .dot {
+            _ = parser.advance() // consume '.'
+            guard let fieldToken = parser.advance(), fieldToken.type == .identifier else {
+                throw StatementParsingError.expectedIdentifier
+            }
+            currentExpr = .fieldAccess(currentExpr, fieldToken.lexeme)
+        }
+
+        try expectToken(&parser, .assign) // consume '←'
+        let valueExpr = try parseExpression(&parser)
+
+        guard case .fieldAccess(let objectExpr, let fieldName) = currentExpr else {
+            throw StatementParsingError.expectedToken(.assign)
+        }
+
+        let fieldAccess = Assignment.FieldAccess(object: objectExpr, field: fieldName)
+        return .fieldAccess(fieldAccess, valueExpr)
     }
 
     // MARK: - Declaration Parsing
@@ -609,52 +646,62 @@ public struct StatementParser {
         }
         let className = nameToken.lexeme
 
-        var members: [MemberDeclaration] = []
-        var constructor: ConstructorDeclaration?
-        var methods: [MethodDeclaration] = []
-
-        // Parse class body until endclass
-        while let token = parser.peek(), token.type != .endclassKeyword && token.type != .eof {
-            // Skip newlines and whitespace
-            if token.type == .newline || token.type == .whitespace {
-                _ = parser.advance()
-                continue
-            }
-
-            // Check if this is a constructor (identifier matching class name followed by '(')
-            if token.type == .identifier, token.lexeme == className,
-               let nextToken = parser.peek(offset: 1), nextToken.type == .leftParen {
-                constructor = try parseConstructorDeclaration(&parser, className: className)
-                continue
-            }
-
-            // Check if this is a method (function keyword)
-            if token.type == .functionKeyword {
-                methods.append(try parseMethodDeclaration(&parser, nestingDepth: nestingDepth))
-                continue
-            }
-
-            // Otherwise, try to parse as member declaration (name: Type)
-            if token.type == .identifier,
-               let nextToken = parser.peek(offset: 1), nextToken.type == .colon {
-                members.append(try parseMemberDeclaration(&parser))
-                continue
-            }
-
-            // Unknown token in class body
-            throw StatementParsingError.unexpectedToken(token, expected: .endclassKeyword)
-        }
+        let classBody = try parseClassBody(&parser, className: className, nestingDepth: nestingDepth)
 
         try expectToken(&parser, .endclassKeyword) // consume 'endclass'
 
         return ClassDeclaration(
             name: className,
             superclass: nil,
-            members: members,
-            constructor: constructor,
-            methods: methods,
+            members: classBody.members,
+            constructor: classBody.constructor,
+            methods: classBody.methods,
             position: position
         )
+    }
+
+    /// Parsed components of a class body.
+    private struct ClassBodyComponents {
+        var members: [MemberDeclaration] = []
+        var constructor: ConstructorDeclaration?
+        var methods: [MethodDeclaration] = []
+    }
+
+    /// Parses the body of a class declaration, collecting members, constructor, and methods.
+    private func parseClassBody(
+        _ parser: inout TokenStream,
+        className: String,
+        nestingDepth: Int
+    ) throws -> ClassBodyComponents {
+        var components = ClassBodyComponents()
+
+        while let token = parser.peek(), token.type != .endclassKeyword && token.type != .eof {
+            if token.type == .newline || token.type == .whitespace {
+                _ = parser.advance()
+                continue
+            }
+
+            if token.type == .identifier, token.lexeme == className,
+               let nextToken = parser.peek(offset: 1), nextToken.type == .leftParen {
+                components.constructor = try parseConstructorDeclaration(&parser, className: className)
+                continue
+            }
+
+            if token.type == .functionKeyword {
+                components.methods.append(try parseMethodDeclaration(&parser, nestingDepth: nestingDepth))
+                continue
+            }
+
+            if token.type == .identifier,
+               let nextToken = parser.peek(offset: 1), nextToken.type == .colon {
+                components.members.append(try parseMemberDeclaration(&parser))
+                continue
+            }
+
+            throw StatementParsingError.unexpectedToken(token, expected: .endclassKeyword)
+        }
+
+        return components
     }
 
     /// Parses a member declaration (name: Type).
@@ -833,55 +880,16 @@ public struct StatementParser {
 
         // Handle identifier-based type names (for extended type support)
         if typeToken.type == .identifier {
-            let typeName = typeToken.lexeme.lowercased()
-
-            // Basic types: O(1) dictionary lookup
-            if let basicType = Self.identifierTypeMap[typeName] {
-                return basicType
-            }
-
-            // Array types: supports both English "array of type" and Japanese "配列型"
-            if Self.arrayTypeNames.contains(typeName) {
-                // Handle array type with element specification: "array of integer" or "配列 の 整数"
-                if parser.peek()?.lexeme == "of" || parser.peek()?.lexeme == "の" {
-                    _ = parser.advance() // consume "of" or "の"
-                    let elementType = try parseDataType(&parser)
-                    return .array(elementType)
-                } else {
-                    // Default to integer array for backwards compatibility
-                    return .array(.integer)
-                }
-            }
-
-            // Record types: supports structured data types with custom names
-            if Self.recordTypeNames.contains(typeName) {
-                // Handle record type with name: "record PersonRecord"
-                guard let nameToken = parser.advance(), nameToken.type == .identifier else {
-                    throw StatementParsingError.expectedIdentifier
-                }
-                return .record(nameToken.lexeme)
-            }
-
-            // Treat unknown identifiers as custom record types for extensibility
-            return .record(typeToken.lexeme)
+            return try parseIdentifierDataType(&parser, typeName: typeToken.lexeme)
         }
 
         // Handle array types using array keyword
         if typeToken.type == .arrayType {
-            // Expect "of" keyword followed by element type
-            if parser.peek()?.lexeme == "of" || parser.peek()?.lexeme == "の" {
-                _ = parser.advance() // consume "of" or "の"
-                let elementType = try parseDataType(&parser)
-                return .array(elementType)
-            } else {
-                // Default to integer array for backwards compatibility
-                return .array(.integer)
-            }
+            return try parseArrayTypeSpecification(&parser)
         }
 
         // Handle record types using record keyword
         if typeToken.type == .recordType {
-            // Expect record name
             guard let nameToken = parser.advance(), nameToken.type == .identifier else {
                 throw StatementParsingError.expectedIdentifier
             }
@@ -889,6 +897,46 @@ public struct StatementParser {
         }
 
         throw StatementParsingError.expectedDataType
+    }
+
+    /// Resolves an identifier-based type name to a DataType.
+    /// Handles basic types (via dictionary lookup), array types, record types,
+    /// and unknown identifiers (treated as custom record types).
+    private func parseIdentifierDataType(_ parser: inout TokenStream, typeName: String) throws -> DataType {
+        let lowercased = typeName.lowercased()
+
+        // Basic types: O(1) dictionary lookup
+        if let basicType = Self.identifierTypeMap[lowercased] {
+            return basicType
+        }
+
+        // Array types: supports both English "array of type" and Japanese "配列型"
+        if Self.arrayTypeNames.contains(lowercased) {
+            return try parseArrayTypeSpecification(&parser)
+        }
+
+        // Record types: supports structured data types with custom names
+        if Self.recordTypeNames.contains(lowercased) {
+            guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+                throw StatementParsingError.expectedIdentifier
+            }
+            return .record(nameToken.lexeme)
+        }
+
+        // Treat unknown identifiers as custom record types for extensibility
+        return .record(typeName)
+    }
+
+    /// Parses an array type specification, optionally consuming "of"/"の" and the element type.
+    /// Defaults to integer array when no element type is specified.
+    private func parseArrayTypeSpecification(_ parser: inout TokenStream) throws -> DataType {
+        if parser.peek()?.lexeme == "of" || parser.peek()?.lexeme == "の" {
+            _ = parser.advance() // consume "of" or "の"
+            let elementType = try parseDataType(&parser)
+            return .array(elementType)
+        } else {
+            return .array(.integer)
+        }
     }
 
     /// Parses an expression by delegating to ExpressionParser.
