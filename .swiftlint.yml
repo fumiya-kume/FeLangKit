@@ -24,7 +24,6 @@ analyzer_rules:
 # 無効化したいルール（お好みで調整）
 disabled_rules:
   - file_length
-  - function_body_length
   - type_body_length
   - line_length
   - todo  # TODOコメントを許容するなら

@@ -56,84 +56,34 @@ struct AnyCodableSafetyTests {
         }
     }
 
+    private func assertJSONRejected(_ jsonString: String) throws {
+        let data = Data(jsonString.utf8)
+        #expect(throws: AnyCodableSafetyError.self) {
+            _ = try AnyCodableSafetyValidator.validateJSONData(data)
+        }
+    }
+
     @Test("JSON Data Validation")
     func testJSONDataValidation() throws {
-        // Test valid JSON with supported types only
         let validJSON = Data("""
-        {
-            "integer": 42,
-            "string": "test",
-            "boolean": true,
-            "real": 3.14
-        }
+        {"integer": 42, "string": "test", "boolean": true, "real": 3.14}
         """.utf8)
-
         #expect(try AnyCodableSafetyValidator.validateJSONData(validJSON))
 
-        // Test invalid JSON with unsupported nested structures (arrays)
-        let invalidJSONWithArray = Data("""
-        {
-            "array": [1, 2, 3],
-            "valid": "test"
-        }
-        """.utf8)
-
-        #expect(throws: AnyCodableSafetyError.self) {
-            _ = try AnyCodableSafetyValidator.validateJSONData(invalidJSONWithArray)
-        }
-
-        // Test invalid JSON with deeply nested unsupported structures
-        let deeplyNestedInvalidJSON = Data("""
-        {
-            "level1": {
-                "level2": {
-                    "unsupportedArray": [1, 2, 3]
-                }
-            }
-        }
-        """.utf8)
-
-        #expect(throws: AnyCodableSafetyError.self) {
-            _ = try AnyCodableSafetyValidator.validateJSONData(deeplyNestedInvalidJSON)
-        }
-
-        // Test null values (should be rejected)
-        let jsonWithNull = Data("""
-        {
-            "nullValue": null
-        }
-        """.utf8)
-
-        #expect(throws: AnyCodableSafetyError.self) {
-            _ = try AnyCodableSafetyValidator.validateJSONData(jsonWithNull)
-        }
-
-        // Test invalid JSON syntax (should throw parsing error)
-        let malformedJSON = Data("""
-        { invalid json }
-        """.utf8)
-
-        #expect(throws: AnyCodableSafetyError.self) {
-            _ = try AnyCodableSafetyValidator.validateJSONData(malformedJSON)
-        }
-
-        // Test root array (should be rejected for immutability)
-        let rootArrayJSON = Data("""
-        [1, 2, 3]
-        """.utf8)
-
-        #expect(throws: AnyCodableSafetyError.self) {
-            _ = try AnyCodableSafetyValidator.validateJSONData(rootArrayJSON)
-        }
-
-        // Test another root array (should also be rejected)
-        let anotherRootArrayJSON = Data("""
+        try assertJSONRejected("""
+        {"array": [1, 2, 3], "valid": "test"}
+        """)
+        try assertJSONRejected("""
+        {"level1": {"level2": {"unsupportedArray": [1, 2, 3]}}}
+        """)
+        try assertJSONRejected("""
+        {"nullValue": null}
+        """)
+        try assertJSONRejected("{ invalid json }")
+        try assertJSONRejected("[1, 2, 3]")
+        try assertJSONRejected("""
         [42, "test", true, 3.14]
-        """.utf8)
-
-        #expect(throws: AnyCodableSafetyError.self) {
-            _ = try AnyCodableSafetyValidator.validateJSONData(anotherRootArrayJSON)
-        }
+        """)
     }
 
     // MARK: - SafeAnyCodable Tests

@@ -101,13 +101,19 @@ public struct IncrementalTokenizer: Sendable {
         }
     }
 
+    private struct ChangeOffsets {
+        let startOffset: Int
+        let endOffset: Int
+        let changeLength: Int
+    }
+
     private func calculateChangeOffsets(
         originalText: String, range: Range<String.Index>, newText: String
-    ) -> (startOffset: Int, endOffset: Int, changeLength: Int) {
+    ) -> ChangeOffsets {
         let startOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.lowerBound)
         let endOffset = originalText.unicodeScalars.distance(from: originalText.unicodeScalars.startIndex, to: range.upperBound)
         let changeLength = max(newText.unicodeScalars.count, endOffset - startOffset)
-        return (startOffset, endOffset, changeLength)
+        return ChangeOffsets(startOffset: startOffset, endOffset: endOffset, changeLength: changeLength)
     }
 
     // MARK: - Incremental Update
@@ -148,10 +154,12 @@ public struct IncrementalTokenizer: Sendable {
             context: context, safeEndIndex: safeEndIndex, offsetDelta: offsetDelta
         )
 
+        let buildInfo = IncrementalBuildInfo(
+            safeStartIndex: safeStartIndex, safeEndIndex: safeEndIndex,
+            adjustedReparsedTokens: adjustedReparsedTokens, adjustedSuffixTokens: adjustedSuffixTokens
+        )
         return buildIncrementalResult(
-            context: context, safeStartIndex: safeStartIndex, safeEndIndex: safeEndIndex,
-            adjustedReparsedTokens: adjustedReparsedTokens, adjustedSuffixTokens: adjustedSuffixTokens,
-            reparseInfo: reparseInfo, basePosition: basePosition
+            context: context, buildInfo: buildInfo, reparseInfo: reparseInfo, basePosition: basePosition
         )
     }
 
@@ -202,18 +210,24 @@ public struct IncrementalTokenizer: Sendable {
         )
     }
 
+    private struct IncrementalBuildInfo {
+        let safeStartIndex: Int
+        let safeEndIndex: Int
+        let adjustedReparsedTokens: [Token]
+        let adjustedSuffixTokens: [Token]
+    }
+
     private func buildIncrementalResult(
-        context: IncrementalUpdateContext, safeStartIndex: Int, safeEndIndex: Int,
-        adjustedReparsedTokens: [Token], adjustedSuffixTokens: [Token],
+        context: IncrementalUpdateContext, buildInfo: IncrementalBuildInfo,
         reparseInfo: ReparseInfo, basePosition: SourcePosition
     ) -> TokenizeResult {
-        let prefixTokens = safeStartIndex > 0 ? Array(context.previousTokens[..<safeStartIndex]) : []
-        let mergedTokens = prefixTokens + adjustedReparsedTokens + adjustedSuffixTokens
+        let prefixTokens = buildInfo.safeStartIndex > 0 ? Array(context.previousTokens[..<buildInfo.safeStartIndex]) : []
+        let mergedTokens = prefixTokens + buildInfo.adjustedReparsedTokens + buildInfo.adjustedSuffixTokens
 
         return TokenizeResult(
             tokens: mergedTokens,
             affectedRange: AffectedRange(
-                startTokenIndex: safeStartIndex, endTokenIndex: safeEndIndex,
+                startTokenIndex: buildInfo.safeStartIndex, endTokenIndex: buildInfo.safeEndIndex,
                 startOffset: context.startOffset, endOffset: context.endOffset
             ),
             reparseRegion: ReparseRegion(

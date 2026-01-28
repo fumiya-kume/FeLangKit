@@ -1523,14 +1523,9 @@ struct ClassInheritanceTests {
         #expect(inst.fields["breed"] == .string("Labrador"))
     }
 
-    @Test func testSubclassCanCallSuperclassMethod() throws {
-        let env = Environment()
-        let executor = StatementExecutor(environment: env)
-
-        // Define superclass with a method
-        let animalClass = ClassDeclaration(
-            name: "Animal",
-            superclass: nil,
+    private func makeAnimalClassWithAgeMethod() -> ClassDeclaration {
+        ClassDeclaration(
+            name: "Animal", superclass: nil,
             members: [MemberDeclaration(name: "age", type: .integer)],
             constructor: ConstructorDeclaration(
                 parameters: [Parameter(name: "a", type: .integer)],
@@ -1543,9 +1538,7 @@ struct ClassInheritanceTests {
             ),
             methods: [
                 MethodDeclaration(
-                    name: "getAge",
-                    parameters: [],
-                    returnType: .integer,
+                    name: "getAge", parameters: [], returnType: .integer,
                     body: [
                         .returnStatement(ReturnStatement(
                             expression: .fieldAccess(.identifier("self"), "age")
@@ -1554,11 +1547,11 @@ struct ClassInheritanceTests {
                 )
             ]
         )
+    }
 
-        // Define subclass without overriding the method
-        let dogClass = ClassDeclaration(
-            name: "Dog",
-            superclass: "Animal",
+    private func makeDogClassExtendingAnimalWithBreed() -> ClassDeclaration {
+        ClassDeclaration(
+            name: "Dog", superclass: "Animal",
             members: [MemberDeclaration(name: "breed", type: .string)],
             constructor: ConstructorDeclaration(
                 parameters: [Parameter(name: "a", type: .integer), Parameter(name: "b", type: .string)],
@@ -1575,11 +1568,15 @@ struct ClassInheritanceTests {
             ),
             methods: []
         )
+    }
 
-        _ = try executor.executeStatement(.classDeclaration(animalClass))
-        _ = try executor.executeStatement(.classDeclaration(dogClass))
+    @Test func testSubclassCanCallSuperclassMethod() throws {
+        let env = Environment()
+        let executor = StatementExecutor(environment: env)
 
-        // Create Dog instance and verify it can use inherited method
+        _ = try executor.executeStatement(.classDeclaration(makeAnimalClassWithAgeMethod()))
+        _ = try executor.executeStatement(.classDeclaration(makeDogClassExtendingAnimalWithBreed()))
+
         let dogInstance = try executor.callFunction("Dog", arguments: [.integer(3), .string("Labrador")])
 
         guard case .instance(let inst) = dogInstance else {
@@ -1587,52 +1584,27 @@ struct ClassInheritanceTests {
             return
         }
 
-        // Verify the inherited method exists in the class definition
         #expect(inst.classDefinition.methods["getAge"] != nil)
+    }
+
+    private func makeClassWithSpeakMethod(name: String, superclass: String?, returnValue: Int) -> ClassDeclaration {
+        ClassDeclaration(
+            name: name, superclass: superclass, members: [], constructor: nil,
+            methods: [
+                MethodDeclaration(
+                    name: "speak", parameters: [], returnType: .integer,
+                    body: [.returnStatement(ReturnStatement(expression: .literal(.integer(returnValue))))]
+                )
+            ]
+        )
     }
 
     @Test func testSubclassMethodOverridesSuperclassMethod() throws {
         let env = Environment()
         let executor = StatementExecutor(environment: env)
 
-        // Define superclass with a method that returns 1
-        let animalClass = ClassDeclaration(
-            name: "Animal",
-            superclass: nil,
-            members: [],
-            constructor: nil,
-            methods: [
-                MethodDeclaration(
-                    name: "speak",
-                    parameters: [],
-                    returnType: .integer,
-                    body: [
-                        .returnStatement(ReturnStatement(expression: .literal(.integer(1))))
-                    ]
-                )
-            ]
-        )
-
-        // Define subclass that overrides the method to return 2
-        let dogClass = ClassDeclaration(
-            name: "Dog",
-            superclass: "Animal",
-            members: [],
-            constructor: nil,
-            methods: [
-                MethodDeclaration(
-                    name: "speak",
-                    parameters: [],
-                    returnType: .integer,
-                    body: [
-                        .returnStatement(ReturnStatement(expression: .literal(.integer(2))))
-                    ]
-                )
-            ]
-        )
-
-        _ = try executor.executeStatement(.classDeclaration(animalClass))
-        _ = try executor.executeStatement(.classDeclaration(dogClass))
+        _ = try executor.executeStatement(.classDeclaration(makeClassWithSpeakMethod(name: "Animal", superclass: nil, returnValue: 1)))
+        _ = try executor.executeStatement(.classDeclaration(makeClassWithSpeakMethod(name: "Dog", superclass: "Animal", returnValue: 2)))
 
         let dogInstance = try executor.callFunction("Dog", arguments: [])
 
@@ -1641,11 +1613,9 @@ struct ClassInheritanceTests {
             return
         }
 
-        // Verify the subclass method overrides the superclass method
         let speakMethod = inst.classDefinition.methods["speak"]
         #expect(speakMethod != nil)
 
-        // The method body should return 2 (subclass version), not 1 (superclass version)
         if let method = speakMethod {
             #expect(method.body.count == 1)
             if case .returnStatement(let ret) = method.body[0],

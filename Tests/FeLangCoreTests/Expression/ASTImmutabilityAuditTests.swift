@@ -376,29 +376,37 @@ struct ASTImmutabilityAuditTests {
         }
     }
 
-    // MARK: - Comprehensive Round-Trip Serialization Tests
+    // MARK: - Round-Trip Test Helpers
 
-    @Test("Expression Round-Trip Serialization")
-    func testExpressionRoundTripSerialization() throws {
+    private func assertCodableRoundTrip<T: Codable & Equatable>(_ items: [T], label: String) throws {
         let encoder = JSONEncoder()
         let decoder = JSONDecoder()
+        for (index, item) in items.enumerated() {
+            let encoded = try encoder.encode(item)
+            #expect(!encoded.isEmpty, "Encoded data should not be empty for \(label) \(index)")
+            let decoded = try decoder.decode(T.self, from: encoded)
+            #expect(decoded == item, "Round-trip failed for \(label) \(index): \(item)")
+            let json = try JSONSerialization.jsonObject(with: encoded)
+            #expect(json is [String: Any], "Should produce valid JSON object for \(label) \(index)")
+        }
+    }
 
-        // Test all Expression cases
-        let expressions: [ASTExpression] = [
-            // Literal expressions
+    private func makeLiteralAndIdentifierExpressions() -> [ASTExpression] {
+        [
             .literal(.integer(42)),
             .literal(.real(3.14159)),
             .literal(.string("Hello, 世界!")),
-            .literal(.character("А")), // Cyrillic character
+            .literal(.character("А")),
             .literal(.boolean(true)),
             .literal(.boolean(false)),
-
-            // Identifier expressions
             .identifier("variable"),
-            .identifier("整数型"), // Japanese identifier
-            .identifier("_underscore_var"),
+            .identifier("整数型"),
+            .identifier("_underscore_var")
+        ]
+    }
 
-            // Binary expressions with different operators and precedence
+    private func makeOperatorExpressions() -> [ASTExpression] {
+        [
             .binary(.add, .literal(.integer(1)), .literal(.integer(2))),
             .binary(.subtract, .identifier("x"), .literal(.real(1.5))),
             .binary(.multiply, .literal(.integer(3)), .literal(.integer(4))),
@@ -412,34 +420,29 @@ struct ASTImmutabilityAuditTests {
             .binary(.lessEqual, .literal(.integer(42)), .identifier("max")),
             .binary(.and, .literal(.boolean(true)), .identifier("condition")),
             .binary(.or, .identifier("flag1"), .identifier("flag2")),
-
-            // Unary expressions
             .unary(.not, .literal(.boolean(false))),
             .unary(.plus, .literal(.integer(5))),
             .unary(.minus, .identifier("value")),
-            .unary(.not, .binary(.equal, .identifier("x"), .literal(.integer(0)))),
+            .unary(.not, .binary(.equal, .identifier("x"), .literal(.integer(0))))
+        ]
+    }
 
-            // Array access expressions
+    private func makeAccessAndCallExpressions() -> [ASTExpression] {
+        [
             .arrayAccess(.identifier("array"), .literal(.integer(0))),
             .arrayAccess(.identifier("matrix"), .binary(.add, .identifier("i"), .literal(.integer(1)))),
             .arrayAccess(.arrayAccess(.identifier("grid"), .identifier("row")), .identifier("col")),
-
-            // Field access expressions  
             .fieldAccess(.identifier("object"), "property"),
-            .fieldAccess(.identifier("record"), "フィールド"), // Japanese field name
+            .fieldAccess(.identifier("record"), "フィールド"),
             .fieldAccess(.arrayAccess(.identifier("objects"), .literal(.integer(0))), "value"),
-
-            // Function call expressions
             .functionCall("function", []),
             .functionCall("add", [.literal(.integer(1)), .literal(.integer(2))]),
-            .functionCall("複雑な関数", [.identifier("param1"), .literal(.string("param2"))]), // Japanese function name
+            .functionCall("複雑な関数", [.identifier("param1"), .literal(.string("param2"))]),
             .functionCall("max", [
                 .binary(.add, .identifier("a"), .literal(.integer(1))),
                 .binary(.multiply, .identifier("b"), .literal(.integer(2))),
                 .literal(.integer(100))
             ]),
-
-            // Complex nested expressions
             .binary(.and,
                 .binary(.greater, .identifier("x"), .literal(.integer(0))),
                 .binary(.less, .identifier("x"), .literal(.integer(100)))
@@ -449,79 +452,44 @@ struct ASTImmutabilityAuditTests {
                 .fieldAccess(.identifier("config"), "threshold")
             ])
         ]
-
-        for (index, expression) in expressions.enumerated() {
-            // Test round-trip encoding/decoding
-            let encoded = try encoder.encode(expression)
-            #expect(!encoded.isEmpty, "Encoded data should not be empty for expression \(index)")
-
-            let decoded = try decoder.decode(ASTExpression.self, from: encoded)
-            #expect(decoded == expression, "Round-trip failed for expression \(index): \(expression)")
-
-            // Verify JSON structure is valid
-            let json = try JSONSerialization.jsonObject(with: encoded)
-            #expect(json is [String: Any], "Should produce valid JSON object for expression \(index)")
-        }
     }
 
-    @Test("Statement Round-Trip Serialization")
-    func testStatementRoundTripSerialization() throws {
-        let encoder = JSONEncoder()
-        let decoder = JSONDecoder()
-
-        // Test all Statement cases
-        let statements: [Statement] = [
-            // Simple statements
+    private func makeSimpleAndDeclarationStatements() -> [Statement] {
+        [
             .breakStatement,
             .expressionStatement(.literal(.string("test"))),
             .expressionStatement(.functionCall("doSomething", [])),
-
-            // Variable declarations
             .variableDeclaration(VariableDeclaration(
-                name: "count",
-                type: .integer,
-                initialValue: .literal(.integer(0))
+                name: "count", type: .integer, initialValue: .literal(.integer(0))
             )),
             .variableDeclaration(VariableDeclaration(
-                name: "data",
-                type: .array(.string),
-                initialValue: nil
+                name: "data", type: .array(.string), initialValue: nil
             )),
             .variableDeclaration(VariableDeclaration(
-                name: "整数変数", // Japanese variable name
-                type: .integer,
-                initialValue: .literal(.integer(42))
-            )),
-
-            // Constant declarations
-            .constantDeclaration(ConstantDeclaration(
-                name: "PI",
-                type: .real,
-                initialValue: .literal(.real(3.14159))
+                name: "整数変数", type: .integer, initialValue: .literal(.integer(42))
             )),
             .constantDeclaration(ConstantDeclaration(
-                name: "MAX_SIZE",
-                type: .integer,
+                name: "PI", type: .real, initialValue: .literal(.real(3.14159))
+            )),
+            .constantDeclaration(ConstantDeclaration(
+                name: "MAX_SIZE", type: .integer,
                 initialValue: .binary(.multiply, .literal(.integer(1024)), .literal(.integer(1024)))
-            )),
+            ))
+        ]
+    }
 
-            // Assignment statements
+    private func makeAssignmentAndIfStatements() -> [Statement] {
+        [
             .assignment(.variable("x", .literal(.integer(5)))),
             .assignment(.variable("result", .binary(.add, .identifier("a"), .identifier("b")))),
             .assignment(.arrayElement(
-                Assignment.ArrayAccess(
-                    array: .identifier("matrix"),
-                    index: .literal(.integer(0))
-                ),
+                Assignment.ArrayAccess(array: .identifier("matrix"), index: .literal(.integer(0))),
                 .literal(.string("value"))
             )),
-
-            // IF statements
             .ifStatement(IfStatement(
                 condition: .literal(.boolean(true)),
                 thenBody: [.expressionStatement(.literal(.string("then")))],
-                elseIfs: [],
-                elseBody: nil
+                elseIfs: [], elseBody: nil
             )),
             .ifStatement(IfStatement(
                 condition: .binary(.greater, .identifier("x"), .literal(.integer(0))),
@@ -536,12 +504,14 @@ struct ASTImmutabilityAuditTests {
                     )
                 ],
                 elseBody: [.assignment(.variable("result", .literal(.string("negative"))))]
-            )),
+            ))
+        ]
+    }
 
-            // WHILE statements
+    private func makeLoopStatements() -> [Statement] {
+        [
             .whileStatement(WhileStatement(
-                condition: .literal(.boolean(false)),
-                body: [.breakStatement]
+                condition: .literal(.boolean(false)), body: [.breakStatement]
             )),
             .whileStatement(WhileStatement(
                 condition: .binary(.less, .identifier("i"), .literal(.integer(10))),
@@ -550,38 +520,29 @@ struct ASTImmutabilityAuditTests {
                     .assignment(.variable("i", .binary(.add, .identifier("i"), .literal(.integer(1)))))
                 ]
             )),
-
-            // FOR statements - Range-based
             .forStatement(.range(ForStatement.RangeFor(
-                variable: "i",
-                start: .literal(.integer(1)),
-                end: .literal(.integer(10)),
-                step: nil,
+                variable: "i", start: .literal(.integer(1)), end: .literal(.integer(10)), step: nil,
                 body: [.expressionStatement(.functionCall("print", [.identifier("i")]))]
             ))),
             .forStatement(.range(ForStatement.RangeFor(
-                variable: "j",
-                start: .literal(.integer(0)),
-                end: .identifier("maxCount"),
+                variable: "j", start: .literal(.integer(0)), end: .identifier("maxCount"),
                 step: .literal(.integer(2)),
                 body: [
                     .assignment(.variable("sum", .binary(.add, .identifier("sum"), .identifier("j")))),
                     .expressionStatement(.functionCall("update", [.identifier("j")]))
                 ]
             ))),
-
-            // FOR statements - ForEach
             .forStatement(.forEach(ForStatement.ForEachLoop(
-                variable: "item",
-                iterable: .identifier("items"),
+                variable: "item", iterable: .identifier("items"),
                 body: [.expressionStatement(.functionCall("process", [.identifier("item")]))]
-            ))),
+            )))
+        ]
+    }
 
-            // Return statements
+    private func makeReturnBlockAndFunctionStatements() -> [Statement] {
+        [
             .returnStatement(ReturnStatement(expression: .literal(.boolean(true)))),
             .returnStatement(ReturnStatement(expression: .binary(.add, .identifier("x"), .identifier("y")))),
-
-            // Block statements
             .block([]),
             .block([.breakStatement]),
             .block([
@@ -589,21 +550,13 @@ struct ASTImmutabilityAuditTests {
                 .assignment(.variable("temp", .binary(.add, .identifier("a"), .identifier("b")))),
                 .returnStatement(ReturnStatement(expression: .identifier("temp")))
             ]),
-
-            // Function declarations
             .functionDeclaration(FunctionDeclaration(
-                name: "simple",
-                parameters: [],
-                returnType: .integer,
-                localVariables: [],
+                name: "simple", parameters: [], returnType: .integer, localVariables: [],
                 body: [.returnStatement(ReturnStatement(expression: .literal(.integer(42))))]
             )),
             .functionDeclaration(FunctionDeclaration(
                 name: "add",
-                parameters: [
-                    Parameter(name: "a", type: .integer),
-                    Parameter(name: "b", type: .integer)
-                ],
+                parameters: [Parameter(name: "a", type: .integer), Parameter(name: "b", type: .integer)],
                 returnType: .integer,
                 localVariables: [
                     VariableDeclaration(name: "result", type: .integer, initialValue: .literal(.integer(0)))
@@ -613,8 +566,6 @@ struct ASTImmutabilityAuditTests {
                     .returnStatement(ReturnStatement(expression: .identifier("result")))
                 ]
             )),
-
-            // Procedure declarations
             .procedureDeclaration(ProcedureDeclaration(
                 name: "printMessage",
                 parameters: [Parameter(name: "message", type: .string)],
@@ -622,19 +573,171 @@ struct ASTImmutabilityAuditTests {
                 body: [.expressionStatement(.functionCall("print", [.identifier("message")]))]
             ))
         ]
+    }
 
-        for (index, statement) in statements.enumerated() {
-            // Test round-trip encoding/decoding
-            let encoded = try encoder.encode(statement)
-            #expect(!encoded.isEmpty, "Encoded data should not be empty for statement \(index)")
+    private func makeComplexFunctionBody() -> [Statement] {
+        [
+            .forStatement(.forEach(ForStatement.ForEachLoop(
+                variable: "point",
+                iterable: .identifier("data"),
+                body: [
+                    .ifStatement(IfStatement(
+                        condition: .binary(.and,
+                            .binary(.greater, .fieldAccess(.identifier("point"), "value"), .identifier("threshold")),
+                            .binary(.less, .identifier("count"), .identifier("maxIterations"))
+                        ),
+                        thenBody: [
+                            .assignment(.variable("sum", .binary(.add, .identifier("sum"), .fieldAccess(.identifier("point"), "value")))),
+                            .assignment(.variable("count", .binary(.add, .identifier("count"), .literal(.integer(1))))),
+                            .assignment(.variable("valid", .literal(.boolean(true))))
+                        ],
+                        elseIfs: [
+                            IfStatement.ElseIf(
+                                condition: .binary(.equal, .fieldAccess(.identifier("point"), "status"), .literal(.string("invalid"))),
+                                body: [.expressionStatement(.functionCall("logWarning", [.literal(.string("Invalid data point"))]))]
+                            )
+                        ],
+                        elseBody: [.expressionStatement(.functionCall("logInfo", [.literal(.string("Skipping data point"))]))]
+                    ))
+                ]
+            ))),
+            .whileStatement(WhileStatement(
+                condition: .binary(.and,
+                    .unary(.not, .identifier("valid")),
+                    .binary(.greater, .identifier("count"), .literal(.integer(0)))
+                ),
+                body: [
+                    .assignment(.variable("threshold", .binary(.multiply, .identifier("threshold"), .literal(.real(0.9))))),
+                    .assignment(.variable("valid", .functionCall("revalidate", [.identifier("sum"), .identifier("threshold")])))
+                ]
+            )),
+            .returnStatement(ReturnStatement(
+                expression: .functionCall("createResult", [
+                    .identifier("sum"),
+                    .identifier("count"),
+                    .identifier("valid")
+                ])
+            ))
+        ]
+    }
 
-            let decoded = try decoder.decode(Statement.self, from: encoded)
-            #expect(decoded == statement, "Round-trip failed for statement \(index): \(statement)")
+    private func makeComplexFunctionDeclarationStatement() -> Statement {
+        .functionDeclaration(FunctionDeclaration(
+            name: "complexCalculation",
+            parameters: [
+                Parameter(name: "data", type: .array(.record("DataPoint"))),
+                Parameter(name: "threshold", type: .real),
+                Parameter(name: "maxIterations", type: .integer)
+            ],
+            returnType: .record("Result"),
+            localVariables: [
+                VariableDeclaration(name: "sum", type: .real, initialValue: .literal(.real(0.0))),
+                VariableDeclaration(name: "count", type: .integer, initialValue: .literal(.integer(0))),
+                VariableDeclaration(name: "valid", type: .boolean, initialValue: .literal(.boolean(false)))
+            ],
+            body: makeComplexFunctionBody()
+        ))
+    }
 
-            // Verify JSON structure is valid
-            let json = try JSONSerialization.jsonObject(with: encoded)
-            #expect(json is [String: Any], "Should produce valid JSON object for statement \(index)")
-        }
+    private func makeComplexNestedBlockStatement() -> Statement {
+        .block([
+            .variableDeclaration(VariableDeclaration(
+                name: "matrix", type: .array(.array(.integer)),
+                initialValue: .functionCall("createMatrix", [.literal(.integer(10)), .literal(.integer(10))])
+            )),
+            .forStatement(.range(ForStatement.RangeFor(
+                variable: "i", start: .literal(.integer(0)), end: .literal(.integer(9)), step: nil,
+                body: [
+                    .forStatement(.range(ForStatement.RangeFor(
+                        variable: "j", start: .literal(.integer(0)), end: .literal(.integer(9)), step: nil,
+                        body: [
+                            .assignment(.arrayElement(
+                                Assignment.ArrayAccess(
+                                    array: .arrayAccess(.identifier("matrix"), .identifier("i")),
+                                    index: .identifier("j")
+                                ),
+                                .binary(.add,
+                                    .binary(.multiply, .identifier("i"), .literal(.integer(10))),
+                                    .identifier("j")
+                                )
+                            ))
+                        ]
+                    )))
+                ]
+            )))
+        ])
+    }
+
+    private func makeEdgeCaseExpressions() -> [ASTExpression] {
+        [
+            .literal(.integer(Int.max)),
+            .literal(.integer(Int.min)),
+            .literal(.integer(0)),
+            .literal(.integer(-1)),
+            .literal(.real(Double.greatestFiniteMagnitude)),
+            .literal(.real(-Double.greatestFiniteMagnitude)),
+            .literal(.real(Double.leastNormalMagnitude)),
+            .literal(.real(0.0)),
+            .literal(.real(-0.0)),
+            .literal(.real(Double.pi)),
+            .literal(.string("")),
+            .literal(.string(" ")),
+            .literal(.string("\n\t\r")),
+            .literal(.string("\"\'")),
+            .literal(.string("\\\\")),
+            .literal(.string("🎉🌟💖")),
+            .literal(.character(" ")),
+            .literal(.character("\n")),
+            .literal(.character("🎯")),
+            .identifier("_"),
+            .functionCall("func", []),
+            .binary(.add,
+                .binary(.multiply,
+                    .binary(.subtract, .literal(.integer(1)), .literal(.integer(2))),
+                    .binary(.divide, .literal(.integer(3)), .literal(.integer(4)))
+                ),
+                .binary(.modulo,
+                    .binary(.add, .literal(.integer(5)), .literal(.integer(6))),
+                    .binary(.subtract, .literal(.integer(7)), .literal(.integer(8)))
+                )
+            )
+        ]
+    }
+
+    private func makeEdgeCaseStatements() -> [Statement] {
+        [
+            .block([]),
+            .block([.breakStatement]),
+            .ifStatement(IfStatement(
+                condition: .literal(.boolean(true)),
+                thenBody: [], elseIfs: [], elseBody: []
+            )),
+            .whileStatement(WhileStatement(
+                condition: .literal(.boolean(false)), body: []
+            )),
+            .functionDeclaration(FunctionDeclaration(
+                name: "empty", parameters: [], returnType: .integer, localVariables: [], body: []
+            ))
+        ]
+    }
+
+    // MARK: - Comprehensive Round-Trip Serialization Tests
+
+    @Test("Expression Round-Trip Serialization")
+    func testExpressionRoundTripSerialization() throws {
+        let expressions = makeLiteralAndIdentifierExpressions()
+            + makeOperatorExpressions()
+            + makeAccessAndCallExpressions()
+        try assertCodableRoundTrip(expressions, label: "expression")
+    }
+
+    @Test("Statement Round-Trip Serialization")
+    func testStatementRoundTripSerialization() throws {
+        let statements = makeSimpleAndDeclarationStatements()
+            + makeAssignmentAndIfStatements()
+            + makeLoopStatements()
+            + makeReturnBlockAndFunctionStatements()
+        try assertCodableRoundTrip(statements, label: "statement")
     }
 
     @Test("DataType Round-Trip Serialization")
@@ -712,189 +815,43 @@ struct ASTImmutabilityAuditTests {
 
     @Test("Complex Nested AST Round-Trip Serialization")
     func testComplexNestedASTRoundTripSerialization() throws {
-        let encoder = JSONEncoder()
-        let decoder = JSONDecoder()
-
-        // Create deeply nested, complex AST structures
-        let complexStatements: [Statement] = [
-            // Deeply nested function with complex logic
-            .functionDeclaration(FunctionDeclaration(
-                name: "complexCalculation",
-                parameters: [
-                    Parameter(name: "data", type: .array(.record("DataPoint"))),
-                    Parameter(name: "threshold", type: .real),
-                    Parameter(name: "maxIterations", type: .integer)
-                ],
-                returnType: .record("Result"),
-                localVariables: [
-                    VariableDeclaration(name: "sum", type: .real, initialValue: .literal(.real(0.0))),
-                    VariableDeclaration(name: "count", type: .integer, initialValue: .literal(.integer(0))),
-                    VariableDeclaration(name: "valid", type: .boolean, initialValue: .literal(.boolean(false)))
-                ],
-                body: [
-                    .forStatement(.forEach(ForStatement.ForEachLoop(
-                        variable: "point",
-                        iterable: .identifier("data"),
-                        body: [
-                            .ifStatement(IfStatement(
-                                condition: .binary(.and,
-                                    .binary(.greater, .fieldAccess(.identifier("point"), "value"), .identifier("threshold")),
-                                    .binary(.less, .identifier("count"), .identifier("maxIterations"))
-                                ),
-                                thenBody: [
-                                    .assignment(.variable("sum", .binary(.add, .identifier("sum"), .fieldAccess(.identifier("point"), "value")))),
-                                    .assignment(.variable("count", .binary(.add, .identifier("count"), .literal(.integer(1))))),
-                                    .assignment(.variable("valid", .literal(.boolean(true))))
-                                ],
-                                elseIfs: [
-                                    IfStatement.ElseIf(
-                                        condition: .binary(.equal, .fieldAccess(.identifier("point"), "status"), .literal(.string("invalid"))),
-                                        body: [.expressionStatement(.functionCall("logWarning", [.literal(.string("Invalid data point"))]))]
-                                    )
-                                ],
-                                elseBody: [.expressionStatement(.functionCall("logInfo", [.literal(.string("Skipping data point"))]))]
-                            ))
-                        ]
-                    ))),
-                    .whileStatement(WhileStatement(
-                        condition: .binary(.and,
-                            .unary(.not, .identifier("valid")),
-                            .binary(.greater, .identifier("count"), .literal(.integer(0)))
-                        ),
-                        body: [
-                            .assignment(.variable("threshold", .binary(.multiply, .identifier("threshold"), .literal(.real(0.9))))),
-                            .assignment(.variable("valid", .functionCall("revalidate", [.identifier("sum"), .identifier("threshold")])))
-                        ]
-                    )),
-                    .returnStatement(ReturnStatement(
-                        expression: .functionCall("createResult", [
-                            .identifier("sum"),
-                            .identifier("count"),
-                            .identifier("valid")
-                        ])
-                    ))
-                ]
-            )),
-
-            // Nested control structures with complex expressions
-            .block([
-                .variableDeclaration(VariableDeclaration(
-                    name: "matrix",
-                    type: .array(.array(.integer)),
-                    initialValue: .functionCall("createMatrix", [.literal(.integer(10)), .literal(.integer(10))])
-                )),
-                .forStatement(.range(ForStatement.RangeFor(
-                    variable: "i",
-                    start: .literal(.integer(0)),
-                    end: .literal(.integer(9)),
-                    step: nil,
-                    body: [
-                        .forStatement(.range(ForStatement.RangeFor(
-                            variable: "j",
-                            start: .literal(.integer(0)),
-                            end: .literal(.integer(9)),
-                            step: nil,
-                            body: [
-                                .assignment(.arrayElement(
-                                    Assignment.ArrayAccess(
-                                        array: .arrayAccess(.identifier("matrix"), .identifier("i")),
-                                        index: .identifier("j")
-                                    ),
-                                    .binary(.add,
-                                        .binary(.multiply, .identifier("i"), .literal(.integer(10))),
-                                        .identifier("j")
-                                    )
-                                ))
-                            ]
-                        )))
-                    ]
-                )))
-            ])
+        let complexStatements = [
+            makeComplexFunctionDeclarationStatement(),
+            makeComplexNestedBlockStatement()
         ]
-
-        for (index, statement) in complexStatements.enumerated() {
-            // Test round-trip encoding/decoding
-            let encoded = try encoder.encode(statement)
-            #expect(!encoded.isEmpty, "Encoded data should not be empty for complex statement \(index)")
-
-            let decoded = try decoder.decode(Statement.self, from: encoded)
-            #expect(decoded == statement, "Round-trip failed for complex statement \(index)")
-
-            // Verify JSON structure is valid
-            let json = try JSONSerialization.jsonObject(with: encoded)
-            #expect(json is [String: Any], "Should produce valid JSON object for complex statement \(index)")
-        }
+        try assertCodableRoundTrip(complexStatements, label: "complex statement")
     }
 
     @Test("Supporting Type Round-Trip Serialization")
     func testSupportingTypeRoundTripSerialization() throws {
-        let encoder = JSONEncoder()
-        let decoder = JSONDecoder()
-
-        // Test Parameter
-        let parameters: [Parameter] = [
+        try assertCodableRoundTrip([
             Parameter(name: "x", type: .integer),
             Parameter(name: "message", type: .string),
             Parameter(name: "data", type: .array(.real)),
             Parameter(name: "config", type: .record("Configuration")),
-            Parameter(name: "パラメータ", type: .boolean) // Japanese parameter name
-        ]
+            Parameter(name: "パラメータ", type: .boolean)
+        ], label: "Parameter")
 
-        for (index, parameter) in parameters.enumerated() {
-            let encoded = try encoder.encode(parameter)
-            #expect(!encoded.isEmpty, "Encoded data should not be empty for Parameter \(index)")
-
-            let decoded = try decoder.decode(Parameter.self, from: encoded)
-            #expect(decoded == parameter, "Round-trip failed for Parameter \(index): \(parameter)")
-        }
-
-        // Test VariableDeclaration
-        let variableDeclarations: [VariableDeclaration] = [
+        try assertCodableRoundTrip([
             VariableDeclaration(name: "simple", type: .integer, initialValue: nil),
             VariableDeclaration(name: "initialized", type: .string, initialValue: .literal(.string("default"))),
             VariableDeclaration(name: "complex", type: .array(.record("Item")),
                 initialValue: .functionCall("createArray", [.literal(.integer(10))]))
-        ]
+        ], label: "VariableDeclaration")
 
-        for (index, varDecl) in variableDeclarations.enumerated() {
-            let encoded = try encoder.encode(varDecl)
-            #expect(!encoded.isEmpty, "Encoded data should not be empty for VariableDeclaration \(index)")
-
-            let decoded = try decoder.decode(VariableDeclaration.self, from: encoded)
-            #expect(decoded == varDecl, "Round-trip failed for VariableDeclaration \(index): \(varDecl)")
-        }
-
-        // Test ConstantDeclaration
-        let constantDeclarations: [ConstantDeclaration] = [
+        try assertCodableRoundTrip([
             ConstantDeclaration(name: "PI", type: .real, initialValue: .literal(.real(3.14159))),
             ConstantDeclaration(name: "MAX_COUNT", type: .integer,
                 initialValue: .binary(.multiply, .literal(.integer(1000)), .literal(.integer(1000)))),
             ConstantDeclaration(name: "DEFAULT_MESSAGE", type: .string, initialValue: .literal(.string("Hello")))
-        ]
+        ], label: "ConstantDeclaration")
 
-        for (index, constDecl) in constantDeclarations.enumerated() {
-            let encoded = try encoder.encode(constDecl)
-            #expect(!encoded.isEmpty, "Encoded data should not be empty for ConstantDeclaration \(index)")
-
-            let decoded = try decoder.decode(ConstantDeclaration.self, from: encoded)
-            #expect(decoded == constDecl, "Round-trip failed for ConstantDeclaration \(index): \(constDecl)")
-        }
-
-        // Test ReturnStatement
-        let returnStatements: [ReturnStatement] = [
+        try assertCodableRoundTrip([
             ReturnStatement(expression: .literal(.boolean(true))),
             ReturnStatement(expression: .identifier("result")),
             ReturnStatement(expression: .binary(.add, .identifier("a"), .identifier("b"))),
             ReturnStatement(expression: .functionCall("compute", [.identifier("input")]))
-        ]
-
-        for (index, returnStmt) in returnStatements.enumerated() {
-            let encoded = try encoder.encode(returnStmt)
-            #expect(!encoded.isEmpty, "Encoded data should not be empty for ReturnStatement \(index)")
-
-            let decoded = try decoder.decode(ReturnStatement.self, from: encoded)
-            #expect(decoded == returnStmt, "Round-trip failed for ReturnStatement \(index): \(returnStmt)")
-        }
+        ], label: "ReturnStatement")
     }
 
     @Test("Unicode and Internationalization Round-Trip")
@@ -963,104 +920,8 @@ struct ASTImmutabilityAuditTests {
 
     @Test("Edge Cases and Boundary Conditions Round-Trip")
     func testEdgeCasesRoundTrip() throws {
-        let encoder = JSONEncoder()
-        let decoder = JSONDecoder()
-
-        // Test edge cases for numeric values
-        let edgeCaseExpressions: [ASTExpression] = [
-            // Integer limits
-            .literal(.integer(Int.max)),
-            .literal(.integer(Int.min)),
-            .literal(.integer(0)),
-            .literal(.integer(-1)),
-
-            // Double limits and special values
-            .literal(.real(Double.greatestFiniteMagnitude)),
-            .literal(.real(-Double.greatestFiniteMagnitude)),
-            .literal(.real(Double.leastNormalMagnitude)),
-            .literal(.real(0.0)),
-            .literal(.real(-0.0)),
-            .literal(.real(Double.pi)),
-
-            // String edge cases
-            .literal(.string("")), // Empty string
-            .literal(.string(" ")), // Single space
-            .literal(.string("\n\t\r")), // Whitespace characters
-            .literal(.string("\"'")), // Quote characters
-            .literal(.string("\\\\")), // Backslashes
-            .literal(.string("🎉🌟💖")), // Emoji
-
-            // Character edge cases
-            .literal(.character(" ")), // Space character
-            .literal(.character("\n")), // Newline
-            .literal(.character("🎯")), // Emoji character
-
-            // Empty identifiers (if allowed)
-            .identifier("_"), // Minimal identifier
-
-            // Empty function calls
-            .functionCall("func", []),
-
-            // Very nested expressions
-            .binary(.add,
-                .binary(.multiply,
-                    .binary(.subtract, .literal(.integer(1)), .literal(.integer(2))),
-                    .binary(.divide, .literal(.integer(3)), .literal(.integer(4)))
-                ),
-                .binary(.modulo,
-                    .binary(.add, .literal(.integer(5)), .literal(.integer(6))),
-                    .binary(.subtract, .literal(.integer(7)), .literal(.integer(8)))
-                )
-            )
-        ]
-
-        for (index, expression) in edgeCaseExpressions.enumerated() {
-            let encoded = try encoder.encode(expression)
-            #expect(!encoded.isEmpty, "Encoded data should not be empty for edge case expression \(index)")
-
-            let decoded = try decoder.decode(ASTExpression.self, from: encoded)
-            #expect(decoded == expression, "Round-trip failed for edge case expression \(index): \(expression)")
-        }
-
-        // Test edge cases for statements
-        let edgeCaseStatements: [Statement] = [
-            // Empty blocks
-            .block([]),
-
-            // Single element blocks
-            .block([.breakStatement]),
-
-            // IF with empty bodies
-            .ifStatement(IfStatement(
-                condition: .literal(.boolean(true)),
-                thenBody: [],
-                elseIfs: [],
-                elseBody: []
-            )),
-
-            // WHILE with empty body
-            .whileStatement(WhileStatement(
-                condition: .literal(.boolean(false)),
-                body: []
-            )),
-
-            // Function with no parameters, variables, or body statements
-            .functionDeclaration(FunctionDeclaration(
-                name: "empty",
-                parameters: [],
-                returnType: .integer,
-                localVariables: [],
-                body: []
-            ))
-        ]
-
-        for (index, statement) in edgeCaseStatements.enumerated() {
-            let encoded = try encoder.encode(statement)
-            #expect(!encoded.isEmpty, "Encoded data should not be empty for edge case statement \(index)")
-
-            let decoded = try decoder.decode(Statement.self, from: encoded)
-            #expect(decoded == statement, "Round-trip failed for edge case statement \(index): \(statement)")
-        }
+        try assertCodableRoundTrip(makeEdgeCaseExpressions(), label: "edge case expression")
+        try assertCodableRoundTrip(makeEdgeCaseStatements(), label: "edge case statement")
     }
 }
 

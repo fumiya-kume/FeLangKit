@@ -117,16 +117,10 @@ public final class StatementExecutor: @unchecked Sendable {
             return .normal
 
         case .breakStatement:
-            guard loopDepth > 0 else {
-                throw RuntimeError.breakOutsideLoop
-            }
-            return .breakLoop
+            return try executeBreakStatement()
 
         case .continueStatement:
-            guard loopDepth > 0 else {
-                throw RuntimeError.continueOutsideLoop
-            }
-            return .continueLoop
+            return try executeContinueStatement()
 
         case .block(let statements):
             try environment.pushScope()
@@ -145,6 +139,20 @@ public final class StatementExecutor: @unchecked Sendable {
             try executeGlobalDeclaration(decl)
             return .normal
         }
+    }
+
+    private func executeBreakStatement() throws -> ControlFlow {
+        guard loopDepth > 0 else {
+            throw RuntimeError.breakOutsideLoop
+        }
+        return .breakLoop
+    }
+
+    private func executeContinueStatement() throws -> ControlFlow {
+        guard loopDepth > 0 else {
+            throw RuntimeError.continueOutsideLoop
+        }
+        return .continueLoop
     }
 
     // MARK: - Declaration Execution
@@ -336,87 +344,83 @@ public final class StatementExecutor: @unchecked Sendable {
 
         switch access.array {
         case .identifier(let arrayName):
-            // Simple case: arr[i] ← value
-            let arrayValue = try environment.get(arrayName)
-            guard case .array(var elements) = arrayValue else {
-                throw RuntimeError.typeMismatch(
-                    expected: "array",
-                    actual: arrayValue.typeName,
-                    operation: "array assignment"
-                )
-            }
-
-            guard index >= 0, index < elements.count else {
-                throw RuntimeError.indexOutOfBounds(index: index, size: elements.count)
-            }
-
-            // Validate type matches existing element type
-            if let existingElement = elements.first {
-                if let existingType = inferDataType(from: existingElement),
-                   let valueType = inferDataType(from: value) {
-                    if !typesMatch(valueType, expected: existingType) {
-                        throw RuntimeError.typeMismatch(
-                            expected: String(describing: existingType),
-                            actual: String(describing: valueType),
-                            operation: "array element assignment"
-                        )
-                    }
-                } else if existingElement.typeName != value.typeName {
-                    throw RuntimeError.typeMismatch(
-                        expected: existingElement.typeName,
-                        actual: value.typeName,
-                        operation: "array element assignment"
-                    )
-                }
-            }
-
-            elements[index] = value
-            try environment.assign(arrayName, value: .array(elements))
+            try assignSimpleArrayElement(arrayName: arrayName, index: index, value: value)
 
         case .arrayAccess(let innerArray, let innerIndex):
-            // Nested case: arr[i][j] ← value
-            // First, get the inner array and modify it
-            let innerArrayValue = try evaluator.evaluate(.arrayAccess(innerArray, innerIndex))
-            guard case .array(var innerElements) = innerArrayValue else {
-                throw RuntimeError.typeMismatch(
-                    expected: "array",
-                    actual: innerArrayValue.typeName,
-                    operation: "nested array assignment"
-                )
-            }
-
-            guard index >= 0, index < innerElements.count else {
-                throw RuntimeError.indexOutOfBounds(index: index, size: innerElements.count)
-            }
-
-            // Validate type matches existing element type
-            if let existingElement = innerElements.first {
-                if let existingType = inferDataType(from: existingElement),
-                   let valueType = inferDataType(from: value) {
-                    if !typesMatch(valueType, expected: existingType) {
-                        throw RuntimeError.typeMismatch(
-                            expected: String(describing: existingType),
-                            actual: String(describing: valueType),
-                            operation: "nested array element assignment"
-                        )
-                    }
-                } else if existingElement.typeName != value.typeName {
-                    throw RuntimeError.typeMismatch(
-                        expected: existingElement.typeName,
-                        actual: value.typeName,
-                        operation: "nested array element assignment"
-                    )
-                }
-            }
-
-            innerElements[index] = value
-
-            // Now assign the modified inner array back
-            let innerAccess = Assignment.ArrayAccess(array: innerArray, index: innerIndex)
-            try assignArrayElement(innerAccess, value: .array(innerElements))
+            try assignNestedArrayElement(innerArray: innerArray, innerIndex: innerIndex, index: index, value: value)
 
         default:
             throw RuntimeError.generic(message: "Cannot assign to complex array expression")
+        }
+    }
+
+    private func assignSimpleArrayElement(arrayName: String, index: Int, value: RuntimeValue) throws {
+        let arrayValue = try environment.get(arrayName)
+        guard case .array(var elements) = arrayValue else {
+            throw RuntimeError.typeMismatch(
+                expected: "array",
+                actual: arrayValue.typeName,
+                operation: "array assignment"
+            )
+        }
+
+        guard index >= 0, index < elements.count else {
+            throw RuntimeError.indexOutOfBounds(index: index, size: elements.count)
+        }
+
+        try validateArrayElementTypeConsistency(elements, value: value, operation: "array element assignment")
+        elements[index] = value
+        try environment.assign(arrayName, value: .array(elements))
+    }
+
+    private func assignNestedArrayElement(
+        innerArray: FeLangCore.Expression,
+        innerIndex: FeLangCore.Expression,
+        index: Int,
+        value: RuntimeValue
+    ) throws {
+        let innerArrayValue = try evaluator.evaluate(.arrayAccess(innerArray, innerIndex))
+        guard case .array(var innerElements) = innerArrayValue else {
+            throw RuntimeError.typeMismatch(
+                expected: "array",
+                actual: innerArrayValue.typeName,
+                operation: "nested array assignment"
+            )
+        }
+
+        guard index >= 0, index < innerElements.count else {
+            throw RuntimeError.indexOutOfBounds(index: index, size: innerElements.count)
+        }
+
+        try validateArrayElementTypeConsistency(innerElements, value: value, operation: "nested array element assignment")
+        innerElements[index] = value
+
+        let innerAccess = Assignment.ArrayAccess(array: innerArray, index: innerIndex)
+        try assignArrayElement(innerAccess, value: .array(innerElements))
+    }
+
+    /// Validates that a value's type is consistent with existing array elements.
+    private func validateArrayElementTypeConsistency(
+        _ elements: [RuntimeValue],
+        value: RuntimeValue,
+        operation: String
+    ) throws {
+        guard let existingElement = elements.first else { return }
+        if let existingType = inferDataType(from: existingElement),
+           let valueType = inferDataType(from: value) {
+            if !typesMatch(valueType, expected: existingType) {
+                throw RuntimeError.typeMismatch(
+                    expected: String(describing: existingType),
+                    actual: String(describing: valueType),
+                    operation: operation
+                )
+            }
+        } else if existingElement.typeName != value.typeName {
+            throw RuntimeError.typeMismatch(
+                expected: existingElement.typeName,
+                actual: value.typeName,
+                operation: operation
+            )
         }
     }
 
@@ -554,6 +558,39 @@ public final class StatementExecutor: @unchecked Sendable {
         loopDepth += 1
         defer { loopDepth -= 1 }
 
+        let range = try computeForLoopRange(rangeFor)
+
+        try environment.pushScope()
+        defer { environment.popScope() }
+
+        var isFirstIteration = true
+        for currentValue in range {
+            if isFirstIteration {
+                isFirstIteration = false
+            } else {
+                environment.clearCurrentScope()
+            }
+            environment.define(rangeFor.variable, value: .integer(currentValue), type: .integer)
+
+            let result = try execute(rangeFor.body)
+
+            switch result {
+            case .breakLoop:
+                return .normal
+            case .continueLoop:
+                continue
+            case .returnValue:
+                return result
+            case .normal:
+                continue
+            }
+        }
+
+        return .normal
+    }
+
+    /// Evaluates range bounds and step, returning the computed stride.
+    private func computeForLoopRange(_ rangeFor: ForStatement.RangeFor) throws -> StrideThrough<Int> {
         let startValue = try evaluator.evaluate(rangeFor.start)
         let endValue = try evaluator.evaluate(rangeFor.end)
 
@@ -584,49 +621,14 @@ public final class StatementExecutor: @unchecked Sendable {
             step = stepInt
         }
 
-        // Create range based on step direction and explicit step flag
-        let range: StrideThrough<Int>
         if hasExplicitStep {
-            // With explicit step, use it directly (user controls direction)
-            range = stride(from: start, through: end, by: step)
+            return stride(from: start, through: end, by: step)
+        } else if start <= end {
+            return stride(from: start, through: end, by: 1)
         } else {
-            // Without explicit step, only forward iteration
-            if start <= end {
-                range = stride(from: start, through: end, by: 1)
-            } else {
-                // Empty range - don't execute loop when end < start without explicit step.
-                // Using a dummy stride here is intentional: this range iterates zero times.
-                range = stride(from: 0, through: -1, by: 1)
-            }
+            // Empty range: don't execute loop when end < start without explicit step
+            return stride(from: 0, through: -1, by: 1)
         }
-
-        try environment.pushScope()
-        defer { environment.popScope() }
-
-        var isFirstIteration = true
-        for currentValue in range {
-            if isFirstIteration {
-                isFirstIteration = false
-            } else {
-                environment.clearCurrentScope()
-            }
-            environment.define(rangeFor.variable, value: .integer(currentValue), type: .integer)
-
-            let result = try execute(rangeFor.body)
-
-            switch result {
-            case .breakLoop:
-                return .normal
-            case .continueLoop:
-                continue
-            case .returnValue:
-                return result
-            case .normal:
-                continue
-            }
-        }
-
-        return .normal
     }
 
     private func executeForEach(_ forEach: ForStatement.ForEachLoop) throws -> ControlFlow {
@@ -779,20 +781,28 @@ public final class StatementExecutor: @unchecked Sendable {
         }
 
         let result = try execute(method.body)
-
-        // Retrieve the potentially modified 'self' instance (like constructor does)
         let modifiedInstance = (try? environment.get("self")) ?? receiver
 
+        return try handleMethodResult(result, method: method, className: inst.className, modifiedInstance: modifiedInstance)
+    }
+
+    /// Processes the result of a method call, validating return types.
+    private func handleMethodResult(
+        _ result: ControlFlow,
+        method: MethodDefinition,
+        className: String,
+        modifiedInstance: RuntimeValue
+    ) throws -> MethodCallResult {
         switch result {
         case .returnValue(let value):
             let returnValue = value ?? .null
             if let expectedType = method.returnType {
-                try validateType(returnValue, expected: expectedType, context: "return value of '\(inst.className).\(methodName)'")
+                try validateType(returnValue, expected: expectedType, context: "return value of '\(className).\(method.name)'")
             }
             return MethodCallResult(returnValue: returnValue, modifiedInstance: modifiedInstance)
         default:
             if method.returnType != nil {
-                throw RuntimeError.missingReturnValue(function: "\(inst.className).\(methodName)")
+                throw RuntimeError.missingReturnValue(function: "\(className).\(method.name)")
             }
             return MethodCallResult(returnValue: .null, modifiedInstance: modifiedInstance)
         }
@@ -802,7 +812,6 @@ public final class StatementExecutor: @unchecked Sendable {
         _ classDef: ClassDefinition,
         arguments: [RuntimeValue]
     ) throws -> RuntimeValue {
-        // Validate constructor argument count
         guard arguments.count == classDef.constructorParameters.count else {
             throw RuntimeError.wrongArgumentCount(
                 function: classDef.name,
@@ -811,7 +820,6 @@ public final class StatementExecutor: @unchecked Sendable {
             )
         }
 
-        // Validate constructor parameter types
         if !classDef.constructorParameterTypes.isEmpty {
             for (index, (param, arg)) in zip(classDef.constructorParameters, arguments).enumerated() {
                 guard index < classDef.constructorParameterTypes.count else { continue }
@@ -820,28 +828,7 @@ public final class StatementExecutor: @unchecked Sendable {
             }
         }
 
-        // Initialize member fields with default values, starting with inherited members
-        var fields: [String: RuntimeValue] = [:]
-
-        // Merge superclass members first (inheritance)
-        if let superclassName = classDef.superclassName {
-            guard let superclassDef = environment.lookupClassDefinition(superclassName) else {
-                throw RuntimeError.generic(message: "Superclass '\(superclassName)' not found for class '\(classDef.name)'")
-            }
-            // Recursively collect all inherited members from the superclass chain
-            var visited: Set<String> = [classDef.name]
-            let inheritedMembers = try collectInheritedMembers(from: superclassDef, visited: &visited)
-            for (memberName, memberType) in inheritedMembers {
-                fields[memberName] = defaultValue(for: memberType)
-            }
-        }
-
-        // Add this class's own members (may override inherited members)
-        for (memberName, memberType) in classDef.members {
-            fields[memberName] = defaultValue(for: memberType)
-        }
-
-        // Create the instance with merged class definition for method resolution
+        let fields = try initializeInstanceFields(classDef)
         var mergedVisited: Set<String> = []
         let mergedClassDef = try createMergedClassDefinition(classDef, visited: &mergedVisited)
         var instance = InstanceValue(
@@ -850,38 +837,62 @@ public final class StatementExecutor: @unchecked Sendable {
             fields: fields
         )
 
-        // Execute constructor body if present
-        if !classDef.constructorBody.isEmpty {
-            try environment.enterCall()
-            defer { environment.exitCall() }
+        try executeConstructor(classDef, arguments: arguments, instance: &instance)
+        return .instance(instance)
+    }
 
-            functionDepth += 1
-            defer { functionDepth -= 1 }
+    /// Initializes member fields with default values, including inherited members.
+    private func initializeInstanceFields(_ classDef: ClassDefinition) throws -> [String: RuntimeValue] {
+        var fields: [String: RuntimeValue] = [:]
 
-            try environment.pushScope()
-            defer { environment.popScope() }
-
-            // Bind constructor parameters
-            for (index, (param, arg)) in zip(classDef.constructorParameters, arguments).enumerated() {
-                let paramType = index < classDef.constructorParameterTypes.count
-                    ? classDef.constructorParameterTypes[index]
-                    : nil
-                environment.define(param, value: arg, type: paramType)
+        if let superclassName = classDef.superclassName {
+            guard let superclassDef = environment.lookupClassDefinition(superclassName) else {
+                throw RuntimeError.generic(message: "Superclass '\(superclassName)' not found for class '\(classDef.name)'")
             }
-
-            // Define 'self' as the instance being constructed
-            environment.define("self", value: .instance(instance))
-
-            // Execute constructor body
-            _ = try execute(classDef.constructorBody)
-
-            // Retrieve the potentially modified 'self' instance
-            if case .instance(let modifiedInstance) = try environment.get("self") {
-                instance = modifiedInstance
+            var visited: Set<String> = [classDef.name]
+            let inheritedMembers = try collectInheritedMembers(from: superclassDef, visited: &visited)
+            for (memberName, memberType) in inheritedMembers {
+                fields[memberName] = defaultValue(for: memberType)
             }
         }
 
-        return .instance(instance)
+        for (memberName, memberType) in classDef.members {
+            fields[memberName] = defaultValue(for: memberType)
+        }
+
+        return fields
+    }
+
+    /// Executes the constructor body, binding parameters and updating the instance.
+    private func executeConstructor(
+        _ classDef: ClassDefinition,
+        arguments: [RuntimeValue],
+        instance: inout InstanceValue
+    ) throws {
+        guard !classDef.constructorBody.isEmpty else { return }
+
+        try environment.enterCall()
+        defer { environment.exitCall() }
+
+        functionDepth += 1
+        defer { functionDepth -= 1 }
+
+        try environment.pushScope()
+        defer { environment.popScope() }
+
+        for (index, (param, arg)) in zip(classDef.constructorParameters, arguments).enumerated() {
+            let paramType = index < classDef.constructorParameterTypes.count
+                ? classDef.constructorParameterTypes[index]
+                : nil
+            environment.define(param, value: arg, type: paramType)
+        }
+
+        environment.define("self", value: .instance(instance))
+        _ = try execute(classDef.constructorBody)
+
+        if case .instance(let modifiedInstance) = try environment.get("self") {
+            instance = modifiedInstance
+        }
     }
 
     /// Collects all inherited members from a class and its superclass chain.
@@ -1104,69 +1115,7 @@ public final class StatementExecutor: @unchecked Sendable {
     }
 
     private func validateType(_ value: RuntimeValue, expected: DataType, context: String) throws {
-        let matches: Bool
-        switch (expected, value) {
-        case (_, .undefined):
-            // Undefined is compatible with any type (matches semantic analyzer behavior)
-            matches = true
-        case (.integer, .integer):
-            matches = true
-        case (.real, .real):
-            matches = true
-        case (.real, .integer):
-            // Integer can be promoted to real
-            matches = true
-        case (.string, .string):
-            matches = true
-        case (.character, .character):
-            matches = true
-        case (.boolean, .boolean):
-            matches = true
-        case (.array(let expectedElementType), .array(let elements)):
-            if elements.isEmpty {
-                // Empty array matches any element type
-                matches = true
-            } else {
-                let mismatchIndices = validateArrayElements(elements, expectedElementType: expectedElementType)
-                if mismatchIndices.isEmpty {
-                    matches = true
-                } else {
-                    // Throw with detailed error message including mismatched indices
-                    let mismatchedElement = elements[mismatchIndices[0]]
-                    let actualTypeDesc = inferDataType(from: mismatchedElement)
-                        .map { String(describing: $0) }
-                        ?? mismatchedElement.typeName
-                    throw RuntimeError.typeMismatch(
-                        expected: "array of \(expectedElementType)",
-                        actual: "array containing \(actualTypeDesc) at indices \(mismatchIndices)",
-                        operation: context
-                    )
-                }
-            }
-        case (.record(let expectedName), .record(let fields)):
-            // Look up record definition and validate field types
-            if let definition = environment.lookupRecordDefinition(expectedName) {
-                let (isValid, errorDetail) = validateRecordFields(fields, definition: definition)
-                if !isValid {
-                    throw RuntimeError.typeMismatch(
-                        expected: "record \(expectedName)",
-                        actual: errorDetail ?? "invalid record",
-                        operation: context
-                    )
-                }
-                matches = true
-            } else {
-                // Undefined record type is a type error
-                throw RuntimeError.typeMismatch(
-                    expected: "record \(expectedName)",
-                    actual: "undefined record type",
-                    operation: context
-                )
-            }
-        default:
-            matches = false
-        }
-
+        let matches = try checkTypeMatch(value, expected: expected, context: context)
         guard matches else {
             throw RuntimeError.typeMismatch(
                 expected: String(describing: expected),
@@ -1174,6 +1123,69 @@ public final class StatementExecutor: @unchecked Sendable {
                 operation: context
             )
         }
+    }
+
+    /// Checks if a runtime value matches the expected data type.
+    /// Returns true for a match, false for a mismatch, or throws for detailed error cases.
+    private func checkTypeMatch(_ value: RuntimeValue, expected: DataType, context: String) throws -> Bool {
+        switch (expected, value) {
+        case (_, .undefined):
+            return true
+        case (.integer, .integer), (.real, .real), (.real, .integer),
+             (.string, .string), (.character, .character), (.boolean, .boolean):
+            return true
+        case (.array(let expectedElementType), .array(let elements)):
+            return try validateArrayTypeMatch(elements, expectedElementType: expectedElementType, context: context)
+        case (.record(let expectedName), .record(let fields)):
+            return try validateRecordTypeMatch(fields, expectedName: expectedName, context: context)
+        default:
+            return false
+        }
+    }
+
+    /// Validates that array elements match the expected element type.
+    private func validateArrayTypeMatch(
+        _ elements: [RuntimeValue],
+        expectedElementType: DataType,
+        context: String
+    ) throws -> Bool {
+        guard !elements.isEmpty else { return true }
+        let mismatchIndices = validateArrayElements(elements, expectedElementType: expectedElementType)
+        guard !mismatchIndices.isEmpty else { return true }
+
+        let mismatchedElement = elements[mismatchIndices[0]]
+        let actualTypeDesc = inferDataType(from: mismatchedElement)
+            .map { String(describing: $0) }
+            ?? mismatchedElement.typeName
+        throw RuntimeError.typeMismatch(
+            expected: "array of \(expectedElementType)",
+            actual: "array containing \(actualTypeDesc) at indices \(mismatchIndices)",
+            operation: context
+        )
+    }
+
+    /// Validates that record fields match the expected record type definition.
+    private func validateRecordTypeMatch(
+        _ fields: [String: RuntimeValue],
+        expectedName: String,
+        context: String
+    ) throws -> Bool {
+        guard let definition = environment.lookupRecordDefinition(expectedName) else {
+            throw RuntimeError.typeMismatch(
+                expected: "record \(expectedName)",
+                actual: "undefined record type",
+                operation: context
+            )
+        }
+        let (isValid, errorDetail) = validateRecordFields(fields, definition: definition)
+        if !isValid {
+            throw RuntimeError.typeMismatch(
+                expected: "record \(expectedName)",
+                actual: errorDetail ?? "invalid record",
+                operation: context
+            )
+        }
+        return true
     }
 
     /// Checks if an actual DataType matches an expected DataType, including integer → real promotion.

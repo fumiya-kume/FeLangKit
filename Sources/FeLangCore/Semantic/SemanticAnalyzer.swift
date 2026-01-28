@@ -633,77 +633,81 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     private func typeCheckForStatement(_ stmt: ForStatement) {
         switch stmt {
         case .range(let rangeFor):
-            let startType = inferExpressionType(rangeFor.start)
-            let endType = inferExpressionType(rangeFor.end)
-
-            if !startType.isCompatible(with: .integer) {
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.typeMismatch(expected: .integer, actual: startType, position: position))
-            }
-
-            if !endType.isCompatible(with: .integer) {
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.typeMismatch(expected: .integer, actual: endType, position: position))
-            }
-
-            if let step = rangeFor.step {
-                let stepType = inferExpressionType(step)
-                if !stepType.isCompatible(with: .integer) {
-                    let position = SourcePosition(line: 0, column: 0, offset: 0)
-                    errorReporter.collect(.typeMismatch(expected: .integer, actual: stepType, position: position))
-                }
-            }
-
-            _ = symbolTable.pushScope(kind: .loop)
-
-            // Re-declare loop variable in type checking scope
-            let position = SourcePosition(line: 0, column: 0, offset: 0)
-            _ = symbolTable.declare(
-                name: rangeFor.variable,
-                type: .integer,
-                kind: .variable,
-                position: position,
-                isInitialized: true
-            )
-
-            for bodyStmt in rangeFor.body {
-                typeCheckStatement(bodyStmt)
-            }
-            symbolTable.popScope()
-
+            typeCheckRangeFor(rangeFor)
         case .forEach(let forEach):
-            let iterableType = inferExpressionType(forEach.iterable)
-
-            // Extract element type from iterable
-            let elementType: FeType
-            switch iterableType {
-            case .array(let elemType, _):
-                elementType = elemType
-            case .string:
-                elementType = .character
-            default:
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                errorReporter.collect(.typeMismatch(expected: .array(elementType: .unknown, dimensions: []), actual: iterableType, position: position))
-                elementType = .error
-            }
-
-            _ = symbolTable.pushScope(kind: .loop)
-
-            // Re-declare loop variable with correct type in type checking scope
-            let position = SourcePosition(line: 0, column: 0, offset: 0)
-            _ = symbolTable.declare(
-                name: forEach.variable,
-                type: elementType,
-                kind: .variable,
-                position: position,
-                isInitialized: true
-            )
-
-            for bodyStmt in forEach.body {
-                typeCheckStatement(bodyStmt)
-            }
-            symbolTable.popScope()
+            typeCheckForEach(forEach)
         }
+    }
+
+    private func typeCheckRangeFor(_ rangeFor: ForStatement.RangeFor) {
+        let startType = inferExpressionType(rangeFor.start)
+        let endType = inferExpressionType(rangeFor.end)
+
+        if !startType.isCompatible(with: .integer) {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.typeMismatch(expected: .integer, actual: startType, position: position))
+        }
+
+        if !endType.isCompatible(with: .integer) {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.typeMismatch(expected: .integer, actual: endType, position: position))
+        }
+
+        if let step = rangeFor.step {
+            let stepType = inferExpressionType(step)
+            if !stepType.isCompatible(with: .integer) {
+                let position = SourcePosition(line: 0, column: 0, offset: 0)
+                errorReporter.collect(.typeMismatch(expected: .integer, actual: stepType, position: position))
+            }
+        }
+
+        _ = symbolTable.pushScope(kind: .loop)
+
+        let position = SourcePosition(line: 0, column: 0, offset: 0)
+        _ = symbolTable.declare(
+            name: rangeFor.variable,
+            type: .integer,
+            kind: .variable,
+            position: position,
+            isInitialized: true
+        )
+
+        for bodyStmt in rangeFor.body {
+            typeCheckStatement(bodyStmt)
+        }
+        symbolTable.popScope()
+    }
+
+    private func typeCheckForEach(_ forEach: ForStatement.ForEachLoop) {
+        let iterableType = inferExpressionType(forEach.iterable)
+
+        let elementType: FeType
+        switch iterableType {
+        case .array(let elemType, _):
+            elementType = elemType
+        case .string:
+            elementType = .character
+        default:
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.typeMismatch(expected: .array(elementType: .unknown, dimensions: []), actual: iterableType, position: position))
+            elementType = .error
+        }
+
+        _ = symbolTable.pushScope(kind: .loop)
+
+        let position = SourcePosition(line: 0, column: 0, offset: 0)
+        _ = symbolTable.declare(
+            name: forEach.variable,
+            type: elementType,
+            kind: .variable,
+            position: position,
+            isInitialized: true
+        )
+
+        for bodyStmt in forEach.body {
+            typeCheckStatement(bodyStmt)
+        }
+        symbolTable.popScope()
     }
 
     private func typeCheckReturnStatement(_ stmt: ReturnStatement) {

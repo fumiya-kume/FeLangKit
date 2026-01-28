@@ -92,8 +92,8 @@ struct VisitableTests {
         #expect(Expression.functionCall("func", []).visit(with: visitor) == "function_call(func)")
     }
 
-    @Test func statementConvenienceMethod() {
-        let visitor = StatementVisitor<String>(
+    private func makeDetailedStatementVisitor() -> StatementVisitor<String> {
+        StatementVisitor<String>(
             visitIfStatement: { _ in "if" },
             visitWhileStatement: { _ in "while" },
             visitDoWhileStatement: { _ in "do_while" },
@@ -123,8 +123,11 @@ struct VisitableTests {
             visitClassDeclaration: { _ in "class" },
             visitGlobalDeclaration: { _ in "global" }
         )
+    }
 
-        // Test all statement types with convenience method
+    @Test func statementConvenienceMethod() {
+        let visitor = makeDetailedStatementVisitor()
+
         let ifStmt = IfStatement(condition: .literal(.boolean(true)), thenBody: [])
         #expect(Statement.ifStatement(ifStmt).visit(with: visitor) == "if")
 

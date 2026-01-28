@@ -255,82 +255,80 @@ struct StatementVisitorTests {
         #expect(visitor.visit(block) == "block(2)")
     }
 
+    // MARK: - Statement Stringify Helpers
+
+    private func stringifyForStatement(_ forStmt: ForStatement) -> String {
+        switch forStmt {
+        case .range(let rangeFor):
+            let body = rangeFor.body.map(stringifyStatement).joined(separator: "; ")
+            return "for \(rangeFor.variable) = \(rangeFor.start) to \(rangeFor.end) { \(body) }"
+        case .forEach(let forEach):
+            let body = forEach.body.map(stringifyStatement).joined(separator: "; ")
+            return "for \(forEach.variable) in \(forEach.iterable) { \(body) }"
+        }
+    }
+
+    private func stringifyAssignment(_ assignment: Assignment) -> String {
+        switch assignment {
+        case .variable(let name, let expr):
+            return "\(name) = \(expr)"
+        case .arrayElement(let arrayAccess, let expr):
+            return "\(arrayAccess.array)[\(arrayAccess.index)] = \(expr)"
+        case .fieldAccess(let fieldAccess, let expr):
+            return "\(fieldAccess.object).\(fieldAccess.field) = \(expr)"
+        }
+    }
+
+    private func stringifyStatement(_ stmt: Statement) -> String {
+        switch stmt {
+        case .ifStatement(let ifStmt):
+            let thenBody = ifStmt.thenBody.map(stringifyStatement).joined(separator: "; ")
+            return "if (\(ifStmt.condition)) { \(thenBody) }"
+        case .whileStatement(let whileStmt):
+            let body = whileStmt.body.map(stringifyStatement).joined(separator: "; ")
+            return "while (\(whileStmt.condition)) { \(body) }"
+        case .doWhileStatement(let doWhileStmt):
+            let body = doWhileStmt.body.map(stringifyStatement).joined(separator: "; ")
+            return "do { \(body) } while (\(doWhileStmt.condition))"
+        case .forStatement(let forStmt):
+            return stringifyForStatement(forStmt)
+        case .assignment(let assignment):
+            return stringifyAssignment(assignment)
+        case .variableDeclaration(let varDecl):
+            let suffix = varDecl.initialValue.map { " = \($0)" } ?? ""
+            return "var \(varDecl.name): \(varDecl.type)\(suffix)"
+        case .constantDeclaration(let constDecl):
+            return "const \(constDecl.name): \(constDecl.type) = \(constDecl.initialValue)"
+        case .functionDeclaration(let funcDecl):
+            let body = funcDecl.body.map(stringifyStatement).joined(separator: "; ")
+            return "function \(funcDecl.name)() { \(body) }"
+        case .procedureDeclaration(let procDecl):
+            let body = procDecl.body.map(stringifyStatement).joined(separator: "; ")
+            return "procedure \(procDecl.name)() { \(body) }"
+        case .returnStatement(let returnStmt):
+            return returnStmt.expression.map { "return \($0)" } ?? "return"
+        case .expressionStatement(let expr):
+            return "\(expr)"
+        case .breakStatement:
+            return "break"
+        case .continueStatement:
+            return "continue"
+        case .block(let statements):
+            let results = statements.map(stringifyStatement)
+            return "{ \(results.joined(separator: "; ")) }"
+        case .recordDeclaration(let recordDecl):
+            return "record \(recordDecl.name)"
+        case .classDeclaration(let classDecl):
+            return "class \(classDecl.name)"
+        case .globalDeclaration(let globalDecl):
+            let suffix = globalDecl.initialValue.map { " = \($0)" } ?? ""
+            return "global \(globalDecl.name): \(globalDecl.type)\(suffix)"
+        }
+    }
+
     // MARK: - Manual Recursive Visitor Test
 
     @Test func manualRecursiveVisitor() {
-        // Create a manual recursive visitor for basic statement stringification
-        func stringifyStatement(_ stmt: Statement) -> String {
-            switch stmt {
-            case .ifStatement(let ifStmt):
-                let thenBody = ifStmt.thenBody.map(stringifyStatement).joined(separator: "; ")
-                return "if (\(ifStmt.condition)) { \(thenBody) }"
-            case .whileStatement(let whileStmt):
-                let body = whileStmt.body.map(stringifyStatement).joined(separator: "; ")
-                return "while (\(whileStmt.condition)) { \(body) }"
-            case .doWhileStatement(let doWhileStmt):
-                let body = doWhileStmt.body.map(stringifyStatement).joined(separator: "; ")
-                return "do { \(body) } while (\(doWhileStmt.condition))"
-            case .forStatement(let forStmt):
-                switch forStmt {
-                case .range(let rangeFor):
-                    let body = rangeFor.body.map(stringifyStatement).joined(separator: "; ")
-                    return "for \(rangeFor.variable) = \(rangeFor.start) to \(rangeFor.end) { \(body) }"
-                case .forEach(let forEach):
-                    let body = forEach.body.map(stringifyStatement).joined(separator: "; ")
-                    return "for \(forEach.variable) in \(forEach.iterable) { \(body) }"
-                }
-            case .assignment(let assignment):
-                switch assignment {
-                case .variable(let name, let expr):
-                    return "\(name) = \(expr)"
-                case .arrayElement(let arrayAccess, let expr):
-                    return "\(arrayAccess.array)[\(arrayAccess.index)] = \(expr)"
-                case .fieldAccess(let fieldAccess, let expr):
-                    return "\(fieldAccess.object).\(fieldAccess.field) = \(expr)"
-                }
-            case .variableDeclaration(let varDecl):
-                if let initialValue = varDecl.initialValue {
-                    return "var \(varDecl.name): \(varDecl.type) = \(initialValue)"
-                } else {
-                    return "var \(varDecl.name): \(varDecl.type)"
-                }
-            case .constantDeclaration(let constDecl):
-                return "const \(constDecl.name): \(constDecl.type) = \(constDecl.initialValue)"
-            case .functionDeclaration(let funcDecl):
-                let body = funcDecl.body.map(stringifyStatement).joined(separator: "; ")
-                return "function \(funcDecl.name)() { \(body) }"
-            case .procedureDeclaration(let procDecl):
-                let body = procDecl.body.map(stringifyStatement).joined(separator: "; ")
-                return "procedure \(procDecl.name)() { \(body) }"
-            case .returnStatement(let returnStmt):
-                if let expr = returnStmt.expression {
-                    return "return \(expr)"
-                } else {
-                    return "return"
-                }
-            case .expressionStatement(let expr):
-                return "\(expr)"
-            case .breakStatement:
-                return "break"
-            case .continueStatement:
-                return "continue"
-            case .block(let statements):
-                let results = statements.map(stringifyStatement)
-                return "{ \(results.joined(separator: "; ")) }"
-            case .recordDeclaration(let recordDecl):
-                return "record \(recordDecl.name)"
-            case .classDeclaration(let classDecl):
-                return "class \(classDecl.name)"
-            case .globalDeclaration(let globalDecl):
-                if let initialValue = globalDecl.initialValue {
-                    return "global \(globalDecl.name): \(globalDecl.type) = \(initialValue)"
-                } else {
-                    return "global \(globalDecl.name): \(globalDecl.type)"
-                }
-            }
-        }
-
-        // Test simple statements
         #expect(stringifyStatement(.breakStatement) == "break")
 
         let assignment = Statement.assignment(.variable("x", .literal(.integer(42))))
@@ -338,7 +336,6 @@ struct StatementVisitorTests {
         #expect(result1.contains("x = "))
         #expect(result1.contains("integer(42)"))
 
-        // Test nested statements
         let ifStmt = IfStatement(
             condition: .literal(.boolean(true)),
             thenBody: [.breakStatement, assignment]
