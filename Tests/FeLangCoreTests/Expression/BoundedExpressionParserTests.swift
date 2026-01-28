@@ -91,7 +91,7 @@ struct BoundedExpressionParserTests {
         let tokens = try tokenize("a +")
         // tokens: [a, +, eof]
         // Parse "a +" from index 0 to 2 (excluding eof) — the "+" has no right operand
-        #expect(throws: (any Error).self) {
+        #expect(throws: ParsingError.self) {
             _ = try parser.parseExpression(from: tokens, startingAt: 0, endingBefore: 2)
         }
     }
