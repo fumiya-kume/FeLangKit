@@ -224,7 +224,14 @@ public final class StatementExecutor: @unchecked Sendable {
                 )
             }
         }
-        for (methodName, methodDef) in methods {
+        for method in decl.methods {
+            let methodName = method.name
+            guard let methodDef = methods[methodName] else { continue }
+            if method.isOverride && vtable.nameToSlot[methodName] == nil {
+                throw RuntimeError.generic(
+                    message: "Method '\(methodName)' is marked as override but no parent method exists in class '\(decl.name)'"
+                )
+            }
             vtable.addOrOverride(
                 methodName: methodName,
                 declaringClass: decl.name,
@@ -239,10 +246,27 @@ public final class StatementExecutor: @unchecked Sendable {
                 throw RuntimeError.generic(message: "Interface '\(interfaceName)' not found for class '\(decl.name)'")
             }
             var itable = ITable(className: decl.name, interfaceName: interfaceName)
-            for (methodName, _) in interfaceDef.methodSignatures {
+            for (methodName, signature) in interfaceDef.methodSignatures {
                 guard let slotIndex = vtable.nameToSlot[methodName] else {
                     throw RuntimeError.generic(
                         message: "Class '\(decl.name)' does not implement method '\(methodName)' required by interface '\(interfaceName)'"
+                    )
+                }
+                let slot = vtable.slots[slotIndex]
+                let implMethod = slot.method
+                if implMethod.parameterTypes.count != signature.parameterCount {
+                    throw RuntimeError.generic(
+                        message: "Class '\(decl.name)' method '\(methodName)' has \(implMethod.parameterTypes.count) parameters, but interface '\(interfaceName)' requires \(signature.parameterCount)"
+                    )
+                }
+                if !signature.parameterTypes.isEmpty && implMethod.parameterTypes != signature.parameterTypes {
+                    throw RuntimeError.generic(
+                        message: "Class '\(decl.name)' method '\(methodName)' has incompatible parameter types for interface '\(interfaceName)'"
+                    )
+                }
+                if let expectedReturn = signature.returnType, implMethod.returnType != expectedReturn {
+                    throw RuntimeError.generic(
+                        message: "Class '\(decl.name)' method '\(methodName)' has return type \(String(describing: implMethod.returnType)), but interface '\(interfaceName)' requires \(expectedReturn)"
                     )
                 }
                 itable.map(interfaceMethod: methodName, toVTableSlot: slotIndex)

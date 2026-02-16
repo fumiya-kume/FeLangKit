@@ -275,6 +275,92 @@ struct VTableDispatchE2ETests {
 
     // MARK: - Interface with Multiple Methods
 
+    // MARK: - Polymorphic Dispatch via Base-Type Reference
+
+    @Test("Polymorphic dispatch: subclass instance assigned to base-type variable")
+    func testPolymorphicDispatchViaBaseType() throws {
+        let code = """
+        class Animal
+            Animal()
+            function speak(): 文字列
+                return "..."
+            endfunction
+        endclass
+
+        class Dog: Animal
+            Dog()
+            override function speak(): 文字列
+                return "Woof!"
+            endfunction
+        endclass
+
+        変数 a: Animal ← Dog()
+        println(a.speak())
+        """
+        let output = try InProcessTestHelper.run(code)
+        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "Woof!")
+    }
+
+    // MARK: - Override Validation
+
+    @Test("Override without parent method causes error")
+    func testOverrideWithoutParentMethodError() throws {
+        let code = """
+        class Base
+            Base()
+        endclass
+
+        class Child: Base
+            Child()
+            override function foo(): 整数
+                return 1
+            endfunction
+        endclass
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(!result.succeeded)
+    }
+
+    // MARK: - Interface Signature Validation
+
+    @Test("Interface parameter count mismatch causes error")
+    func testInterfaceParameterCountMismatch() throws {
+        let code = """
+        interface Adder
+            function add(x: 整数, y: 整数): 整数
+        endinterface
+
+        class BadAdder implements Adder
+            BadAdder()
+            function add(x: 整数): 整数
+                return x
+            endfunction
+        endclass
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(!result.succeeded)
+    }
+
+    @Test("Interface return type mismatch causes error")
+    func testInterfaceReturnTypeMismatch() throws {
+        let code = """
+        interface Namer
+            function name(): 文字列
+        endinterface
+
+        class BadNamer implements Namer
+            BadNamer()
+            function name(): 整数
+                return 42
+            endfunction
+        endclass
+        """
+        let result = InProcessTestHelper.execute(code)
+        #expect(!result.succeeded)
+    }
+
+    // MARK: - Interface with Multiple Methods
+
     @Test("Interface with multiple method signatures")
     func testInterfaceMultipleMethods() throws {
         let code = """

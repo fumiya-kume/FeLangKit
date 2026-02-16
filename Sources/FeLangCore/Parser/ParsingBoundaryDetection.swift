@@ -134,7 +134,8 @@ public enum ParsingBoundaryDetection {
         case .functionKeyword,  // FUNCTION declarations with return values
              .procedureKeyword, // PROCEDURE declarations without return values
              .classKeyword,     // CLASS declarations
-             .interfaceKeyword: // INTERFACE declarations
+             .interfaceKeyword, // INTERFACE declarations
+             .overrideKeyword:  // OVERRIDE method declarations in class body
             return true
 
         // Flow control statements

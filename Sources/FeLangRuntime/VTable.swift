@@ -100,6 +100,8 @@ public struct ITable: Equatable, Sendable {
     }
 }
 
+/// Represents the kind of method call dispatch used in call lowering.
+/// Used by codegen to emit the correct call IR for each method invocation.
 public enum MethodCallKind: Equatable, Sendable {
     case directCall(MethodDefinition)
     case virtualDispatch(slotIndex: Int)

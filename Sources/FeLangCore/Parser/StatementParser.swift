@@ -1143,7 +1143,8 @@ public struct StatementParser {
              .endforKeyword,    // FOR statement block ends
              .endfunctionKeyword,   // FUNCTION declaration block ends
              .endprocedureKeyword,  // PROCEDURE declaration block ends
-             .endclassKeyword:      // CLASS declaration block ends
+             .endclassKeyword,      // CLASS declaration block ends
+             .endinterfaceKeyword:  // INTERFACE declaration block ends
             return true
 
         // FOR loop specific keywords that separate expression components
