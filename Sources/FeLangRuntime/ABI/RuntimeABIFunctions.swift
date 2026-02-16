@@ -310,14 +310,8 @@ private func boxedValueToRuntimeValue(_ ptr: UnsafeMutableRawPointer) -> Runtime
     case .null: return .null
     case .array:
         let elements = box.arrayPayload.map { child -> RuntimeValue in
-            switch child.tag {
-            case .integer: return .integer(Int(child.integerPayload))
-            case .real: return .real(child.realPayload)
-            case .boolean: return .boolean(child.booleanPayload)
-            case .string: return .string(child.stringPayload)
-            case .null: return .null
-            case .array: return .null
-            }
+            let childPtr = Unmanaged.passUnretained(child).toOpaque()
+            return boxedValueToRuntimeValue(childPtr)
         }
         return .array(elements)
     }
@@ -340,6 +334,14 @@ private func runtimeValueToBoxedPointer(_ value: RuntimeValue) -> UnsafeMutableR
     case .string(let strVal):
         let box = BoxedValue(tag: .string)
         box.stringPayload = strVal
+        return retainedPointer(box)
+    case .array(let arrayElements):
+        let box = BoxedValue(tag: .array)
+        box.arrayPayload = arrayElements.map { element -> BoxedValue in
+            let ptr = runtimeValueToBoxedPointer(element)
+            let child = borrowedBox(ptr)
+            return child
+        }
         return retainedPointer(box)
     default:
         let box = BoxedValue(tag: .null)
