@@ -138,7 +138,11 @@ public final class StatementExecutor: @unchecked Sendable {
             return .normal
 
         case .classDeclaration(let decl):
-            executeClassDeclaration(decl)
+            try executeClassDeclaration(decl)
+            return .normal
+
+        case .interfaceDeclaration(let decl):
+            executeInterfaceDeclaration(decl)
             return .normal
 
         case .globalDeclaration(let decl):
@@ -153,7 +157,21 @@ public final class StatementExecutor: @unchecked Sendable {
         environment.defineRecord(decl.name, fields: decl.fields)
     }
 
-    private func executeClassDeclaration(_ decl: ClassDeclaration) {
+    private func executeInterfaceDeclaration(_ decl: InterfaceDeclaration) {
+        var signatures: [String: InterfaceMethodSignature] = [:]
+        for method in decl.methods {
+            signatures[method.name] = InterfaceMethodSignature(
+                name: method.name,
+                parameterCount: method.parameters.count,
+                parameterTypes: method.parameters.map { $0.type },
+                returnType: method.returnType
+            )
+        }
+        let interfaceDef = InterfaceDefinition(name: decl.name, methodSignatures: signatures)
+        environment.defineInterface(decl.name, definition: interfaceDef)
+    }
+
+    private func executeClassDeclaration(_ decl: ClassDeclaration) throws {
         var members: [String: DataType] = [:]
         for member in decl.members {
             members[member.name] = member.type
@@ -184,6 +202,7 @@ public final class StatementExecutor: @unchecked Sendable {
         let classDef = ClassDefinition(
             name: decl.name,
             superclassName: decl.superclass,
+            interfaces: decl.interfaces,
             members: members,
             constructorParameters: constructorParams,
             constructorParameterTypes: constructorParamTypes,
@@ -192,6 +211,68 @@ public final class StatementExecutor: @unchecked Sendable {
         )
 
         environment.defineClass(decl.name, definition: classDef)
+
+        // Build VTable
+        var vtable = VTable(className: decl.name)
+        if let superclassName = decl.superclass,
+           let parentVTable = environment.lookupVTable(superclassName) {
+            for slot in parentVTable.slots {
+                vtable.addOrOverride(
+                    methodName: slot.methodName,
+                    declaringClass: slot.declaringClass,
+                    method: slot.method
+                )
+            }
+        }
+        for method in decl.methods {
+            let methodName = method.name
+            guard let methodDef = methods[methodName] else { continue }
+            if method.isOverride && vtable.nameToSlot[methodName] == nil {
+                throw RuntimeError.generic(
+                    message: "Method '\(methodName)' is marked as override but no parent method exists in class '\(decl.name)'"
+                )
+            }
+            vtable.addOrOverride(
+                methodName: methodName,
+                declaringClass: decl.name,
+                method: methodDef
+            )
+        }
+        environment.defineVTable(decl.name, vtable: vtable)
+
+        // Build ITables for each implemented interface
+        for interfaceName in decl.interfaces {
+            guard let interfaceDef = environment.lookupInterfaceDefinition(interfaceName) else {
+                throw RuntimeError.generic(message: "Interface '\(interfaceName)' not found for class '\(decl.name)'")
+            }
+            var itable = ITable(className: decl.name, interfaceName: interfaceName)
+            for (methodName, signature) in interfaceDef.methodSignatures {
+                guard let slotIndex = vtable.nameToSlot[methodName] else {
+                    throw RuntimeError.generic(
+                        message: "Class '\(decl.name)' does not implement method '\(methodName)' required by interface '\(interfaceName)'"
+                    )
+                }
+                let slot = vtable.slots[slotIndex]
+                let implMethod = slot.method
+                if implMethod.parameterTypes.count != signature.parameterCount {
+                    throw RuntimeError.generic(
+                        message: "Class '\(decl.name)' method '\(methodName)' has \(implMethod.parameterTypes.count) parameters, but interface '\(interfaceName)' requires \(signature.parameterCount)"
+                    )
+                }
+                if !signature.parameterTypes.isEmpty && implMethod.parameterTypes != signature.parameterTypes {
+                    throw RuntimeError.generic(
+                        message: "Class '\(decl.name)' method '\(methodName)' has incompatible parameter types for interface '\(interfaceName)'"
+                    )
+                }
+                if let expectedReturn = signature.returnType, implMethod.returnType != expectedReturn {
+                    throw RuntimeError.generic(
+                        message: "Class '\(decl.name)' method '\(methodName)' has return type \(String(describing: implMethod.returnType)), but interface '\(interfaceName)' requires \(expectedReturn)"
+                    )
+                }
+                itable.map(interfaceMethod: methodName, toVTableSlot: slotIndex)
+            }
+            environment.defineITable(className: decl.name, interfaceName: interfaceName, itable: itable)
+        }
     }
 
     private func executeVariableDeclaration(_ decl: VariableDeclaration) throws {
@@ -734,7 +815,13 @@ public final class StatementExecutor: @unchecked Sendable {
             throw RuntimeError.generic(message: "Cannot call method '\(methodName)' on non-instance type '\(receiver.typeName)'")
         }
 
-        guard let method = inst.classDefinition.methods[methodName] else {
+        let method: MethodDefinition
+        if let vtable = environment.lookupVTable(inst.className),
+           let slot = vtable.resolve(methodName: methodName) {
+            method = slot.method
+        } else if let directMethod = inst.classDefinition.methods[methodName] {
+            method = directMethod
+        } else {
             throw RuntimeError.generic(message: "Method '\(methodName)' not found in class '\(inst.className)'")
         }
 
@@ -952,6 +1039,7 @@ public final class StatementExecutor: @unchecked Sendable {
         return ClassDefinition(
             name: classDef.name,
             superclassName: classDef.superclassName,
+            interfaces: classDef.interfaces,
             members: mergedMembers,
             constructorParameters: classDef.constructorParameters,
             constructorParameterTypes: classDef.constructorParameterTypes,
@@ -1163,6 +1251,8 @@ public final class StatementExecutor: @unchecked Sendable {
                     operation: context
                 )
             }
+        case (.record(let expectedName), .instance(let inst)):
+            matches = isInstanceOf(inst, className: expectedName)
         default:
             matches = false
         }
@@ -1174,6 +1264,24 @@ public final class StatementExecutor: @unchecked Sendable {
                 operation: context
             )
         }
+    }
+
+    private func isInstanceOf(_ inst: InstanceValue, className: String) -> Bool {
+        if inst.className == className {
+            return true
+        }
+        var current = inst.classDefinition.superclassName
+        while let superName = current {
+            if superName == className {
+                return true
+            }
+            if let superClass = environment.lookupClassDefinition(superName) {
+                current = superClass.superclassName
+            } else {
+                break
+            }
+        }
+        return false
     }
 
     /// Checks if an actual DataType matches an expected DataType, including integer → real promotion.

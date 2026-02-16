@@ -345,6 +345,9 @@ public struct PrettyPrinter {
         case .classDeclaration(let classDecl):
             return printClassDeclaration(classDecl, indent: indent)
 
+        case .interfaceDeclaration(let interfaceDecl):
+            return printInterfaceDeclaration(interfaceDecl, indent: indent)
+
         case .globalDeclaration(let globalDecl):
             return indentStr + printGlobalDeclaration(globalDecl)
         }
@@ -523,9 +526,33 @@ public struct PrettyPrinter {
         return result
     }
 
+    private func printInterfaceDeclaration(_ interfaceDecl: InterfaceDeclaration, indent: Int) -> String {
+        let indentStr = makeIndent(indent)
+        var result = "\(indentStr)interface \(interfaceDecl.name)"
+
+        let hasContent = appendContentLines(interfaceDecl.methods, to: &result, indent: indent + 1) { sig in
+            let params = sig.parameters.map { "\($0.name): \(printDataType($0.type))" }.joined(separator: ", ")
+            var line = "function \(sig.name)(\(params))"
+            if let returnType = sig.returnType {
+                line += ": \(printDataType(returnType))"
+            }
+            return line
+        }
+
+        let newlineBeforeEnd = hasContent ? "" : "\n"
+        result += "\(newlineBeforeEnd)\(indentStr)endinterface"
+        return result
+    }
+
     private func printClassDeclaration(_ classDecl: ClassDeclaration, indent: Int) -> String {
         let indentStr = makeIndent(indent)
         var result = "\(indentStr)class \(classDecl.name)"
+        if let superclass = classDecl.superclass {
+            result += ": \(superclass)"
+        }
+        if !classDecl.interfaces.isEmpty {
+            result += " implements \(classDecl.interfaces.joined(separator: ", "))"
+        }
 
         var hasContent = appendContentLines(classDecl.members, to: &result, indent: indent + 1) {
             "\($0.name): \(printDataType($0.type))"

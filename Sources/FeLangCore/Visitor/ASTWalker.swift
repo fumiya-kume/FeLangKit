@@ -289,6 +289,11 @@ public enum ASTWalker {
                 identifiers.formUnion(Set(classDecl.members.map { $0.name }))
                 return identifiers
             },
+            visitInterfaceDeclaration: { interfaceDecl in
+                var identifiers = Set([interfaceDecl.name])
+                identifiers.formUnion(Set(interfaceDecl.methods.map { $0.name }))
+                return identifiers
+            },
             visitGlobalDeclaration: { globalDecl in
                 var identifiers = Set([globalDecl.name])
                 if let initialValue = globalDecl.initialValue {
@@ -413,6 +418,9 @@ public enum ASTWalker {
             },
             visitClassDeclaration: { classDecl in
                 return 1 + classDecl.members.count
+            },
+            visitInterfaceDeclaration: { interfaceDecl in
+                return 1 + interfaceDecl.methods.count
             },
             visitGlobalDeclaration: { globalDecl in
                 if let initialValue = globalDecl.initialValue {
@@ -588,6 +596,9 @@ public enum ASTWalker {
             },
             visitClassDeclaration: { classDecl in
                 return .classDeclaration(classDecl)
+            },
+            visitInterfaceDeclaration: { interfaceDecl in
+                return .interfaceDeclaration(interfaceDecl)
             },
             visitGlobalDeclaration: { globalDecl in
                 let transformedInitialValue = globalDecl.initialValue.map { transformExpression($0, transform) }

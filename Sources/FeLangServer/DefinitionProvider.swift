@@ -158,6 +158,7 @@ public struct DefinitionProvider: Sendable {
             "for", "to", "まで", "step", "ずつ", "endfor", "in",
             "function", "endfunction", "procedure", "endprocedure",
             "class", "endclass",
+            "interface", "endinterface", "implements", "override",
             "return", "break", "continue",
             "and", "or", "not", "true", "false",
             "未定義",

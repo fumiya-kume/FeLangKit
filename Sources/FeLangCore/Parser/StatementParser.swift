@@ -53,12 +53,12 @@ public struct StatementParser {
             // Note: doKeyword is not included because do-while loops don't have an enddo keyword
             // (they terminate with 'while (condition)'), so the depth would never be decremented
             switch token.type {
-            case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword, .classKeyword:
+            case .ifKeyword, .whileKeyword, .forKeyword, .functionKeyword, .procedureKeyword, .classKeyword, .interfaceKeyword:
                 nestingDepth += 1
                 guard nestingDepth <= maxNestingDepth else {
                     throw StatementParsingError.nestingTooDeep
                 }
-            case .endifKeyword, .endwhileKeyword, .endforKeyword, .endfunctionKeyword, .endprocedureKeyword, .endclassKeyword:
+            case .endifKeyword, .endwhileKeyword, .endforKeyword, .endfunctionKeyword, .endprocedureKeyword, .endclassKeyword, .endinterfaceKeyword:
                 nestingDepth = max(0, nestingDepth - 1)
             default:
                 break
@@ -98,6 +98,8 @@ public struct StatementParser {
             return .procedureDeclaration(try parseProcedureDeclaration(&parser, nestingDepth: nestingDepth))
         case .classKeyword:
             return .classDeclaration(try parseClassDeclaration(&parser, nestingDepth: nestingDepth))
+        case .interfaceKeyword:
+            return .interfaceDeclaration(try parseInterfaceDeclaration(&parser))
         case .returnKeyword:
             return .returnStatement(try parseReturnStatement(&parser))
         case .breakKeyword:
@@ -619,6 +621,33 @@ public struct StatementParser {
         }
         let className = nameToken.lexeme
 
+        // Parse optional superclass: class Child extends Parent
+        var superclass: String?
+        if let nextToken = parser.peek(), nextToken.type == .colon {
+            _ = parser.advance() // consume ':'
+            guard let superToken = parser.advance(), superToken.type == .identifier else {
+                throw StatementParsingError.expectedIdentifier
+            }
+            superclass = superToken.lexeme
+        }
+
+        // Parse optional implements clause: class MyClass implements Interface1, Interface2
+        var interfaces: [String] = []
+        if let nextToken = parser.peek(), nextToken.type == .implementsKeyword {
+            _ = parser.advance() // consume 'implements'
+            guard let ifaceToken = parser.advance(), ifaceToken.type == .identifier else {
+                throw StatementParsingError.expectedIdentifier
+            }
+            interfaces.append(ifaceToken.lexeme)
+            while let commaToken = parser.peek(), commaToken.type == .comma {
+                _ = parser.advance() // consume ','
+                guard let nextIfaceToken = parser.advance(), nextIfaceToken.type == .identifier else {
+                    throw StatementParsingError.expectedIdentifier
+                }
+                interfaces.append(nextIfaceToken.lexeme)
+            }
+        }
+
         var members: [MemberDeclaration] = []
         var constructor: ConstructorDeclaration?
         var methods: [MethodDeclaration] = []
@@ -637,6 +666,12 @@ public struct StatementParser {
                     constructor = try parseConstructorDeclaration(&parser, className: className)
                     continue
                 }
+            }
+
+            // Check if this is an override method
+            if token.type == .overrideKeyword {
+                methods.append(try parseMethodDeclaration(&parser, nestingDepth: nestingDepth, isOverride: true))
+                continue
             }
 
             // Check if this is a method (function keyword)
@@ -661,12 +696,74 @@ public struct StatementParser {
 
         return ClassDeclaration(
             name: className,
-            superclass: nil,
+            superclass: superclass,
+            interfaces: interfaces,
             members: members,
             constructor: constructor,
             methods: methods,
             position: position
         )
+    }
+
+    /// Parses an interface declaration.
+    /// Syntax: interface InterfaceName
+    ///           function methodName(params): ReturnType
+    ///         endinterface
+    private func parseInterfaceDeclaration(_ parser: inout TokenStream) throws -> InterfaceDeclaration {
+        let position = parser.peek()?.position
+
+        try expectToken(&parser, .interfaceKeyword) // consume 'interface'
+
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw StatementParsingError.expectedIdentifier
+        }
+        let interfaceName = nameToken.lexeme
+
+        var methods: [MethodSignature] = []
+
+        while let token = parser.peek(), token.type != .endinterfaceKeyword && token.type != .eof {
+            if token.type == .newline || token.type == .whitespace {
+                _ = parser.advance()
+                continue
+            }
+
+            if token.type == .functionKeyword {
+                methods.append(try parseMethodSignature(&parser))
+                continue
+            }
+
+            throw StatementParsingError.unexpectedToken(token, expected: .endinterfaceKeyword)
+        }
+
+        try expectToken(&parser, .endinterfaceKeyword) // consume 'endinterface'
+
+        return InterfaceDeclaration(
+            name: interfaceName,
+            methods: methods,
+            position: position
+        )
+    }
+
+    /// Parses a method signature (function name(params): ReturnType) without a body.
+    private func parseMethodSignature(_ parser: inout TokenStream) throws -> MethodSignature {
+        try expectToken(&parser, .functionKeyword) // consume 'function'
+
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw StatementParsingError.expectedIdentifier
+        }
+        let name = nameToken.lexeme
+
+        try expectToken(&parser, .leftParen) // consume '('
+        let parameters = try parseParameterList(&parser)
+        try expectToken(&parser, .rightParen) // consume ')'
+
+        var returnType: DataType?
+        if parser.peek()?.type == .colon {
+            _ = parser.advance() // consume ':'
+            returnType = try parseDataType(&parser)
+        }
+
+        return MethodSignature(name: name, parameters: parameters, returnType: returnType)
     }
 
     /// Parses a member declaration (name: Type).
@@ -700,7 +797,10 @@ public struct StatementParser {
     }
 
     /// Parses a method declaration (function name(params): ReturnType body endfunction).
-    private func parseMethodDeclaration(_ parser: inout TokenStream, nestingDepth: Int = 0) throws -> MethodDeclaration {
+    private func parseMethodDeclaration(_ parser: inout TokenStream, nestingDepth: Int = 0, isOverride: Bool = false) throws -> MethodDeclaration {
+        if isOverride {
+            try expectToken(&parser, .overrideKeyword) // consume 'override'
+        }
         try expectToken(&parser, .functionKeyword) // consume 'function'
 
         guard let nameToken = parser.advance(), nameToken.type == .identifier else {
@@ -723,7 +823,7 @@ public struct StatementParser {
         let body = try parseBlock(&parser, until: [.endfunctionKeyword], nestingDepth: nestingDepth)
         try expectToken(&parser, .endfunctionKeyword) // consume 'endfunction'
 
-        return MethodDeclaration(name: name, parameters: parameters, returnType: returnType, body: body)
+        return MethodDeclaration(name: name, parameters: parameters, returnType: returnType, body: body, isOverride: isOverride)
     }
 
     /// Parses a constructor body (statements until next member/method/endclass).
@@ -737,8 +837,8 @@ public struct StatementParser {
                 continue
             }
 
-            // Stop at endclass or function keyword (method) or identifier followed by colon (member) or identifier followed by '(' (constructor)
-            if token.type == .endclassKeyword || token.type == .functionKeyword {
+            // Stop at endclass or function/override keyword (method) or identifier followed by colon (member) or identifier followed by '(' (constructor)
+            if token.type == .endclassKeyword || token.type == .functionKeyword || token.type == .overrideKeyword {
                 break
             }
 
@@ -1043,7 +1143,8 @@ public struct StatementParser {
              .endforKeyword,    // FOR statement block ends
              .endfunctionKeyword,   // FUNCTION declaration block ends
              .endprocedureKeyword,  // PROCEDURE declaration block ends
-             .endclassKeyword:      // CLASS declaration block ends
+             .endclassKeyword,      // CLASS declaration block ends
+             .endinterfaceKeyword:  // INTERFACE declaration block ends
             return true
 
         // FOR loop specific keywords that separate expression components
@@ -1141,7 +1242,9 @@ public struct StatementParser {
         // Function/procedure/class declarations
         case .functionKeyword,  // FUNCTION declarations with return values
              .procedureKeyword, // PROCEDURE declarations without return values
-             .classKeyword:     // CLASS declarations
+             .classKeyword,     // CLASS declarations
+             .interfaceKeyword, // INTERFACE declarations
+             .overrideKeyword:  // OVERRIDE method declarations in class body
             return true
 
         // Flow control statements
