@@ -139,10 +139,29 @@ public struct ExpressionParser {
         return expr
     }
 
-    /// Parses primary expressions (literals, identifiers, parentheses).
+    /// Parses primary expressions (literals, identifiers, parentheses, lambda, object, callable ref).
     private func parsePrimaryExpression(_ parser: inout TokenStream) throws -> Expression {
         guard let token = parser.advance() else {
             throw ParsingError.unexpectedEndOfInput
+        }
+
+        // Lambda literal: lambda(params): ReturnType { bodyExpr } or lambda { bodyExpr }
+        if token.type == .lambdaKeyword {
+            return try parseLambdaLiteral(&parser)
+        }
+
+        // Object literal: object { field ← expr, ... }
+        if token.type == .objectKeyword {
+            try expectToken(&parser, .leftBrace)
+            return try parseObjectLiteral(&parser)
+        }
+
+        // Callable reference: ::functionName
+        if token.type == .doubleColon {
+            guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+                throw ParsingError.expectedIdentifier
+            }
+            return Expression.callableRef(nameToken.lexeme)
         }
 
         // Literal expressions
@@ -172,6 +191,93 @@ public struct ExpressionParser {
         }
 
         throw ParsingError.expectedPrimaryExpression(token)
+    }
+
+    /// Parses a lambda literal after consuming the `lambda` keyword.
+    private func parseLambdaLiteral(_ parser: inout TokenStream) throws -> Expression {
+        var parameters: [Parameter] = []
+        var returnType: DataType?
+
+        // Optional parameter list: (param: Type, ...)
+        if parser.peek()?.type == .leftParen {
+            _ = parser.advance() // consume '('
+            parameters = try parseLambdaParameters(&parser)
+            try expectToken(&parser, .rightParen)
+        }
+
+        // Optional return type: : Type
+        if parser.peek()?.type == .colon {
+            _ = parser.advance() // consume ':'
+            returnType = try parseLambdaReturnType(&parser)
+        }
+
+        // Body expression in braces: { expr }
+        try expectToken(&parser, .leftBrace)
+        let body = try parseExpression(&parser)
+        try expectToken(&parser, .rightBrace)
+
+        return Expression.lambdaLiteral(parameters, returnType, body)
+    }
+
+    /// Parses lambda parameter list.
+    private func parseLambdaParameters(_ parser: inout TokenStream) throws -> [Parameter] {
+        var params: [Parameter] = []
+        if parser.peek()?.type == .rightParen {
+            return params
+        }
+        params.append(try parseSingleParameter(&parser))
+        while parser.peek()?.type == .comma {
+            _ = parser.advance() // consume ','
+            params.append(try parseSingleParameter(&parser))
+        }
+        return params
+    }
+
+    /// Parses a single parameter: name: Type
+    private func parseSingleParameter(_ parser: inout TokenStream) throws -> Parameter {
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw ParsingError.expectedIdentifier
+        }
+        try expectToken(&parser, .colon)
+        let dataType = try parseLambdaReturnType(&parser)
+        return Parameter(name: nameToken.lexeme, type: dataType)
+    }
+
+    /// Parses a data type token.
+    private func parseLambdaReturnType(_ parser: inout TokenStream) throws -> DataType {
+        guard let typeToken = parser.advance() else {
+            throw ParsingError.unexpectedEndOfInput
+        }
+        guard let dataType = DataType(tokenType: typeToken.type) else {
+            throw ParsingError.unexpectedToken(typeToken, expected: .integerType)
+        }
+        return dataType
+    }
+
+    /// Parses an object literal after consuming `object {`.
+    private func parseObjectLiteral(_ parser: inout TokenStream) throws -> Expression {
+        var fields: [ObjectLiteralField] = []
+        if parser.peek()?.type == .rightBrace {
+            _ = parser.advance()
+            return Expression.objectLiteral(fields)
+        }
+        fields.append(try parseObjectField(&parser))
+        while parser.peek()?.type == .comma {
+            _ = parser.advance() // consume ','
+            fields.append(try parseObjectField(&parser))
+        }
+        try expectToken(&parser, .rightBrace)
+        return Expression.objectLiteral(fields)
+    }
+
+    /// Parses a single object field: name ← expr
+    private func parseObjectField(_ parser: inout TokenStream) throws -> ObjectLiteralField {
+        guard let nameToken = parser.advance(), nameToken.type == .identifier else {
+            throw ParsingError.expectedIdentifier
+        }
+        try expectToken(&parser, .assign)
+        let value = try parseExpression(&parser)
+        return ObjectLiteralField(name: nameToken.lexeme, value: value)
     }
 
     // MARK: - Helper Methods

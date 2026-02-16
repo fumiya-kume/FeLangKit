@@ -60,7 +60,18 @@ public enum ASTWalker {
                 elements.reduce(Set<String>()) { result, element in
                     result.union(collectIdentifiers(from: element))
                 }
-            }
+            },
+            visitLambdaLiteral: { params, _, body in
+                var ids = Set(params.map { $0.name })
+                ids.formUnion(collectIdentifiers(from: body))
+                return ids
+            },
+            visitObjectLiteral: { fields in
+                fields.reduce(Set<String>()) { result, field in
+                    result.union(collectIdentifiers(from: field.value))
+                }
+            },
+            visitCallableRef: { name in Set([name]) }
         )
 
         return visitor.visit(expression)
@@ -100,7 +111,16 @@ public enum ASTWalker {
                 1 + elements.reduce(0) { result, element in
                     result + countNodes(in: element)
                 }
-            }
+            },
+            visitLambdaLiteral: { _, _, body in
+                1 + countNodes(in: body)
+            },
+            visitObjectLiteral: { fields in
+                1 + fields.reduce(0) { result, field in
+                    result + countNodes(in: field.value)
+                }
+            },
+            visitCallableRef: { _ in 1 }
         )
 
         return visitor.visit(expression)
@@ -150,6 +170,19 @@ public enum ASTWalker {
             visitArrayLiteral: { elements in
                 let transformedElements = elements.map { transformExpression($0, transform) }
                 return transform(.arrayLiteral(transformedElements))
+            },
+            visitLambdaLiteral: { params, returnType, body in
+                let transformedBody = transformExpression(body, transform)
+                return transform(.lambdaLiteral(params, returnType, transformedBody))
+            },
+            visitObjectLiteral: { fields in
+                let transformedFields = fields.map { field in
+                    ObjectLiteralField(name: field.name, value: transformExpression(field.value, transform))
+                }
+                return transform(.objectLiteral(transformedFields))
+            },
+            visitCallableRef: { name in
+                return transform(.callableRef(name))
             }
         )
 

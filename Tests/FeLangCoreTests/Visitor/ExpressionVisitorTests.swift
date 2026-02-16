@@ -25,7 +25,10 @@ struct ExpressionVisitorTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         #expect(visitor.visit(.literal(.integer(42))) == "int(42)")
@@ -45,7 +48,10 @@ struct ExpressionVisitorTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         #expect(visitor.visit(.identifier("variable")) == "id(variable)")
@@ -62,7 +68,10 @@ struct ExpressionVisitorTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         let expr = Expression.binary(.add, .literal(.integer(1)), .literal(.integer(2)))
@@ -85,7 +94,10 @@ struct ExpressionVisitorTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         let expr = Expression.unary(.not, .literal(.boolean(true)))
@@ -104,7 +116,10 @@ struct ExpressionVisitorTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         let expr = Expression.arrayAccess(.identifier("arr"), .literal(.integer(0)))
@@ -123,7 +138,10 @@ struct ExpressionVisitorTests {
             visitFieldAccess: { object, field in "field_access(\(object), \(field))" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         let expr = Expression.fieldAccess(.identifier("obj"), "property")
@@ -143,7 +161,10 @@ struct ExpressionVisitorTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { function, arguments in "function_call(\(function), \(arguments.count) args)" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         let expr = Expression.functionCall("func", [.literal(.integer(1)), .identifier("x")])
@@ -161,7 +182,10 @@ struct ExpressionVisitorTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { receiver, method, arguments in "method_call(\(receiver), \(method), \(arguments.count) args)" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         let expr = Expression.methodCall(.identifier("obj"), "getValue", [.literal(.integer(1)), .identifier("x")])
@@ -203,6 +227,12 @@ struct ExpressionVisitorTests {
             case .methodCall(let receiver, let method, let arguments):
                 let argStrings = arguments.map(stringifyExpression)
                 return "\(stringifyExpression(receiver)).\(method)(\(argStrings.joined(separator: ", ")))"
+            case .lambdaLiteral:
+                return "<lambda>"
+            case .objectLiteral:
+                return "<object>"
+            case .callableRef(let name):
+                return "::\(name)"
             }
         }
 
@@ -244,7 +274,10 @@ struct ExpressionVisitorTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         let expr = Expression.literal(.integer(42))
@@ -333,6 +366,12 @@ struct ExpressionVisitorTests {
                     }
                 }
                 return result
+            case .lambdaLiteral:
+                return ["lambda_literal": 1]
+            case .objectLiteral:
+                return ["object_literal": 1]
+            case .callableRef:
+                return ["callable_ref": 1]
             }
         }
 
@@ -372,6 +411,12 @@ struct ExpressionVisitorTests {
                 return elements.map(countNodes).reduce(1, +)
             case .methodCall(let receiver, _, let arguments):
                 return countNodes(receiver) + arguments.map(countNodes).reduce(1, +)
+            case .lambdaLiteral(_, _, let body):
+                return 1 + countNodes(body)
+            case .objectLiteral(let fields):
+                return 1 + fields.reduce(0) { $0 + countNodes($1.value) }
+            case .callableRef:
+                return 1
             }
         }
 

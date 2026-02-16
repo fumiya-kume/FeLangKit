@@ -843,7 +843,57 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             return inferMethodCallType(receiver, arguments: arguments, depth: depth + 1)
         case .arrayLiteral(let elements):
             return inferArrayLiteralType(elements, depth: depth + 1)
+        case .lambdaLiteral(let params, let returnType, let body):
+            return inferLambdaLiteralType(params, returnType: returnType, body: body, depth: depth + 1)
+        case .objectLiteral(let fields):
+            return inferObjectLiteralType(fields, depth: depth + 1)
+        case .callableRef(let name):
+            return inferCallableRefType(name)
         }
+    }
+
+    private func inferLambdaLiteralType(_ params: [Parameter], returnType: DataType?, body: Expression, depth: Int) -> FeType {
+        let paramTypes = params.map { convertDataTypeToFeType($0.type) }
+        let retType: FeType?
+        if let returnDataType = returnType {
+            retType = convertDataTypeToFeType(returnDataType)
+        } else {
+            _ = symbolTable.pushScope(kind: .block)
+            for param in params {
+                let paramType = convertDataTypeToFeType(param.type)
+                let position = SourcePosition(line: 0, column: 0, offset: 0)
+                _ = symbolTable.declare(
+                    name: param.name,
+                    type: paramType,
+                    kind: .parameter,
+                    position: position,
+                    isInitialized: true
+                )
+            }
+            let inferred = inferExpressionType(body, depth: depth)
+            symbolTable.popScope()
+            retType = inferred
+        }
+        return .function(parameters: paramTypes, returnType: retType)
+    }
+
+    private func inferObjectLiteralType(_ fields: [ObjectLiteralField], depth: Int) -> FeType {
+        var fieldTypes: [String: FeType] = [:]
+        for field in fields {
+            fieldTypes[field.name] = inferExpressionType(field.value, depth: depth)
+        }
+        return .record(name: "object", fields: fieldTypes)
+    }
+
+    private func inferCallableRefType(_ name: String) -> FeType {
+        guard let symbol = symbolTable.lookup(name) else {
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            errorReporter.collect(.undeclaredVariable(name, position: position))
+            return .error
+        }
+        let position = SourcePosition(line: 0, column: 0, offset: 0)
+        _ = symbolTable.markAsUsed(name, position: position)
+        return symbol.type
     }
 
     private func inferArrayLiteralType(_ elements: [Expression], depth: Int) -> FeType {

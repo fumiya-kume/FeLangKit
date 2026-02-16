@@ -64,7 +64,11 @@ public struct HoverProvider: Sendable {
         "を繰り返す": "**を繰り返す** (endwhile) - ループ終了\n\nwhileループの終了を示します。",
 
         // Global declaration
-        "大域": "**大域** (global) - グローバル変数宣言\n\nグローバルスコープに変数を宣言します。関数や手続きからアクセス・変更可能です。\n\n```fe\n大域: 整数型: count\n大域: 文字列型: name ← \"default\"\n```"
+        "大域": "**大域** (global) - グローバル変数宣言\n\nグローバルスコープに変数を宣言します。関数や手続きからアクセス・変更可能です。\n\n```fe\n大域: 整数型: count\n大域: 文字列型: name ← \"default\"\n```",
+
+        // Lambda / Object
+        "lambda": "**lambda** - Lambda expression\n\nCreates an anonymous function value.\n\n```fe\nlambda(x: 整数型): 整数型 { x + 1 }\nlambda { 42 }\n```",
+        "object": "**object** - Object literal\n\nCreates an anonymous record value.\n\n```fe\nobject { name ← \"John\", age ← 30 }\n```"
     ]
 
     /// Type documentation
