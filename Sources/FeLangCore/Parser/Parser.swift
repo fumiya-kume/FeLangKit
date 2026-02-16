@@ -147,6 +147,41 @@ extension Parser {
     }
 }
 
+// MARK: - CST API
+
+extension Parser {
+    /// Parses source code into a concrete syntax tree (CST).
+    ///
+    /// The CST preserves the full token structure including keywords and
+    /// delimiters, enabling lossless round-tripping and fine-grained tooling.
+    ///
+    /// - Parameter sourceCode: The source code string to parse
+    /// - Returns: A `SyntaxNode` rooted at `.sourceFile`
+    /// - Throws: `CSTParsingError` if parsing fails
+    public func parseCST(_ sourceCode: String) throws -> SyntaxNode {
+        let tokens = try tokenizer.tokenize(sourceCode)
+        let cstParser = CSTParser()
+        return try cstParser.parse(tokens)
+    }
+
+    /// Parses source code via the CST path and converts the result to AST.
+    ///
+    /// This method demonstrates the reduced re-parse dependency: tokens are
+    /// scanned once by `CSTParser`, then `ASTBuilder` walks the tree without
+    /// re-scanning.
+    ///
+    /// - Parameter sourceCode: The source code string to parse
+    /// - Returns: Array of `Statement` objects equivalent to `parse(_:)`
+    /// - Throws: `CSTParsingError` or `ASTBuildError`
+    public func parseViaCST(_ sourceCode: String) throws -> [Statement] {
+        let tokens = try tokenizer.tokenize(sourceCode)
+        let cstParser = CSTParser()
+        let cst = try cstParser.parse(tokens)
+        let builder = ASTBuilder(tokens: tokens)
+        return try builder.build(from: cst)
+    }
+}
+
 // MARK: - Convenience Methods
 
 extension Parser {
