@@ -59,7 +59,11 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "を繰り返す", kind: .keyword, detail: "End while loop"),
 
         // Global declaration
-        CompletionItem(label: "大域", kind: .keyword, detail: "グローバル変数宣言 (global)", insertText: "大域: ")
+        CompletionItem(label: "大域", kind: .keyword, detail: "グローバル変数宣言 (global)", insertText: "大域: "),
+
+        // Lambda / Object
+        CompletionItem(label: "lambda", kind: .keyword, detail: "Lambda expression", insertText: "lambda "),
+        CompletionItem(label: "object", kind: .keyword, detail: "Object literal", insertText: "object { ")
     ]
 
     /// FE data types
@@ -303,7 +307,9 @@ public struct CompletionProvider: Sendable {
             // Undefined keyword
             "未定義",
             // Global declaration keyword
-            "大域"
+            "大域",
+            // Lambda / Object keywords
+            "lambda", "object"
         ])
         return keywords.contains(word.lowercased()) || keywords.contains(word)
     }

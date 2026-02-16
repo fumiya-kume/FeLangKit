@@ -55,6 +55,10 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case classKeyword = "class"
     case endclassKeyword = "endclass"
 
+    /// Lambda / Object keywords
+    case lambdaKeyword = "lambda"
+    case objectKeyword = "object"
+
     /// Undefined keyword
     case undefinedKeyword = "未定義"
 
@@ -107,6 +111,7 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case dot = "."
     case semicolon = ";"
     case colon = ":"
+    case doubleColon = "::"
 
     // MARK: - Special
 
@@ -126,7 +131,9 @@ extension TokenType {
              .functionKeyword, .endfunctionKeyword, .procedureKeyword, .endprocedureKeyword,
              .andKeyword, .orKeyword, .notKeyword, .modKeyword, .returnKeyword, .breakKeyword, .continueKeyword,
              .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword, .globalKeyword,
-             .classKeyword, .endclassKeyword, .undefinedKeyword:
+             .classKeyword, .endclassKeyword,
+             .lambdaKeyword, .objectKeyword,
+             .undefinedKeyword:
             return true
         default:
             return false

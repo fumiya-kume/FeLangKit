@@ -20,6 +20,21 @@ public indirect enum Expression: Equatable, Codable, Sendable {
 
     // Collection expressions
     case arrayLiteral([Expression])
+
+    // Lambda / Object / Callable reference expressions
+    case lambdaLiteral([Parameter], DataType?, Expression)
+    case objectLiteral([ObjectLiteralField])
+    case callableRef(String)
+}
+
+public struct ObjectLiteralField: Equatable, Codable, Sendable {
+    public let name: String
+    public let value: Expression
+
+    public init(name: String, value: Expression) {
+        self.name = name
+        self.value = value
+    }
 }
 
 /// Represents literal values in FE pseudo-language.

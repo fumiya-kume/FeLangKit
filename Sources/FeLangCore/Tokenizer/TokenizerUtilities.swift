@@ -30,6 +30,8 @@ public enum TokenizerUtilities {
         ("elseif", .elseifKeyword),
         ("return", .returnKeyword),
         ("endfor", .endforKeyword),
+        ("lambda", .lambdaKeyword),
+        ("object", .objectKeyword),
 
         // 5 characters
         ("class", .classKeyword),
@@ -110,7 +112,8 @@ public enum TokenizerUtilities {
         ("∨", .bitwiseOr),
         // NOTE: If multi-character operators starting with "!" (e.g., "!=") are added,
         // they must appear before this single-character "!" entry to preserve longest-match behavior.
-        ("!", .notKeyword)
+        ("!", .notKeyword),
+        ("::", .doubleColon)
     ]
 
     /// Delimiter definitions with their token types

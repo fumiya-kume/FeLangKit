@@ -16,7 +16,10 @@ struct VisitableTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         let expr = Expression.literal(.integer(42))
@@ -79,7 +82,10 @@ struct VisitableTests {
             visitFieldAccess: { _, field in "field_access(\(field))" },
             visitFunctionCall: { function, _ in "function_call(\(function))" },
             visitMethodCall: { _, method, _ in "method_call(\(method))" },
-            visitArrayLiteral: { elements in "array_literal(\(elements.count))" }
+            visitArrayLiteral: { elements in "array_literal(\(elements.count))" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         // Test all expression types with convenience method
@@ -179,7 +185,10 @@ struct VisitableTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         let stmtVisitor = StatementVisitor<String>(
@@ -223,7 +232,10 @@ struct VisitableTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         let stmtVisitor = StatementVisitor<String>(
@@ -268,7 +280,10 @@ struct VisitableTests {
             visitFieldAccess: { _, _ in "field_access" },
             visitFunctionCall: { _, _ in "function_call" },
             visitMethodCall: { _, _, _ in "method_call" },
-            visitArrayLiteral: { _ in "array_literal" }
+            visitArrayLiteral: { _ in "array_literal" },
+            visitLambdaLiteral: { _, _, _ in "lambda_literal" },
+            visitObjectLiteral: { _ in "object_literal" },
+            visitCallableRef: { _ in "callable_ref" }
         )
 
         let stmtVisitor = StatementVisitor<String>(

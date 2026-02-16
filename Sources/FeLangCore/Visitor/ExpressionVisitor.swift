@@ -80,6 +80,15 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
     /// - Parameter elements: The array elements
     public let visitArrayLiteral: @Sendable ([Expression]) -> Result
 
+    /// Visits lambda literal expressions.
+    public let visitLambdaLiteral: @Sendable ([Parameter], DataType?, Expression) -> Result
+
+    /// Visits object literal expressions.
+    public let visitObjectLiteral: @Sendable ([ObjectLiteralField]) -> Result
+
+    /// Visits callable reference expressions.
+    public let visitCallableRef: @Sendable (String) -> Result
+
     // MARK: - Initialization
 
     /// Creates a new expression visitor with the specified visit closures.
@@ -92,7 +101,10 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
         visitFieldAccess: @escaping @Sendable (Expression, String) -> Result,
         visitFunctionCall: @escaping @Sendable (String, [Expression]) -> Result,
         visitMethodCall: @escaping @Sendable (Expression, String, [Expression]) -> Result,
-        visitArrayLiteral: @escaping @Sendable ([Expression]) -> Result
+        visitArrayLiteral: @escaping @Sendable ([Expression]) -> Result,
+        visitLambdaLiteral: @escaping @Sendable ([Parameter], DataType?, Expression) -> Result,
+        visitObjectLiteral: @escaping @Sendable ([ObjectLiteralField]) -> Result,
+        visitCallableRef: @escaping @Sendable (String) -> Result
     ) {
         self.visitLiteral = visitLiteral
         self.visitIdentifier = visitIdentifier
@@ -103,6 +115,9 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
         self.visitFunctionCall = visitFunctionCall
         self.visitMethodCall = visitMethodCall
         self.visitArrayLiteral = visitArrayLiteral
+        self.visitLambdaLiteral = visitLambdaLiteral
+        self.visitObjectLiteral = visitObjectLiteral
+        self.visitCallableRef = visitCallableRef
     }
 
     // MARK: - Visit Method
@@ -130,6 +145,12 @@ public struct ExpressionVisitor<Result>: Sendable where Result: Sendable {
             return visitMethodCall(receiver, method, arguments)
         case .arrayLiteral(let elements):
             return visitArrayLiteral(elements)
+        case .lambdaLiteral(let params, let returnType, let body):
+            return visitLambdaLiteral(params, returnType, body)
+        case .objectLiteral(let fields):
+            return visitObjectLiteral(fields)
+        case .callableRef(let name):
+            return visitCallableRef(name)
         }
     }
 }

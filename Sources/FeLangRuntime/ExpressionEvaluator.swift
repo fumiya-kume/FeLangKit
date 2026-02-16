@@ -78,7 +78,43 @@ public struct ExpressionEvaluator: Sendable {
 
         case .arrayLiteral(let elements):
             return try evaluateArrayLiteral(elements)
+
+        case .lambdaLiteral(let params, let returnType, let body):
+            return evaluateLambdaLiteral(params, returnType: returnType, body: body)
+
+        case .objectLiteral(let fields):
+            return try evaluateObjectLiteral(fields)
+
+        case .callableRef(let name):
+            return try evaluateCallableRef(name)
         }
+    }
+
+    private func evaluateLambdaLiteral(_ params: [Parameter], returnType: DataType?, body: FEExpression) -> RuntimeValue {
+        let paramNames = params.map { $0.name }
+        let paramTypes = params.map { $0.type }
+        let captured = environment.captureEnvironmentWithConstants()
+        let bodyStatement = Statement.returnStatement(ReturnStatement(expression: body))
+        return .function(FunctionValue(
+            name: "<lambda>",
+            parameters: paramNames,
+            parameterTypes: paramTypes,
+            body: [bodyStatement],
+            captured: captured,
+            returnType: returnType
+        ))
+    }
+
+    private func evaluateObjectLiteral(_ fields: [ObjectLiteralField]) throws -> RuntimeValue {
+        var dict: [String: RuntimeValue] = [:]
+        for field in fields {
+            dict[field.name] = try evaluate(field.value)
+        }
+        return .record(dict)
+    }
+
+    private func evaluateCallableRef(_ name: String) throws -> RuntimeValue {
+        return try environment.get(name)
     }
 
     private func evaluateArrayLiteral(_ elements: [FEExpression]) throws -> RuntimeValue {

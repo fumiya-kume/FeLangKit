@@ -158,7 +158,37 @@ public struct PrettyPrinter {
 
         case .arrayLiteral(let elements):
             return printArrayLiteral(elements: elements, indent: indent)
+
+        case .lambdaLiteral(let params, let returnType, let body):
+            return printLambdaLiteral(params: params, returnType: returnType, body: body, indent: indent)
+
+        case .objectLiteral(let fields):
+            return printObjectLiteral(fields: fields, indent: indent)
+
+        case .callableRef(let name):
+            return "::\(name)"
         }
+    }
+
+    private func printLambdaLiteral(params: [Parameter], returnType: DataType?, body: Expression, indent: Int) -> String {
+        var result = "lambda"
+        if !params.isEmpty {
+            let paramStrings = params.map { "\($0.name): \(printDataType($0.type))" }
+            result += "(\(paramStrings.joined(separator: ", ")))"
+        }
+        if let retType = returnType {
+            result += ": \(printDataType(retType))"
+        }
+        result += " { \(printExpression(body, indent: indent)) }"
+        return result
+    }
+
+    private func printObjectLiteral(fields: [ObjectLiteralField], indent: Int) -> String {
+        if fields.isEmpty {
+            return "object {}"
+        }
+        let fieldStrings = fields.map { "\($0.name) \u{2190} \(printExpression($0.value, indent: indent))" }
+        return "object { \(fieldStrings.joined(separator: ", ")) }"
     }
 
     /// Prints a function call with optional line wrapping.
