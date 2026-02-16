@@ -56,7 +56,10 @@ public struct StandardLibrary: Sendable {
             "arrayLength": stdArrayLength,
             "append": stdAppend,
             "prepend": stdPrepend,
-            "concat_arrays": stdConcatArrays
+            "concat_arrays": stdConcatArrays,
+
+            // Boxing/ABI Functions
+            "kk_println_any": stdKkPrintlnAny
         ]
     }
 
@@ -429,5 +432,29 @@ public struct StandardLibrary: Sendable {
             result.append(contentsOf: arr)
         }
         return .array(result)
+    }
+
+    // MARK: - Boxing/ABI Functions
+
+    private func stdKkPrintlnAny(_ args: [RuntimeValue]) throws -> RuntimeValue {
+        guard let value = args.first else {
+            throw RuntimeError.wrongArgumentCount(function: "kk_println_any", expected: 1, actual: 0)
+        }
+        let output = formatAnyValue(value)
+        printHandler(output + "\n")
+        return .null
+    }
+
+    private func formatAnyValue(_ value: RuntimeValue) -> String {
+        switch value {
+        case .boxed(let tag, let inner):
+            return "Any(tag=\(tag), \(formatAnyValue(inner)))"
+        case .null:
+            return "null"
+        case .undefined:
+            return "未定義"
+        default:
+            return value.toString()
+        }
     }
 }

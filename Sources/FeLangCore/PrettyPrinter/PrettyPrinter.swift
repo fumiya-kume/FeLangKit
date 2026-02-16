@@ -500,6 +500,10 @@ public struct PrettyPrinter {
             return "配列[\(printDataType(elementType))]"
         case .record(let name):
             return "レコード \(name)"
+        case .nullable(let inner):
+            return "\(printDataType(inner))?"
+        case .any:
+            return "Any"
         }
     }
 

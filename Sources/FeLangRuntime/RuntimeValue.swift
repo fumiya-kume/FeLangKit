@@ -39,6 +39,9 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
     /// Represents nil/null/void
     case null
 
+    /// A boxed value with type tag for ABI boundary crossing
+    indirect case boxed(typeTag: Int, value: RuntimeValue)
+
     /// Represents an undefined value (未定義)
     case undefined
 
@@ -58,6 +61,7 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
         case .procedure: return "Procedure"
         case .classDefinition(let classDef): return "Class<\(classDef.name)>"
         case .instance(let inst): return inst.className
+        case .boxed(_, let inner): return "Boxed<\(inner.typeName)>"
         case .null: return "Null"
         case .undefined: return "Undefined"
         }
@@ -70,6 +74,8 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
             return value
         case .integer(let value):
             return value != 0
+        case .boxed(_, let inner):
+            return inner.isTruthy
         case .null, .undefined:
             return false
         default:
@@ -90,6 +96,8 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
             return Int(value)
         case .boolean(let value):
             return value ? 1 : 0
+        case .boxed(_, let inner):
+            return inner.toInteger()
         default:
             return nil
         }
@@ -104,6 +112,8 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
             return value
         case .string(let value):
             return Double(value)
+        case .boxed(_, let inner):
+            return inner.toReal()
         default:
             return nil
         }
@@ -137,6 +147,8 @@ public enum RuntimeValue: Equatable, Sendable, CustomStringConvertible {
         case .instance(let inst):
             let fieldStrings = inst.fields.map { "\($0.key): \($0.value.toString())" }
             return "\(inst.className){\(fieldStrings.joined(separator: ", "))}"
+        case .boxed(let tag, let inner):
+            return "boxed(tag=\(tag), \(inner.toString()))"
         case .null:
             return "null"
         case .undefined:
