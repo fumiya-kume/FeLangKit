@@ -139,10 +139,7 @@ public func kk_value_get_string(
 ) -> UnsafePointer<CChar> {
     let box = borrowedBox(val)
     return box.stringPayload.withCString { ptr in
-        let len = strlen(ptr) + 1
-        let buf = UnsafeMutablePointer<CChar>.allocate(capacity: len)
-        buf.initialize(from: ptr, count: len)
-        return UnsafePointer(buf)
+        return UnsafePointer(strdup(ptr)!)
     }
 }
 
@@ -170,10 +167,7 @@ public func kk_println(_ str: UnsafePointer<CChar>) {
 public func kk_input() -> UnsafePointer<CChar>? {
     guard let line = readLine() else { return nil }
     return line.withCString { ptr in
-        let len = strlen(ptr) + 1
-        let buf = UnsafeMutablePointer<CChar>.allocate(capacity: len)
-        buf.initialize(from: ptr, count: len)
-        return UnsafePointer(buf)
+        return UnsafePointer(strdup(ptr)!)
     }
 }
 
@@ -339,7 +333,7 @@ private func runtimeValueToBoxedPointer(_ value: RuntimeValue) -> UnsafeMutableR
         let box = BoxedValue(tag: .array)
         box.arrayPayload = arrayElements.map { element -> BoxedValue in
             let ptr = runtimeValueToBoxedPointer(element)
-            let child = borrowedBox(ptr)
+            let child = Unmanaged<BoxedValue>.fromOpaque(ptr).takeRetainedValue()
             return child
         }
         return retainedPointer(box)

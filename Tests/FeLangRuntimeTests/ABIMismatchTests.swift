@@ -227,9 +227,11 @@ final class ABIMismatchTests: XCTestCase {
             withExtension: "h"
         )
         guard let url = canonicalURL else {
+            XCTFail("Canonical header resource 'felang_runtime_abi.h' not found in test bundle")
             return
         }
         guard let canonical = try? String(contentsOf: url, encoding: .utf8) else {
+            XCTFail("Failed to read canonical header at \(url)")
             return
         }
         XCTAssertEqual(

@@ -217,7 +217,7 @@ public enum RuntimeABISpec {
             parameters: [
                 ABIParameterSpec(name: "val", type: .opaquePointer)
             ],
-            description: "Extract null-terminated UTF-8 string pointer. Undefined behaviour if tag != 3."
+            description: "Extract null-terminated UTF-8 string. Caller must free() the returned pointer. Undefined behaviour if tag != 3."
         ),
         ABIFunctionSpec(
             name: "kk_value_get_string_len",
@@ -252,7 +252,7 @@ public enum RuntimeABISpec {
             name: "kk_input",
             returnType: .nullableCString,
             parameters: [],
-            description: "Read a line from stdin. Returns NULL on EOF."
+            description: "Read a line from stdin. Returns NULL on EOF. Caller must free() the returned pointer."
         )
     ]
 

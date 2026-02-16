@@ -65,7 +65,7 @@ double kk_value_get_real(void * val);
 /** Extract boolean payload. Undefined behaviour if tag != 2. */
 bool kk_value_get_boolean(void * val);
 
-/** Extract null-terminated UTF-8 string pointer. Undefined behaviour if tag != 3. */
+/** Extract null-terminated UTF-8 string. Caller must free() the returned pointer. Undefined behaviour if tag != 3. */
 const char * kk_value_get_string(void * val);
 
 /** Return byte length of string payload. Undefined behaviour if tag != 3. */
@@ -79,7 +79,7 @@ void kk_print(const char * str);
 /** Print a null-terminated string to stdout followed by a newline. */
 void kk_println(const char * str);
 
-/** Read a line from stdin. Returns NULL on EOF. */
+/** Read a line from stdin. Returns NULL on EOF. Caller must free() the returned pointer. */
 const char * _Nullable kk_input(void);
 
 /* --- Array --- */
