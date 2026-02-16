@@ -56,10 +56,10 @@ public struct ABILowering: Sendable {
 
     public static func needsBoxing(source: FeType, target: FeType) -> Bool {
         switch (source, target) {
+        case (_, .any):
+            return source != .any
         case (.nullable, _), (_, .nullable):
             return !source.isNullable && target.isNullable
-        case (_, .any):
-            return true
         default:
             return false
         }

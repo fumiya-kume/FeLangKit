@@ -42,6 +42,15 @@ final class ABILoweringTests: XCTestCase {
         XCTAssertTrue(ABILowering.needsBoxing(source: .string, target: .nullable(.string)))
     }
 
+    func testNeedsBoxingNullableToAny() {
+        XCTAssertTrue(ABILowering.needsBoxing(source: .nullable(.integer), target: .any))
+        XCTAssertTrue(ABILowering.needsBoxing(source: .nullable(.string), target: .any))
+    }
+
+    func testNoBoxingAnyToAny() {
+        XCTAssertFalse(ABILowering.needsBoxing(source: .any, target: .any))
+    }
+
     func testNoBoxingSameType() {
         XCTAssertFalse(ABILowering.needsBoxing(source: .integer, target: .integer))
         XCTAssertFalse(ABILowering.needsBoxing(source: .string, target: .string))
