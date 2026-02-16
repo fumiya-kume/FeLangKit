@@ -217,6 +217,8 @@ public indirect enum DataType: Equatable, Codable, Sendable {
     case boolean
     case array(DataType)
     case record(String) // record type name
+    case nullable(DataType)
+    case any
 
     public init?(tokenType: TokenType) {
         switch tokenType {

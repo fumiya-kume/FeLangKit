@@ -56,6 +56,8 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
     case array(elementType: FeType, dimensions: [Int])
     case record(name: String, fields: [String: FeType])
     case function(parameters: [FeType], returnType: FeType?)
+    case nullable(FeType)
+    case any
     case void
     case unknown
     case error // Used for error recovery
@@ -84,6 +86,10 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
             } else {
                 return "procedure(\(paramStr))"
             }
+        case .nullable(let inner):
+            return "\(inner)?"
+        case .any:
+            return "Any"
         case .void:
             return "void"
         case .unknown:
@@ -97,16 +103,24 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
     public func isCompatible(with other: FeType) -> Bool {
         switch (self, other) {
         case (.error, _), (_, .error):
-            return true // Error type is compatible with everything for recovery
+            return true
         case (.unknown, _), (_, .unknown):
-            return true // Unknown type is compatible during inference
+            return true
+        case (.any, _), (_, .any):
+            return true
         case (.integer, .integer), (.real, .real), (.string, .string),
              (.character, .character), (.boolean, .boolean), (.void, .void):
             return true
         case (.integer, .real), (.real, .integer):
-            return true // Numeric types are compatible
+            return true
         case (.character, .string):
-            return true // Character can be assigned to string
+            return true
+        case (.nullable(let inner1), .nullable(let inner2)):
+            return inner1.isCompatible(with: inner2)
+        case (_, .nullable(let inner)):
+            return self.isCompatible(with: inner)
+        case (.nullable(let inner), _):
+            return inner.isCompatible(with: other)
         case (.array(let elementType1, let dimensions1), .array(let elementType2, let dimensions2)):
             return elementType1.isCompatible(with: elementType2) && dimensions1 == dimensions2
         case (.record(let name1, let fields1), .record(let name2, let fields2)):
@@ -124,18 +138,45 @@ public indirect enum FeType: Equatable, Sendable, CustomStringConvertible {
     public func canAssignTo(_ target: FeType) -> Bool {
         switch (self, target) {
         case (.error, _), (_, .error):
-            return true // Error type for recovery
+            return true
         case (.unknown, _), (_, .unknown):
-            return true // Unknown type during inference
+            return true
+        case (_, .any):
+            return true
+        case (.any, .nullable):
+            return true
+        case (_, .nullable(let inner)):
+            return self.canAssignTo(inner)
+        case (.nullable(let inner), _):
+            return inner.canAssignTo(target)
         case (.integer, .real):
-            return true // Implicit integer to real conversion
+            return true
         case (.character, .string):
-            return true // Implicit character to string conversion
+            return true
         case (.array(let srcElement, let srcDims), .array(let targetElement, let targetDims)):
-            // Arrays must have compatible element types and same dimensions
             return srcElement.canAssignTo(targetElement) && srcDims == targetDims
         default:
             return self.isCompatible(with: target)
+        }
+    }
+
+    public var isNullable: Bool {
+        switch self {
+        case .nullable:
+            return true
+        case .any:
+            return true
+        default:
+            return false
+        }
+    }
+
+    public var unwrappedType: FeType {
+        switch self {
+        case .nullable(let inner):
+            return inner
+        default:
+            return self
         }
     }
 

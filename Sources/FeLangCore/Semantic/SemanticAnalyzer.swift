@@ -1398,6 +1398,10 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             return .array(elementType: feElementType, dimensions: [])
         case .record(let name):
             return .record(name: name, fields: [:])
+        case .nullable(let inner):
+            return .nullable(convertDataTypeToFeType(inner))
+        case .any:
+            return .any
         }
     }
 

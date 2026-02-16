@@ -1079,6 +1079,10 @@ public final class StatementExecutor: @unchecked Sendable {
             return .array([])
         case .record:
             return .record([:])
+        case .nullable:
+            return .null
+        case .any:
+            return .null
         }
     }
 
@@ -1098,7 +1102,7 @@ public final class StatementExecutor: @unchecked Sendable {
         case .record:
             // Record type name cannot be inferred from runtime value
             return nil
-        case .function, .procedure, .null, .classDefinition, .instance, .undefined:
+        case .function, .procedure, .null, .classDefinition, .instance, .undefined, .boxed:
             return nil
         }
     }
@@ -1107,14 +1111,19 @@ public final class StatementExecutor: @unchecked Sendable {
         let matches: Bool
         switch (expected, value) {
         case (_, .undefined):
-            // Undefined is compatible with any type (matches semantic analyzer behavior)
             matches = true
+        case (.nullable, .null):
+            matches = true
+        case (.any, _):
+            matches = true
+        case (.nullable(let inner), _):
+            try validateType(value, expected: inner, context: context)
+            return
         case (.integer, .integer):
             matches = true
         case (.real, .real):
             matches = true
         case (.real, .integer):
-            // Integer can be promoted to real
             matches = true
         case (.string, .string):
             matches = true
@@ -1180,12 +1189,17 @@ public final class StatementExecutor: @unchecked Sendable {
     /// This method handles recursive array type checking.
     private func typesMatch(_ actual: DataType, expected: DataType) -> Bool {
         switch (expected, actual) {
+        case (.any, _):
+            return true
+        case (.nullable(let inner), _):
+            return typesMatch(actual, expected: inner)
+        case (_, .nullable(let inner)):
+            return typesMatch(inner, expected: expected)
         case (.integer, .integer):
             return true
         case (.real, .real):
             return true
         case (.real, .integer):
-            // Integer can be promoted to real
             return true
         case (.string, .string):
             return true
@@ -1194,7 +1208,6 @@ public final class StatementExecutor: @unchecked Sendable {
         case (.boolean, .boolean):
             return true
         case (.array(let expectedElem), .array(let actualElem)):
-            // Recursively check element types
             return typesMatch(actualElem, expected: expectedElem)
         case (.record(let expectedName), .record(let actualName)):
             return expectedName == actualName
