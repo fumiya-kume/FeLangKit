@@ -16,7 +16,6 @@ private final class BoxedValue {
     var booleanPayload: Bool = false
     var stringPayload: String = ""
     var arrayPayload: [BoxedValue] = []
-    var refCount: Int = 1
 
     init(tag: ValueTag) {
         self.tag = tag
@@ -60,17 +59,12 @@ public func kk_free(_ ptr: UnsafeMutableRawPointer?) {
 
 @_cdecl("kk_retain")
 public func kk_retain(_ obj: UnsafeMutableRawPointer) {
-    let box = borrowedBox(obj)
-    box.refCount += 1
+    Unmanaged<BoxedValue>.fromOpaque(obj).retain()
 }
 
 @_cdecl("kk_release")
 public func kk_release(_ obj: UnsafeMutableRawPointer) {
-    let box = borrowedBox(obj)
-    box.refCount -= 1
-    if box.refCount <= 0 {
-        Unmanaged<BoxedValue>.fromOpaque(obj).release()
-    }
+    Unmanaged<BoxedValue>.fromOpaque(obj).release()
 }
 
 // MARK: - J16.1.2 Value Creation
@@ -206,8 +200,7 @@ public func kk_array_get(
     let box = borrowedBox(arr)
     precondition(index >= 0 && Int(index) < box.arrayPayload.count, "kk_array_get: index out of bounds")
     let element = box.arrayPayload[Int(index)]
-    element.refCount += 1
-    return Unmanaged.passUnretained(element).toOpaque()
+    return Unmanaged.passRetained(element).toOpaque()
 }
 
 @_cdecl("kk_array_set")
