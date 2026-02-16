@@ -20,6 +20,12 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "FeLangCABI",
+            dependencies: [],
+            path: "Sources/FeLangCABI",
+            publicHeadersPath: "include"
+        ),
+        .target(
             name: "FeLangCore",
             dependencies: [
                 .product(name: "Parsing", package: "swift-parsing")
@@ -41,7 +47,8 @@ let package = Package(
         .target(
             name: "FeLangRuntime",
             dependencies: [
-                "FeLangCore"
+                "FeLangCore",
+                "FeLangCABI"
             ]
         ),
         .target(
@@ -78,6 +85,9 @@ let package = Package(
             name: "FeLangRuntimeTests",
             dependencies: [
                 "FeLangRuntime"
+            ],
+            resources: [
+                .copy("Resources")
             ]
         ),
         .testTarget(
