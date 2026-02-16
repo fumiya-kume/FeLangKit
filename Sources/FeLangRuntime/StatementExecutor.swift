@@ -1015,6 +1015,7 @@ public final class StatementExecutor: @unchecked Sendable {
         return ClassDefinition(
             name: classDef.name,
             superclassName: classDef.superclassName,
+            interfaces: classDef.interfaces,
             members: mergedMembers,
             constructorParameters: classDef.constructorParameters,
             constructorParameterTypes: classDef.constructorParameterTypes,
@@ -1250,8 +1251,7 @@ public final class StatementExecutor: @unchecked Sendable {
             if superName == className {
                 return true
             }
-            if let superDef = try? environment.get(superName),
-               case .classDefinition(let superClass) = superDef {
+            if let superClass = environment.lookupClassDefinition(superName) {
                 current = superClass.superclassName
             } else {
                 break
