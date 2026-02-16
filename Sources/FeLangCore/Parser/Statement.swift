@@ -23,6 +23,9 @@ public indirect enum Statement: Equatable, Codable, Sendable {
     // Class
     case classDeclaration(ClassDeclaration)
 
+    // Interface
+    case interfaceDeclaration(InterfaceDeclaration)
+
     // Other
     case expressionStatement(Expression)
     case breakStatement
@@ -339,6 +342,7 @@ public struct RecordDeclaration: Equatable, Codable, Sendable {
 public struct ClassDeclaration: Equatable, Codable, Sendable {
     public let name: String
     public let superclass: String?
+    public let interfaces: [String]
     public let members: [MemberDeclaration]
     public let constructor: ConstructorDeclaration?
     public let methods: [MethodDeclaration]
@@ -347,6 +351,7 @@ public struct ClassDeclaration: Equatable, Codable, Sendable {
     public init(
         name: String,
         superclass: String? = nil,
+        interfaces: [String] = [],
         members: [MemberDeclaration] = [],
         constructor: ConstructorDeclaration? = nil,
         methods: [MethodDeclaration] = [],
@@ -354,8 +359,43 @@ public struct ClassDeclaration: Equatable, Codable, Sendable {
     ) {
         self.name = name
         self.superclass = superclass
+        self.interfaces = interfaces
         self.members = members
         self.constructor = constructor
+        self.methods = methods
+        self.position = position
+    }
+}
+
+/// Represents a method signature in an interface (no body).
+public struct MethodSignature: Equatable, Codable, Sendable {
+    public let name: String
+    public let parameters: [Parameter]
+    public let returnType: DataType?
+
+    public init(
+        name: String,
+        parameters: [Parameter],
+        returnType: DataType? = nil
+    ) {
+        self.name = name
+        self.parameters = parameters
+        self.returnType = returnType
+    }
+}
+
+/// Represents an interface declaration with method signatures.
+public struct InterfaceDeclaration: Equatable, Codable, Sendable {
+    public let name: String
+    public let methods: [MethodSignature]
+    public let position: SourcePosition?
+
+    public init(
+        name: String,
+        methods: [MethodSignature] = [],
+        position: SourcePosition? = nil
+    ) {
+        self.name = name
         self.methods = methods
         self.position = position
     }
@@ -389,16 +429,19 @@ public struct MethodDeclaration: Equatable, Codable, Sendable {
     public let parameters: [Parameter]
     public let returnType: DataType?
     public let body: [Statement]
+    public let isOverride: Bool
 
     public init(
         name: String,
         parameters: [Parameter],
         returnType: DataType? = nil,
-        body: [Statement]
+        body: [Statement],
+        isOverride: Bool = false
     ) {
         self.name = name
         self.parameters = parameters
         self.returnType = returnType
         self.body = body
+        self.isOverride = isOverride
     }
 }

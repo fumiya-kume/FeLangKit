@@ -145,6 +145,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
         case .classDeclaration:
             // Class declarations are handled at type level, not symbol level
             break
+        case .interfaceDeclaration:
+            // Interface declarations are handled at type level, not symbol level
+            break
         case .globalDeclaration(let decl):
             collectSymbolsFromGlobalDeclaration(decl)
         case .assignment, .expressionStatement, .returnStatement, .breakStatement, .continueStatement:
@@ -461,6 +464,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             break
         case .classDeclaration:
             // Class type declarations don't need type checking here
+            break
+        case .interfaceDeclaration:
+            // Interface type declarations don't need type checking here
             break
         case .globalDeclaration(let decl):
             typeCheckGlobalDeclaration(decl)
@@ -1170,6 +1176,9 @@ public final class SemanticAnalyzer: @unchecked Sendable {
             break
         case .classDeclaration:
             // Class declarations are validated separately
+            break
+        case .interfaceDeclaration:
+            // Interface declarations are validated separately
             break
         case .variableDeclaration, .constantDeclaration, .globalDeclaration, .assignment, .expressionStatement:
             // These are validated in type checking pass

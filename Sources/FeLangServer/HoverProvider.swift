@@ -42,6 +42,12 @@ public struct HoverProvider: Sendable {
         "class": "**class** - Class declaration\n\nDeclares a class with member variables and constructor.\n\n```fe\nclass ClassName\n    member1: Type1\n    member2: Type2\n    ClassName(param: Type)\n        self.member1 ← param\nendclass\n```",
         "endclass": "**endclass** - End class\n\nMarks the end of a class declaration.",
 
+        // Interfaces
+        "interface": "**interface** - Interface declaration\n\nDeclares an interface with method signatures.\n\n```fe\ninterface Drawable\n    function draw(): 整数型\nendinterface\n```",
+        "endinterface": "**endinterface** - End interface\n\nMarks the end of an interface declaration.",
+        "implements": "**implements** - Implements clause\n\nSpecifies interfaces a class implements.\n\n```fe\nclass Circle implements Drawable\n    ...\nendclass\n```",
+        "override": "**override** - Override method\n\nMarks a method as overriding a superclass method.",
+
         // Logical
         "and": "**and** - Logical AND\n\nReturns true if both operands are true.",
         "or": "**or** - Logical OR\n\nReturns true if either operand is true.",

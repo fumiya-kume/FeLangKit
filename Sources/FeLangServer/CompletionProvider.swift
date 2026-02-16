@@ -42,6 +42,12 @@ public struct CompletionProvider: Sendable {
         CompletionItem(label: "class", kind: .keyword, detail: "Class declaration", insertText: "class "),
         CompletionItem(label: "endclass", kind: .keyword, detail: "End class"),
 
+        // Interfaces
+        CompletionItem(label: "interface", kind: .keyword, detail: "Interface declaration", insertText: "interface "),
+        CompletionItem(label: "endinterface", kind: .keyword, detail: "End interface"),
+        CompletionItem(label: "implements", kind: .keyword, detail: "Implements clause"),
+        CompletionItem(label: "override", kind: .keyword, detail: "Override method"),
+
         // Logical operators
         CompletionItem(label: "and", kind: .keyword, detail: "Logical AND"),
         CompletionItem(label: "or", kind: .keyword, detail: "Logical OR"),
@@ -293,6 +299,7 @@ public struct CompletionProvider: Sendable {
             "for", "to", "まで", "step", "ずつ", "endfor", "in",
             "function", "endfunction", "procedure", "endprocedure",
             "class", "endclass",
+            "interface", "endinterface", "implements", "override",
             "return", "break", "continue",
             "and", "or", "not", "mod", "true", "false",
             "integer", "real", "string", "character", "boolean", "array",

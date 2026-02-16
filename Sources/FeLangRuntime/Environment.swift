@@ -92,6 +92,15 @@ public final class Environment: @unchecked Sendable {
     /// Class definitions (similar to record definitions, globally scoped).
     private var classDefinitions: [String: ClassDefinition] = [:]
 
+    /// VTable definitions for each class (globally scoped).
+    private var vtables: [String: VTable] = [:]
+
+    /// ITable definitions keyed by (className, interfaceName) (globally scoped).
+    private var itables: [String: [String: ITable]] = [:]
+
+    /// Interface definitions (globally scoped).
+    private var interfaceDefinitions: [String: InterfaceDefinition] = [:]
+
     // MARK: - Cache Management
 
     /// Invalidates the cached environment snapshot.
@@ -528,5 +537,38 @@ public final class Environment: @unchecked Sendable {
     /// - Returns: The class definition if found, nil otherwise
     public func lookupClassDefinition(_ name: String) -> ClassDefinition? {
         return classDefinitions[name]
+    }
+
+    // MARK: - VTable Definitions
+
+    public func defineVTable(_ name: String, vtable: VTable) {
+        vtables[name] = vtable
+    }
+
+    public func lookupVTable(_ name: String) -> VTable? {
+        return vtables[name]
+    }
+
+    // MARK: - ITable Definitions
+
+    public func defineITable(className: String, interfaceName: String, itable: ITable) {
+        if itables[className] == nil {
+            itables[className] = [:]
+        }
+        itables[className]?[interfaceName] = itable
+    }
+
+    public func lookupITable(className: String, interfaceName: String) -> ITable? {
+        return itables[className]?[interfaceName]
+    }
+
+    // MARK: - Interface Definitions
+
+    public func defineInterface(_ name: String, definition: InterfaceDefinition) {
+        interfaceDefinitions[name] = definition
+    }
+
+    public func lookupInterfaceDefinition(_ name: String) -> InterfaceDefinition? {
+        return interfaceDefinitions[name]
     }
 }

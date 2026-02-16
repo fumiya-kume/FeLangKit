@@ -55,6 +55,12 @@ public enum TokenType: String, CaseIterable, Equatable, Codable, Sendable {
     case classKeyword = "class"
     case endclassKeyword = "endclass"
 
+    /// Interface keywords
+    case interfaceKeyword = "interface"
+    case endinterfaceKeyword = "endinterface"
+    case implementsKeyword = "implements"
+    case overrideKeyword = "override"
+
     /// Undefined keyword
     case undefinedKeyword = "未定義"
 
@@ -126,7 +132,9 @@ extension TokenType {
              .functionKeyword, .endfunctionKeyword, .procedureKeyword, .endprocedureKeyword,
              .andKeyword, .orKeyword, .notKeyword, .modKeyword, .returnKeyword, .breakKeyword, .continueKeyword,
              .trueKeyword, .falseKeyword, .variableKeyword, .constantKeyword, .globalKeyword,
-             .classKeyword, .endclassKeyword, .undefinedKeyword:
+             .classKeyword, .endclassKeyword,
+             .interfaceKeyword, .endinterfaceKeyword, .implementsKeyword, .overrideKeyword,
+             .undefinedKeyword:
             return true
         default:
             return false

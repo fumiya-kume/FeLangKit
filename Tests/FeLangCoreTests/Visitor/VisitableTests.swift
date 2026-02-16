@@ -46,6 +46,7 @@ struct VisitableTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record" },
             visitClassDeclaration: { _ in "class" },
+            visitInterfaceDeclaration: { _ in "interface" },
             visitGlobalDeclaration: { _ in "global" }
         )
 
@@ -121,6 +122,7 @@ struct VisitableTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record" },
             visitClassDeclaration: { _ in "class" },
+            visitInterfaceDeclaration: { _ in "interface" },
             visitGlobalDeclaration: { _ in "global" }
         )
 
@@ -199,6 +201,7 @@ struct VisitableTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record" },
             visitClassDeclaration: { _ in "class" },
+            visitInterfaceDeclaration: { _ in "interface" },
             visitGlobalDeclaration: { _ in "global" }
         )
 
@@ -243,6 +246,7 @@ struct VisitableTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record" },
             visitClassDeclaration: { _ in "class" },
+            visitInterfaceDeclaration: { _ in "interface" },
             visitGlobalDeclaration: { _ in "global" }
         )
 
@@ -288,6 +292,7 @@ struct VisitableTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record" },
             visitClassDeclaration: { _ in "class" },
+            visitInterfaceDeclaration: { _ in "interface" },
             visitGlobalDeclaration: { _ in "global" }
         )
 

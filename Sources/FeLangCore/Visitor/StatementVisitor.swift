@@ -74,6 +74,9 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
     /// Visits class declarations.
     public let visitClassDeclaration: @Sendable (ClassDeclaration) -> Result
 
+    /// Visits interface declarations.
+    public let visitInterfaceDeclaration: @Sendable (InterfaceDeclaration) -> Result
+
     /// Visits global declarations.
     public let visitGlobalDeclaration: @Sendable (GlobalDeclaration) -> Result
 
@@ -97,6 +100,7 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         visitBlock: @escaping @Sendable ([Statement]) -> Result,
         visitRecordDeclaration: @escaping @Sendable (RecordDeclaration) -> Result,
         visitClassDeclaration: @escaping @Sendable (ClassDeclaration) -> Result,
+        visitInterfaceDeclaration: @escaping @Sendable (InterfaceDeclaration) -> Result,
         visitGlobalDeclaration: @escaping @Sendable (GlobalDeclaration) -> Result
     ) {
         self.visitIfStatement = visitIfStatement
@@ -115,6 +119,7 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
         self.visitBlock = visitBlock
         self.visitRecordDeclaration = visitRecordDeclaration
         self.visitClassDeclaration = visitClassDeclaration
+        self.visitInterfaceDeclaration = visitInterfaceDeclaration
         self.visitGlobalDeclaration = visitGlobalDeclaration
     }
 
@@ -157,6 +162,8 @@ public struct StatementVisitor<Result>: Sendable where Result: Sendable {
             return visitRecordDeclaration(recordDecl)
         case .classDeclaration(let classDecl):
             return visitClassDeclaration(classDecl)
+        case .interfaceDeclaration(let interfaceDecl):
+            return visitInterfaceDeclaration(interfaceDecl)
         case .globalDeclaration(let globalDecl):
             return visitGlobalDeclaration(globalDecl)
         }

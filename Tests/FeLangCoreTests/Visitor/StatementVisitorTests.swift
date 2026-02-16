@@ -24,6 +24,7 @@ struct StatementVisitorTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
             visitClassDeclaration: { _ in "class_decl" },
+            visitInterfaceDeclaration: { _ in "interface_decl" },
             visitGlobalDeclaration: { _ in "global_decl" }
         )
 
@@ -56,6 +57,7 @@ struct StatementVisitorTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
             visitClassDeclaration: { _ in "class_decl" },
+            visitInterfaceDeclaration: { _ in "interface_decl" },
             visitGlobalDeclaration: { _ in "global_decl" }
         )
 
@@ -95,6 +97,7 @@ struct StatementVisitorTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
             visitClassDeclaration: { _ in "class_decl" },
+            visitInterfaceDeclaration: { _ in "interface_decl" },
             visitGlobalDeclaration: { _ in "global_decl" }
         )
 
@@ -145,6 +148,7 @@ struct StatementVisitorTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
             visitClassDeclaration: { _ in "class_decl" },
+            visitInterfaceDeclaration: { _ in "interface_decl" },
             visitGlobalDeclaration: { _ in "global_decl" }
         )
 
@@ -177,6 +181,7 @@ struct StatementVisitorTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
             visitClassDeclaration: { _ in "class_decl" },
+            visitInterfaceDeclaration: { _ in "interface_decl" },
             visitGlobalDeclaration: { _ in "global_decl" }
         )
 
@@ -234,6 +239,7 @@ struct StatementVisitorTests {
             visitBlock: { statements in "block(\(statements.count))" },
             visitRecordDeclaration: { _ in "record" },
             visitClassDeclaration: { _ in "class_decl" },
+            visitInterfaceDeclaration: { _ in "interface_decl" },
             visitGlobalDeclaration: { _ in "global_decl" }
         )
 
@@ -321,6 +327,8 @@ struct StatementVisitorTests {
                 return "record \(recordDecl.name)"
             case .classDeclaration(let classDecl):
                 return "class \(classDecl.name)"
+            case .interfaceDeclaration(let interfaceDecl):
+                return "interface \(interfaceDecl.name)"
             case .globalDeclaration(let globalDecl):
                 if let initialValue = globalDecl.initialValue {
                     return "global \(globalDecl.name): \(globalDecl.type) = \(initialValue)"
@@ -370,6 +378,7 @@ struct StatementVisitorTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
             visitClassDeclaration: { _ in "class_decl" },
+            visitInterfaceDeclaration: { _ in "interface_decl" },
             visitGlobalDeclaration: { _ in "global_decl" }
         )
 
@@ -403,6 +412,7 @@ struct StatementVisitorTests {
             visitBlock: { _ in "block" },
             visitRecordDeclaration: { _ in "record_decl" },
             visitClassDeclaration: { _ in "class_decl" },
+            visitInterfaceDeclaration: { _ in "interface_decl" },
             visitGlobalDeclaration: { _ in "global_decl" }
         )
 
@@ -440,7 +450,7 @@ struct StatementVisitorTests {
                 return 1 + body.map(countStatements).reduce(0, +)
             case .assignment, .variableDeclaration, .constantDeclaration,
                  .returnStatement, .expressionStatement, .breakStatement, .continueStatement,
-                 .recordDeclaration, .classDeclaration, .globalDeclaration:
+                 .recordDeclaration, .classDeclaration, .interfaceDeclaration, .globalDeclaration:
                 return 1
             case .functionDeclaration(let funcDecl):
                 return 1 + funcDecl.body.map(countStatements).reduce(0, +)

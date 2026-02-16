@@ -13,18 +13,24 @@ public enum TokenizerUtilities {
     public static let keywords: [(String, TokenType)] = [
         // 12 characters
         ("endprocedure", .endprocedureKeyword),
+        ("endinterface", .endinterfaceKeyword),
 
         // 11 characters  
         ("endfunction", .endfunctionKeyword),
 
+        // 10 characters
+        ("implements", .implementsKeyword),
+
         // 9 characters
         ("procedure", .procedureKeyword),
+        ("interface", .interfaceKeyword),
 
         // 8 characters
         ("endwhile", .endwhileKeyword),
         ("function", .functionKeyword),
         ("endclass", .endclassKeyword),
         ("continue", .continueKeyword),
+        ("override", .overrideKeyword),
 
         // 6 characters
         ("elseif", .elseifKeyword),

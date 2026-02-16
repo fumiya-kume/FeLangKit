@@ -318,6 +318,9 @@ public struct ClassDefinition: Equatable, Sendable {
     /// The name of the superclass (nil if no inheritance)
     public let superclassName: String?
 
+    /// Names of interfaces this class implements
+    public let interfaces: [String]
+
     /// Member variable names and their types
     public let members: [String: DataType]
 
@@ -336,6 +339,7 @@ public struct ClassDefinition: Equatable, Sendable {
     public init(
         name: String,
         superclassName: String? = nil,
+        interfaces: [String] = [],
         members: [String: DataType] = [:],
         constructorParameters: [String] = [],
         constructorParameterTypes: [DataType] = [],
@@ -344,6 +348,7 @@ public struct ClassDefinition: Equatable, Sendable {
     ) {
         self.name = name
         self.superclassName = superclassName
+        self.interfaces = interfaces
         self.members = members
         self.constructorParameters = constructorParameters
         self.constructorParameterTypes = constructorParameterTypes
