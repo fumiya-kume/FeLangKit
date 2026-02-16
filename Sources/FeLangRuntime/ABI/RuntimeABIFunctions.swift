@@ -96,7 +96,8 @@ public func kk_value_string(
     _ len: Int64
 ) -> UnsafeMutableRawPointer {
     let box = BoxedValue(tag: .string)
-    let data = Data(bytes: str, count: Int(len))
+    let safeLen = max(Int(len), 0)
+    let data = Data(bytes: str, count: safeLen)
     box.stringPayload = String(data: data, encoding: .utf8) ?? ""
     return retainedPointer(box)
 }
