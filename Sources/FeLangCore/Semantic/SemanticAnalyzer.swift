@@ -855,23 +855,23 @@ public final class SemanticAnalyzer: @unchecked Sendable {
     private func inferLambdaLiteralType(_ params: [Parameter], returnType: DataType?, body: Expression, depth: Int) -> FeType {
         let paramTypes = params.map { convertDataTypeToFeType($0.type) }
         let retType: FeType?
+        _ = symbolTable.pushScope(kind: .block)
+        for param in params {
+            let paramType = convertDataTypeToFeType(param.type)
+            let position = SourcePosition(line: 0, column: 0, offset: 0)
+            _ = symbolTable.declare(
+                name: param.name,
+                type: paramType,
+                kind: .parameter,
+                position: position,
+                isInitialized: true
+            )
+        }
+        let inferred = inferExpressionType(body, depth: depth)
+        symbolTable.popScope()
         if let returnDataType = returnType {
             retType = convertDataTypeToFeType(returnDataType)
         } else {
-            _ = symbolTable.pushScope(kind: .block)
-            for param in params {
-                let paramType = convertDataTypeToFeType(param.type)
-                let position = SourcePosition(line: 0, column: 0, offset: 0)
-                _ = symbolTable.declare(
-                    name: param.name,
-                    type: paramType,
-                    kind: .parameter,
-                    position: position,
-                    isInitialized: true
-                )
-            }
-            let inferred = inferExpressionType(body, depth: depth)
-            symbolTable.popScope()
             retType = inferred
         }
         return .function(parameters: paramTypes, returnType: retType)
